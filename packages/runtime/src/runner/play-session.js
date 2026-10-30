@@ -168,8 +168,11 @@ export async function createPlaySession({
   // A hand-written level is played as written; actors below the floor are only reported.
   const viabilityReport = Object.freeze(reportActorViabilityFloor(initialState).map((finding) => Object.freeze(finding)));
   // A level the Allocator never priced is played too, and reported (#279).
-  const pricingReport = Object.freeze(createAllocatorPersona({ clock: UNUSED_CLOCK })
-    .reportLevelPricing(simConfig).map((finding) => Object.freeze(finding)));
+  const allocator = createAllocatorPersona({ clock: UNUSED_CLOCK });
+  const pricingReport = Object.freeze(allocator.reportLevelPricing(simConfig).map((finding) => Object.freeze(finding)));
+  // The cast prices core charges this level, as the Allocator reads them, so each slot can show its cast's mana.
+  const castManaBase = allocator.castPricesFromLegacyTiers(simConfig.actionCosts ?? null)?.castManaBase;
+  const castPrices = castManaBase && typeof castManaBase === "object" ? { castManaBase } : undefined;
   const legend = playLegend(simConfig);
   const labels = playActorLabels(sourceActors, presentation);
   // The party: every playable actor, and the seated one even when it is not (a caller's choice).
@@ -715,6 +718,7 @@ export async function createPlaySession({
       labels,
       field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
         upkeepTable: typeof runtime.readAffinityUpkeepTable === "function" ? runtime.readAffinityUpkeepTable() : [],
+        castPrices,
     });
     return {
       ...built,
@@ -920,7 +924,7 @@ function lootNextTo(snapshot, player) {
  * @param {object} args.status        { tick, exited, atExit, defeated }
  * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [] }) {
+export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined }) {
   const frame = renderBoard(snapshot, { presentation, legend, playerId });
   const fogged = applyFog(frame, visible, explored);
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
@@ -961,8 +965,8 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
         equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
         equippedAffinityIntensity: { ...(player.equippedAffinityIntensity ?? {}) },
         // Core's rules, stated as data so the UI never restates them: which equipped
-        // slots can be cast and how far each reaches, and the most slots anyone holds.
-        castableAffinities: actorCastableAffinities(player),
+        // slots can be cast, how far each reaches and what one cast costs, and the most slots anyone holds.
+        castableAffinities: actorCastableAffinities(player, castPrices),
         maxAffinitySlots: MAX_AFFINITY_SLOTS,
         position: { ...player.position },
       }

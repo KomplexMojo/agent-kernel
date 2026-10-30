@@ -33,9 +33,7 @@ body.kbd #game { --controls: 0px; --side: min(calc(100vw - 16px), calc(100dvh - 
 .slot b { font-size: 13px; } .slot small { font-size: 10.5px; color: var(--dim); white-space: nowrap; } .slot em { position: absolute; right: 6px; top: 4px; font-style: normal; font-size: 10px; color: var(--accent); }
 .slot.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); } .slot.off { opacity: 0.55; }
 .slot.empty { border-style: dashed; color: var(--dim); align-items: center; padding-left: 6px; } .slot.empty::before { display: none; } .slot:disabled { opacity: 0.4; }
-.tune { height: 34px; flex: none; display: grid; grid-template-columns: 5fr 5fr 4fr; gap: 6px; }
-.tune > div { background: var(--panel); border-radius: 8px; display: flex; align-items: center; gap: 4px; padding: 0 4px 0 8px; font-size: 11px; color: var(--dim); } .tune > div span { flex: 1; } .tune b { color: var(--fg); }
-.tune > div button { width: 30px; height: 26px; padding: 0; font-size: 15px; border-radius: 6px; }
+.tune { height: 34px; flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 .tune > button { font-size: 11px; padding: 0; } .tune button:disabled { opacity: 0.35; }
 .tune.hint { display: block; background: none; color: var(--dim); font-size: 11px; text-align: center; line-height: 34px; }
 #controls { height: var(--controls); flex: none; display: flex; gap: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
