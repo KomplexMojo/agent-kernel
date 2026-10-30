@@ -24,7 +24,7 @@ import { affinitiesForSeed, createArgs, fillFocus, loadPlaytestScenarios, player
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const STATIC_DIR = join(ROOT, "packages/ui-ascii/pwa");
-export const DEFAULT_SEEDS = 12;
+export const DEFAULT_SEEDS = 10; // one seed per trait kind: the chip names the kind, so more would repeat a name
 
 /** One level's catalog row: what the picker shows, and where the level file is. */
 export function seedEntry(scenario, seed, created) {
