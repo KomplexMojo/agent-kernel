@@ -21,6 +21,12 @@ test("ANSI colour becomes inline styles and text is escaped", () => {
     '<span style="color:rgb(4,5,6);background:rgb(1,2,3)">&lt;@&gt;</span>.');
 });
 
+test("cells: true wraps every glyph so the phone board can fill square tiles", () => {
+  assert.equal(ansiToHtml("\u001b[48;2;1;2;3m\u001b[38;2;4;5;6m..\u001b[0m?", { cells: true }),
+    '<span style="color:rgb(4,5,6);background:rgb(1,2,3)">.</span>'
+    + '<span style="color:rgb(4,5,6);background:rgb(1,2,3)">.</span><span>?</span>');
+});
+
 test("the page loads, a key plays a turn, and q does not end the game", async () => {
   const { game, base, stop } = await serve();
   try {
