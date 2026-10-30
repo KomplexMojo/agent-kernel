@@ -776,7 +776,7 @@ test("z aims a push at an empty tile and Enter raises a barrier there for one tu
   assert.equal(game.state().turns, turns);
   await press(game, "\r");
   assert.equal(game.state().turns, turns + 1);
-  assert.match(game.screen(), /You raise water push 2 east of you\./);
+  assert.match(game.screen(), /You raise water push 2 east of you: 2 barriers\./);
   assert.equal(game.view().rows[1][3], game.view().legend.barrier);
 });
 

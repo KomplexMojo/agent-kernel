@@ -61,7 +61,7 @@ export interface AffinityTableRow {
   readonly trait: AffinityTrait | null;
   readonly raiseScale: number;
   readonly displaceSteps: number;
-  readonly formulas: Readonly<Record<'magnitude' | 'reach' | 'castMana' | 'upkeep', AffinityFormulaId>>;
+  readonly formulas: Readonly<Record<'magnitude' | 'reach' | 'castMana' | 'upkeep' | 'raiseWidth', AffinityFormulaId>>;
 }
 
 /** One formula per stack-driven quantity; the function named in `source` computes it. */
@@ -81,6 +81,11 @@ export const AFFINITY_FORMULAS = Object.freeze({
     formula: 'cast base × intensity² × range × (range + 1) / 2',
     source: 'rules/actor-cast.ts actorCastManaPrice',
   }),
+  one_plus_two_per_extra_stack: Object.freeze({
+    quantity: 'raised barrier line width (#566)',
+    formula: '1 + 2 × (stacks − 1) barriers, centred on the aimed tile',
+    source: 'rules/actor-cast.ts raisedBarrierWidth',
+  }),
   upkeep_table_at_range_plus_intensity: Object.freeze({
     quantity: 'upkeep (emit, draw), mana a turn',
     formula: 'upkeep table at range + intensity² (the Configurator table is 2 + n)',
@@ -93,6 +98,7 @@ const FORMULAS = Object.freeze({
   reach: 'range_tiles',
   castMana: 'cast_base_times_triangular_range',
   upkeep: 'upkeep_table_at_range_plus_intensity',
+  raiseWidth: 'one_plus_two_per_extra_stack',
 } as const);
 
 type RowColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean; trait?: AffinityTrait | null; raiseScale?: number; displaceSteps?: number };

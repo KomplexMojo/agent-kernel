@@ -206,21 +206,26 @@ export function raisedBarrierStats(intensity: number, raiseScale = 1): { mana: n
   return { mana: amount, durability: amount };
 }
 
+/** #566 (Darren, 2026-10-30): a raise is 1 barrier at 1 stack and 2 wider per extra stack. */
+export function raisedBarrierWidth(stacks: number): number {
+  return 1 + 2 * (Math.max(1, stacks) - 1);
+}
+
 /**
- * The cells a raise covers (#413): `range` cells in a line across the cast, centred on the
+ * The cells a raise covers (#413, width #566): `width` cells in a line across the cast, centred on the
  * target tile, alternating sides (target, one side, the other, ...). A side stops at the
  * first cell `isOpen` refuses.
  */
-export function raisedBarrierCells(from: ActorPosition, target: ActorPosition, range: number,
+export function raisedBarrierCells(from: ActorPosition, target: ActorPosition, width: number,
   isOpen: (cell: ActorPosition) => boolean = () => true): ActorPosition[] {
-  if (range <= 0 || !isOpen(target)) return [];
+  if (width <= 0 || !isOpen(target)) return [];
   const dx = Math.sign(target.x - from.x); const dy = Math.sign(target.y - from.y);
   const across = { x: -dy, y: dx };
   const cells = [{ x: target.x, y: target.y }];
   const open = [true, true];
-  for (let step = 1; cells.length < range && (open[0] || open[1]); step += 1) {
+  for (let step = 1; cells.length < width && (open[0] || open[1]); step += 1) {
     for (const [side, sign] of [[0, 1], [1, -1]] as const) {
-      if (!open[side] || cells.length >= range) continue;
+      if (!open[side] || cells.length >= width) continue;
       const cell = { x: target.x + sign * step * across.x, y: target.y + sign * step * across.y };
       if ((across.x === 0 && across.y === 0) || !isOpen(cell)) { open[side] = false; continue; }
       cells.push(cell);
@@ -319,7 +324,7 @@ export function raiseActorBarriersAt(
   const intensity = affinityIntensity(pair);
   const { mana, durability } = raisedBarrierStats(intensity, affinityTableRow(pair.kind)?.raiseScale ?? 1);
   const raised: string[] = [];
-  for (const cell of raisedBarrierCells(source.position, target, actorCastRange(pair), empty)) {
+  for (const cell of raisedBarrierCells(source.position, target, raisedBarrierWidth(pair.stacks), empty)) {
     const id = registry.raiseBarrierAt(cell, {
       alignment: source.alignment, lifecycle: 'alive', raisedBy: sourceId, defeatVital: 'durability',
       vitals: { durability: { current: durability, max: durability, regen: 0 }, mana: { current: mana, max: mana, regen: 0 } },

@@ -3,7 +3,7 @@ import { createActorRegistry } from '../../packages/core-ts/src/state/actor-regi
 import { createActorTurn } from '../../packages/core-ts/src/rules/actor-turn.ts';
 import { readActorRegistryObservation, scopeActorRegistryObservation } from '../../packages/core-ts/src/rules/actor-observation.ts';
 import {
-  RAISED_BARRIER_TILE_KIND, raisedBarrierStats, raisedBarrierCells,
+  RAISED_BARRIER_TILE_KIND, raisedBarrierStats, raisedBarrierCells, raisedBarrierWidth,
 } from '../../packages/core-ts/src/rules/actor-cast.ts';
 import { affinityTableRow } from '../../packages/core-ts/src/state/affinity-table.ts';
 import type { ActorRecord, AffinityKind, AffinityExpression } from '../../packages/core-ts/src/state/actor-types.ts';
@@ -169,3 +169,23 @@ test('a push cast at an empty tile raises nothing (#460): raising is its own com
 // - two raises on the same tile over time get distinct ids
 // - an opposite-kind push hits a raised barrier twice as hard
 // - a caster without the mana for the price raises nothing and pays nothing
+
+test('a raise is one barrier at 1 stack and two wider per extra stack, priced by the stacks (#566)', () => {
+  expect([1, 2, 3, 4].map(raisedBarrierWidth)).toEqual([1, 3, 5, 7]);
+  expect(affinityTableRow('earth')!.formulas.raiseWidth).toBe('one_plus_two_per_extra_stack');
+  for (const [stacks, count] of [[1, 1], [2, 3], [3, 5]] as const) {
+    const registry = room(5, 7, [caster('me', 0, 3, 'earth', 'push', stacks, 1)]);
+    const turn = createActorTurn(registry, 0, costs);
+    expect(turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 3 } } })).toBe(true);
+    expect(raised(registry)).toHaveLength(count);
+    // The cast price is the Allocator's: base 1 × range triangle.
+    expect(registry.getActor('me')!.vitals.mana!.current).toBe(100 - stacks * (stacks + 1) / 2);
+  }
+});
+
+test('a wall or actor in the line shortens a wide raise (#566)', () => {
+  const registry = room(5, 5, [caster('me', 0, 2, 'earth', 'push', 3, 1), caster('other', 2, 3, 'fire', 'pull')]);
+  const turn = createActorTurn(registry, 0, costs);
+  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 2, y: 2 } } })).toBe(true);
+  expect(raised(registry).map(actor => actor.position.y).sort()).toEqual([0, 1, 2]);
+});
