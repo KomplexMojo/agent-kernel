@@ -14,6 +14,7 @@ import { ansiToHtml } from "./html.js";
 import { HELP_LINES, intentForKey } from "./keymap.js";
 import { encodeReplay, renderReport } from "./report.js";
 import { createCharacterSheet } from "../../runtime/src/runner/character-sheet.js";
+import { windowSizeForViewport } from "../../runtime/src/render/window-size.js";
 import { GAME_AFFINITY_COLOR_HEX } from "../../runtime/src/contracts/game-elements.js";
 
 // The build this page was bundled from (the build script defines it); "dev" when run unbundled.
@@ -25,7 +26,7 @@ const $ = (id) => document.getElementById(id);
 // Touch keys: [terminal key, label]. Rule text stays in keymap.js; the layout is the page's.
 const PAD = [["y", "↖"], ["k", "↑"], ["u", "↗"], ["h", "←"], [".", "wait"], ["l", "→"], ["b", "↙"], ["j", "↓"], ["n", "↘"]];
 const PAD_AIM = PAD.map(([key, label]) => (key === "." ? ["\t", "next"] : [key, label]));
-const MORE = [["v", "Look"], ["e", "Watch"], ["o", "Order"], ["z", "Barrier"], ["m", "Notebook"], ["\t", "Next ally"], ["?", "Help"]];
+const MORE = [["v", "Look"], ["e", "Watch"], ["o", "Order"], ["z", "Barrier"], ["\t", "Next ally"], ["?", "Help"]];
 const KEEP_OUT_OF_BOARD = 8; // px gutter either side of the board
 const KEYS = { ArrowUp: "\u001b[A", ArrowDown: "\u001b[B", ArrowRight: "\u001b[C", ArrowLeft: "\u001b[D", Enter: "\r", Escape: "\u001b", Tab: "\t" };
 
@@ -115,12 +116,33 @@ async function startGame(scenario, entry, capture = null, custom = null) {
 // level's own width and height, so what happens below it never changes its size or place.
 const GLYPH_WIDTH = 0.602;
 const LINE_HEIGHT = 1.2;
+// The play window follows the display (an iPhone at 393 px shows 11x11 tiles of 32 px); ?window=N overrides.
+function displayWindow() {
+  const forced = Number(new URLSearchParams(globalThis.location?.search ?? "").get("window"));
+  if (Number.isInteger(forced) && forced > 0) return forced;
+  return windowSizeForViewport({ widthPx: globalThis.innerWidth, heightPx: globalThis.innerHeight });
+}
+
+// The notebook replaces the board until closed (Darren, 2026-10-30): its drawing is the panel's lines between
+// the header and the legend. null when the board shows.
+function notebookLines(game, parts) {
+  if (game.state().panel !== "map" || !parts.panel?.length) return null;
+  return parts.panel.slice(1, -1).map((line) => line.replace(/^ {2}/, ""));
+}
+
+const MIN_TILES = 11; // the notebook is drawn at least as big as the window, so a few notes are not blown up
 function fitBoard() {
-  const { board } = current.game.screen({ color: false, parts: true });
+  current.game.setWindow(displayWindow());
+  const parts = current.game.screen({ color: false, parts: true });
+  const board = notebookLines(current.game, parts) ?? parts.board;
   if (!board) return;
   const side = $("board").clientWidth;
-  const cols = Math.max(1, ...board.map((row) => row.length));
-  $("boardtext").style.fontSize = `${Math.max(6, Math.floor(Math.min(side / (cols * GLYPH_WIDTH), side / (board.length * LINE_HEIGHT)))) }px`;
+  const cols = Math.max(MIN_TILES, ...board.map((row) => [...row].length));
+  const rows = Math.max(MIN_TILES, board.length);
+  // Square tiles: letter spacing pads each glyph out to the line height.
+  const font = Math.max(6, Math.floor(Math.min(side / (cols * LINE_HEIGHT), side / (rows * LINE_HEIGHT))));
+  $("boardtext").style.fontSize = `${font}px`;
+  $("boardtext").style.letterSpacing = `${((LINE_HEIGHT - GLYPH_WIDTH) * font).toFixed(2)}px`;
 }
 
 const touchButton = (key, label, className = "") => `<button class="k ${className}" data-key="${encodeURIComponent(key)}">${label}</button>`;
@@ -155,6 +177,8 @@ function renderControls(game, st, picks) {
     control.innerHTML = `<div class="grid list">${picks.map((pick) => actionButton(`equip:${pick.key}`, esc(pick.label))).join("")}${actionButton("close", "Cancel ✕", "no")}</div>`;
   } else if (sheet === "more") {
     control.innerHTML = `<div class="grid more">${MORE.map(([key, label]) => touchButton(key, label)).join("")}${actionButton("close", "Close ✕", "no")}</div>`;
+  } else if (st.panel === "map") {
+    control.innerHTML = `<div class="grid end">${touchButton("m", "Back to the board", "go")}</div>`;
   } else if (choices) {
     control.innerHTML = `<div class="grid list">${choices.items.map((label, i) => touchButton(String(i + 1), `${i + 1}. ${esc(label)}`)).join("")}${touchButton("\u001b", "Cancel ✕", "no")}</div>`;
   } else if (st.panel === "aim" || st.panel === "target") {
@@ -170,8 +194,10 @@ function renderControls(game, st, picks) {
 }
 
 // What the message band shows: what just happened, then the open panel in touch words, then what is in sight.
-function renderMessage(parts) {
+function renderMessage(parts, notebookOpen = false) {
   if (parts.defeat) return [parts.status || "You were defeated."];
+  // With the notebook open the drawing is on the board; the band keeps its header and legend.
+  if (notebookOpen) return [parts.status, parts.panel[0].replace(/\s*\(what you remember[^)]*\):?/, ""), parts.panel.at(-1).replace(/\s*\(of what[^)]*\)/, "")].filter(Boolean);
   const panel = parts.panel
     .filter((line) => !/^\s+Move keys aim/.test(line))
     .map((line) => line.replace(/\s+Tab next.*$/, "").replace(/\s*\((?:a number|Tab picks)[^)]*\)/, ""));
@@ -180,6 +206,7 @@ function renderMessage(parts) {
 
 function render() {
   const { game } = current;
+  game.setWindow(displayWindow());
   const st = game.state();
   const parts = game.screen({ color: "truecolor", parts: true });
   $("title").textContent = `${current.scenario.title} · seed ${current.entry.seed} · turn ${st.turns}`;
@@ -187,11 +214,15 @@ function render() {
     $("boardtext").innerHTML = ansiToHtml(parts.defeat);
     $("vitals").innerHTML = "";
   } else {
-    $("boardtext").innerHTML = parts.board.map(ansiToHtml).join("\n");
+    const notebook = notebookLines(game, parts);
+    $("boardtext").innerHTML = notebook ? notebook.map(esc).join("\n") : parts.board.map(ansiToHtml).join("\n");
+    fitBoard();
     $("vitals").innerHTML = parts.vitals.map((vital) => `<div>${esc(vital.label)} ${esc(vital.text)}<i style="width:${Math.round(Math.max(0, Math.min(1, vital.fraction)) * 100)}%;background:${vital.colorHex}"></i></div>`).join("")
       + (parts.soaked ? `<div>${esc(parts.soaked)}</div>` : "");
   }
-  const lines = renderMessage(parts);
+  $("mapbtn").textContent = st.panel === "map" ? "Back" : "Map";
+  $("mapbtn").classList.toggle("on", st.panel === "map");
+  const lines = renderMessage(parts, st.panel === "map");
   $("msg").innerHTML = lines.map((line, i) => `<div${i === 0 ? ' class="first"' : ""}>${esc(line)}</div>`).join("");
   $("msg").scrollTop = 0;
   renderControls(game, st, renderSlots(game));
@@ -439,6 +470,7 @@ function setup() {
     $("menu-dialog").close();
     run(async (game) => { current.sheet = null; current.selected = null; await game.handle(intentForKey("r")); });
   });
+  $("mapbtn").addEventListener("click", () => press("m"));
   $("menu").addEventListener("click", () => { $("menu-restart").dataset.sure = ""; $("menu-restart").textContent = "Restart this level"; $("menu-dialog").showModal(); });
   $("menu-brief").addEventListener("click", () => { $("menu-dialog").close(); openBrief(current.scenario, current.entry.seed); });
   $("menu-scenarios").addEventListener("click", () => { $("menu-dialog").close(); renderPicker(); });

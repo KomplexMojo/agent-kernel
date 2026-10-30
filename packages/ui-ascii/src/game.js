@@ -9,6 +9,7 @@ import { INTENT } from "./keymap.js";
 import { renderScreen, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 import { AFFINITY_COLOR_HEX } from "../../runtime/src/render/affinity-palette.js";
+import { WINDOW_DEFAULT } from "../../runtime/src/render/window-size.js";
 import { buildNotebook, pieQuarters } from "../../runtime/src/render/notebook.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
@@ -216,7 +217,8 @@ function orderChoices({ playerId, actor, hostile }) {
  * @param {boolean} [args.fog] fog of war: you see only what is in sight (default on)
  * @param {boolean} [args.showHelp] start with the key help shown (default)
  */
-export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true, showHelp: initialHelp = true, glyphSet = "unicode", window: windowSize = 10 } = {}) {
+export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true, showHelp: initialHelp = true, glyphSet = "unicode", window: initialWindow = WINDOW_DEFAULT } = {}) {
+  let windowSize = initialWindow;
   if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error("createGame: at least one level is required");
   }
@@ -879,5 +881,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     return { type: panel.type, items: panel.items.map(labels[panel.type]) };
   }
 
-  return { handle, command, switchTo, screen, state, view, debugView, captureInput, replay, slots, toggleSlotAffinity, tuneSlot, panelChoices };
+  /** Resize the play window (tiles square; null shows the whole board), e.g. when the display changes. */
+  function setWindow(tiles) { windowSize = Number.isInteger(tiles) && tiles > 0 ? tiles : null; }
+  return { handle, command, switchTo, screen, state, view, debugView, captureInput, replay, slots, toggleSlotAffinity, tuneSlot, panelChoices, setWindow };
 }

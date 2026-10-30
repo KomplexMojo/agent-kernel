@@ -1077,11 +1077,13 @@ test("m shows the explored layout as a map panel, and m closes it (mini map prot
   assert.equal(game.state().panel, null);
 });
 
-test("the play surface is a 10x10 window that follows the player (two-contexts model)", async () => {
+test("the play surface is an odd window that follows the player (two-contexts model)", async () => {
   const game = await createGame({ levels: [loadBundledLevel("long-way-round")], fog: false, showHelp: false });
   const board = game.screen({ parts: true }).board;
-  assert.equal(board.length, 10);
-  assert.ok(board.every((row) => [...row].length === 10));
+  assert.equal(board.length, 11);
+  assert.ok(board.every((row) => [...row].length === 11));
+  game.setWindow(7);
+  assert.equal(game.screen({ parts: true }).board.length, 7);
   assert.ok(board.some((row) => row.includes("@")));
   const whole = await createGame({ levels: [loadBundledLevel("long-way-round")], fog: false, showHelp: false, window: null });
   assert.equal(whole.screen({ parts: true }).board.length, 30);
