@@ -228,7 +228,12 @@ function render() {
   const lines = renderMessage(parts, st.panel === "map");
   $("msg").innerHTML = lines.map((line, i) => `<div${i === 0 ? ' class="first"' : ""}>${esc(line)}</div>`).join("");
   $("msg").scrollTop = 0;
+  // Empty-slot / More pickers live in #controls; keep that band visible on desktop and with a keyboard
+  // (otherwise unequip → tap "+ empty" looks dead: the picker opens in a hidden band).
+  const picking = current.sheet === "picker" || current.sheet === "more";
+  document.body.classList.toggle("picking", picking);
   renderControls(game, st, renderSlots(game));
+  if (picking) fitBoard();
 }
 
 function persist() {

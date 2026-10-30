@@ -38,6 +38,14 @@ test("the phone board sizes square tiles with --tile, not letter-spacing", () =>
   assert.match(browser, /ansiToHtml\(row, \{ cells: true \}\)/);
 });
 
+test("empty-slot and More pickers keep #controls visible on desktop and with a keyboard", () => {
+  const browser = readFileSync(join(SRC, "browser.js"), "utf8");
+  const css = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/style.css"), "utf8");
+  assert.match(browser, /classList\.toggle\("picking"/);
+  assert.match(css, /body\.picking #controls/);
+  assert.match(css, /body\.kbd\.picking #controls/);
+});
+
 test("a PWA report is one playtest.mjs reads back, with the commands that were played", async () => {
   const scenario = loadPlaytestScenarios().scenarios[0];
   const commands = [{ kind: "move", params: { direction: "east" } }, { kind: "wait" }];
