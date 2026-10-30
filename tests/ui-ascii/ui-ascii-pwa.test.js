@@ -46,6 +46,13 @@ test("empty-slot and More pickers keep #controls visible on desktop and with a k
   assert.match(css, /body\.kbd\.picking #controls/);
 });
 
+test("p opens the playtest report (and More lists it)", () => {
+  const browser = readFileSync(join(SRC, "browser.js"), "utf8");
+  assert.match(browser, /key === "p".*openReport\(\)/s);
+  assert.match(browser, /\["p", "Report"\]/);
+  assert.match(browser, /Report what I found: p/);
+});
+
 test("a PWA report is one playtest.mjs reads back, with the commands that were played", async () => {
   const scenario = loadPlaytestScenarios().scenarios[0];
   const commands = [{ kind: "move", params: { direction: "east" } }, { kind: "wait" }];
