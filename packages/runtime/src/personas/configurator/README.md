@@ -619,9 +619,9 @@ Requests require a stable ID and common vital records; rewards are explicit
 preserved. An omitted position stays omitted until placement. CLI V3
 `permanenceMode` plus grant `vitals` becomes one unclaimed vital holding; source
 durability uses the Configurator default rather than synthesizing loot from the
-source pool. A `slotGrant` (slot-unlock loot) is refused: it is retired (Darren, 2026-10-30), since an
-actor equips at most three affinities and carries the rest. A slot holding on any preset but a resource
-is refused too. Version-specific `tier`/`stat` shapes are still rejected.
+source pool. Slot-unlock loot is gone (Darren, 2026-10-30; removed in #577): `slotGrant` is an unknown
+key and a `slot` holding is not a holding kind, since an actor equips at most three affinities and
+carries the rest. Version-specific `tier`/`stat` shapes are still rejected.
 `mapHazards` uses the same mechanical boundary: authored regen vitals keep their
 quantities and drop the authoring `kind` field; one-time `{amount}` becomes
 `{current:amount, max:amount, regen:0}`. Incomplete records are skipped so

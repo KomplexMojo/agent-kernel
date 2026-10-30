@@ -741,14 +741,14 @@ export function validateResourceArtifact(artifact) {
     if (typeof artifact.permanent !== "boolean") {
       addError(errors, "permanent", "expected boolean");
     }
-  } else if (version === 3) {
+  } else if (version === 3 || version === 4) {
     validateArtifactMeta(artifact.meta, "meta", errors);
     validateResourceVitalsArray(artifact.vitals, "vitals", errors);
     if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(artifact.permanenceMode)) {
       addError(errors, "permanenceMode", `expected one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}`);
     }
   } else {
-    addError(errors, "schemaVersion", "expected 1, 2, or 3");
+    addError(errors, "schemaVersion", "expected 1, 2, 3, or 4");
   }
   return { ok: errors.length === 0, errors };
 }

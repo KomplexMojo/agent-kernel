@@ -247,13 +247,6 @@
       "description": "Permanent resource — 10× vital grant value"
     },
     {
-      "id": "resource_affinity_slot",
-      "kind": "resource",
-      "unitCost": 600,
-      "formula": "triangular",
-      "description": "Slot-unlock loot — opens one more affinity slot; the most valuable loot"
-    },
-    {
       "id": "resource_affinity_range",
       "kind": "resource",
       "unitCost": 3,

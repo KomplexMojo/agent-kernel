@@ -1,7 +1,6 @@
 /**
- * Slot-unlock loot (maintainer, 2026-10-12) was retired on 2026-10-30 (Darren): `ak create
- * --resource "slots=1"` is refused, and the Configurator still refuses a slot holding on any
- * preset but a resource.
+ * Slot-unlock loot (maintainer, 2026-10-12) was retired on 2026-10-30 (Darren) and its
+ * machinery removed (#577): `ak create --resource "slots=1"` is refused.
  */
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -28,20 +27,6 @@ test("ak create refuses slot loot: it is retired", () => {
   const { result } = create("slots=1;id=slot_cache");
   assert.notEqual(result.status, 0);
   assert.match(result.stderr + result.stdout, /slots= is retired/);
-});
-
-test("a slots value below one is refused at the CLI", () => {
-  const { result } = create("slots=0");
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr + result.stdout, /slots must be >= 1/);
-});
-
-test("the Configurator puts slot loot only on resources", async () => {
-  const { createConfiguratorPersona } = await import("../../packages/runtime/src/personas/configurator/controller.js");
-  const configurator = createConfiguratorPersona({ clock: () => "2026-10-12T00:00:00.000Z" });
-  const vitals = { health: { current: 10, max: 10, regen: 1 } };
-  assert.throws(() => configurator.normalizeActorDefinition({ category: "warden", id: "w", position: { x: 0, y: 0 },
-    vitals, lifecycle: "defeated", holdings: [{ id: "s", kind: "slot", slots: 1, claimedBy: null }] }), /floor loot/);
 });
 
 // ## TODO: Test Permutations

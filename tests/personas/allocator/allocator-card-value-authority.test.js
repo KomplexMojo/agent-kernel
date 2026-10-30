@@ -51,5 +51,4 @@ test("a card with no price list is priced at the Allocator's default prices", as
 
 // ## TODO: Test Permutations
 // - a hazard card with several stacks costs more than a one-stack hazard of the same affinity.
-// - a resource card granting an affinity slot is charged resource_affinity_slot.
 // - enrichCardsWithBudget totals match the sum of calculateCardValue totals.

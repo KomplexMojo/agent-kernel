@@ -80,9 +80,6 @@ function censusPayloads() {
     { resources: [{ id: "r", permanenceMode: "consumable", vitals: [{ key: "mana", delta: 1 }] }] },
     { resources: [{ id: "r", permanenceMode: "level", vitals: [{ key: "mana", delta: 1 }] }] },
     { resources: [{ id: "r", permanenceMode: "permanent", vitals: [{ key: "health", delta: 1 }] }] },
-    // Slot-unlock loot, as a resource spec and as a placed resource's holding.
-    { resources: [{ id: "r", slotGrant: 1 }] },
-    { actors: [{ id: "r", category: "resource", holdings: [{ id: "s", kind: "slot", slots: 1, claimedBy: null }] }] },
   ];
   for (const expression of EXPRESSIONS) {
     payloads.push({ actors: [{ id: "a", type: "delver", affinities: [{ kind: "fire", expression, stacks: 1 }] }] });

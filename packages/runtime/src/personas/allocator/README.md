@@ -433,14 +433,9 @@ premium changes price, never scaling. Hazards pay no premium: a hazard threatens
 
 A resource placed by `ak create` reaches the Allocator as an actor, and its loot is a holding.
 The actor loop prices each holding through the same extractors as the resource-spec path, so no
-second formula exists. (Since 2026-10-30 the Configurator refuses slot loot and slots above the preset, so
-these lines no longer appear on a built level; the pricing below stays until it is removed.) A `slot` holding is charged `resource_affinity_slot` per slot, and so is
-each slot an actor was authored with above its preset (`ak create slots=`; presets from
-`PRESET_AFFINITY_SLOTS`), on the receipt path and the card path alike: opening a slot costs the
-same bought at authoring or found on the floor. `resource_affinity_slot` is the one triangular
-item (maintainer, 2026-10-14): the nth slot costs n × its unit cost, so n slots cost
-`unitCost × n(n+1)/2`. The quantity accumulates per actor, so authored and carried slots share
-one curve. A `vital`
+second formula exists. Slot-unlock loot and slots bought above the preset are retired (Darren,
+2026-10-30; removed in #577, with `resource_affinity_slot` and the `affinity_slot` line): an actor
+equips at most three affinities and carries the rest. A `vital`
 holding (#242) is charged its delta at the permanence tier and its regen as
 `resource_vital_<key>_regen_tick`.
 

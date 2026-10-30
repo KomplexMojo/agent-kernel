@@ -20,8 +20,6 @@ import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
  *   - Vitals (max points): linear — 1 token per point
  *   - Regen (per-tick rate): quadratic — n units costs n² tokens
  *   - Affinity stacks: quadratic — n stacks costs n² tokens
- *   - Affinity slots: triangular — the nth slot opened costs n × unitCost, so n slots
- *     cost unitCost × n(n+1)/2 (maintainer, 2026-10-14)
  *   - Everything else: linear at the listed unitCost
  *
  * "formula" field on each emitted item tells consumers how to compute totalCost:
@@ -41,9 +39,7 @@ const QUADRATIC_IDS = new Set([
 ]);
 
 /** Ids whose quantity scales triangularly: each further unit costs one unitCost more. */
-const TRIANGULAR_IDS = new Set([
-  "resource_affinity_slot",
-]);
+const TRIANGULAR_IDS = new Set();
 
 function formulaFor(id) {
   if (QUADRATIC_IDS.has(id)) return "quadratic";
@@ -96,7 +92,6 @@ const DESCRIPTIONS = {
   "resource_base": "Consumable resource — costs same as its vital grant value",
   "resource_level": "Level-scoped resource — 5× vital grant value",
   "resource_permanent": "Permanent resource — 10× vital grant value",
-  "resource_affinity_slot": "Slot-unlock loot — opens one more affinity slot; the most valuable loot",
 };
 
 function itemFrom(id, unitCost, description) {

@@ -146,7 +146,7 @@ test("cli resource-plan authors V3 resources directly from resource flags", () =
 
   const artifact = readJson(join(outDir, "resource-1.json"));
   assert.equal(artifact.schema, "agent-kernel/ResourceArtifact");
-  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.schemaVersion, 4);
   assert.equal(artifact.meta.producedBy, "cli-resource-plan");
 });
 

@@ -2274,9 +2274,9 @@ export interface BattleLogEntryV1 {
   struck?: boolean;
   /**
    * take: what it gave, as core's holding: `{ kind: "vital", vitals: [{ key, delta, regen? }], permanenceMode }`,
-   * `{ kind: "affinity", affinity, expression }` or `{ kind: "slot", slots }`.
+   * or `{ kind: "affinity", affinity, expression }`.
    */
-  taken?: { kind: string; vitals?: { key: string; delta: number; regen?: number }[]; permanenceMode?: string; affinity?: string; expression?: string; slots?: number };
+  taken?: { kind: string; vitals?: { key: string; delta: number; regen?: number }[]; permanenceMode?: string; affinity?: string; expression?: string };
 }
 
 export type TelemetryRecord = TelemetryRecordV1;
@@ -2636,13 +2636,25 @@ export interface ResourceArtifactV3 {
   /** Optional affinity payload — additive, so V3 readers are unaffected. */
   affinity?: ResourceAffinityGrant;
   /**
-   * Optional slot-unlock payload — additive: taking it opens this many more
-   * affinity slots (an actor is capped at 6). The most valuable loot.
+   * Retired (Darren, 2026-10-30; V4 drops it): slot-unlock loot. An actor equips at most
+   * three affinities and carries the rest, so nothing reads or prices this any more.
    */
   slotGrant?: number;
 }
 
-export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | ResourceArtifactV3;
+/** V3 without the retired `slotGrant` (#577): a breaking removal, so a new schemaVersion. */
+export interface ResourceArtifactV4 {
+  schema: typeof RESOURCE_ARTIFACT_SCHEMA;
+  schemaVersion: 4;
+  meta: ArtifactMeta;
+  /** Vital payload. Empty for an affinity-only resource; always present. */
+  vitals: ResourceVitalGrant[];
+  permanenceMode: ResourcePermanenceMode;
+  /** Optional affinity payload. */
+  affinity?: ResourceAffinityGrant;
+}
+
+export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | ResourceArtifactV3 | ResourceArtifactV4;
 
 // -------------------------
 // Hazard artifacts
