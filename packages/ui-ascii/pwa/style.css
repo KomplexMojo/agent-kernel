@@ -80,8 +80,8 @@ textarea { width: 100%; background: var(--panel); color: var(--fg); border: 1px 
   body.picking #game { --controls: 176px; --side: min(calc(100vw - 16px), calc(100dvh - 330px), 560px); }
 }
 
-#update { position: fixed; left: 8px; right: 8px; top: max(8px, env(safe-area-inset-top)); z-index: 20; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--accent); color: #17171a; border-radius: 10px; font-size: 13px; box-shadow: 0 4px 16px #0008; }
-#update span { flex: 1; } #update button { padding: 6px 12px; background: #17171a; color: var(--accent); border-color: #17171a; font-size: 13px; } #update #update-later { background: none; color: #17171a; border-color: #17171a55; }
+#update { position: fixed; left: 8px; right: 8px; top: max(8px, env(safe-area-inset-top)); z-index: 50; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--accent); color: #17171a; border-radius: 10px; font-size: 13px; box-shadow: 0 4px 16px #0008; pointer-events: auto; }
+#update span { flex: 1; } #update button { padding: 6px 12px; background: #17171a; color: var(--accent); border-color: #17171a; font-size: 13px; pointer-events: auto; cursor: pointer; } #update #update-later { background: none; color: #17171a; border-color: #17171a55; }
 #menu-version { margin: 0 0 4px; text-align: center; }
 
 /* The character screen (#557): rows of tappable fields; the keys below change the one that is lit. */
