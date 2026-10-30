@@ -496,7 +496,12 @@ function setup() {
     else if (el.dataset.act !== undefined) actionTap(el.dataset.act);
   });
   document.addEventListener("keydown", (event) => {
-    if (!current || $("game").hidden || event.metaKey || event.ctrlKey || event.altKey || event.target.closest?.("dialog")) return;
+    if (!current || $("game").hidden || event.metaKey || event.ctrlKey || event.altKey) return;
+    // Leave dialogs and the update banner alone (Enter on Update must click, not move in-game).
+    if (event.target.closest?.("dialog, #update")) return;
+    const inGame = event.target === document.body || event.target === document.documentElement
+      || Boolean(event.target.closest?.("#game"));
+    if (!inGame) return;
     const key = KEYS[event.key] ?? (event.key.length === 1 ? event.key : null);
     if (key === null) return;
     // A physical keyboard: the touch controls go away (they also hide for a mouse and keyboard by media query).
@@ -576,14 +581,33 @@ async function checkForUpdate() {
   } catch { /* offline: keep playing */ }
 }
 
+/** Bound a promise so a stuck service worker cannot keep Update from reloading. */
+function withTimeout(promise, ms) {
+  return Promise.race([Promise.resolve(promise).catch(() => undefined), new Promise((resolve) => setTimeout(resolve, ms))]);
+}
+
 // Drop the old cached files and reload; the saved game stays on the device and shows as Resume.
+// Never wait forever on serviceWorker.update() — that hang is what made Update look dead.
 async function applyUpdate() {
+  const apply = $("update-apply");
+  const later = $("update-later");
+  if (apply) apply.disabled = true;
+  if (later) later.disabled = true;
+  $("update-text").textContent = "Updating…";
   try {
-    const registration = await navigator.serviceWorker?.getRegistration();
-    await registration?.update();
-    for (const name of await caches.keys()) await caches.delete(name);
+    const registration = await withTimeout(navigator.serviceWorker?.getRegistration?.(), 1000);
+    if (registration) {
+      await withTimeout(registration.update(), 2000);
+      await withTimeout(registration.unregister(), 2000);
+    }
+    if (globalThis.caches?.keys) {
+      const names = await withTimeout(caches.keys(), 2000);
+      if (Array.isArray(names) && names.length) await withTimeout(Promise.all(names.map((name) => caches.delete(name))), 3000);
+    }
   } catch { /* reload anyway */ }
-  location.reload();
+  const url = new URL(location.href);
+  url.searchParams.set("_", String(Date.now()));
+  location.replace(`${url.pathname}${url.search}${url.hash}`);
 }
 
 /** Start the page. `appHost.buildLevel({ argv, solverAnswers })` builds a level from `ak create` arguments. */

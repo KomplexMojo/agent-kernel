@@ -55,6 +55,16 @@ test("p opens the playtest report (and More lists it)", () => {
   assert.match(browser, /report what I found/);
 });
 
+test("Update clears caches with a timeout and reloads (never hangs on serviceWorker.update)", () => {
+  const browser = readFileSync(join(SRC, "browser.js"), "utf8");
+  assert.match(browser, /function withTimeout\(/);
+  assert.match(browser, /async function applyUpdate\(/);
+  assert.match(browser, /registration\.unregister\(/);
+  assert.match(browser, /location\.replace\(/);
+  assert.match(browser, /Updating…/);
+  assert.match(browser, /closest\?\.\("dialog, #update"\)/);
+});
+
 test("the Keys dialog is sectioned HTML with key chips, not a plain pre dump", () => {
   const browser = readFileSync(join(SRC, "browser.js"), "utf8");
   const html = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/index.html"), "utf8");
