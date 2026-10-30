@@ -26,7 +26,7 @@ const $ = (id) => document.getElementById(id);
 // Touch keys: [terminal key, label]. Rule text stays in keymap.js; the layout is the page's.
 const PAD = [["y", "↖"], ["k", "↑"], ["u", "↗"], ["h", "←"], [".", "wait"], ["l", "→"], ["b", "↙"], ["j", "↓"], ["n", "↘"]];
 const PAD_AIM = PAD.map(([key, label]) => (key === "." ? ["\t", "next"] : [key, label]));
-const MORE = [["v", "Look"], ["e", "Watch"], ["o", "Order"], ["z", "Barrier"], ["\t", "Next ally"], ["?", "Help"]];
+const MORE = [["v", "Look"], ["e", "Watch"], ["o", "Order"], ["z", "Barrier"], ["\t", "Next ally"], ["p", "Report"], ["?", "Help"]];
 const KEEP_OUT_OF_BOARD = 8; // px gutter either side of the board
 const KEYS = { ArrowUp: "\u001b[A", ArrowDown: "\u001b[B", ArrowRight: "\u001b[C", ArrowLeft: "\u001b[D", Enter: "\r", Escape: "\u001b", Tab: "\t" };
 
@@ -254,8 +254,10 @@ function run(action) {
 
 function press(key) {
   run(async (game) => {
-    if (current.sheet && key !== "?") current.sheet = null;
-    if (key === "?") { $("help-dialog").showModal(); return; }
+    // Phone-only overlays: help and the playtest report (not game intents — the terminal has no report UI).
+    if (key === "?") { current.sheet = null; $("help-dialog").showModal(); return; }
+    if (key === "p" || key === "P") { current.sheet = null; openReport(); return; }
+    if (current.sheet) current.sheet = null;
     const intent = intentForKey(key);
     // In a tab, q and Esc close an open panel but never end the game.
     if (!intent || (intent.type === "quit" && game.state().panel === null)) return;
@@ -448,7 +450,7 @@ function setup() {
     event.preventDefault();
     press(key);
   });
-  $("help-text").textContent = [...HELP_LINES].join("\n");
+  $("help-text").textContent = [...HELP_LINES, "Report what I found: p (phone app)"].join("\n");
   $("help-close").addEventListener("click", () => $("help-dialog").close());
   $("resume").addEventListener("click", async () => {
     const save = readSave();
