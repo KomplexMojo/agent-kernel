@@ -96,6 +96,19 @@ export function battleLines(view) {
   return lines;
 }
 
+/**
+ * #573: the first tick a harmful field of yours (or your party's) hurts one of your own side, and
+ * the tick one of them falls to it, says so with the amount: `Your fire emit is hurting D2 pal
+ * (HP \u22124)`. Friendly fire stays; this only warns. Later ticks ride the vitals line.
+ */
+export function allyWarningLines(view) {
+  const tick = view.tick;
+  return (view.battleLog || []).filter((line) => line.ally && line.tick === tick).map((line) => {
+    const change = (view.vitalChanges || []).find((c) => c.actorId === line.targetId && c.hit < 0);
+    return `${line.text.replace(/\.$/, "")}${change ? ` (${changeLabel({ vital: change.vital, delta: change.hit })})` : ""}.`;
+  });
+}
+
 const signed = (value) => `${value < 0 ? "\u2212" : "+"}${Math.abs(value)}`;
 const VITAL_LINE_LIMIT = 3;
 
@@ -247,7 +260,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     if (result.tick !== before.tick && !result.status.defeated) {
       const battle = battleLines(session.view());
       if (battle.own && result.accepted.length > 0) message = battle.own;
-      message = [message, ...battle.others, vitalChangeLine(session.view())].filter(Boolean).join("   ");
+      message = [message, ...battle.others, ...allyWarningLines(session.view()), vitalChangeLine(session.view())].filter(Boolean).join("   ");
     }
     return result;
   }

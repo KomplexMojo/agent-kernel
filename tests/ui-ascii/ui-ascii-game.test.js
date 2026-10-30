@@ -1055,3 +1055,14 @@ test("the real-time line names the mode and the toggle key", () => {
   assert.match(realtimeLine({ on: true, intervalMs: 250 }), /every 250 ms.*t pauses/);
   assert.match(realtimeLine({ on: false, intervalMs: 500 }), /Turn-based.*t for real time/);
 });
+
+test("an ally hurt by your own field is warned of with the amount (#573)", async () => {
+  const { allyWarningLines } = await import("../../packages/ui-ascii/src/game.js");
+  const view = { tick: 3, battleLog: [
+    { tick: 3, event: "field", ally: true, targetId: "pal", text: "Your fire emit is hurting D2 pal." },
+    { tick: 3, event: "field", text: "W1's fire emit is hurting you." },
+    { tick: 2, event: "field", ally: true, targetId: "pal", text: "Old." },
+  ], vitalChanges: [{ actorId: "pal", vital: "health", hit: -4 }] };
+  assert.deepEqual(allyWarningLines(view), ["Your fire emit is hurting D2 pal (HP −4)."]);
+  assert.deepEqual(allyWarningLines({ tick: 1, battleLog: [] }), []);
+});
