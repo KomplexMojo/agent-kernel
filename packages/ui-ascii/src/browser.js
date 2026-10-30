@@ -132,16 +132,15 @@ function renderSlots(game) {
   if (current.selected && !slots.some((slot) => slot.key === current.selected)) current.selected = null;
   $("slots").innerHTML = slots.map((slot) => {
     if (slot.empty) return `<button class="slot empty" data-slot="${slot.index}" ${picks.length ? "" : "disabled"}>+ empty</button>`;
-    const state = slot.castable ? `reach ${slot.reach}` : slot.off ? "drained" : "ON";
+    const state = slot.castable ? (slot.mana === null ? "cast" : `${slot.mana} mana`) : slot.off ? "drained" : "ON";
     return `<button class="slot${slot.key === current.selected ? " on" : ""}${slot.off ? " off" : ""}" data-slot="${slot.index}" style="--c:${slot.color ?? "#888"}">
       <b>${esc(slot.kind)}</b><small>${esc(slot.expression)} r${slot.stacks.running} ×${slot.intensity.running}</small><em>${state}</em></button>`;
   }).join("");
   const held = slots.find((slot) => slot.key === current.selected);
-  const stepper = (field, name, level) => `<div><span>${name} <b>${level.running}${level.running < level.held ? `/${level.held}` : ""}</b></span>
-    <button data-tune="${field}:-1" ${level.running <= 1 ? "disabled" : ""}>−</button><button data-tune="${field}:1" ${level.running >= level.held ? "disabled" : ""}>+</button></div>`;
+  // Range and power steppers are off the play screen for now (Darren, 2026-10-30: they broke the layout).
   $("tune").className = held ? "tune" : "tune hint";
   $("tune").innerHTML = held
-    ? `${stepper("stacks", "range", held.stacks)}${stepper("intensity", "power", held.intensity)}${picks.length ? `<button data-tune="swap">swap</button>` : ""}<button data-tune="off">unequip</button>`
+    ? `${picks.length ? `<button data-tune="swap">swap</button>` : ""}<button data-tune="off">unequip</button>`
     : "tap a slot to aim it, or an empty one to equip";
   return picks;
 }
@@ -235,7 +234,7 @@ function slotTap(index) {
     current.selected = slot.key;
     current.sheet = null;
     if (game.state().panel) await game.handle(intentForKey("\u001b"));
-    // One tap on a held push or pull aims it; emit and draw run on their own, so the tap selects them for tuning.
+    // One tap on a held push or pull aims it; emit and draw run on their own, so the tap selects them for swap or unequip.
     if (slot.castable) await game.handle(intentForKey(String(index + 1)));
   });
 }
@@ -248,10 +247,8 @@ function tuneTap(what) {
     // Swap: pick a packed affinity to take this slot's place, in one turn (Darren, 2026-10-30).
     if (what === "swap") {
       if (game.state().panel) await game.handle(intentForKey("\u001b"));
-      current.swapFor = key; current.sheet = "picker"; return;
+      current.swapFor = key; current.sheet = "picker";
     }
-    const [field, step] = what.split(":");
-    await game.tuneSlot(key, field, Number(step));
   });
 }
 

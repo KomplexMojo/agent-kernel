@@ -61,11 +61,17 @@ export function actorCastRange(pair: ActorAffinityEntry): number {
   return pair.stacks;
 }
 
-/** The actor's equipped push and pull slots, keyed, with how far each reaches. */
-export function actorCastableAffinities(actor: ActorRecord): Partial<Record<ActorAffinityKey, { range: number }>> {
+/**
+ * The actor's equipped push and pull slots, keyed, with how far each reaches and, given the
+ * authored prices, the mana one cast costs at the range and intensity it runs at now.
+ */
+export function actorCastableAffinities(actor: ActorRecord, prices?: ActorCastPrices): Partial<Record<ActorAffinityKey, { range: number; mana?: number }>> {
   return Object.fromEntries(equippedActorAffinities(actor)
     .filter(pair => isCastableExpression(pair.expression))
-    .map(pair => [affinityKey(pair), { range: actorCastRange(pair) }]));
+    .map(pair => {
+      const mana = prices ? castManaCost(prices, pair) : undefined;
+      return [affinityKey(pair), mana === undefined ? { range: actorCastRange(pair) } : { range: actorCastRange(pair), mana }];
+    }));
 }
 
 /**

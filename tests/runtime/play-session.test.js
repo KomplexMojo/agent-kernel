@@ -545,16 +545,17 @@ test("view().player reports its slots: how many, what is equipped in order, and 
   assert.deepEqual(session.view().player.equippedAffinityKeys, ["light:emit"]);
 });
 
-test("view().player states core's cast rules as data: castable slots, their reach, the slot cap", async () => {
+test("view().player states core's cast rules as data: castable slots, their reach and cast mana, the slot cap", async () => {
   const session = await createPlaySession(buildDuelLevel());
   assert.deepEqual(session.view().player.castableAffinities, {}, "nothing equipped, nothing to cast");
   assert.equal(session.view().player.maxAffinitySlots, 3);
   await session.act(equip("water:push"));
   await session.act(equip("light:emit"));
-  // Emit works on its own, so only the push is castable; it reaches one tile per stack.
-  assert.deepEqual(session.view().player.castableAffinities, { "water:push": { range: 3 } });
+  // Emit works on its own, so only the push is castable; it reaches one tile per stack, and one
+  // cast costs the level's base on core's curve (8 × 3·4/2).
+  assert.deepEqual(session.view().player.castableAffinities, { "water:push": { range: 3, mana: 48 } });
   await session.act({ kind: "equip_affinity", params: { affinityKey: "water:push", stacks: 2 } });
-  assert.deepEqual(session.view().player.castableAffinities, { "water:push": { range: 2 } }, "reach follows the running stacks");
+  assert.deepEqual(session.view().player.castableAffinities, { "water:push": { range: 2, mana: 24 } }, "reach and mana follow the running stacks");
 });
 
 test("a level below the viability floor still plays as written; the floor is only reported", async () => {

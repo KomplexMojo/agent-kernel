@@ -119,6 +119,19 @@ test("slots() lists the slots and the affinities an empty one could take", async
   }
 });
 
+// Darren, 2026-10-30: a push or pull slot shows the mana one cast costs at its range and power, not its reach.
+test("slots() gives each castable slot the mana one cast costs, and tuning it changes the mana", async () => {
+  const game = await pwaGame();
+  const slot = game.slots().slots.find((entry) => entry.castable);
+  if (!slot) return;
+  assert.equal(typeof slot.mana, "number");
+  assert.ok(slot.mana > 0);
+  if (slot.stacks.held > 1) {
+    await game.tuneSlot(slot.key, "stacks", -1);
+    assert.ok(game.slots().slots.find((entry) => entry.key === slot.key).mana < slot.mana, "a shorter range costs less");
+  }
+});
+
 test("screen({ parts }) hands back the board, vitals and message band separately", async () => {
   const game = await pwaGame();
   const parts = game.screen({ color: false, parts: true });

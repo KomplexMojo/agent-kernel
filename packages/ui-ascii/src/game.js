@@ -139,7 +139,7 @@ export function vitalChangeLine(view) {
   }).join("  ");
 }
 
-/** The equipped slots core would cast, with their reach, as the play session reports them. */
+/** The equipped slots core would cast, with their reach and cast mana, as the play session reports them. */
 const castable = (player) => player?.castableAffinities || {};
 
 /** Equipped keys in equip order, as the play session reports them. */
@@ -822,7 +822,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         const pair = known.find((candidate) => `${candidate.kind}:${candidate.expression}` === equipped[index]);
         if (!pair) return { index, empty: true };
         const item = entry(pair);
-        return { index, ...item, castable: Boolean(castable(player)[item.key]), reach: castable(player)[item.key]?.range ?? null, off: off.includes(item.key) };
+        return { index, ...item, castable: Boolean(castable(player)[item.key]), mana: castable(player)[item.key]?.mana ?? null, off: off.includes(item.key) };
       }),
       picks: known.filter((pair) => !equipped.includes(`${pair.kind}:${pair.expression}`)).map(entry),
     };
