@@ -302,7 +302,10 @@ export async function createPlaySession({
       const readers = partyIds.filter((pid) => involved.includes(pid) || !fog
         || escortsOf(pid).some((id) => involved.includes(id))
         || cells.some((cell) => readVisible(pid)?.[cell.y]?.[cell.x]));
-      battleLog.push({ entry, readers });
+      // #573: a party member's (or its minion's) field or cast that hurts one of its own side.
+      const side = new Set([...partyIds, ...partyIds.flatMap(escortsOf)]);
+      const ally = entry.sourceId !== entry.targetId && side.has(entry.sourceId) && side.has(entry.targetId);
+      battleLog.push({ entry, readers, ally });
     }
     if (battleLog.length > 500) battleLog.splice(0, battleLog.length - 500);
   }
@@ -310,7 +313,8 @@ export async function createPlaySession({
   /** The last `limit` battle-log lines the seat may read, oldest first: `{ tick, event, text }`. */
   function battleLogView(limit = 30) {
     return battleLog.filter(({ readers }) => readers.includes(activeId)).slice(-limit)
-      .map(({ entry }) => ({ tick: entry.tick, event: entry.event, text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null }) }));
+      .map(({ entry, ally }) => ({ tick: entry.tick, event: entry.event, ...(ally ? { ally: true, targetId: entry.targetId } : {}),
+        text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null }) }));
   }
 
   // #479: a mobile actor the seat has seen stays known at its last position until the seat
