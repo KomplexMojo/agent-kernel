@@ -89,6 +89,49 @@ test("a resource worn down in the seat's emit field is logged as destroyed by th
   assert.ok(lines.some((line) => /resource_1 was destroyed by your decay emit\.$/.test(line)), lines.join(" | "));
 });
 
+// Playtest 2026-10-30 (Darren): a lasting field doing damage is reported, once, when it starts.
+const DAMAGING = ["fire", "water", "earth", "wind", "decay", "corrode", "dark"];
+for (const kind of DAMAGING) {
+  test(`the seat's ${kind} emit hurting a warden is logged once, when it starts`, async () => {
+    const level = buildUnifiedLevel({
+      id: "aura", tiles: ["#######", "#.....#", "#....E#", "#######"],
+      actors: [
+        { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+          vitals: viableVitals({ mana: 60 }), affinities: [{ kind, expression: "emit", stacks: 2 }] },
+        { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"],
+          vitals: viableVitals({ health: 60, durability: 60 }) },
+      ],
+    });
+    const session = await createPlaySession(level);
+    await session.act(equip(`${kind}:emit`));
+    for (let i = 0; i < 3; i += 1) await session.act({ kind: "wait" });
+    const lines = session.view().battleLog.map((line) => line.text).filter((text) => /is hurting/.test(text));
+    assert.deepEqual(lines.map((text) => text.replace(/W\d+ /, "")), [`Your ${kind} emit is hurting warden_1.`]);
+  });
+}
+
+test("field entries: a restoring emit is not logged, a draw is, and a contact that ends and restarts is logged again", async () => {
+  const { buildBattleLogEntries, fieldHitsOf, fieldHitKey } = await import(`${PERSONAS}annotator/battle-log.js`);
+  const battle = (fields) => ({ tick: 1, casts: [], takes: [], lifecycles: {}, fieldHits: [{ targetId: "t", fields }] });
+  const events = (b, previousFieldHits = []) => buildBattleLogEntries({ battle: b, previousFieldHits, clock: CLOCK })
+    .filter((entry) => entry.event === "field").map((entry) => `${entry.sourceId}:${entry.kind}:${entry.expression}`);
+  for (const kind of ["growth", "fortify", "light"]) assert.deepEqual(events(battle([{ sourceId: "a", kind, expression: "emit" }])), []);
+  const draw = battle([{ sourceId: "a", kind: "growth", expression: "draw" }]);
+  assert.deepEqual(events(draw), ["a:growth:draw"]);
+  assert.deepEqual(events(draw, fieldHitsOf(draw).map(fieldHitKey)), [], "ongoing: not repeated");
+  assert.deepEqual(events(draw, []), ["a:growth:draw"], "after a tick without it, it starts again");
+  const [entry] = buildBattleLogEntries({ battle: draw, clock: CLOCK });
+  assert.equal(entry.meta.producedBy, "annotator");
+});
+
+test("words: a field that starts hurting someone names whose emit or draw it is", async () => {
+  const { battleLogLine } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
+  const field = (extra) => battleLogLine({ event: "field", sourceId: "me", targetId: "w", kind: "wind", expression: "emit", ...extra },
+    { seatId: "me", labelOf: (id) => (id === "w" ? "W1" : null) });
+  assert.equal(field({}), "Your wind emit is hurting W1 w.");
+  assert.equal(field({ sourceId: "w", targetId: "me", kind: "dark", expression: "draw" }), "W1 w's dark draw is hurting you.");
+});
+
 test("words: a defeat says whose attack, and what lives on durability is destroyed", async () => {
   const { battleLogLine } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
   const entry = (extra) => ({ event: "defeat", targetId: "t", sourceId: "me", kind: "fire", expression: "push", ...extra });

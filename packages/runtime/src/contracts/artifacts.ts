@@ -2259,14 +2259,15 @@ export interface BattleLogEntryV1 {
   schemaVersion: 1;
   meta: ArtifactMeta;
   tick: number;
-  event: "cast" | "take" | "defeat" | "exit";
+  /** field: a lasting field (emit, draw) of `sourceId` started hurting `targetId` this tick (logged once, when it starts). */
+  event: "cast" | "take" | "defeat" | "exit" | "field";
   /** Who acted (a defeat's source is whoever's cast last landed on it, else whose emit field it stood in). */
   sourceId?: string;
   /** Who it was done to (the actor that left, for a defeat or an exit). */
   targetId?: string;
   /** defeat: the vital whose loss ended it; a thing that lives on durability (hazard, resource, barrier) reads "destroyed". */
   defeatVital?: string;
-  /** cast and defeat: the affinity and expression that did it. */
+  /** cast, defeat and field: the affinity and expression that did it. */
   kind?: string;
   expression?: string;
   /** cast: whether it landed on another actor. */

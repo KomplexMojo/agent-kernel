@@ -111,6 +111,28 @@ function defeatedReadings(snapshot, readFields) {
   }]));
 }
 
+// Playtest 2026-10-30: who a field hurt this tick, so the battle log can say an emit or draw is
+// doing damage. Facts only: an actor whose field-phase change (core's `hit` less what casts did)
+// was a loss, with every other actor's field on its cell; the Annotator decides which harm.
+function fieldHitReadings(turn, snapshot, readFields) {
+  const byCast = new Map();
+  for (const cast of turn?.casts ?? []) for (const change of cast.changes ?? []) {
+    const key = `${change.actorId}|${change.vital}`;
+    byCast.set(key, (byCast.get(key) ?? 0) + change.delta);
+  }
+  const harmed = new Set((turn?.vitalChanges ?? [])
+    .filter((change) => change.hit - (byCast.get(`${change.actorId}|${change.vital}`) ?? 0) < 0)
+    .map((change) => change.actorId));
+  if (harmed.size === 0) return [];
+  const fields = readFields();
+  return snapshot.actors.filter((actor) => harmed.has(actor.id) && actor.position).map((actor) => ({
+    targetId: actor.id,
+    fields: fields.filter((field) => field.sourceId !== actor.id && field.falloff > 0
+      && field.position.x === actor.position.x && field.position.y === actor.position.y)
+      .map((field) => ({ sourceId: field.sourceId, kind: field.kind, expression: field.expression })),
+  })).filter((reading) => reading.fields.length > 0);
+}
+
 // What a take gave (playtest 2026-10-29): the holding as core has it, so the log can name it.
 function takenHolding(snapshot, params) {
   const holding = snapshot.actors.find((actor) => actor.id === params?.targetId)?.holdings
@@ -1521,6 +1543,8 @@ export function createFsmRuntime({
             exitedActorIds: applied.exitedActorIds ?? [],
             defeated: defeatedReadings(applied.actorSnapshot,
               () => (actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [])),
+            fieldHits: fieldHitReadings(applied.actorTurn, applied.actorSnapshot,
+              () => (actorRegistry ? readActorRegistryObservation(actorRegistry, tick).affinityFields : [])),
           },
         } : {}),
       });

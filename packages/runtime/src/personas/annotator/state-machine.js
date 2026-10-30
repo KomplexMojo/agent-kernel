@@ -46,6 +46,7 @@ export function createAnnotatorStateMachine({ initialState = AnnotatorStates.IDL
     updatedAt: clock(),
     lastObservationCount: 0,
     lifecycles: {},
+    fieldHits: [],
   };
 
   function view() {
@@ -69,6 +70,8 @@ export function createAnnotatorStateMachine({ initialState = AnnotatorStates.IDL
       lastObservationCount: Array.isArray(payload.observations) ? payload.observations.length : context.lastObservationCount,
       // #554: the roster as last seen, so the battle log can tell who was defeated this tick.
       lifecycles: payload.lifecycles && typeof payload.lifecycles === "object" ? { ...payload.lifecycles } : context.lifecycles ?? {},
+      // The field contacts seen last tick (`fieldHitKey`), so an ongoing one is logged once.
+      fieldHits: Array.isArray(payload.fieldHits) ? [...payload.fieldHits] : context.fieldHits ?? [],
     };
 
     state = nextState;

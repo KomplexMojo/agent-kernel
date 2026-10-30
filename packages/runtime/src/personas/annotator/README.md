@@ -58,7 +58,12 @@ turns what the tick applied (casts, takes, lifecycle changes, exits; supplied on
 `battleLog`. Entries are structured and carry no vitals: a cast shows its affinity and whether it
 struck (#497). The words live in `render/battle-log-lines.js`; `play-session` keeps the entries, filters
 them to what the seat may read, and `ui-ascii` and the phone app only render. The Annotator remembers
-the last roster lifecycles in its context to spot a defeat; observation only, never fed back.
+the last roster lifecycles in its context to spot a defeat; observation only, never fed back. A lasting
+field hurting someone is a `field` entry (playtest 2026-10-30): the observation's `fieldHits` lists who
+lost vitals in the field phase and the other actors' fields on its cell; the Annotator keeps the harmful
+ones (any draw, an emit of a damaging kind in core's table) and logs each contact once, when it starts
+(last tick's contacts are in its context as `fieldHits`), so `Your wind emit is hurting W1 guard-1.`
+appears once, not every tick.
 
 **Build-scope `telemetry.json` is deliberately absent from this table.** It is glue-owned by charter
 rule 3 (the plane boundary): `build`/`llm-plan` run no tick, and the Annotator subscribes only to the

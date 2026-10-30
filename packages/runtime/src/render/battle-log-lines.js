@@ -53,6 +53,9 @@ export function battleLogLine(entry, { seatId, labelOf = () => null } = {}) {
       const how = entry.defeatVital === "durability" ? "destroyed" : "defeated";
       return `${cap(name(entry.targetId))} ${entry.targetId === seatId ? "were" : "was"} ${how}${by}.`;
     }
+    case "field":
+      // A lasting field (emit, draw) that started hurting someone this tick.
+      return `${cap(whose(entry.sourceId))} ${attack} is hurting ${name(entry.targetId)}.`;
     case "exit":
       return `${cap(name(entry.targetId))} left by the exit.`;
     default:
