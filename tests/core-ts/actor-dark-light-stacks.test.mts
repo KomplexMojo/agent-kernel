@@ -86,3 +86,12 @@ test('dark is on or off like every affinity: full stacks while on, nothing once 
 // - the stronger of two overlapping dark sources decides the cell
 // - a drained (exhausted) shade darkens nothing
 // - a wall between observer and a lit cell still blocks it
+
+test("an actor's own dark never erases its own memory; another's dark still does (Darren, 2026-10-30)", () => {
+  const registry = corridor([emitting(actor('self', 6), 'dark', 1), emitting(actor('shade', 1), 'dark', 1)]);
+  const observation = readActorRegistryObservation(registry, 0);
+  // Everyone's view: both fields (x=0..2 from the shade, x=5..7 from self).
+  expect(readActorRegistryDarkCells(observation)[0]).toEqual([1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0]);
+  // Self's own memory: only the shade's dark counts.
+  expect(readActorRegistryDarkCells(observation, 'self')[0]).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+});

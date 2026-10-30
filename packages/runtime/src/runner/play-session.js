@@ -214,7 +214,7 @@ export async function createPlaySession({
     if (!visible) return;
     if (!explored.has(actorId)) explored.set(actorId, visible.map((row) => row.map(() => 0)));
     const memory = explored.get(actorId);
-    const dark = runtime.readDarkCells();
+    const dark = runtime.readDarkCells(actorId);
     visible.forEach((row, y) => row.forEach((cell, x) => {
       if (cell) memory[y][x] = 1;
       else if (dark[y]?.[x]) memory[y][x] = 0;

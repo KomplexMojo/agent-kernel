@@ -96,22 +96,8 @@ function resolveRegistryLightDark(observation: RegistryObservation) {
  * threshold leaves it its own tile only (#284).
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
-  const ownDark = (cell: { sourceId?: string; kind?: string }) => cell.sourceId === self.id && hasColumn(cell.kind, 'conceals');
-  // Without dark of its own the observer sees the field as it stands; with some, the field is
-  // re-resolved from every contribution but its own dark.
-  const { lightByCell, darkStacksByCell } = observation.affinityContributions.some(ownDark)
-    ? (() => {
-      // The overlap resolves one cell's contributions at a time.
-      const byCell = new Map<string, typeof observation.affinityContributions>();
-      for (const cell of observation.affinityContributions) {
-        if (ownDark(cell)) continue;
-        const key = `${cell.position.x},${cell.position.y}`;
-        byCell.set(key, [...(byCell.get(key) ?? []), cell]);
-      }
-      const others = [...byCell.values()].flatMap(cells => resolveActorFieldOverlap(cells));
-      return resolveNetLightDark(fieldIntensityByCell(others, 'illuminates'), fieldIntensityByCell(others, 'conceals'));
-    })()
-    : resolveRegistryLightDark(observation);
+  const ownDark = isOwnDark(self.id);
+  const { lightByCell, darkStacksByCell } = resolveLightDarkWithoutOwnDark(observation, self.id);
   const tile = `${self.position.x},${self.position.y}`;
   const ownLight = (lightByCell[tile] ?? 0) > 0 ? litLightRange(self) : 0;
   // Blinding dark (#284): the field at the tile re-resolved without the observer's own dark.
@@ -122,6 +108,26 @@ function resolveRegistrySight(observation: RegistryObservation, self: ActorRecor
     radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkIntensity: othersDark }),
     options: { darkStacksByCell, lightByCell, darkObscureThreshold: NET_DARK_OBSCURE_INTENSITY_THRESHOLD },
   };
+}
+
+const isOwnDark = (selfId: string) => (cell: { sourceId?: string; kind?: string }) => cell.sourceId === selfId && hasColumn(cell.kind, 'conceals');
+
+/**
+ * The field one actor lives by: without dark of its own the field as it stands; with some, the field
+ * re-resolved from every contribution but its own dark (#409: own emit never affects self).
+ */
+function resolveLightDarkWithoutOwnDark(observation: RegistryObservation, selfId: string) {
+  const ownDark = isOwnDark(selfId);
+  if (!observation.affinityContributions.some(ownDark)) return resolveRegistryLightDark(observation);
+  // The overlap resolves one cell's contributions at a time.
+  const byCell = new Map<string, typeof observation.affinityContributions>();
+  for (const cell of observation.affinityContributions) {
+    if (ownDark(cell)) continue;
+    const key = `${cell.position.x},${cell.position.y}`;
+    byCell.set(key, [...(byCell.get(key) ?? []), cell]);
+  }
+  const others = [...byCell.values()].flatMap(cells => resolveActorFieldOverlap(cells));
+  return resolveNetLightDark(fieldIntensityByCell(others, 'illuminates'), fieldIntensityByCell(others, 'conceals'));
 }
 /** Reuse the established radius/occlusion policy with independent sight capabilities. */
 export function scopeActorRegistryObservation(observation: RegistryObservation, actorId: string) {
@@ -188,8 +194,10 @@ export function revealedValue(value: number, level: number): number | `${number}
  * A remembered map is invalidated wherever this is 1 (#203); the caller keeps
  * the memory, core only says where the dark is.
  */
-export function readActorRegistryDarkCells(observation: RegistryObservation): number[][] {
-  const { width, height, darkStacksByCell } = resolveRegistryLightDark(observation);
+export function readActorRegistryDarkCells(observation: RegistryObservation, actorId?: string): number[][] {
+  // For one actor (its memory): its own dark never erases what it remembers (Darren, 2026-10-30).
+  const { width, height } = resolveRegistryLightDark(observation);
+  const { darkStacksByCell } = actorId === undefined ? resolveRegistryLightDark(observation) : resolveLightDarkWithoutOwnDark(observation, actorId);
   return Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) =>
     (darkStacksByCell[`${x},${y}`] ?? 0) >= NET_DARK_OBSCURE_INTENSITY_THRESHOLD ? 1 : 0));
 }
