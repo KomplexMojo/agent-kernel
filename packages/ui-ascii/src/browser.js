@@ -11,7 +11,7 @@
  */
 import { createGame } from "./game.js";
 import { ansiToHtml } from "./html.js";
-import { HELP_LINES, intentForKey } from "./keymap.js";
+import { intentForKey } from "./keymap.js";
 import { encodeReplay, renderReport } from "./report.js";
 import { createCharacterSheet } from "../../runtime/src/runner/character-sheet.js";
 import { windowSizeForViewport } from "../../runtime/src/render/window-size.js";
@@ -151,6 +151,50 @@ function fitBoard() {
 const touchButton = (key, label, className = "") => `<button class="k ${className}" data-key="${encodeURIComponent(key)}">${label}</button>`;
 const actionButton = (id, label, className = "") => `<button class="k ${className}" data-act="${id}">${label}</button>`;
 const esc = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+/** Phone Keys dialog: sectioned rows with key chips (terminal help stays plain HELP_LINES). */
+const HELP_BLOCKS = [
+  { title: "Move", items: [
+    { keys: ["arrows", "WASD", "hjkl"], text: "step one tile" },
+    { keys: ["y", "u", "b", "n"], text: "diagonals" },
+    { keys: ["shift+move", "x then move"], text: "sprint two tiles" },
+    { keys: [".", "space"], text: "wait a turn" },
+  ] },
+  { title: "Play", items: [
+    { keys: ["r"], text: "restart this level" },
+    { keys: ["Enter"], text: "next level after an exit" },
+    { keys: ["q"], text: "quit" },
+    { keys: ["p"], text: "report what I found" },
+    { keys: ["?"], text: "this help" },
+  ] },
+  { title: "Affinities", items: [
+    { keys: ["i", "1-9"], text: "list, then equip or unequip" },
+    { keys: ["Tab", "+", "-", "]", "["], text: "in the list: pick a row; change range or intensity" },
+    { keys: ["g"], text: "take loot next to you" },
+  ] },
+  { title: "Combat", items: [
+    { keys: ["f", "1-9"], text: "cast (or a slot's number), then Tab / Enter / Esc" },
+    { keys: ["move while casting"], text: "aim at a tile; hits the first actor or wall" },
+    { keys: ["z"], text: "raise a barrier: aim, then Enter" },
+    { keys: ["v"], text: "inspect: Tab, Enter (reading stays on screen)" },
+    { keys: ["e"], text: "watch a target (1 mana a turn while in sight); again to stop" },
+  ] },
+  { title: "Party", items: [
+    { keys: ["m"], text: "notebook of what you remember; m or Esc closes" },
+    { keys: ["Tab"], text: "outside a list: play your next ally" },
+    { keys: ["o"], text: "order an ally (costs a turn)" },
+  ] },
+];
+
+function helpHtml() {
+  return HELP_BLOCKS.map((block) => {
+    const rows = block.items.map((item) => {
+      const keys = item.keys.map((key) => `<kbd>${esc(key)}</kbd>`).join("");
+      return `<div class="help-row"><span class="help-keys">${keys}</span><span class="help-desc">${esc(item.text)}</span></div>`;
+    }).join("");
+    return `<section class="help-block"><h3>${esc(block.title)}</h3>${rows}</section>`;
+  }).join("");
+}
 
 function renderSlots(game) {
   const { slots, picks } = game.slots();
@@ -450,7 +494,7 @@ function setup() {
     event.preventDefault();
     press(key);
   });
-  $("help-text").textContent = [...HELP_LINES, "Report what I found: p (phone app)"].join("\n");
+  $("help-text").innerHTML = helpHtml();
   $("help-close").addEventListener("click", () => $("help-dialog").close());
   $("resume").addEventListener("click", async () => {
     const save = readSave();
