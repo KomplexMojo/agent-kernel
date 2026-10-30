@@ -50,7 +50,20 @@ test("p opens the playtest report (and More lists it)", () => {
   const browser = readFileSync(join(SRC, "browser.js"), "utf8");
   assert.match(browser, /key === "p".*openReport\(\)/s);
   assert.match(browser, /\["p", "Report"\]/);
-  assert.match(browser, /Report what I found: p/);
+  assert.match(browser, /report what I found/);
+});
+
+test("the Keys dialog is sectioned HTML with key chips, not a plain pre dump", () => {
+  const browser = readFileSync(join(SRC, "browser.js"), "utf8");
+  const html = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/index.html"), "utf8");
+  const css = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/style.css"), "utf8");
+  assert.match(html, /id="help-text" class="help"/);
+  assert.doesNotMatch(html, /<pre id="help-text"/);
+  assert.match(browser, /function helpHtml\(/);
+  assert.match(browser, /<kbd>/);
+  assert.match(browser, /HELP_BLOCKS/);
+  assert.match(css, /\.help kbd/);
+  assert.match(css, /\.help-block h3/);
 });
 
 test("a PWA report is one playtest.mjs reads back, with the commands that were played", async () => {

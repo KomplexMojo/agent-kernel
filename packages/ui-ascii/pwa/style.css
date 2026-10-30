@@ -50,10 +50,21 @@ body.picking #game, body.kbd.picking #game { --controls: 176px; --side: min(calc
 #controls .grid { flex: 1; display: grid; gap: 5px; align-content: start; overflow-y: auto; }
 #controls .grid.more { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 48px; } #controls .grid.end { grid-template-columns: 1fr; grid-auto-rows: 48px; } #controls .grid.list { grid-template-columns: 1fr 1fr; grid-auto-rows: 44px; }
 .k { font-size: 17px; padding: 0 4px; min-width: 0; } .act .k, .grid .k { font-size: 13px; } .k.go { background: var(--accent); color: #17171a; border-color: var(--accent); font-weight: bold; } .k.no { color: var(--dim); }
-#help-text { white-space: pre-wrap; font-size: 12px; margin: 0; }
 dialog { background: var(--bg); color: var(--fg); border: 1px solid var(--edge); border-radius: 14px; width: min(92vw, 480px); }
 dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 dialog > button { display: block; width: 100%; margin: 8px 0; padding: 14px; }
+#help-dialog { max-height: min(92dvh, 720px); padding: 16px 16px 12px; }
+#help-dialog[open] { display: flex; flex-direction: column; }
+#help-dialog h2 { margin: 0 0 10px; flex: none; }
+#help-dialog .row { flex: none; margin: 8px 0 0; }
+.help { overflow-y: auto; flex: 1; min-height: 0; margin: 0; overscroll-behavior: contain; }
+.help-block { margin: 0 0 14px; }
+.help-block:last-child { margin-bottom: 4px; }
+.help-block h3 { font-size: 11px; color: var(--accent); margin: 0 0 6px; font-weight: normal; text-transform: uppercase; letter-spacing: 0.06em; }
+.help-row { display: grid; grid-template-columns: minmax(6.5rem, 40%) 1fr; gap: 8px 10px; align-items: start; padding: 7px 0; border-top: 1px solid #ffffff0c; font-size: 13px; line-height: 1.35; }
+.help-keys { display: flex; flex-wrap: wrap; gap: 4px; }
+.help kbd { display: inline-block; padding: 2px 6px; border: 1px solid var(--edge); border-radius: 6px; background: var(--panel); color: var(--fg); font: 600 11px/1.4 ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; }
+.help-desc { color: var(--dim); }
 textarea { width: 100%; background: var(--panel); color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; font: 13px/1.3 ui-monospace, Menlo, monospace; padding: 8px; }
 .row { display: flex; gap: 8px; margin: 8px 0; } .row button { flex: 1; padding: 10px; }
 @media (hover: hover) and (pointer: fine) {
