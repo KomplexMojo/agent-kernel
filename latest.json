@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-30T16-51-38-153Z-e093b900d4d8-4036ab58153b",
-    "key": "4036ab58153ba02619a8b5e62c3a5f03c7d1731fa974ae07dd2c203fa19b6247",
+    "id": "2026-10-30T17-24-36-016Z-cdf873ad1e1a-22668b3a5093",
+    "key": "22668b3a5093a1b061789fe7f32b3db70e7b73f18937ab9270b895d18d4d68bb",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-30T16:51:38.153Z",
-    "completedAt": "2026-10-30T16:54:12.754Z",
-    "durationMs": 154601,
+    "startedAt": "2026-10-30T17:24:36.016Z",
+    "completedAt": "2026-10-30T17:27:10.852Z",
+    "durationMs": 154836,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "e093b900d4d88f0b0480d0b7670ff4bc4415eed4",
-    "tree": "8c3a5a8340fdf40587e185da360f12da1f031f6a"
+    "commit": "cdf873ad1e1a869f3b04cac843a1b8754c16fd7b",
+    "tree": "92fa9f9f52c0e868484f421deb49d548ecbfbb9d"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -181,7 +181,7 @@
       "packages/runtime/src/render/generated/affinity-sprite-assets.js",
       "packages/runtime/src/render/generated/game-sprite-assets.js",
       "packages/runtime/src/render/icon-model.js",
-      "packages/runtime/src/render/minimap.js",
+      "packages/runtime/src/render/notebook.js",
       "packages/runtime/src/render/resource-bundle.js",
       "packages/runtime/src/render/visual-assets/actor-medallions/actor-medallion-generated-assets.json",
       "packages/runtime/src/render/visual-assets/actor-medallions/components/affinity-growth.png",
