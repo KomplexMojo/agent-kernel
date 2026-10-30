@@ -106,7 +106,16 @@ const VITAL_LINE_LIMIT = 3;
  */
 export function vitalChangeLine(view) {
   const me = view.player?.id;
-  const hits = (view.vitalChanges || []).filter((change) => change.hit !== 0)
+  // A hit the cast line already names (`You hit W1 with corrode push: DU −8`) is not said twice:
+  // someone else's change that is exactly what the tick's casts did, with no regen to add.
+  const byCast = new Map();
+  for (const cast of view.casts || []) for (const change of cast.changes || []) {
+    if (change.actorId === cast.sourceId) continue;
+    const key = `${change.actorId}|${change.vital}`;
+    byCast.set(key, (byCast.get(key) ?? 0) + change.delta);
+  }
+  const said = (change) => change.actorId !== me && change.regen === 0 && byCast.get(`${change.actorId}|${change.vital}`) === change.hit;
+  const hits = (view.vitalChanges || []).filter((change) => change.hit !== 0 && !said(change))
     .sort((left, right) => Number(right.actorId === me) - Number(left.actorId === me));
   return hits.slice(0, VITAL_LINE_LIMIT).map((change) => {
     const who = change.actorId === me ? "You" : change.label ?? change.actorId;

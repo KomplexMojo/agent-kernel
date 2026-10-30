@@ -110,6 +110,7 @@ function toPlayRejection({ action, reason }) {
 
 const HAZARD_CATEGORY = "hazard";
 const BARRIER_CATEGORY = "barrier";
+const RESOURCE_CATEGORY = "resource";
 export const PLAYER_MOTIVATION = "user_controlled";
 
 // The level's presentation names what each authored actor is; a barrier raised in play
@@ -236,6 +237,8 @@ export async function createPlaySession({
   // One tick of the world, then the party's memory and the departures it caused.
   async function stepWorld(args) {
     const watched = watchedIds();
+    const stocked = readSnapshot().actors.filter((actor) => watched.includes(actor.id) && categoryOf(actor, presentation) === RESOURCE_CATEGORY
+      && hasLoot(actor)).map((actor) => actor.id);
     const before = readSnapshot().actors.map((actor) => [actor.id, actor.lifecycle, runtime.hasActorExited(actor.id)]);
     await runtime.step(args);
     recordEvents(before);
@@ -250,6 +253,11 @@ export async function createPlaySession({
       const defeat = actor.lifecycle === "defeated" ? { position: { ...actor.position }, by: defeatedBy(actor, actors) } : {};
       departures.push({ id, ...(labels.has(id) ? { label: labels.get(id) } : {}), role, how: actor.lifecycle, ...defeat });
       if (defeat.position) defeatMarks.push({ ...defeat.position, role, age: 0 });
+    }
+    // A resource emptied this tick leaves a spent mark where it stood (Darren, 2026-10-30).
+    for (const id of stocked) {
+      const actor = actors.find((entry) => entry.id === id);
+      if (actor?.lifecycle === "alive" && !hasLoot(actor)) defeatMarks.push({ ...actor.position, role: RESOURCE_CATEGORY, spent: true, age: 0 });
     }
   }
 
@@ -865,6 +873,12 @@ export function toViewActor(actor, presentation, labels, revealLevel, upkeepTabl
 // Holdings are core's data: authored ones, plus one per affinity once an actor is defeated.
 // Core says whose may be taken (a defeated actor's, or an intact resource's, #406); this only
 // lists them, by actor id, in the shape a take command needs.
+const holdsUnclaimed = (actor) => (Array.isArray(actor.holdings) ? actor.holdings : []).some((holding) => holding.claimedBy === null);
+// A resource still has something to give while it holds an unclaimed holding or, intact, an
+// affinity (core derives that reward when it is broken).
+const hasLoot = (actor) => holdsUnclaimed(actor) || (actor.lifecycle === "alive" && Array.isArray(actor.affinities) && actor.affinities.length > 0);
+const isSpent = (actor, presentation) => categoryOf(actor, presentation) === RESOURCE_CATEGORY && !hasLoot(actor);
+
 function lootNextTo(snapshot, player) {
   const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   return snapshot.actors
@@ -953,9 +967,17 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     // intact resources next to it. Whether a take succeeds is still core's call.
     loot: player && player.lifecycle === "alive" ? lootNextTo(snapshot, player) : [],
     // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
-    // UI to draw over the board. Traps are reported in `hazards` instead.
-    actors: others.filter((actor) => categoryOf(actor, presentation) !== HAZARD_CATEGORY)
+    // UI to draw over the board. Traps are reported in `hazards` instead. A resource with
+    // nothing left to take is gone from the board (Darren, 2026-10-30); the session marks
+    // where it was for a few ticks.
+    actors: others.filter((actor) => categoryOf(actor, presentation) !== HAZARD_CATEGORY && !isSpent(actor, presentation))
       .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id], upkeepTable)),
+    // Darren, 2026-10-30 ("show it as a resource"): a defeated actor in sight that still holds
+    // something to take is shown as a resource until it is emptied. Taking is core's rule as before.
+    lootBodies: snapshot.actors.filter((actor) => actor.id !== playerId && actor.lifecycle === "defeated"
+      && categoryOf(actor, presentation) !== BARRIER_CATEGORY && holdsUnclaimed(actor) && inSight(actor))
+      .map((actor) => ({ id: actor.id, ...(labels.has(actor.id) ? { label: labels.get(actor.id) } : {}),
+        role: RESOURCE_CATEGORY, position: { ...actor.position } })),
   };
 }
 

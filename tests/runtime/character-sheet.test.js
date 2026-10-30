@@ -132,12 +132,40 @@ test("a tap steps a choice (none, every kind, none again) and only lights a numb
   assert.equal(sheet.view().cursorNumeric, false, "− and + mean nothing on a kind");
   sheet.tap(0, 1);
   assert.equal(sheet.view().rows[0].fields[1].value, AFFINITY_EXPRESSIONS[(AFFINITY_EXPRESSIONS.indexOf("emit") + 1) % AFFINITY_EXPRESSIONS.length]);
+  const vitalAt = sheet.view().rows.findIndex((row) => row.id === "vital-health");
   const before = sheet.spec();
-  sheet.tap(0, 2);
-  assert.equal(sheet.spec(), before, "a tap on a number changes nothing");
+  sheet.tap(vitalAt, 0);
+  assert.equal(sheet.spec(), before, "a tap on a vital changes nothing");
   assert.equal(sheet.view().cursorNumeric, true);
   sheet.apply(SHEET_INTENT.INC);
   assert.notEqual(sheet.spec(), before);
+});
+
+// Darren, 2026-10-30: a tap on a held slot's range or intensity steps it up and loops back to 1
+// past its limit: the largest value whose mana still fits max mana and whose price fits the allowance.
+test("a tap steps range and intensity and loops at the largest value max mana and the allowance afford", async () => {
+  const { createCharacterSheet } = await load();
+  const spec = "affinities=fire:push:1,fire:emit:1;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1";
+  const sheet = createCharacterSheet({ spec, budgetTokens: 5000 });
+  const field = (row, name) => sheet.view().rows[row].fields.find((entry) => entry.name === name);
+  const taps = (row, at, count) => Array.from({ length: count }, () => { sheet.tap(row, at); return sheet.view().rows[row].fields[at].value; });
+  // Push at mana 10: 2 × i² × r(r+1)/2 fits up to range 2 or intensity 2.
+  assert.deepEqual([field(0, "range").limit, field(0, "intensity").limit], [2, 2]);
+  assert.deepEqual(taps(0, 2, 3), [2, 1, 2]);
+  // Emit at mana 10: 2 + r + i² a tick fits up to range 7 at intensity 1.
+  assert.equal(field(1, "range").limit, 7);
+  assert.deepEqual(taps(1, 2, 8), [2, 3, 4, 5, 6, 7, 1, 2]);
+  for (const row of [0, 1]) {
+    const mana = sheet.view().rows[row].mana;
+    assert.equal(mana.overMax, false, "every value a tap reaches can be paid");
+  }
+  // The allowance caps it too: with tokens for only the slots as they are, a tap loops at once.
+  const tight = createCharacterSheet({ spec, budgetTokens: createCharacterSheet({ spec, budgetTokens: 5000 }).view().total });
+  assert.equal(tight.view().rows[1].fields.find((entry) => entry.name === "range").limit, 1);
+  // An empty slot has no limit to show and a tap leaves it at 1.
+  assert.equal(sheet.view().rows[2].fields.find((entry) => entry.name === "range").limit, undefined);
+  sheet.tap(2, 2);
+  assert.equal(sheet.view().rows[2].fields[2].value, 1);
 });
 
 test("minions: a tap cycles a role, each one adds a row, none takes it out, and the Configurator's loadouts are priced", async () => {
