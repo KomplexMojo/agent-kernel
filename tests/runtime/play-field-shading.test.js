@@ -135,7 +135,7 @@ test("a seen warden stays known where it was last seen until the cell is seen em
   let view = play.view();
   assert.equal(view.actors.length, 0, "out of sight now");
   assert.deepEqual(view.lastSeen.map((a) => [a.id, a.position.x, a.position.y]), [["guard", 2, 1]]);
-  assert.match(renderScreen({ view, levelName: "field" }), /\n  @\.W/);
+  assert.match(renderScreen({ view, levelName: "field" }), /\n  @\.▴/);
   await play.act({ kind: "move", params: { direction: "east" } });
   view = play.view();
   assert.equal(view.actors.length, 1);

@@ -56,11 +56,11 @@ test("the player is the user-controlled colour; other entities wear their role c
   const legend = await coreLegend();
   const styles = buildAsciiCellStyles(legend);
   assert.equal(styles[legend.actor].fg, GAME_COLOR_PALETTE.motivations.user_controlled);
-  assert.equal(styles[ASCII_ENTITY_GLYPHS.delver].fg, GAME_COLOR_PALETTE.actors.delver);
-  assert.equal(styles[ASCII_ENTITY_GLYPHS.warden].fg, GAME_COLOR_PALETTE.actors.warden);
-  assert.equal(styles[ASCII_ENTITY_GLYPHS.hazard].fg, GAME_COLOR_PALETTE.items.hazard);
-  assert.equal(styles[ASCII_ENTITY_GLYPHS.resource].fg, GAME_COLOR_PALETTE.items.resource);
-  assert.equal(styles[ASCII_ENTITY_GLYPHS.warden].bg, GAME_COLOR_PALETTE.tiles.floor);
+  assert.equal(styles[legend.glyphs.delver].fg, GAME_COLOR_PALETTE.actors.delver);
+  assert.equal(styles[legend.glyphs.warden].fg, GAME_COLOR_PALETTE.actors.warden);
+  assert.equal(styles[legend.glyphs.hazard].fg, GAME_COLOR_PALETTE.items.hazard);
+  assert.equal(styles[legend.glyphs.resource].fg, GAME_COLOR_PALETTE.items.resource);
+  assert.equal(styles[legend.glyphs.warden].bg, GAME_COLOR_PALETTE.tiles.floor);
 });
 
 test("characters follow the legend it is given, not a copy of core's", () => {

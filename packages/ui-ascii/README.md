@@ -1,6 +1,6 @@
 # ui-ascii
 
-A playable terminal front end for agent-kernel: you are `@`, find the exit `E`, and mind the traps `H`.
+A playable terminal front end for agent-kernel: you are `@`, find the exit `E`, and mind the traps `☼`.
 
 It is reachable from the `ak` CLI and the MCP server, so any harness can create a level and show it:
 
@@ -71,7 +71,9 @@ Every actor and trap is drawn where the run recorded it at that tick, with no fo
 
 **Turn-based by default; real time is opt-in.** Time passes only when you act, so standing next to a trap costs nothing until you take a turn. `--realtime <ms>` starts real time: every `<ms>` milliseconds without a key, the game takes a wait turn for you, exactly as if you had pressed `.`. `t` switches real time on and off in game (at 500 ms when no `--realtime` was given), and a line under the board says which mode is on. The beat pauses while a panel is open or the level is over. A beat is an ordinary wait turn, so recordings and replays stay deterministic. Interactive play only: `--keys` and `--json` ignore it (#291).
 
-**Walls (#574).** Walls are drawn as connected line characters (`─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼`, end caps `╴ ╶ ╵ ╷`, an isolated wall `■`) chosen from the wall's four neighbours in the true level grid, so a remembered wall still joins one out of sight; outside the board counts as no wall. `--ascii` (or `AK_ASCII=1`, or `?ascii=1` on the phone app) switches to `- | +` for fonts without box-drawing. The glyphs are runtime's (`render/wall-glyphs.js`, `createPlaySession({ glyphSet })`); no UI derives them.
+**Actor glyphs (#575).** Every glyph is one terminal column wide (East Asian Width Narrow or Neutral, never emoji): you `@`, another delver `◊`, a warden `▴`, a trap `☼`, a resource `◙` (also a body with loot), a barrier `▮`. The table is runtime's (`render/actor-glyphs.js`), carried on `view.legend.glyphs`; `--ascii` brings back the letters `D W H R B` (the HUD labels `D1`, `W1` are letters either way). The box-drawing wall glyphs are the one named exception: Ambiguous width, one column in Western locales, and `--ascii` is the escape for CJK terminals.
+
+**Walls (#574).** Walls are drawn as connected line characters (`─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼`, end caps `╴ ╶ ╵ ╷`, an isolated wall `■`) chosen from the wall's four neighbours in the true level grid, so a remembered wall still joins one out of sight; outside the board counts as no wall. `--ascii` (or `AK_ASCII=1`, or `?ascii=1` on the phone app) switches to `- | +` for fonts without box-drawing (and to letter actors). The glyphs are runtime's (`render/wall-glyphs.js`, `createPlaySession({ glyphSet })`); no UI derives them.
 
 **Fog of war is on.** You see only what is in sight (levels are unlit, so that is close by). Cells you have never seen are `?`, cells you saw before are drawn dimmed with no actors on them (without colour, remembered floor is blank while remembered walls, doors and the exit stay drawn, #284) (until dark covers them out of sight, which makes you forget them), and other actors and traps appear only while in sight. What counts as in sight is core's and the play session's (`createPlaySession({ fog: true })`, `view().sight`); this package only draws it. `--no-fog` (also on `ak play`, and `fog: false` on `ak_play_ascii`) is a debug view of the whole level for tests and level checks, not a way to play.
 
@@ -118,7 +120,7 @@ The simulation side is `packages/runtime/src/runner/play-session.js`: `await cre
 
 ## Other actors and traps
 
-The play session's rows draw the terrain, barriers (`B`) and the player (`@`). Other actors (`view().actors`) are drawn on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden (read from the role, or the id when a generated level leaves the role unset). Traps are the level's hazard actors (`view().hazards`), drawn as `H` under any actor. A trap's field hurts whoever stands in it each turn, so an `emit` trap costs the vital its affinity targets, spilling into health once that is empty (`docs/affinity-table.md`), and it pays `2 + range + intensity²` mana a turn to stay on. Whether actors move is the play session's business, not this package's.
+The play session's rows draw the terrain, barriers (`▮`, or `B` with `--ascii`) and the player (`@`). Other actors (`view().actors`) are drawn on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden (read from the role, or the id when a generated level leaves the role unset). Traps are the level's hazard actors (`view().hazards`), drawn as `H` under any actor. A trap's field hurts whoever stands in it each turn, so an `emit` trap costs the vital its affinity targets, spilling into health once that is empty (`docs/affinity-table.md`), and it pays `2 + range + intensity²` mana a turn to stay on. Whether actors move is the play session's business, not this package's.
 
 ## Bundled levels
 
