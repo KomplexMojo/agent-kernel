@@ -239,7 +239,7 @@ test("a wall bump shows a message and costs a turn; restart resets the level", a
   assert.equal(game.state().turns, 3);
   await game.handle({ type: INTENT.RESTART });
   assert.equal(game.state().turns, 0);
-  assert.match(game.screen(), /S@\.\.#/);
+  assert.match(game.screen(), /S@\.\.│/);
 });
 
 test("each vital shows its regen after current/max, on the screen and the hud line", async () => {
@@ -266,7 +266,7 @@ test("the screen shows the board, present vitals only, tick, turns and the statu
   assert.match(screen, /first-steps \(1\/2\)/);
   assert.match(renderScreen({ view: session.view(), levelName: "first-steps", grade: "C" }), /^Deepward — first-steps \(grade C\) \(1\/1\)$/m,
     "a graded level names its grade in the header (#422)");
-  assert.match(screen, /^ {2}S@\.\.#\.\.\.#$/m);
+  assert.match(screen, /^ {2}S@\.\.│\.\.\.│$/m);
   assert.match(screen, /HP █+ 10\/10/);
   assert.match(screen, /MP █+ 10\/10/);
   assert.match(screen, /Tick 0 {3}Turns 0/);
@@ -397,7 +397,7 @@ test("other actors are drawn over the board rows with the snapshot's letters, ne
 test("the screen draws view.actors when the session reports them", async () => {
   const session = await createPlaySession(fixtureLevel("first-steps"));
   const view = { ...session.view(), actors: [{ id: "warden-1", role: "warden", position: { x: 3, y: 1 } }] };
-  assert.match(renderScreen({ view, levelName: "first-steps" }), /^ {2}S@\.W#\.\.\.#$/m);
+  assert.match(renderScreen({ view, levelName: "first-steps" }), /^ {2}S@\.W│\.\.\.│$/m);
 });
 
 const ansi = (hex, layer) => {
@@ -678,12 +678,12 @@ test("f aims at the nearest actor in sight and Enter casts at it", async () => {
 test("a cast shows its path as arrows for one turn and names its hit", async () => {
   const game = await createGame({ levels: duelLevels({ wardenAt: { x: 4, y: 1 } }), fog: false });
   await press(game, "i1f\r");
-  assert.match(game.screen(), /  #@>>W#/);
+  assert.match(game.screen(), /  │@>>W╵/);
   assert.match(game.screen(), /Cast path: > mark where the last cast went/, "the arrows are named while they show (#479)");
   assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
   assert.equal(game.view().casts[0].path.at(-1).x, 4);
   await press(game, ".");
-  assert.match(game.screen(), /  #@\.\.W#/);
+  assert.match(game.screen(), /  │@\.\.W╵/);
   assert.doesNotMatch(game.screen(), /Cast path:/);
 });
 
@@ -772,7 +772,7 @@ test("z aims a push at an empty tile and Enter raises a barrier there for one tu
   await press(game, "zll");
   assert.match(game.screen(), /Raise: the tile 2 east of you with water push \(2 tiles away, reaches 3 tiles\)/);
   assert.match(game.screen(), /Enter raises a barrier line there/);
-  assert.match(game.screen(), /  #@\.\+\.#/);
+  assert.match(game.screen(), /  │@\.\+\.╵/);
   assert.equal(game.state().turns, turns);
   await press(game, "\r");
   assert.equal(game.state().turns, turns + 1);
@@ -871,7 +871,7 @@ test("g next to a standing warden or a spent resource says why nothing can be ta
   const game = await createGame({ levels: [{ name: "spent", ...level }], fog: false });
   await press(game, "gg");
   // Emptied, it leaves the board (Darren, 2026-10-30): a `*` marks where it stood, and g finds nothing.
-  assert.match(game.screen(), /#@\*/);
+  assert.match(game.screen(), /│@\*/);
   assert.match(game.screen(), /Nothing here to take\./);
 });
 

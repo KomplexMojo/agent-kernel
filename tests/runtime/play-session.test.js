@@ -65,7 +65,7 @@ test("the first view is the level's board at tick 0 with the player at its seat"
   assert.deepEqual(view.status, { tick: 0, exited: false, atExit: false, defeated: false });
   assert.deepEqual(view.player.position, { x: 2, y: 1 });
   assert.equal(view.player.id, "actor_mvp");
-  assert.equal(view.rows[1], "S.@.#...#");
+  assert.equal(view.rows[1], "S.@.│...│");
   assert.equal(view.rows.length, 9);
 });
 
@@ -90,7 +90,7 @@ test("an accepted move moves the player and closes exactly one tick", async () =
   }]);
   const view = session.view();
   assert.deepEqual(view.player.position, { x: 3, y: 1 });
-  assert.equal(view.rows[1], "S..@#...#");
+  assert.equal(view.rows[1], "S..@│...│");
 });
 
 test("a move into a wall is core's rejection and still costs the turn", async () => {
@@ -271,7 +271,7 @@ test("cells seen once stay explored: base tile shown, marked remembered", async 
   assert.equal(view.sight[1][1], PLAY_SIGHT.REMEMBERED);
   assert.equal(view.rows[1][1], ".");
   assert.equal(view.sight[0][3], PLAY_SIGHT.REMEMBERED, "the wall above (3,1), seen on the way");
-  assert.equal(view.rows[0][3], "#");
+  assert.equal(view.rows[0][3], "─", "a remembered wall keeps its connected glyph, joined to neighbours it cannot see (#574)");
 });
 
 test("with fog, actors out of sight are not reported", async () => {

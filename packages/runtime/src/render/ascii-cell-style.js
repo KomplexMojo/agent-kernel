@@ -72,6 +72,10 @@ export function buildAsciiCellStyles(legend) {
       styles[char] = { fg: TILE_GLYPH_COLOR[kind], bg: tiles[kind] };
     }
   }
+  // Connected wall glyphs (#574) all take the wall's style.
+  for (const char of Array.isArray(legend?.wallGlyphs) ? legend.wallGlyphs : []) {
+    if (styles[legend.wall]) styles[char] = styles[legend.wall];
+  }
   for (const [char, fg] of Object.entries(ENTITY_COLOR)) {
     styles[char] = { fg, bg: tiles.floor };
   }

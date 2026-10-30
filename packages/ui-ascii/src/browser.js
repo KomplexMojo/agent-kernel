@@ -102,7 +102,7 @@ async function loadLevel(entry) {
 // `custom` is a level the character screen built: { level, character, cost }.
 async function startGame(scenario, entry, capture = null, custom = null) {
   const level = { name: `${scenario.title}, seed ${entry.seed}`, ...(custom?.level ?? (await loadLevel(entry))) };
-  const game = await createGame({ levels: [level], fog: true, showHelp: false });
+  const game = await createGame({ levels: [level], fog: true, showHelp: false, glyphSet: new URLSearchParams(globalThis.location?.search ?? "").has("ascii") ? "ascii" : "unicode" });
   if (capture) await game.replay(capture);
   current = { scenario, entry, game, selected: null, sheet: null, character: custom?.character ?? null, cost: custom?.cost ?? null };
   show("game");
