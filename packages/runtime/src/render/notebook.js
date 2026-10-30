@@ -48,33 +48,13 @@ export function buildNotebook({ rows, legend = {}, rooms = [], player = null, sc
   const lineBlocks = new Set();
   grid.forEach((row, y) => row.forEach((char, x) => { if (open(char) && !inRoom(x, y)) lineBlocks.add(block(x, y)); }));
 
-  // A room is one mark, at the block holding its centre. A hallway block touching the room's
-  // body is led on to that mark (across x, then y) so the line meets it.
+  // A room is one mark at its centre. Hallway stubs that already touch that mark stay as lines;
+  // do NOT paint a path through the room body to the centre — that drew phantom corridors inside
+  // a room the player had walked (draw-reach seed 9 playtest, 2026-10-30).
   const marks = new Map();
   const centreOf = (room) => block(room.x + Math.floor(room.width / 2), room.y + Math.floor(room.height / 2));
   for (const room of rooms) marks.set(centreOf(room), room);
-  const bodyBlocks = (room) => {
-    const found = new Set();
-    for (let y = room.y; y < room.y + room.height; y += 1) for (let x = room.x; x < room.x + room.width; x += 1) found.add(block(x, y));
-    return found;
-  };
   const joined = new Set(lineBlocks);
-  for (const room of rooms) {
-    const body = bodyBlocks(room);
-    const [cx, cy] = parse(centreOf(room));
-    for (const key of lineBlocks) {
-      const [bx, by] = parse(key);
-      const touches = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => body.has(`${bx + dx},${by + dy}`));
-      if (!touches) continue;
-      let [x, y] = [bx, by];
-      for (let guard = 0; guard < 64 && (x !== cx || y !== cy); guard += 1) {
-        const step = body.has(`${x + Math.sign(cx - x)},${y}`) && x !== cx ? [Math.sign(cx - x), 0] : [0, Math.sign(cy - y)];
-        if (step[0] === 0 && step[1] === 0) break;
-        x += step[0]; y += step[1];
-        if (!marks.has(`${x},${y}`)) joined.add(`${x},${y}`);
-      }
-    }
-  }
 
   const occupied = (x, y) => joined.has(`${x},${y}`) || marks.has(`${x},${y}`);
   const cells = new Map();

@@ -38,3 +38,29 @@ test("the room you stand in is marked @ and named; nothing noted gives no lines"
   assert.equal(here.id, "R1");
   assert.deepEqual(buildNotebook({ rows: ["~~"], legend, rooms: [] }).lines, []);
 });
+
+test("a doorway stub outside one room does not draw phantom hallways through the room", () => {
+  // Scale-4 blocks: room body is several notebook cells; a single seen floor tile north of the
+  // room used to be led through the body to the centre, so the notebook looked like corridors
+  // inside a room the player had fully walked (draw-reach seed 9 playtest).
+  const rows = [
+    "~~~~~~~~~~~~",
+    "~~~~~.~~~~~~",
+    "~~........~~",
+    "~~........~~",
+    "~~........~~",
+    "~~........~~",
+    "~~........~~",
+    "~~........~~",
+    "~~........~~",
+    "~~........~~",
+    "~~~~~~~~~~~~",
+    "~~~~~~~~~~~~",
+  ];
+  const rooms = [room({ x: 2, y: 2, width: 8, height: 8, seen: 40, done: 10 })];
+  const { lines } = buildNotebook({ rows, legend, rooms, player: { x: 5, y: 5 }, scale: 4 });
+  const drawing = lines.join("\n");
+  assert.match(drawing, /@/);
+  // Junctions only appear when a path was painted through the room body; stubs may still show │.
+  assert.doesNotMatch(drawing, /[└┘┌┐├┤┬┴┼]/, "no corridor junctions inside the room");
+});
