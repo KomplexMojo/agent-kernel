@@ -12,6 +12,7 @@
 import { createGame } from "./game.js";
 import { ansiToHtml } from "./html.js";
 import { intentForKey } from "./keymap.js";
+import { defeatCause } from "./screen.js";
 import { encodeReplay, renderReport } from "./report.js";
 import { createCharacterSheet } from "../../runtime/src/runner/character-sheet.js";
 import { windowSizeForViewport } from "../../runtime/src/render/window-size.js";
@@ -257,12 +258,22 @@ function render() {
   const st = game.state();
   const parts = game.screen({ color: "truecolor", parts: true });
   $("title").textContent = `${current.scenario.title} · seed ${current.entry.seed} · turn ${st.turns}`;
-  if (parts.defeat) {
-    $("boardtext").innerHTML = ansiToHtml(parts.defeat);
+  const board = $("boardtext");
+  if (parts.defeat || st.status.defeated) {
+    // Plain defeat card — not the tile grid (tile spans crushed the old ASCII skull).
+    board.classList.remove("tiles");
+    board.classList.add("defeat");
+    const cause = defeatCause(game.view());
+    board.innerHTML = `<div class="defeat-skull" aria-hidden="true">☠</div>`
+      + `<div class="defeat-banner">Better luck next time</div>`
+      + `<div class="defeat-cause">${esc(cause ? `Defeated by ${cause}.` : "Defeated.")}</div>`
+      + `<div class="defeat-summary">${esc(current.scenario.title)} · seed ${current.entry.seed} · ${st.turns} turn${st.turns === 1 ? "" : "s"}</div>`;
     $("vitals").innerHTML = "";
   } else {
+    board.classList.add("tiles");
+    board.classList.remove("defeat");
     const notebook = notebookLines(game, parts);
-    $("boardtext").innerHTML = notebook ? notebookHtml(notebook) : parts.board.map((row) => ansiToHtml(row, { cells: true })).join("\n");
+    board.innerHTML = notebook ? notebookHtml(notebook) : parts.board.map((row) => ansiToHtml(row, { cells: true })).join("\n");
     fitBoard();
     $("vitals").innerHTML = parts.vitals.map((vital) => `<div>${esc(vital.label)} ${esc(vital.text)}<i style="width:${Math.round(Math.max(0, Math.min(1, vital.fraction)) * 100)}%;background:${vital.colorHex}"></i></div>`).join("")
       + (parts.soaked ? `<div>${esc(parts.soaked)}</div>` : "");

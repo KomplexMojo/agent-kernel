@@ -939,8 +939,10 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
   const game = await createGame({ levels: [{ name: "ambush", ...level }], fog: false });
   for (let i = 0; i < 30 && !/defeated/.test(game.screen()); i += 1) await press(game, ".");
   assert.match(game.screen(), /You were defeated\. Press r to try the level again, q to quit\./);
-  // #488: the skull replaces the board and the cause is named.
-  assert.match(game.screen(), /\(\)   \(\)/);
+  // #488: a skull and attempt summary replace the board; the cause is named.
+  assert.match(game.screen(), /☠/);
+  assert.match(game.screen(), /Better luck next time/);
+  assert.match(game.screen(), /Attempt: \d+ turns?\./);
   assert.doesNotMatch(game.screen(), /###/);
   assert.match(game.screen(), /Defeated by .*warden_1's fire push/);
   const turns = game.state().turns;
