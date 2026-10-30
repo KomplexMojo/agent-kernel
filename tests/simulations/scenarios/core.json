@@ -154,7 +154,7 @@
     },
     {
       "id": "loot",
-      "note": "an exploring delver in a level with vital, affinity and slot resources",
+      "note": "an exploring delver in a level with vital and affinity resources",
       "budget": 8000,
       "ticks": 40,
       "expect": {
@@ -164,27 +164,25 @@
         "--room",
         "size=medium;count=2",
         "--delver",
-        "count=1;id=ex;affinity=fire;slots=3;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=ex;affinity=fire;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
         "--resource",
         "permanenceMode=consumable;vital=health;delta=10",
         "--resource",
         "permanenceMode=permanent;vital=mana;delta=5;regen=1",
         "--resource",
-        "affinity=growth;expression=emit;stacks=2;mana=40",
-        "--resource",
-        "slots=1"
+        "affinity=growth;expression=emit;stacks=2;mana=40"
       ]
     },
     {
       "id": "four-slots",
-      "note": "a four-slot delver (emit, push, pull, draw) against two attacking wardens",
+      "note": "a delver with emit, push and pull equipped and a draw in its pack, against two attacking wardens",
       "budget": 8000,
       "ticks": 40,
       "args": [
         "--room",
         "size=medium;count=1",
         "--delver",
-        "count=1;id=multi;affinity=light;slots=4;affinities=light:emit:2,fire:push:3,wind:pull:2,growth:draw:2;equip=light:emit,fire:push,wind:pull,growth:draw;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=multi;affinity=light;affinities=light:emit:2,fire:push:3,wind:pull:2,growth:draw:2;equip=light:emit,fire:push,wind:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
         "--warden",
         "count=2;id=w;affinity=dark;affinities=dark:push:2;equip=dark:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
       ]

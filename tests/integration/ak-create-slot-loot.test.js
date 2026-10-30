@@ -1,8 +1,7 @@
 /**
- * Slot-unlock loot end to end (maintainer, 2026-10-12): `ak create --resource
- * "slots=1"` authors a floor resource carrying a slot holding, the Allocator
- * charges it as the most valuable loot, and the Configurator refuses it on any
- * preset but a resource (defeated delvers and wardens never drop slots).
+ * Slot-unlock loot (maintainer, 2026-10-12) was retired on 2026-10-30 (Darren): `ak create
+ * --resource "slots=1"` is refused, and the Configurator still refuses a slot holding on any
+ * preset but a resource.
  */
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -23,19 +22,12 @@ function create(resource) {
 }
 const read = (dir, file) => JSON.parse(readFileSync(join(dir, file), "utf8"));
 
-test("ak create places slot loot as a resource holding and charges it per slot", () => {
-  const { dir, result } = create("slots=1;id=slot_cache");
-  assert.equal(result.status, 0, result.stderr);
-  const cache = read(dir, "initial-state.json").actors.find((actor) => actor.id === "slot_cache");
-  assert.deepEqual(cache.holdings, [{ id: "slot:slot_cache", kind: "slot", slots: 1, claimedBy: null }]);
-  assert.equal(read(dir, "resource-1.json").slotGrant, 1);
-  const line = read(dir, "budget-receipt.json").lineItems.find((item) => item.id === "resource_affinity_slot");
-  assert.equal(line.quantity, 1);
-  const prices = read(dir, "price-list.json").items;
-  const slotPrice = prices.find((item) => item.id === "resource_affinity_slot").unitCost;
-  assert.equal(line.totalCost, slotPrice);
-  assert.ok(prices.filter((item) => item.kind === "resource" && item.id !== "resource_affinity_slot")
-    .every((item) => item.unitCost < slotPrice), "slot loot is the most valuable loot");
+// Darren, 2026-10-30: an actor equips at most three affinities and carries the rest as a pack,
+// so slot-unlock loot is retired: the Configurator refuses it.
+test("ak create refuses slot loot: it is retired", () => {
+  const { result } = create("slots=1;id=slot_cache");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /slots= is retired/);
 });
 
 test("a slots value below one is refused at the CLI", () => {
@@ -53,7 +45,5 @@ test("the Configurator puts slot loot only on resources", async () => {
 });
 
 // ## TODO: Test Permutations
-// - slots=2 is charged twice the unit price
-// - a resource combining a vital payload and slots carries both holdings
-// - resource-plan --resource "slots=1" prices the same line
-// - a budget below the slot price denies the resources pool
+// - a resource combining a vital payload and slots is refused too
+// - resource-plan --resource "slots=1" is refused the same way

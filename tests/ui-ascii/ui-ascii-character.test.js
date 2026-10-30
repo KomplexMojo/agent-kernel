@@ -21,7 +21,7 @@ test("the screen shows every row with its price, the budget, and the keys", asyn
   const { createCharacterSheet } = await import(SHEET);
   const text = renderCharacterScreen(createCharacterSheet({ spec: HERO, budgetTokens: 942 }).view());
   assert.match(text, /YOUR DELVER\s+Budget 234 \/ 942/);
-  assert.match(text, /Affinity slots \(first 3 free; none is not bought\)/);
+  assert.match(text, /Affinities: 3 equipped, then the pack/);
   assert.match(text, /> 1\s+\[fire\]/, "the cursor opens on the first slot's kind");
   assert.match(text, /    3   none      push    1     1                      0/, "an empty slot is kind none at the default form and range, and spends no mana");
   assert.match(text, /\[fire\]     emit    2     1     5\/tick          53/, "an emit's mana is per tick");

@@ -162,9 +162,9 @@ test('a matching draw slot absorbs before an opposite slot can double the damage
   expect(absorbing.mana!.current).toBeGreaterThan(0);
 });
 
-test('the record is validated: slot count 1..6, equipped keys known, unique, within slots, first is the active key', () => {
+test('the record is validated: slot count 1..3, equipped keys known, unique, within slots, first is the active key', () => {
   const load = (overrides: Partial<ActorRecord>) => () => corridor([actor('a', 0, overrides)]);
-  expect(load({ affinitySlots: 7 })).toThrow();
+  expect(load({ affinitySlots: 4 })).toThrow();
   expect(load({ affinitySlots: 0 })).toThrow();
   expect(load({ affinitySlots: 1, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'light:emit'] })).toThrow();
   expect(load({ affinitySlots: 2, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'growth:emit'] as never })).toThrow();
@@ -172,7 +172,7 @@ test('the record is validated: slot count 1..6, equipped keys known, unique, wit
   expect(load({ affinitySlots: 2, activeAffinityKey: 'light:emit', equippedAffinityKeys: ['fire:push', 'light:emit'] })).toThrow();
   expect(load({ affinitySlots: 2, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push'],
     exhaustedAffinityKeys: ['light:emit'], affinityExhausted: true })).toThrow();
-  expect(load({ affinitySlots: 6, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'light:emit'] })).not.toThrow();
+  expect(load({ affinitySlots: 3, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'light:emit'] })).not.toThrow();
 });
 
 // ## TODO: Test Permutations

@@ -484,7 +484,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
 
   // A known affinity's digit in the panel: unequip it if equipped, else equip it
   // (core fills a free slot, or replaces the oldest when every slot is full).
-  async function toggleAffinity(pair) {
+  // `replaceKey` (an equipped key) names the slot a packed affinity swaps into, in the one turn;
+  // without it, full slots make the oldest give way (core's rule).
+  async function toggleAffinity(pair, replaceKey = null) {
     const key = `${pair.kind}:${pair.expression}`;
     const player = session.view().player;
     const equipped = equippedKeys(player);
@@ -492,8 +494,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       await act({ kind: "unequip_affinity", params: { affinityKey: key } }, () => `Unequipped ${keyLabel(key)}.`);
       return;
     }
-    const replaced = equipped.length >= (player?.affinitySlots ?? 1) ? equipped[0] : null;
-    await act({ kind: "equip_affinity", params: { affinityKey: key } },
+    const named = replaceKey && equipped.includes(replaceKey) ? replaceKey : null;
+    const replaced = named ?? (equipped.length >= (player?.affinitySlots ?? 1) ? equipped[0] : null);
+    await act({ kind: "equip_affinity", params: { affinityKey: key, ...(named ? { replaceKey: named } : {}) } },
       () => `Equipped ${affinityLabel(pair)}${replaced ? ` in place of ${keyLabel(replaced)}` : ""}.`);
   }
 
@@ -804,12 +807,15 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     };
   }
 
-  /** Equip a known affinity into a free slot, or unequip it if it is equipped (a turn, as with its number). */
-  async function toggleSlotAffinity(affinityKey) {
+  /**
+   * Equip a known affinity into a free slot, or unequip it if it is equipped (a turn, as with its
+   * number). With `replaceKey`, a packed affinity swaps into that equipped one's slot, in one turn.
+   */
+  async function toggleSlotAffinity(affinityKey, replaceKey = null) {
     panel = null;
     message = "";
     const pair = (session.view().player?.affinities || []).find((candidate) => `${candidate.kind}:${candidate.expression}` === affinityKey);
-    if (pair) await toggleAffinity(pair);
+    if (pair) await toggleAffinity(pair, replaceKey);
   }
 
   /** Run an equipped affinity one range or intensity higher or lower, as the affinity list's + - ] [ do. */

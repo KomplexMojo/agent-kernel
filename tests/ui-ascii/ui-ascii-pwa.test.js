@@ -150,3 +150,25 @@ test("a list panel is offered as choices, and the state names what an open panel
   await game.handle({ type: "quit" });
   assert.equal(game.panelChoices(), null);
 });
+
+// Darren, 2026-10-30: three slots, the rest a pack. The phone's swap puts a packed affinity in the
+// chosen slot's place in one turn; without a slot named, the oldest gives way (core's rule).
+test("toggleSlotAffinity with a slot named swaps a packed affinity into it, in one turn", async () => {
+  const { buildUnifiedLevel, viableVitals } = await import("../fixtures/ui-ascii/unified-level.mjs");
+  const affinities = [
+    { kind: "fire", expression: "push", stacks: 1 }, { kind: "water", expression: "push", stacks: 1 },
+    { kind: "earth", expression: "push", stacks: 1 }, { kind: "wind", expression: "push", stacks: 1 },
+  ];
+  const level = buildUnifiedLevel({
+    id: "pack", tiles: ["#####", "#...#", "#...E", "#####"],
+    actors: [{ category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals(),
+      affinities, affinitySlots: 3, activeAffinityKey: "fire:push", equippedAffinityKeys: ["fire:push", "water:push", "earth:push"] }],
+  });
+  const game = await createGame({ levels: [{ name: "pack", ...level }], fog: false, showHelp: false });
+  assert.deepEqual(game.slots().picks.map((pick) => pick.key), ["wind:push"], "the fourth is in the pack");
+  await game.toggleSlotAffinity("wind:push", "water:push");
+  assert.deepEqual(game.view().player.equippedAffinityKeys, ["fire:push", "wind:push", "earth:push"]);
+  assert.equal(game.state().turns, 1);
+  await game.toggleSlotAffinity("water:push");
+  assert.deepEqual(game.view().player.equippedAffinityKeys, ["wind:push", "earth:push", "water:push"], "unnamed, the oldest gives way");
+});

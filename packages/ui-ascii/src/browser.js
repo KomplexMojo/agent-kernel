@@ -141,7 +141,7 @@ function renderSlots(game) {
     <button data-tune="${field}:-1" ${level.running <= 1 ? "disabled" : ""}>−</button><button data-tune="${field}:1" ${level.running >= level.held ? "disabled" : ""}>+</button></div>`;
   $("tune").className = held ? "tune" : "tune hint";
   $("tune").innerHTML = held
-    ? `${stepper("stacks", "range", held.stacks)}${stepper("intensity", "power", held.intensity)}<button data-tune="off">unequip</button>`
+    ? `${stepper("stacks", "range", held.stacks)}${stepper("intensity", "power", held.intensity)}${picks.length ? `<button data-tune="swap">swap</button>` : ""}<button data-tune="off">unequip</button>`
     : "tap a slot to aim it, or an empty one to equip";
   return picks;
 }
@@ -245,6 +245,11 @@ function tuneTap(what) {
     const key = current.selected;
     if (!key) return;
     if (what === "off") { current.selected = null; await game.toggleSlotAffinity(key); return; }
+    // Swap: pick a packed affinity to take this slot's place, in one turn (Darren, 2026-10-30).
+    if (what === "swap") {
+      if (game.state().panel) await game.handle(intentForKey("\u001b"));
+      current.swapFor = key; current.sheet = "picker"; return;
+    }
     const [field, step] = what.split(":");
     await game.tuneSlot(key, field, Number(step));
   });
@@ -254,9 +259,12 @@ function actionTap(id) {
   if (id === "report") return openReport();
   if (id === "scenarios") return renderPicker();
   if (id === "more") { current.sheet = "more"; return render(); }
-  if (id === "close") { current.sheet = null; return render(); }
+  if (id === "close") { current.sheet = null; current.swapFor = null; return render(); }
   if (id.startsWith("equip:")) {
-    return run(async (game) => { current.sheet = null; await game.toggleSlotAffinity(id.slice(6)); });
+    // From the swap button, the packed pick takes the selected slot's place in the one turn.
+    const replace = current.swapFor ?? null;
+    current.swapFor = null;
+    return run(async (game) => { current.sheet = null; await game.toggleSlotAffinity(id.slice(6), replace); });
   }
 }
 
@@ -326,9 +334,11 @@ function renderSheet() {
   });
   const slotCount = view.rows.filter((row) => row.kind === "slot").length;
   const vitalEnd = slotCount + view.rows.filter((row) => row.kind === "vital").length;
-  $("sheet").innerHTML = `<h2>Affinity slots (first ${view.freeSlots} free)</h2>${rows.slice(0, slotCount).join("")}`
+  // Darren, 2026-10-30: the equipped slots, ready at once, then the pack (swapped in for a turn).
+  $("sheet").innerHTML = `<h2>Equipped (${view.equipSlots} slots)</h2>${rows.slice(0, view.equipSlots).join("")}`
     + (view.manaPerTick ? `<p class="dim">Emits and draws: ${view.manaPerTick} mana a tick together. Mana in a slot is per tick (emit, draw) or per cast (push, pull).</p>` : "")
-    + (view.slotsExtraPrice ? `<div class="srow"><span></span><span class="dim">extra slots</span><em>${view.slotsExtraPrice}</em></div>` : "")
+    + `<h2>Pack</h2>${rows.slice(view.equipSlots, slotCount).join("")}`
+    + `<p class="dim">Carried, not equipped: in play, equip one for a turn and it takes the place of your oldest.</p>`
     + `<h2>Vitals</h2>${rows.slice(slotCount, vitalEnd).join("")}`
     + `<h2>Minions</h2>${rows.slice(vitalEnd).join("")}`
     + `<p class="dim">A minion follows you and takes your orders. Its affinity comes from yours: a shield emits your kind, a support heals you, a striker hits with your kind.</p>`

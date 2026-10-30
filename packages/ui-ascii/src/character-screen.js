@@ -53,9 +53,10 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
   lines.push("─".repeat(78));
   lines.push(`Motivation   ${view.motivation.name} (the playable right)${" ".repeat(34)}${String(view.motivation.price).padStart(5)}`);
   lines.push("");
-  lines.push(`Affinity slots (first ${view.freeSlots} free; none is not bought)`);
+  lines.push(`Affinities: ${view.equipSlots} equipped, then the pack (equip one in play for a turn; none is not bought)`);
   lines.push(`    ${pad("", 3)}${pad(" kind", WIDTHS.kind)}${pad(" form", WIDTHS.expression)}${pad(" range", WIDTHS.range)}${pad(" int", WIDTHS.intensity)}${pad(" mana", WIDTHS.mana)}${"price".padStart(8)}`);
   for (const row of view.rows.filter((entry) => entry.kind === "slot")) {
+    if (row.packed && row.label === String(view.equipSlots + 1)) lines.push("    pack (carried, not equipped)");
     const mark = row.active ? ">" : " ";
     const cells = row.fields.map((field, index) => cell(field.value, WIDTHS[field.name], {
       selected: row.active && view.cursor.field === index,
@@ -67,7 +68,6 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
     lines.push(`  ${mark} ${pad(row.label, 3)}${cells.join("")}${mana}${String(row.price).padStart(8)}`);
   }
   if (view.manaPerTick > 0) lines.push(`    emits and draws together: ${view.manaPerTick} mana a tick, against mana regen ${view.rows.find((row) => row.id === "vital-mana")?.fields[1].value}`);
-  if (view.slotsExtraPrice > 0) lines.push(`${" ".repeat(46)}extra slots${String(view.slotsExtraPrice).padStart(11)}`);
   lines.push("");
   lines.push(`    ${pad("Vitals", 14)}${pad(" max", WIDTHS.max)}${pad(" regen", WIDTHS.regen)}${"price".padStart(26)}`);
   for (const row of view.rows.filter((entry) => entry.kind === "vital")) {

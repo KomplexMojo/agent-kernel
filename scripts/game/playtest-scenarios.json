@@ -426,8 +426,8 @@
       "focus": [
         "You start with two weak pushes ({A} and {B}, range 1, intensity 1) and nothing else. An affinity resource gives its affinity only once it is broken, and a restoring kind cannot break anything, so the opposed pair makes sure one push can.",
         "The first resource ({C} pull) is within 3 tiles of the start: push it to break it, then take its affinity from what is left (g). It is drawn R until it is empty.",
-        "To use what you took: i, then the affinity's number equips it.",
-        "Find the mana well (a permanent mana boost) and the slot resource (one more affinity slot).",
+        "To use what you took: i, then the affinity's number equips it (a turn). You equip at most three; with all three full, the oldest goes back to your pack.",
+        "Find the mana well (a permanent mana boost).",
         "Defeat the wardens and take their affinities from their bodies, also drawn R until emptied. An emptied resource shows * for a moment, then is gone.",
         "Are you fully equipped by the time you reach the exit?"
       ],
@@ -443,8 +443,6 @@
         "affinity={D};expression=push;stacks=3;mana=30;id=second",
         "--resource",
         "permanenceMode=permanent;vital=mana;delta=10;regen=1;id=well",
-        "--resource",
-        "slots=1;id=slot",
         "--warden",
         "count=2;id=guard;affinity={B};affinities={B}:push:2:1,{C}:pull:2:1;equip={B}:push;motivation=defending;vitals=health:12:1,mana:20:2,stamina:10:1,durability:10:1",
         "--warden",

@@ -4,9 +4,9 @@ import { createActorTurn } from '../../packages/core-ts/src/rules/actor-turn.ts'
 import { ValidationError } from '../../packages/core-ts/src/validate/inputs.ts';
 import type { ActorRecord } from '../../packages/core-ts/src/state/actor-types.ts';
 
-// Slot-unlock loot (maintainer, 2026-10-12): the most valuable loot. Taking it
-// opens more affinity slots, up to the hard cap of 6. It lies on the floor as a
-// resource; the Configurator never puts it on a delver or warden.
+// Slot-unlock loot (maintainer, 2026-10-12): taking it opens more affinity slots, up to the
+// hard cap (3 since Darren, 2026-10-30). Authoring it is retired at the Configurator; core
+// still loads and resolves a slot holding.
 
 function delver(overrides: Partial<ActorRecord> = {}): ActorRecord {
   return { id: 'a', alignment: 'external', lifecycle: 'alive', position: { x: 0, y: 0 }, defeatVital: 'health',
@@ -31,9 +31,9 @@ function take(reg: ReturnType<typeof registry>) {
 }
 
 test('taking slot loot opens one more slot and claims the loot', () => {
-  const reg = registry([delver({ affinitySlots: 3 }), cache()]);
+  const reg = registry([delver({ affinitySlots: 2 }), cache()]);
   expect(take(reg).accepted).toBe(true);
-  expect(reg.getActor('a')!.affinitySlots).toBe(4);
+  expect(reg.getActor('a')!.affinitySlots).toBe(3);
   expect(reg.getActor('cache')!.holdings[0].claimedBy).toBe('a');
 });
 
@@ -43,11 +43,11 @@ test('a one-slot actor (no slot field) goes to two', () => {
   expect(reg.getActor('a')!.affinitySlots).toBe(2);
 });
 
-test('slots never pass six: loot that would overshoot fills to six, and at six it is refused', () => {
-  const near = registry([delver({ affinitySlots: 5 }), cache(3)]);
+test('slots never pass the cap of three: loot that would overshoot fills to three, and at three it is refused', () => {
+  const near = registry([delver({ affinitySlots: 2 }), cache(3)]);
   expect(take(near).accepted).toBe(true);
-  expect(near.getActor('a')!.affinitySlots).toBe(6);
-  const full = registry([delver({ affinitySlots: 6 }), cache()]);
+  expect(near.getActor('a')!.affinitySlots).toBe(3);
+  const full = registry([delver({ affinitySlots: 3 }), cache()]);
   expect(take(full)).toEqual({ accepted: false, reason: 'AffinitySlotsFull' });
   expect(full.getActor('cache')!.holdings[0].claimedBy).toBeNull();
   expect(Object.hasOwn(ValidationError, 'AffinitySlotsFull')).toBe(true);

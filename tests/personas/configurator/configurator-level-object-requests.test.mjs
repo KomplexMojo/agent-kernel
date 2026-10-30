@@ -15,7 +15,7 @@ function builtActors(c) {
   ]);
   const resources = mapResources([
     { id: "r_health", position: { x: 3, y: 1 }, permanenceMode: "consumable", vitals: [{ key: "health", delta: 4 }] },
-    { id: "r_slot", position: { x: 1, y: 2 }, slotGrant: 1 },
+    { id: "r_mana", position: { x: 1, y: 2 }, permanenceMode: "permanent", vitals: [{ key: "mana", delta: 5 }] },
   ]);
   const delver = { id: "d_1", position: { x: 0, y: 0 } };
   const strip = ({ category: _category, ...actor }) => actor;
@@ -35,7 +35,7 @@ test("a built level's objects become unpositioned requests that map back to the 
   const requests = c.levelObjectRequests(level);
 
   expect(requests.hazards.map(({ id }) => id)).toEqual(["h_emit", "h_push"]);
-  expect(requests.resources.map(({ id }) => id)).toEqual(["r_health", "r_slot"]);
+  expect(requests.resources.map(({ id }) => id)).toEqual(["r_health", "r_mana"]);
   expect(requests.actors.map(({ id }) => id)).toEqual(["d_1"]);
   [...requests.hazards, ...requests.resources].forEach((request) => expect(request).not.toHaveProperty("position"));
   expect(requests.hazards[1].blocking).toBe(true);
@@ -60,7 +60,7 @@ test("re-placing a built level's objects through the Configurator keeps every ob
   };
   const placement = c.completeObjectPlacement({ layout, ...c.levelObjectRequests(level) });
   expect(placement.ok).toBe(true);
-  expect(placement.actors.map(({ id }) => id).sort()).toEqual(["h_emit", "h_push", "r_health", "r_slot"]);
+  expect(placement.actors.map(({ id }) => id).sort()).toEqual(["h_emit", "h_push", "r_health", "r_mana"]);
   const cells = placement.actors.map(({ position }) => `${position.x},${position.y}`);
   expect(new Set(cells).size).toBe(4);
   expect(cells).not.toContain("0,0");

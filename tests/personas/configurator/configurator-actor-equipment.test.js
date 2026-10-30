@@ -13,10 +13,10 @@ const HELD = [
 ];
 
 test("slots and equips become core's slot, active, equipped and running-stack fields", async () => {
-  const fields = await author({ role: "delver", index: 1, slots: 4, affinities: HELD,
+  const fields = await author({ role: "delver", index: 1, slots: 3, affinities: HELD,
     equip: [{ kind: "earth", expression: "push", stacks: 2 }, { kind: "light", expression: "emit" }, { kind: "dark", expression: "emit", stacks: 2 }] });
   assert.deepEqual(fields, {
-    affinitySlots: 4,
+    affinitySlots: 3,
     activeAffinityKey: "earth:push",
     equippedAffinityKeys: ["earth:push", "light:emit", "dark:emit"],
     equippedAffinityStacks: { "earth:push": 2 },
@@ -41,13 +41,16 @@ test("equips must fit the slots and be held, once, at no more stacks than held",
     /runs earth:push at 4 stacks but holds only 3/);
 });
 
-test("slots run from 1 to core's cap of 6", async () => {
-  await assert.rejects(author({ role: "delver", index: 1, slots: 7 }), /slots must be an integer from 1 to 6, got 7/);
-  await assert.rejects(author({ role: "delver", index: 1, slots: 0 }), /from 1 to 6/);
-  assert.deepEqual(await author({ role: "delver", index: 1, slots: 6 }), { affinitySlots: 6 });
+// Darren, 2026-10-30: extra slots are retired; an actor's slots run from 1 to its preset (at most
+// core's cap of 3), and the affinities past them are carried as a pack.
+test("slots run from 1 to the preset: a delver 3, a warden 2", async () => {
+  await assert.rejects(author({ role: "delver", index: 1, slots: 4 }), /slots must be an integer from 1 to 3, got 4: extra slots are retired/);
+  await assert.rejects(author({ role: "warden", index: 1, slots: 3 }), /from 1 to 2, got 3/);
+  await assert.rejects(author({ role: "delver", index: 1, slots: 0 }), /from 1 to 3/);
+  assert.deepEqual(await author({ role: "delver", index: 1, slots: 3 }), { affinitySlots: 3 });
 });
 
 // ## TODO: Test Permutations
 // - every affinity kind and expression as a single equip
-// - equip lists of length 1..6 against slots 1..6
+// - equip lists of length 1..3 against slots 1..3
 // - a role with no preset (hazard authored through this path) is refused

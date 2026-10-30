@@ -142,8 +142,11 @@ export function authorActorEquipment({ role, index, slots, equip, affinity, affi
   if (!Object.hasOwn(PRESET_AFFINITY_SLOTS, role)) throw new Error(`${label} has no affinity slot preset.`);
   const fields = {};
   if (slots !== undefined) {
-    if (!Number.isSafeInteger(slots) || slots < 1 || slots > MAX_AFFINITY_SLOTS) {
-      throw new Error(`${label} slots must be an integer from 1 to ${MAX_AFFINITY_SLOTS}, got ${slots}.`);
+    // Darren, 2026-10-30: buying slots past the preset is retired; an actor carries any further
+    // affinities as its pack (core never equips more than MAX_AFFINITY_SLOTS).
+    const most = Math.min(MAX_AFFINITY_SLOTS, PRESET_AFFINITY_SLOTS[role]);
+    if (!Number.isSafeInteger(slots) || slots < 1 || slots > most) {
+      throw new Error(`${label} slots must be an integer from 1 to ${most}, got ${slots}: extra slots are retired, and affinities past the slots are carried as a pack.`);
     }
     fields.affinitySlots = slots;
   }
@@ -154,7 +157,7 @@ export function authorActorEquipment({ role, index, slots, equip, affinity, affi
     : [{ kind: affinity, expression: DEFAULT_AFFINITY_EXPRESSION, stacks: 1 }];
   const capacity = fields.affinitySlots ?? PRESET_AFFINITY_SLOTS[role];
   if (equip.length > capacity) {
-    throw new Error(`${label} equips ${equip.length} affinities but has ${capacity} slot${capacity === 1 ? "" : "s"}; add slots=${equip.length} or equip fewer.`);
+    throw new Error(`${label} equips ${equip.length} affinities but has ${capacity} slot${capacity === 1 ? "" : "s"}; equip at most ${capacity}; the rest stay in the pack.`);
   }
   const keys = [];
   const running = {};

@@ -249,6 +249,11 @@ export function mapResources(resources = []) {
       && (!Number.isSafeInteger(authored.slotGrant) || authored.slotGrant < 1)) {
       throw new Error("invalid unified actor definition");
     }
+    // Darren, 2026-10-30: an actor equips at most three (core's MAX_AFFINITY_SLOTS) and carries
+    // the rest as a pack, so slot-unlock loot is retired.
+    if (Object.hasOwn(authored, "slotGrant")) {
+      throw new Error(`resource ${authored.id ?? ""} slots= is retired: slot-unlock loot no longer exists (an actor equips at most three affinities and carries the rest).`.replace("  ", " "));
+    }
     // Slot-unlock loot (maintainer, 2026-10-12) is floor loot: only a resource
     // carries it, as its own holding beside any vital grant.
     const authoredHoldings = [

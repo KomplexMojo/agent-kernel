@@ -50,23 +50,37 @@ test("confirm is refused over budget, below the viability floor, and for a dupli
   assert.match(dup.view().problems.join(" "), /fire push is held twice/);
 });
 
-test("every slot up to core's cap is listed; a kind past the free ones buys a slot the Allocator prices", async () => {
+// Darren, 2026-10-30: three equipped slots, then the pack. Nothing buys a slot; a packed affinity
+// is priced like any other and is held, not equipped, in the spec.
+test("the first three rows are equipped and the rest are the pack; no slot is bought", async () => {
   const { createCharacterSheet } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 5000 });
   const base = sheet.view();
-  assert.equal(base.rows.filter((row) => row.kind === "slot").length, base.maxSlots);
-  assert.equal(base.slotCount, base.freeSlots);
+  const slots = base.rows.filter((row) => row.kind === "slot");
+  assert.equal(slots.length, 6);
+  assert.equal(base.equipSlots, 3);
+  assert.deepEqual(slots.map((row) => Boolean(row.packed)), [false, false, false, true, true, true]);
   sheet.choose(2, "kind", "water");
-  assert.equal(sheet.view().slotCount, base.freeSlots, "the third affinity fills a free slot");
-  sheet.choose(5, "kind", "light");
+  sheet.choose(3, "kind", "light");
+  sheet.tap(3, 1); // light pull
   const more = sheet.view();
-  assert.equal(more.slotCount, 4);
-  assert.ok(more.slotsExtraPrice > 0 && more.total > base.total);
-  assert.match(sheet.spec(), /slots=4/);
-  sheet.choose(5, "kind", "none");
-  assert.equal(sheet.view().slotCount, base.freeSlots, "back to none, the slot is not bought");
-  assert.equal(sheet.view().slotsExtraPrice, 0);
+  assert.ok(more.total > base.total, "the packed affinity is priced");
+  assert.equal(more.slotsExtraPrice, 0);
+  assert.match(sheet.spec(), /affinities=fire:emit:2,fire:push:3,water:push:1,light:pull:1;/);
+  assert.match(sheet.spec(), /equip=fire:emit,fire:push,water:push;/, "only the three slots are equipped");
   assert.doesNotMatch(sheet.spec(), /slots=/);
+  const reopened = createCharacterSheet({ spec: sheet.spec(), budgetTokens: 5000 }).view();
+  assert.equal(reopened.rows[3].fields[0].value, "light", "the pack round-trips into the pack");
+  assert.equal(reopened.total, more.total);
+});
+
+test("a spec holding more than three opens with the equipped ones in the slots and the rest packed", async () => {
+  const { createCharacterSheet } = await load();
+  const spec = "count=1;affinities=fire:push:1,water:emit:1,earth:pull:1,light:emit:1;equip=light:emit,earth:pull,fire:push,water:emit;slots=4;vitals=health:10:1,mana:10:1,stamina:5:1,durability:10:1";
+  const view = createCharacterSheet({ spec, budgetTokens: 5000 }).view();
+  const kinds = view.rows.filter((row) => row.kind === "slot").map((row) => row.fields[0].value);
+  assert.deepEqual(kinds, ["light", "earth", "fire", "water", "none", "none"]);
+  assert.equal(view.manaPerTick, view.rows[0].mana.amount, "a packed emit spends nothing");
 });
 
 test("every affinity kind and expression can be chosen, none is a default", async () => {
