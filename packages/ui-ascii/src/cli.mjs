@@ -36,7 +36,7 @@ const USAGE = `Usage: ak-maze [options]
   --list                  list bundled levels
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
-  --ascii                 plain ASCII walls (- | +) for terminals without box-drawing; also AK_ASCII=1
+  --ascii                 plain ASCII for terminals without box-drawing or Unicode glyphs: walls - | +, letter actors; also AK_ASCII=1
   --no-fog                debug: show the whole map (play is always under fog of war)
   --realtime <ms>         interactive play: a turn passes every <ms> while you wait (t toggles;
                           turn-based by default)

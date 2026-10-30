@@ -61,14 +61,14 @@ export function asciiCastPathGlyph(from, to, expression) {
 /**
  * An actor's glyph, read the way this snapshot reads it (`inferKind`): a role
  * naming a hazard or resource takes that glyph; a role, kind or id naming a
- * warden makes a warden; anything else is a delver. Generated levels leave
+ * warden makes a warden; anything else is a delver. `glyphs` is the table to draw with
+ * (`render/actor-glyphs.js`, #575); the letters by default. Generated levels leave
  * `role` null and say it in the id (`card_warden_1-1`).
  */
-export function asciiGlyphForActor(actor) {
+export function asciiGlyphForActor(actor, glyphs = { ...ASCII_ENTITY_GLYPHS, barrier: ASCII_TERRAIN_GLYPHS.barrier }) {
   const role = String(actor?.role || "").toLowerCase();
-  if (role === "hazard" || role === "resource") return ASCII_ENTITY_GLYPHS[role];
-  if (role === "barrier") return ASCII_TERRAIN_GLYPHS.barrier;
-  return inferKind(actor || {}) === "warden" ? ASCII_ENTITY_GLYPHS.warden : ASCII_ENTITY_GLYPHS.delver;
+  if (role === "hazard" || role === "resource" || role === "barrier") return glyphs[role];
+  return inferKind(actor || {}) === "warden" ? glyphs.warden : glyphs.delver;
 }
 
 function buildBlankGrid(width, height) {

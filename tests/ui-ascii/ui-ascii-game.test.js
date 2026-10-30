@@ -397,7 +397,7 @@ test("other actors are drawn over the board rows with the snapshot's letters, ne
 test("the screen draws view.actors when the session reports them", async () => {
   const session = await createPlaySession(fixtureLevel("first-steps"));
   const view = { ...session.view(), actors: [{ id: "warden-1", role: "warden", position: { x: 3, y: 1 } }] };
-  assert.match(renderScreen({ view, levelName: "first-steps" }), /^ {2}S@\.W│\.\.\.│$/m);
+  assert.match(renderScreen({ view, levelName: "first-steps" }), /^ {2}S@\.▴│\.\.\.│$/m);
 });
 
 const ansi = (hex, layer) => {
@@ -493,7 +493,7 @@ test("in colour, actors with an equipped affinity are filled with it; others kee
   const screen = renderScreen({ view, levelName: "warden-hall", color: true });
   assert.ok(screen.includes(`${ansi(GAME_AFFINITY_COLOR_HEX.wind, 48)}`), "player cell is the wind fill");
   assert.ok(screen.includes(`${ansi(GAME_AFFINITY_COLOR_HEX.fire, 48)}`), "fire warden cell");
-  assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.actors.warden, 38)}W`), "unaffiliated warden keeps its role colour");
+  assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.actors.warden, 38)}▴`), "unaffiliated warden keeps its role colour");
   assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), renderScreen({ view, levelName: "warden-hall" }));
 });
 
@@ -512,9 +512,9 @@ test("trap-rooms draws each trap as H in its own affinity's fill, and a trap cos
   const plain = renderScreen({ view, levelName: "trap-rooms" });
   const boardRows = plain.split("\n").slice(2, 2 + view.rows.length).map((row) => row.slice(2));
   for (const { position } of view.hazards) {
-    assert.equal(boardRows[position.y][position.x], ASCII_ENTITY_GLYPHS.hazard, `trap at ${position.x},${position.y}`);
+    assert.equal(boardRows[position.y][position.x], view.legend.glyphs.hazard, `trap at ${position.x},${position.y}`);
   }
-  assert.match(plain, /Mind the traps \(H\)/);
+  assert.match(plain, /Mind the traps \(☼\)/);
   const colored = renderScreen({ view, levelName: "trap-rooms", color: true });
   // The traps are of different kinds on purpose: no one affinity is the trap affinity.
   const kinds = new Set(view.hazards.map((hazard) => hazard.affinities[0].kind));
@@ -544,7 +544,7 @@ test("the game plays under fog of war by default; --no-fog shows the whole map",
   const screen = fogged.screen();
   const board = screen.split("\n").filter((line) => /^ {2}[#?.@SEH]/.test(line));
   assert.ok(board.some((line) => line.includes("?")), "unseen cells are ?");
-  assert.ok(board.every((line) => !line.includes("H")), "traps out of sight are hidden");
+  assert.ok(board.every((line) => !line.includes("☼")), "traps out of sight are hidden");
   assert.ok(board.some((line) => line.includes("@")));
 
   const clear = await createGame({ levels: [loadBundledLevel("trap-rooms")], fog: false });
@@ -678,12 +678,12 @@ test("f aims at the nearest actor in sight and Enter casts at it", async () => {
 test("a cast shows its path as arrows for one turn and names its hit", async () => {
   const game = await createGame({ levels: duelLevels({ wardenAt: { x: 4, y: 1 } }), fog: false });
   await press(game, "i1f\r");
-  assert.match(game.screen(), /  │@>>W╵/);
+  assert.match(game.screen(), /  │@>>▴╵/);
   assert.match(game.screen(), /Cast path: > mark where the last cast went/, "the arrows are named while they show (#479)");
   assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
   assert.equal(game.view().casts[0].path.at(-1).x, 4);
   await press(game, ".");
-  assert.match(game.screen(), /  │@\.\.W╵/);
+  assert.match(game.screen(), /  │@\.\.▴╵/);
   assert.doesNotMatch(game.screen(), /Cast path:/);
 });
 

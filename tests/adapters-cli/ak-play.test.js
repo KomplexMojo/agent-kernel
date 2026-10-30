@@ -23,7 +23,7 @@ test("ak play shows an `ak create` out-dir level with its traps, as text or JSON
 
     const text = ak(["play", "--dir", outDir, "--keys", ".", "--no-fog"]);
     assert.equal(text.status, 0, text.stderr);
-    assert.match(text.stdout, /Mind the traps \(H\)/);
+    assert.match(text.stdout, /Mind the traps \(☼\)/);
     assert.match(text.stdout, /Turns 1/);
 
     // Fog of war is on by default: the map starts mostly unseen.

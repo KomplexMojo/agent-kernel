@@ -68,6 +68,7 @@ import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { battleLogLine } from "../render/battle-log-lines.js";
 import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
 import { wallGlyphAt, wallGlyphChars } from "../render/wall-glyphs.js";
+import { actorGlyphs } from "../render/actor-glyphs.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
@@ -933,7 +934,10 @@ function lootNextTo(snapshot, player) {
  * @param {object} args.status        { tick, exited, atExit, defeated }
  * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, glyphSet = "unicode" }) {
+export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, glyphSet = "unicode" }) {
+  // Actor glyphs (#575) come from the glyph set; the table rides on the legend for every UI to read.
+  const glyphs = actorGlyphs(glyphSet);
+  const legend = { ...baseLegend, ...(baseLegend.barrier === ASCII_TERRAIN_GLYPHS.barrier ? { barrier: glyphs.barrier } : {}) };
   const frame = renderBoard(snapshot, { presentation, legend, playerId, glyphSet });
   const fogged = applyFog(frame, visible, explored);
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
@@ -948,7 +952,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     // or unknown cell shows no live field, except the reach of the player's own (Darren,
     // 2026-10-29: you know where your own aura reaches; it tells you nothing about the cell).
     field: playField(field, fogged.visible, player?.id),
-    legend: { ...legend, fog: ASCII_FOG_GLYPH, wallGlyphs: legend.wall === ASCII_TERRAIN_GLYPHS.wall ? wallGlyphChars(glyphSet) : [] },
+    legend: { ...legend, glyphs, fog: ASCII_FOG_GLYPH, wallGlyphs: legend.wall === ASCII_TERRAIN_GLYPHS.wall ? wallGlyphChars(glyphSet) : [] },
     status,
     // With fog, only traps in sight right now.
     hazards: others.filter((actor) => categoryOf(actor, presentation) === HAZARD_CATEGORY)

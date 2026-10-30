@@ -51,11 +51,12 @@ const TILE_GLYPH_COLOR = Object.freeze({
   barrier: tileBorders.wall,
 });
 
+// Colour by role; the glyph for a role comes from the legend (`legend.glyphs`, #575).
 const ENTITY_COLOR = Object.freeze({
-  [ASCII_ENTITY_GLYPHS.delver]: actors.delver,
-  [ASCII_ENTITY_GLYPHS.warden]: actors.warden,
-  [ASCII_ENTITY_GLYPHS.hazard]: items.hazard,
-  [ASCII_ENTITY_GLYPHS.resource]: items.resource,
+  delver: actors.delver,
+  warden: actors.warden,
+  hazard: items.hazard,
+  resource: items.resource,
 });
 
 /**
@@ -76,8 +77,9 @@ export function buildAsciiCellStyles(legend) {
   for (const char of Array.isArray(legend?.wallGlyphs) ? legend.wallGlyphs : []) {
     if (styles[legend.wall]) styles[char] = styles[legend.wall];
   }
-  for (const [char, fg] of Object.entries(ENTITY_COLOR)) {
-    styles[char] = { fg, bg: tiles.floor };
+  const glyphs = legend?.glyphs ?? ASCII_ENTITY_GLYPHS;
+  for (const [role, fg] of Object.entries(ENTITY_COLOR)) {
+    if (typeof glyphs[role] === "string") styles[glyphs[role]] = { fg, bg: tiles.floor };
   }
   if (typeof legend?.actor === "string") {
     styles[legend.actor] = { fg: motivations.user_controlled, bg: tiles.floor };

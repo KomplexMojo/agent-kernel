@@ -178,7 +178,7 @@ test("view().hazards reports the level's hazard actors; a barrier is drawn on th
     ["trap-b", { x: 3, y: 2 }],
   ]);
   assert.equal(view.hazards[0].activeAffinityKey, "water:emit");
-  assert.equal(view.rows[5][5], "B", "the barrier is on the board");
+  assert.equal(view.rows[5][5], "▮", "the barrier is on the board");
   assert.ok(!view.actors.some((actor) => actor.id === "wall-c"));
   view.hazards[0].position.x = 99;
   assert.equal(session.view().hazards[0].position.x, 3, "the view is a copy");
@@ -668,7 +668,7 @@ test("a body with loot is shown as a resource until taken; an emptied resource d
   for (let i = 0; i < 6 && session.view().actors.some((a) => a.id === "warden_1"); i += 1) await session.act(cast("warden_1"));
   assert.deepEqual(session.view().lootBodies.map(({ id, role, position }) => ({ id, role, position })),
     [{ id: "warden_1", role: "resource", position: { x: 2, y: 1 } }]);
-  assert.match(renderScreen({ view: session.view(), levelName: "duel" }), /@R/);
+  assert.match(renderScreen({ view: session.view(), levelName: "duel" }), /@◙/);
   await session.act({ kind: "take", params: { targetId: "warden_1", holdingId: "affinity:fire:push" } });
   assert.deepEqual(session.view().lootBodies, [], "emptied, it is no longer shown");
 

@@ -145,7 +145,7 @@ describe("ak_show_state reflects the cursor tick", () => {
       const { x, y } = actor.position;
       assert.match(
         rows[y]?.[x] ?? "",
-        /^[@DW]$/,
+        /^[@◊▴]$/,
         `${actor.id} must be drawn at its spawn ${x},${y} when the cursor is at tick 0`,
       );
     });

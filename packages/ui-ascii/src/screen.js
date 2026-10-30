@@ -126,13 +126,13 @@ function overlay(rows, entities, playerPosition, glyphFor) {
  * present once NPCs take turns) are drawn over it. The player's own cell is
  * never overwritten.
  */
-export function overlayActors(rows, actors, playerPosition) {
-  return overlay(rows, actors, playerPosition, asciiGlyphForActor);
+export function overlayActors(rows, actors, playerPosition, glyphs) {
+  return overlay(rows, actors, playerPosition, (actor) => asciiGlyphForActor(actor, glyphs));
 }
 
 /** Traps (`view.hazards`) are not in core's buffer either; actors stand over them. */
-export function overlayHazards(rows, hazards, playerPosition) {
-  return overlay(rows, hazards, playerPosition, () => ASCII_ENTITY_GLYPHS.hazard);
+export function overlayHazards(rows, hazards, playerPosition, glyphs) {
+  return overlay(rows, hazards, playerPosition, () => (glyphs ?? ASCII_ENTITY_GLYPHS).hazard);
 }
 
 /**
@@ -238,13 +238,13 @@ function presentVitals(player) {
   return (player?.vitals || []).filter((vital) => vital.max > 0);
 }
 
-export function statusLine(status, message, { traps = false } = {}) {
+export function statusLine(status, message, { traps = false, trapGlyph } = {}) {
   if (message) return message;
   if (status?.exited) return "You escaped! Press Enter for the next level, r to replay, q to quit.";
   if (status?.defeated) return "You were defeated. Press r to try the level again, q to quit.";
   if (status?.atExit) return "You reached the exit. Press . to step through.";
   const exit = `Find the exit (${ASCII_TERRAIN_GLYPHS.exit}).`;
-  return traps ? `${exit} Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : exit;
+  return traps ? `${exit} Mind the traps (${trapGlyph ?? ASCII_ENTITY_GLYPHS.hazard}).` : exit;
 }
 
 /**
@@ -501,9 +501,10 @@ export function renderScreen({
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
   // #479: a warden last seen stays at that spot (the remembered cell dims it).
-  const seen = overlayActors(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.lootBodies, playerPosition),
-    view.lastSeen, playerPosition);
-  const board = overlayFieldMarks(overlayDefeatMarks(overlayCastPaths(overlayActors(seen, view.actors, playerPosition),
+  const glyphs = view.legend?.glyphs;
+  const seen = overlayActors(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition, glyphs), view.lootBodies, playerPosition, glyphs),
+    view.lastSeen, playerPosition, glyphs);
+  const board = overlayFieldMarks(overlayDefeatMarks(overlayCastPaths(overlayActors(seen, view.actors, playerPosition, glyphs),
     view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells), view.field, view.legend?.floor, view.legend?.fog);
   // The tile a cast is being aimed at (#413).
   if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
@@ -525,7 +526,7 @@ export function renderScreen({
       info,
       log: battleLogLines(view, 30).reverse(),
       tick: tickLine,
-      status: statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }),
+      status: statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard }),
       panel: Array.isArray(panel) ? panel : [],
       help: helpLines,
     };
@@ -536,7 +537,7 @@ export function renderScreen({
   lines.push(...affinityLines(view.player, { hints }));
   for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
   lines.push(tickLine);
-  lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
+  lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard }));
   lines.push(...battleLogLines(view));
   if (Array.isArray(panel) && panel.length > 0) {
     lines.push("");
