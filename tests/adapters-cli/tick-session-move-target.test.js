@@ -50,5 +50,5 @@ test("tick replay ignores a leftover params.to destination", async () => {
   const ascii = await renderAscii(root, 1);
   const row = boardRow(ascii, 1);
   assert.equal(row[1], "@");
-  assert.equal(row[2], "#");
+  assert.equal(row[2], "│");
 });

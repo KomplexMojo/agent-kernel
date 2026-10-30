@@ -95,7 +95,7 @@ test("ak_create with water traps, then ak_play_ascii by runId, shows the board w
     assert.equal(shown.ok, true, JSON.stringify(shown));
     assert.equal(shown.command, "play");
     assert.equal(shown.turns, 0);
-    const board = shown.screen.split("\n").filter((line) => /^ {2}#/.test(line)).join("\n");
+    const board = shown.screen.split("\n").filter((line) => /^ {2}[#│┌└─┬├┼┤┴┐┘╵╷╶╴■]/.test(line)).join("\n");
     assert.equal((board.match(/H/g) || []).length, 3, `three traps on the board:\n${board}`);
     assert.match(shown.screen, /@/);
     assert.match(shown.screen, /Mind the traps \(H\)/);

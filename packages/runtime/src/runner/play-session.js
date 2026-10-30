@@ -67,6 +67,7 @@ import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { battleLogLine } from "../render/battle-log-lines.js";
 import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
+import { wallGlyphAt, wallGlyphChars } from "../render/wall-glyphs.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
@@ -132,6 +133,7 @@ export const COMPANION_MOTIVATION = "friendly";
  * @param {object}   [args.personas]   persona registry override (ablation tests); the real one by default
  * @param {boolean}  [args.fog]        apply fog of war to view(); off by default so a
  *                                     caller opts in when it draws `sight`
+ * @param {string}   [args.glyphSet]   "unicode" (default) or "ascii": the wall glyph set (#574)
  */
 export async function createPlaySession({
   simConfig,
@@ -143,6 +145,7 @@ export async function createPlaySession({
   personas,
   fog = false,
   costing = null,
+  glyphSet = "unicode",
 } = {}) {
   if (!simConfig || !initialState) {
     throw new Error("createPlaySession: simConfig and initialState are required");
@@ -707,6 +710,7 @@ export async function createPlaySession({
       presentation,
       legend,
       playerId: activeId,
+      glyphSet,
       tick: currentTick(),
       status: status(),
       visible: fogOn ? readVisible() : null,
@@ -792,12 +796,16 @@ export async function createPlaySession({
 
 // The registry's terrain in the level's legend: base tiles, then the frame with
 // living barriers and the player drawn in.
-function renderBoard(snapshot, { presentation, legend, playerId }) {
+function renderBoard(snapshot, { presentation, legend, playerId, glyphSet }) {
   const { width, height } = snapshot.dimensions;
+  // Walls join their wall neighbours (#574) unless the level draws walls its own way.
+  const wallAt = legend.wall === ASCII_TERRAIN_GLYPHS.wall
+    ? wallGlyphAt(width, height, (x, y) => snapshot.terrain[y * width + x] === "wall", glyphSet)
+    : () => null;
   const baseTiles = [];
   for (let y = 0; y < height; y += 1) {
     let row = "";
-    for (let x = 0; x < width; x += 1) row += legend[snapshot.terrain[y * width + x]] ?? legend.floor;
+    for (let x = 0; x < width; x += 1) row += wallAt(x, y) ?? legend[snapshot.terrain[y * width + x]] ?? legend.floor;
     baseTiles.push(row);
   }
   const grid = baseTiles.map((row) => row.split(""));
@@ -920,12 +928,13 @@ function lootNextTo(snapshot, player) {
  * @param {object} args.presentation  actor id -> { category }
  * @param {object} args.legend        terrain kind -> glyph, plus `actor` (the player) and `barrier`
  * @param {string} args.playerId      the actor drawn as the player
+ * @param {string}   [args.glyphSet] "unicode" (default) or "ascii" wall glyphs
  * @param {number} args.tick
  * @param {object} args.status        { tick, exited, atExit, defeated }
  * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined }) {
-  const frame = renderBoard(snapshot, { presentation, legend, playerId });
+export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, glyphSet = "unicode" }) {
+  const frame = renderBoard(snapshot, { presentation, legend, playerId, glyphSet });
   const fogged = applyFog(frame, visible, explored);
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
   const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited") || null;
@@ -939,7 +948,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     // or unknown cell shows no live field, except the reach of the player's own (Darren,
     // 2026-10-29: you know where your own aura reaches; it tells you nothing about the cell).
     field: playField(field, fogged.visible, player?.id),
-    legend: { ...legend, fog: ASCII_FOG_GLYPH },
+    legend: { ...legend, fog: ASCII_FOG_GLYPH, wallGlyphs: legend.wall === ASCII_TERRAIN_GLYPHS.wall ? wallGlyphChars(glyphSet) : [] },
     status,
     // With fog, only traps in sight right now.
     hazards: others.filter((actor) => categoryOf(actor, presentation) === HAZARD_CATEGORY)

@@ -215,7 +215,7 @@ function orderChoices({ playerId, actor, hostile }) {
  * @param {boolean} [args.fog] fog of war: you see only what is in sight (default on)
  * @param {boolean} [args.showHelp] start with the key help shown (default)
  */
-export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true, showHelp: initialHelp = true } = {}) {
+export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true, showHelp: initialHelp = true, glyphSet = "unicode" } = {}) {
   if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error("createGame: at least one level is required");
   }
@@ -234,7 +234,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function startLevel(index) {
     levelIndex = index;
     const level = levels[levelIndex];
-    session = await createSession({ simConfig: level.simConfig, initialState: level.initialState, fog,
+    session = await createSession({ simConfig: level.simConfig, initialState: level.initialState, fog, glyphSet,
       ...(level.costing ? { costing: level.costing } : {}) });
     turns = 0;
     message = "";
