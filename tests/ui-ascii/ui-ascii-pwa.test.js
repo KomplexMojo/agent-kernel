@@ -208,3 +208,12 @@ test("toggleSlotAffinity with a slot named swaps a packed affinity into it, in o
   await game.toggleSlotAffinity("water:push");
   assert.deepEqual(game.view().player.equippedAffinityKeys, ["wind:push", "earth:push", "water:push"], "unnamed, the oldest gives way");
 });
+
+test("the phone page has a Map button that swaps the board for the notebook until closed", () => {
+  const html = readFileSync(join(SRC, "../pwa/index.html"), "utf8");
+  const source = readFileSync(join(SRC, "browser.js"), "utf8");
+  assert.match(html, /id="mapbtn"/);
+  assert.match(source, /\$\("mapbtn"\)\.addEventListener\("click", \(\) => press\("m"\)\)/);
+  assert.match(source, /notebookLines\(game, parts\)/);
+  assert.match(source, /windowSizeForViewport/);
+});

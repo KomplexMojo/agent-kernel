@@ -22,6 +22,7 @@ import { hudLine } from "./screen.js";
 import { createWatch } from "./watch.js";
 import { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat, realtimeLine } from "./realtime.js";
 import { DEFAULT_WEB_PORT, lanAddresses, startWebGame } from "./web.mjs";
+import { WINDOW_DEFAULT, windowSizeForTerminal } from "../../runtime/src/render/window-size.js";
 
 const USAGE = `Usage: ak-maze [options]
 
@@ -38,6 +39,7 @@ const USAGE = `Usage: ak-maze [options]
   --no-color              plain text output (also: NO_COLOR set in the environment)
   --ascii                 plain ASCII for terminals without box-drawing or Unicode glyphs: walls - | +, letter actors; also AK_ASCII=1
   --no-fog                debug: show the whole map (play is always under fog of war)
+  --window N              tiles square in the play window (default: sized to this terminal, odd, 7-15)
   --no-window             debug: show the whole board, not the 10x10 window around you
   --realtime <ms>         interactive play: a turn passes every <ms> while you wait (t toggles;
                           turn-based by default)
@@ -65,6 +67,13 @@ ${HELP_LINES.join("\n")}
 Watching a run:
 ${WATCH_HELP_LINES.join("\n")}`;
 
+/** The play window: an explicit --window, none for --no-window, else sized to the terminal when there is one. */
+function windowFor(options) {
+  if (options.window === null) return null;
+  if (Number.isInteger(options.window) && options.window > 0) return options.window;
+  return process.stdout.isTTY && !options.json ? windowSizeForTerminal({ columns: process.stdout.columns, rows: process.stdout.rows }) : WINDOW_DEFAULT;
+}
+
 export function parseArgs(argv) {
   const options = { color: true, fog: true };
   for (let i = 0; i < argv.length; i += 1) {
@@ -90,6 +99,7 @@ export function parseArgs(argv) {
       case "--no-color": options.color = false; break;
       case "--no-fog": options.fog = false; break;
       case "--no-window": options.window = null; break;
+      case "--window": options.window = Number(next()); break;
       case "--ascii": options.glyphSet = "ascii"; break;
       case "--watch": options.watch = true; break;
       case "--web": options.web = true; break;
@@ -286,7 +296,7 @@ export async function main(argv = process.argv.slice(2)) {
     const levelOptions = recorded?.level && !options.level && !options.runDir && !options.simConfigPath
       ? { ...options, level: recorded.level }
       : options;
-    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, ...(options.window === null ? { window: null } : {}), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, window: windowFor(options), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
     if (recorded) await game.replay(recorded.capture);
   } catch (error) {
     console.error(error.message);
@@ -363,7 +373,7 @@ async function session(options) {
     const levelOptions = { ...options, ...(source?.runDir ? { runDir: source.runDir } : {}),
       ...(source?.simConfigPath ? { simConfigPath: source.simConfigPath, initialStatePath: source.initialStatePath } : {}),
       ...(source?.level ? { level: source.level } : {}) };
-    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, ...(options.window === null ? { window: null } : {}), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, window: windowFor(options), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
     if (recorded) await game.replay(recorded.capture);
   } catch (error) {
     console.error(error.message);

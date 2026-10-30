@@ -313,7 +313,7 @@ Inputs/outputs:
 - With no `--keys` and no `--json` the UI takes the terminal until the player quits (it needs a TTY).
 - `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
-  pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map, `--no-window` shows the whole board instead of the 10x10 window around you (scripted and MCP runs always do). MCP: `ak_play_ascii`.
+  pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map, `--window N` sets the play window (odd, default sized to the terminal) and `--no-window` shows the whole board instead (scripted and MCP runs always do). MCP: `ak_play_ascii`.
 - A level is played as written. Delvers or wardens below the viability floor, and a level with no Allocator
   budget receipt (not built by `ak create`, #279), are reported as `warning:` lines on stderr, and as `warnings`
   with `--json`.
