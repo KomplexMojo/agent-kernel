@@ -320,7 +320,9 @@ function renderSheet() {
     // A slot's mana, a guide: per tick for an emit or draw, per cast for a push or pull.
     const mana = row.kind === "slot"
       ? `<span class="mana${row.mana?.overMax ? " bad" : ""}">${row.mana ? `${row.mana.amount}/${row.mana.per}` : ""}</span>` : "";
-    return `<div class="srow ${row.kind === "vital" ? "vital" : "aff"}${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fields}${mana}<em>${row.price}</em></div>`;
+    // An affinity row has no slot number (Darren, 2026-10-30): the room goes to its fields.
+    const head = row.kind === "vital" ? `<span>${esc(row.label)}</span>` : "";
+    return `<div class="srow ${row.kind === "vital" ? "vital" : "aff"}${row.empty ? " empty" : ""}">${head}${fields}${mana}<em>${row.price}</em></div>`;
   });
   const slotCount = view.rows.filter((row) => row.kind === "slot").length;
   const vitalEnd = slotCount + view.rows.filter((row) => row.kind === "vital").length;
