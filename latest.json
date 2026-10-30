@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-30T06-36-11-978Z-e5df652b9307-c6ce32de6f94",
-    "key": "c6ce32de6f94f374122eb554bf5723d92e29488ad48542f33952285d9db92318",
+    "id": "2026-10-30T07-06-14-082Z-25d26dc17fe0-2a94f2f9baf1",
+    "key": "2a94f2f9baf1a8f782e660bbd5efaccde681bffc507c23d31c2f703cd3eded24",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-30T06:36:11.978Z",
-    "completedAt": "2026-10-30T06:36:36.743Z",
-    "durationMs": 24765,
+    "startedAt": "2026-10-30T07:06:14.082Z",
+    "completedAt": "2026-10-30T07:06:38.887Z",
+    "durationMs": 24805,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "e5df652b9307842c4683d4f995615185c66b7946",
-    "tree": "b14789781ba01ec2e10ee83195ec240bc7a85d3e"
+    "commit": "25d26dc17fe0e48e9dde00bf8463ff8decb56b77",
+    "tree": "8be659bac6b3a5332050ea845a280fae4e19963b"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -168,6 +168,7 @@
       "packages/runtime/src/personas/orchestrator/tactic-prompt.js",
       "packages/runtime/src/ports/solver.js",
       "packages/runtime/src/render/README.md",
+      "packages/runtime/src/render/actor-glyphs.js",
       "packages/runtime/src/render/actor-medallion-composer.js",
       "packages/runtime/src/render/actor-medallion-composer.ts",
       "packages/runtime/src/render/affinity-aura.js",
@@ -202,6 +203,7 @@
       "packages/runtime/src/render/visual-assets/tiles/overlays/large/wall-affinity-growth.png",
       "packages/runtime/src/render/visual-assets/tiles/overlays/wall-affinity-growth.png",
       "packages/runtime/src/render/visualization-snapshot.js",
+      "packages/runtime/src/render/wall-glyphs.js",
       "packages/runtime/src/runner/character-sheet.js",
       "packages/runtime/src/runner/core-facade.js",
       "packages/runtime/src/runner/core-setup.mjs",
@@ -267,7 +269,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/c6ce32de6f94f374122eb554bf5723d92e29488ad48542f33952285d9db92318"
+    "retentionId": "preflights/2a94f2f9baf1a8f782e660bbd5efaccde681bffc507c23d31c2f703cd3eded24"
   },
   "qualifies": false
 }
