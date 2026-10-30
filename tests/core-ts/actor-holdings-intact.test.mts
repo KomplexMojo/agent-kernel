@@ -22,7 +22,6 @@ function resource({ canMove = false } = {}): ActorRecord {
     motivations: [], affinities: [{ kind: 'growth', expression: 'emit', stacks: 1 }], activeAffinityKey: null,
     holdings: [
       { id: 'heal', kind: 'vital', permanenceMode: 'consumable', claimedBy: null, vitals: [{ key: 'health', delta: 5 }] },
-      { id: 'slot', kind: 'slot', slots: 1, claimedBy: null },
     ] };
 }
 const registry = (source: ActorRecord, receiver = looter()) => createActorRegistry({
@@ -35,8 +34,6 @@ test('an intact resource next to the receiver gives up its holdings and stays in
   expect(state.getActor('chest')!.lifecycle).toBe('alive');
   expect(state.getActor('chest')!.vitals.durability!.current).toBe(1);
   expect(state.takeHolding('looter', 'chest', 'heal')).toBe(false);
-  expect(state.takeHolding('looter', 'chest', 'slot')).toBe(true);
-  expect(state.getActor('looter')!.affinitySlots).toBe(2);
   // A claimed holding on an intact actor is valid state: it restores and replays.
   const restored = createActorRegistry(JSON.parse(JSON.stringify(state.snapshot())));
   expect(restored.snapshot()).toEqual(state.snapshot());

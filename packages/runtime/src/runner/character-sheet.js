@@ -195,7 +195,6 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     return {
       quote,
       motivation: price("motivation:user_controlled"),
-      slotsExtra: items.filter((item) => item.category === "affinity_slot").reduce((sum, item) => sum + item.spendTokens, 0),
       slot: (index) => affinityItems[filled.indexOf(index)]?.spendTokens ?? 0,
       vital: (key, field) => price(`${key} ${field}`),
     };
@@ -279,7 +278,6 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
       motivation: { name: "user_controlled", price: cost.motivation },
       // What every emit and draw costs together each tick, against the mana regen bought.
       manaPerTick: list.reduce((sum, row) => sum + (row.mana?.per === "tick" && !row.packed ? row.mana.amount : 0), 0),
-      slotsExtraPrice: cost.slotsExtra,
       total,
       allowance,
       remaining: allowance - total,

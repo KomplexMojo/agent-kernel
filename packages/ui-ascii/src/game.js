@@ -37,7 +37,6 @@ const REJECTION_MESSAGES = Object.freeze({
 });
 
 function rejectionMessage(reason, player) {
-  if (reason === "AffinitySlotsFull") return `You already have every affinity slot (${player?.maxAffinitySlots}).`;
   return REJECTION_MESSAGES[reason] || `Rejected (${reason}).`;
 }
 
@@ -157,7 +156,6 @@ function grantLabel(item) {
 
 function lootLabel(item) {
   if (item.kind === "affinity") return `${item.affinity} ${item.expression}`;
-  if (item.kind === "slot") return item.slots === 1 ? "a new affinity slot" : `${item.slots} new affinity slots`;
   return item.vitals?.length ? grantLabel(item) : "a vital boost";
 }
 

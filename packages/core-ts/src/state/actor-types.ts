@@ -58,18 +58,7 @@ export interface ActorVitalHolding {
   claimedBy: string | null;
 }
 
-/**
- * Slot-unlock loot: taking it opens `slots` more equipped-affinity slots, up to
- * the hard cap. Permanent by nature; the Configurator puts it only on floor resources.
- */
-export interface ActorSlotHolding {
-  id: string;
-  kind: "slot";
-  slots: number;
-  claimedBy: string | null;
-}
-
-export type ActorHolding = ActorAffinityHolding | ActorVitalHolding | ActorSlotHolding;
+export type ActorHolding = ActorAffinityHolding | ActorVitalHolding;
 
 export interface ActorRecordBase {
   id: string;

@@ -131,10 +131,10 @@ test("an affinity-only resource carries an empty vitals array, not a missing one
   assert.equal(affinityResource.vitals.length, 0);
 });
 
-test("the artifact stays schemaVersion 3 — the affinity field is additive", () => {
+test("the artifact is schemaVersion 4 (V3 without slotGrant)", () => {
   const { dir } = planResource("affinity=water;expression=emit;stacks=1;mana=10");
   const affinityResource = findResourceArtifacts(dir).find((r) => r.affinity);
-  assert.equal(affinityResource.schemaVersion, 3);
+  assert.equal(affinityResource.schemaVersion, 4);
 });
 
 test("invalid affinity kind is rejected", () => {

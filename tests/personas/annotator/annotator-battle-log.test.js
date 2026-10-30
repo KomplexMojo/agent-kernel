@@ -148,7 +148,6 @@ test("a take names what it gave (playtest 2026-10-29)", async () => {
   assert.equal(take({ kind: "vital", permanenceMode: "consumable", vitals: [{ key: "health", delta: 10 }] }), "You took +10 health from R1 r.");
   assert.equal(take({ kind: "vital", permanenceMode: "permanent", vitals: [{ key: "mana", delta: 5, regen: 1 }] }), "You took +5 max mana, +1 mana regen from R1 r.");
   assert.equal(take({ kind: "affinity", affinity: "fire", expression: "push" }), "You took fire push from R1 r.");
-  assert.equal(take({ kind: "slot", slots: 1 }), "You took an affinity slot from R1 r.");
   assert.equal(take(undefined), "You took from R1 r.");
 });
 

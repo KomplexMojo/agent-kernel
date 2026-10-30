@@ -143,7 +143,7 @@ test("ak create --resource produces resource artifact and wires configurator.inp
 
   const resourceArtifact = readJson(resourceArtifactPath);
   assert.equal(resourceArtifact.schema, "agent-kernel/ResourceArtifact");
-  assert.equal(resourceArtifact.schemaVersion, 3);
+  assert.equal(resourceArtifact.schemaVersion, 4);
   assert.ok(resourceArtifact.meta && typeof resourceArtifact.meta.id === "string", "meta.id should be a string");
   assert.equal(resourceArtifact.meta.runId, "run_resource_test");
   assert.equal(resourceArtifact.permanenceMode, "permanent");
@@ -245,7 +245,7 @@ test("ak create --resource accepts permanenceMode=consumable and emits V3 artifa
   ]);
   const artifact = readJson(join(outDir, "resource-1.json"));
   assert.equal(artifact.schema, "agent-kernel/ResourceArtifact");
-  assert.equal(artifact.schemaVersion, 3, "should emit schemaVersion 3");
+  assert.equal(artifact.schemaVersion, 4, "should emit schemaVersion 4");
   assert.equal(artifact.permanenceMode, "consumable");
   assert.ok(Array.isArray(artifact.vitals) && artifact.vitals.length === 1);
   assert.equal(artifact.vitals[0].key, "health");
@@ -263,7 +263,7 @@ test("ak create --resource accepts permanenceMode=level", () => {
     "--out-dir", outDir,
   ]);
   const artifact = readJson(join(outDir, "resource-1.json"));
-  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.schemaVersion, 4);
   assert.equal(artifact.permanenceMode, "level");
   assert.equal(artifact.vitals[0].key, "mana");
 });
@@ -279,7 +279,7 @@ test("ak create --resource accepts permanenceMode=permanent", () => {
     "--out-dir", outDir,
   ]);
   const artifact = readJson(join(outDir, "resource-1.json"));
-  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.schemaVersion, 4);
   assert.equal(artifact.permanenceMode, "permanent");
   assert.equal(artifact.vitals[0].key, "stamina");
 });
@@ -394,7 +394,7 @@ test("ak create --resource V3 with negative delta is accepted", () => {
   ]);
 
   const artifact = readJson(join(outDir, "resource-1.json"));
-  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.schemaVersion, 4);
   assert.deepEqual(artifact.vitals[0], { key: "health", delta: -5 });
 });
 

@@ -1,6 +1,6 @@
 {
   "schema": "agent-kernel/ResourceArtifact",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "meta": {
     "id": "resource_2",
     "runId": "golden_g2",

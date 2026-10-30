@@ -1086,7 +1086,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       // (affinity + expression + stacks + mana [+ manaRegen]), or both.
       const allowedFields = new Set([
         "id", "permanenceMode", "vital", "delta", "regen",
-        "affinity", "expression", "stacks", "mana", "manaRegen", "slots",
+        "affinity", "expression", "stacks", "mana", "manaRegen",
       ]);
       segments.forEach((segment) => {
         if (!segment.includes("=")) {
@@ -1095,6 +1095,9 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
         const eqIdx = segment.indexOf("=");
         const key = segment.slice(0, eqIdx).trim();
         const val = segment.slice(eqIdx + 1).trim();
+        if (key === "slots") {
+          throw new Error(`resource[${resourceIndex}] slots= is retired: slot-unlock loot no longer exists (an actor equips at most three affinities and carries the rest).`);
+        }
         if (!allowedFields.has(key)) {
           throw new Error(`resource[${resourceIndex}] field "${key}" is not supported in V3 spec.`);
         }
@@ -1107,9 +1110,8 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       const hasVitalPayload = fields.has("permanenceMode") || fields.has("vital")
         || fields.has("delta") || fields.has("regen");
       const hasAffinityPayload = fields.has("affinity");
-      const hasSlotPayload = fields.has("slots");
-      if (!hasVitalPayload && !hasAffinityPayload && !hasSlotPayload) {
-        throw new Error(`resource[${resourceIndex}] requires a vital payload, an affinity payload, a slots payload, or a combination.`);
+      if (!hasVitalPayload && !hasAffinityPayload) {
+        throw new Error(`resource[${resourceIndex}] requires a vital payload, an affinity payload, or a combination.`);
       }
 
       let vitals = [];
@@ -1168,10 +1170,6 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
 
       if (hasAffinityPayload) {
         parsed.affinity = parseResourceAffinityPayload(fields, resourceIndex);
-      }
-      if (hasSlotPayload) {
-        // Slot-unlock loot: opens this many more affinity slots (core caps an actor at 6).
-        parsed.slotGrant = readResourceInt(fields, "slots", resourceIndex, { min: 1 });
       }
       return parsed;
     }

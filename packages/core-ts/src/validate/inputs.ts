@@ -40,7 +40,6 @@ export const ValidationError = {
   AffinityAlreadyEquipped: 27,
   NothingToTake: 28,
   AffinityNotEquipped: 29,
-  AffinitySlotsFull: 30,
   InvalidAffinityStacks: 31,
   InvalidAffinityIntensity: 32,
 } as const;

@@ -182,7 +182,7 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
   return levelGen;
 }
 
-const RESOURCE_AUTHORING_KEYS = new Set(["permanenceMode", "_schemaVersion", "affinity", "permanent", "slotGrant"]);
+const RESOURCE_AUTHORING_KEYS = new Set(["permanenceMode", "_schemaVersion", "affinity", "permanent"]);
 const RESOURCE_REQUEST_KEYS = Object.freeze([
   "alignment", "lifecycle", "defeatVital", "capabilities", "motivations", "affinities", ...ACTOR_EQUIPMENT_FIELDS,
 ]);
@@ -245,29 +245,19 @@ export function mapResources(resources = []) {
     const affinity = authoredResourceAffinity(authored);
     if (Object.hasOwn(authored, "affinity") && !affinity) throw new Error("invalid unified actor definition");
     const grants = grantVitals(authored.vitals);
-    if (Object.hasOwn(authored, "slotGrant")
-      && (!Number.isSafeInteger(authored.slotGrant) || authored.slotGrant < 1)) {
-      throw new Error("invalid unified actor definition");
-    }
     // Darren, 2026-10-30: an actor equips at most three (core's MAX_AFFINITY_SLOTS) and carries
-    // the rest as a pack, so slot-unlock loot is retired.
-    if (Object.hasOwn(authored, "slotGrant")) {
-      throw new Error(`resource ${authored.id ?? ""} slots= is retired: slot-unlock loot no longer exists (an actor equips at most three affinities and carries the rest).`.replace("  ", " "));
-    }
-    // Slot-unlock loot (maintainer, 2026-10-12) is floor loot: only a resource
-    // carries it, as its own holding beside any vital grant.
+    // the rest as a pack, so slot-unlock loot (`slotGrant`) is gone and refused as an unknown key.
     const authoredHoldings = [
       ...(["consumable", "level", "permanent"].includes(authored.permanenceMode) && grants
         ? [{ id: authored.id, kind: "vital", permanenceMode: authored.permanenceMode, claimedBy: null, vitals: grants }]
         : []),
-      ...(authored.slotGrant ? [{ id: `slot:${authored.id}`, kind: "slot", slots: authored.slotGrant, claimedBy: null }] : []),
     ];
     const holdings = Array.isArray(authored.holdings)
       ? authored.holdings
       : (authoredHoldings.length > 0 ? authoredHoldings : undefined);
     const mechanical = hasMechanicalVitals(authored.vitals)
       ? mechanicalVitals(authored.vitals)
-      : (holdings && (grants || authored.slotGrant) ? { durability: { ...DEFAULT_VITALS.durability } } : null);
+      : (holdings && grants ? { durability: { ...DEFAULT_VITALS.durability } } : null);
     const vitals = affinity
       ? {
         durability: { ...DEFAULT_VITALS.durability },

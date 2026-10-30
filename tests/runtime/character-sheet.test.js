@@ -65,7 +65,6 @@ test("the first three rows are equipped and the rest are the pack; no slot is bo
   sheet.tap(3, 1); // light pull
   const more = sheet.view();
   assert.ok(more.total > base.total, "the packed affinity is priced");
-  assert.equal(more.slotsExtraPrice, 0);
   assert.match(sheet.spec(), /affinities=fire:emit:2,fire:push:3,water:push:1,light:pull:1;/);
   assert.match(sheet.spec(), /equip=fire:emit,fire:push,water:push;/, "only the three slots are equipped");
   assert.doesNotMatch(sheet.spec(), /slots=/);

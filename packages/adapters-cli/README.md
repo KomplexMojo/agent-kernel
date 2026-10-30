@@ -440,7 +440,7 @@ Inputs/outputs:
     affinities and carries the rest as a pack.
   - Legacy: `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
 
-  Produces a `ResourceArtifact` written to `resource-<n>.json` in the output directory.
+  Produces a `ResourceArtifact` (schemaVersion 4) written to `resource-<n>.json` in the output directory.
 
   Any actor — delver or warden — that passes over a resource consumes it automatically. There is
   no claim step and no decline path: entering the tile is the whole trigger.

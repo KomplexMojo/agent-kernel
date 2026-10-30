@@ -10,7 +10,6 @@ const signed = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
 function takenWords(taken) {
   if (!taken) return "";
   if (taken.kind === "affinity") return `${taken.affinity} ${taken.expression}`;
-  if (taken.kind === "slot") return taken.slots === 1 ? "an affinity slot" : `${taken.slots} affinity slots`;
   if (taken.kind === "vital") {
     // A consumable fills the vital; a level or permanent grant raises its max.
     const max = taken.permanenceMode === "consumable" ? "" : "max ";

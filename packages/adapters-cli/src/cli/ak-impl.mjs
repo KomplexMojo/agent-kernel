@@ -2697,13 +2697,12 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
     if (resourceVersion === 3) {
       resourceArtifact = {
         schema: RESOURCE_ARTIFACT_SCHEMA,
-        schemaVersion: 3,
+        schemaVersion: 4,
         meta,
         vitals: r.vitals,
         permanenceMode: r.permanenceMode,
       };
       if (r.affinity) resourceArtifact.affinity = r.affinity;
-      if (r.slotGrant) resourceArtifact.slotGrant = r.slotGrant;
     } else {
       resourceArtifact = {
         schema: RESOURCE_ARTIFACT_SCHEMA,
