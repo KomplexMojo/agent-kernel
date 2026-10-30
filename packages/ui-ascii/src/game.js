@@ -9,6 +9,7 @@ import { INTENT } from "./keymap.js";
 import { renderScreen, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 import { AFFINITY_COLOR_HEX } from "../../runtime/src/render/affinity-palette.js";
+import { buildMinimap } from "../../runtime/src/render/minimap.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
 const REJECTION_MESSAGES = Object.freeze({
@@ -617,6 +618,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     } else if (panel.type === "affinities" && intent.type === INTENT.AFFINITIES) {
       panel = null;
       return true;
+    } else if (panel.type === "map" && intent.type === INTENT.MAP) {
+      panel = null;
+      return true;
     }
     panel = null;
     return false;
@@ -631,6 +635,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         return { quit: true };
       case INTENT.HELP:
         showHelp = !showHelp;
+        break;
+      case INTENT.MAP:
+        panel = { type: "map" };
         break;
       case INTENT.RESTART:
         finished = false;
@@ -706,6 +713,11 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
             ? `, running r${runningLevel(player, pair, "stacks")} ×${runningLevel(player, pair, "intensity")}` : "";
           return `${i === panel.index ? ">" : " "} ${i + 1}) ${affinityLabel(pair)}${slot >= 0 ? `  [slot ${slot + 1}${at}]` : ""}`;
         })];
+    }
+    if (panel.type === "map") {
+      const view = session.view();
+      const lines = buildMinimap({ rows: view.rows, legend: view.legend, player: view.player?.position });
+      return ["Map (explored layout; m or Esc closes):", ...(lines.length ? lines.map((line) => `  ${line}`) : ["  nothing explored yet"])];
     }
     if (panel.type === "order_actor") {
       return ["Order who? (a number picks, Esc closes):",

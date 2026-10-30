@@ -26,6 +26,7 @@ export const INTENT = Object.freeze({
   RAISE: "raise",
   INSPECT: "inspect",
   WATCH: "watch",
+  MAP: "map",
 });
 
 const MOVE_KEYS = Object.freeze({
@@ -76,6 +77,7 @@ const OTHER_KEYS = Object.freeze({
   z: INTENT.RAISE,
   v: INTENT.INSPECT,
   e: INTENT.WATCH,
+  m: INTENT.MAP,
   q: INTENT.QUIT,
   "\u0003": INTENT.QUIT, // Ctrl-C
   "\u001b": INTENT.QUIT, // bare Esc
@@ -126,6 +128,7 @@ export const HELP_LINES = Object.freeze([
   "Inspect: v, Tab for the next target, Enter to spend a turn looking at it (the reading stays on screen)",
   "Watch: e, Tab for the next target, Enter to start (1 mana a turn, live while in sight); the same again stops it",
   "Aim at a tile: a move key while casting; the cast hits the first actor or wall   Raise a barrier: z, aim, Enter",
+  "Map: m shows the layout you have explored (m or Esc closes)",
   "Party: Tab (outside a list) plays your next user_controlled actor",
   "Order: o, then a number for who and a number for what (follow, guard, ...); costs a turn",
 ]);
