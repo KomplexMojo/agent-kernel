@@ -128,7 +128,7 @@ export const HELP_LINES = Object.freeze([
   "Inspect: v, Tab for the next target, Enter to spend a turn looking at it (the reading stays on screen)",
   "Watch: e, Tab for the next target, Enter to start (1 mana a turn, live while in sight); the same again stops it",
   "Aim at a tile: a move key while casting; the cast hits the first actor or wall   Raise a barrier: z, aim, Enter",
-  "Map: m shows the layout you have explored (m or Esc closes)",
+  "Notebook: m shows what you remember (rooms, hallways, how much is cleared); m or Esc closes",
   "Party: Tab (outside a list) plays your next user_controlled actor",
   "Order: o, then a number for who and a number for what (follow, guard, ...); costs a turn",
 ]);

@@ -472,6 +472,38 @@ function defeatScreen({ view, title, tickLine, color, message }) {
  * @param {boolean} [args.hints]     the HUD's "press i" hints (off when watching a run)
  * @param {boolean} [args.parts]     return the screen in its parts, not as one string (the phone app lays them out itself)
  */
+/**
+ * The play surface (Darren, 2026-10-30): with `windowSize`, only that many tiles square around the
+ * player, moving with them and clamped at the level's edge. Everything else is what the player
+ * remembers, in the notebook. Without it, the whole board.
+ */
+function paintBoard({ board, view, styles, actorCells, color, windowSize }) {
+  const player = view.player?.position;
+  const height = board.length;
+  const width = Math.max(0, ...board.map((row) => [...row].length));
+  const size = Number.isInteger(windowSize) && windowSize > 0 && player ? windowSize : null;
+  const clamp = (value, max) => Math.max(0, Math.min(value, Math.max(0, max)));
+  const x0 = size ? clamp(player.x - Math.floor(size / 2), width - size) : 0;
+  const y0 = size ? clamp(player.y - Math.floor(size / 2), height - size) : 0;
+  const x1 = size ? Math.min(width, x0 + size) : width;
+  const y1 = size ? Math.min(height, y0 + size) : height;
+  const cut = (value) => (size && value !== undefined && value !== null ? value.slice(x0, x1) : value);
+  const rows = [];
+  for (let y = y0; y < y1; y += 1) {
+    const row = size ? [...board[y]].slice(x0, x1).join("") : board[y];
+    const sight = cut(view.sight?.[y]);
+    const field = cut(view.field?.[y]);
+    if (!styles) {
+      rows.push(monoBoardRow(row, sight, view.legend?.floor));
+      continue;
+    }
+    const cells = actorCells.get(y);
+    const shifted = size && cells ? new Map([...cells].map(([x, style]) => [x - x0, style])) : cells;
+    rows.push(paintBoardRow(row, styles, shifted, sight, depthOf(color), field, view.legend?.floor));
+  }
+  return rows;
+}
+
 export function renderScreen({
   view,
   levelName,
@@ -489,6 +521,7 @@ export function renderScreen({
   helpLines = HELP_LINES,
   hints = true,
   parts = false,
+  windowSize = null,
 }) {
   if (view.status?.defeated) {
     const defeat = defeatScreen({ view, title, tickLine, color, message });
@@ -510,17 +543,14 @@ export function renderScreen({
   if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
     board[aim.y] = `${board[aim.y].slice(0, aim.x)}${ASCII_AIM_GLYPH}${board[aim.y].slice(aim.x + 1)}`;
   }
-  board.forEach((row, y) => {
-    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color), view.field?.[y], view.legend?.floor)
-      : monoBoardRow(row, view.sight?.[y], view.legend?.floor)}`);
-  });
+  const painted = paintBoard({ board, view, styles, actorCells, color, windowSize });
+  painted.forEach((row) => lines.push(`  ${row}`));
   lines.push("");
   if (parts) {
     const info = [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)].filter(Boolean);
     return {
       title,
-      board: board.map((row, y) => (styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color), view.field?.[y], view.legend?.floor)
-        : monoBoardRow(row, view.sight?.[y], view.legend?.floor))),
+      board: painted,
       vitals: presentVitals(view.player).map((vital) => ({ label: vital.label, text: vitalAmount(vital), fraction: vital.fraction, colorHex: vital.colorHex })),
       soaked: soakedNote(view.player).trim(),
       info,

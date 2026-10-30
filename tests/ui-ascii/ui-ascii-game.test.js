@@ -1070,9 +1070,19 @@ test("an ally hurt by your own field is warned of with the amount (#573)", async
 test("m shows the explored layout as a map panel, and m closes it (mini map prototype)", async () => {
   const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: true });
   await press(game, "m");
-  assert.match(game.screen(), /Map \(explored layout; m or Esc closes\):/);
+  assert.match(game.screen(), /Notebook \(what you remember; m or Esc closes\)/);
   assert.match(game.screen(), /@/);
   assert.equal(game.state().panel, "map");
   await press(game, "m");
   assert.equal(game.state().panel, null);
+});
+
+test("the play surface is a 10x10 window that follows the player (two-contexts model)", async () => {
+  const game = await createGame({ levels: [loadBundledLevel("long-way-round")], fog: false, showHelp: false });
+  const board = game.screen({ parts: true }).board;
+  assert.equal(board.length, 10);
+  assert.ok(board.every((row) => [...row].length === 10));
+  assert.ok(board.some((row) => row.includes("@")));
+  const whole = await createGame({ levels: [loadBundledLevel("long-way-round")], fog: false, showHelp: false, window: null });
+  assert.equal(whole.screen({ parts: true }).board.length, 30);
 });
