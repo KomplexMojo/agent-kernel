@@ -1066,3 +1066,13 @@ test("an ally hurt by your own field is warned of with the amount (#573)", async
   assert.deepEqual(allyWarningLines(view), ["Your fire emit is hurting D2 pal (HP −4)."]);
   assert.deepEqual(allyWarningLines({ tick: 1, battleLog: [] }), []);
 });
+
+test("m shows the explored layout as a map panel, and m closes it (mini map prototype)", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: true });
+  await press(game, "m");
+  assert.match(game.screen(), /Map \(explored layout; m or Esc closes\):/);
+  assert.match(game.screen(), /@/);
+  assert.equal(game.state().panel, "map");
+  await press(game, "m");
+  assert.equal(game.state().panel, null);
+});
