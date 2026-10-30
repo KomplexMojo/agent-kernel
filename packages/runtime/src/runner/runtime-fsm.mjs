@@ -1659,10 +1659,11 @@ export function createFsmRuntime({
 
     /**
      * Where dark outweighs light right now: a grid the map's shape, 1 dark / 0 not.
-     * Core's rule (`readActorRegistryDarkCells`); `[]` without the actor registry.
+     * Core's rule (`readActorRegistryDarkCells`); `[]` without the actor registry. With an `actorId`,
+     * that actor's own dark is left out: it never erases the actor's own memory.
      */
-    readDarkCells() {
-      return actorRegistry ? readActorRegistryDarkCells(readActorRegistryObservation(actorRegistry, tick)) : [];
+    readDarkCells(actorId) {
+      return actorRegistry ? readActorRegistryDarkCells(readActorRegistryObservation(actorRegistry, tick), actorId) : [];
     },
 
     /**
