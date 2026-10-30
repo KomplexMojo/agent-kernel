@@ -38,6 +38,7 @@ const USAGE = `Usage: ak-maze [options]
   --no-color              plain text output (also: NO_COLOR set in the environment)
   --ascii                 plain ASCII for terminals without box-drawing or Unicode glyphs: walls - | +, letter actors; also AK_ASCII=1
   --no-fog                debug: show the whole map (play is always under fog of war)
+  --no-window             debug: show the whole board, not the 10x10 window around you
   --realtime <ms>         interactive play: a turn passes every <ms> while you wait (t toggles;
                           turn-based by default)
   --web                   play in a browser tab instead: serves the game on http://localhost:<port>
@@ -88,6 +89,7 @@ export function parseArgs(argv) {
       case "--json": options.json = true; break;
       case "--no-color": options.color = false; break;
       case "--no-fog": options.fog = false; break;
+      case "--no-window": options.window = null; break;
       case "--ascii": options.glyphSet = "ascii"; break;
       case "--watch": options.watch = true; break;
       case "--web": options.web = true; break;
@@ -284,7 +286,7 @@ export async function main(argv = process.argv.slice(2)) {
     const levelOptions = recorded?.level && !options.level && !options.runDir && !options.simConfigPath
       ? { ...options, level: recorded.level }
       : options;
-    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, ...(options.window === null ? { window: null } : {}), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
     if (recorded) await game.replay(recorded.capture);
   } catch (error) {
     console.error(error.message);
@@ -361,7 +363,7 @@ async function session(options) {
     const levelOptions = { ...options, ...(source?.runDir ? { runDir: source.runDir } : {}),
       ...(source?.simConfigPath ? { simConfigPath: source.simConfigPath, initialStatePath: source.initialStatePath } : {}),
       ...(source?.level ? { level: source.level } : {}) };
-    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, ...(options.window === null ? { window: null } : {}), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
     if (recorded) await game.replay(recorded.capture);
   } catch (error) {
     console.error(error.message);

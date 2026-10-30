@@ -25,7 +25,7 @@ const $ = (id) => document.getElementById(id);
 // Touch keys: [terminal key, label]. Rule text stays in keymap.js; the layout is the page's.
 const PAD = [["y", "↖"], ["k", "↑"], ["u", "↗"], ["h", "←"], [".", "wait"], ["l", "→"], ["b", "↙"], ["j", "↓"], ["n", "↘"]];
 const PAD_AIM = PAD.map(([key, label]) => (key === "." ? ["\t", "next"] : [key, label]));
-const MORE = [["v", "Look"], ["e", "Watch"], ["o", "Order"], ["z", "Barrier"], ["\t", "Next ally"], ["?", "Help"]];
+const MORE = [["v", "Look"], ["e", "Watch"], ["o", "Order"], ["z", "Barrier"], ["m", "Notebook"], ["\t", "Next ally"], ["?", "Help"]];
 const KEEP_OUT_OF_BOARD = 8; // px gutter either side of the board
 const KEYS = { ArrowUp: "\u001b[A", ArrowDown: "\u001b[B", ArrowRight: "\u001b[C", ArrowLeft: "\u001b[D", Enter: "\r", Escape: "\u001b", Tab: "\t" };
 

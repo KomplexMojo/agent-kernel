@@ -9,7 +9,7 @@ import { INTENT } from "./keymap.js";
 import { renderScreen, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 import { AFFINITY_COLOR_HEX } from "../../runtime/src/render/affinity-palette.js";
-import { buildMinimap } from "../../runtime/src/render/minimap.js";
+import { buildNotebook, pieQuarters } from "../../runtime/src/render/notebook.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
 const REJECTION_MESSAGES = Object.freeze({
@@ -216,7 +216,7 @@ function orderChoices({ playerId, actor, hostile }) {
  * @param {boolean} [args.fog] fog of war: you see only what is in sight (default on)
  * @param {boolean} [args.showHelp] start with the key help shown (default)
  */
-export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true, showHelp: initialHelp = true, glyphSet = "unicode" } = {}) {
+export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true, showHelp: initialHelp = true, glyphSet = "unicode", window: windowSize = 10 } = {}) {
   if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error("createGame: at least one level is required");
   }
@@ -716,8 +716,11 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     }
     if (panel.type === "map") {
       const view = session.view();
-      const lines = buildMinimap({ rows: view.rows, legend: view.legend, player: view.player?.position });
-      return ["Map (explored layout; m or Esc closes):", ...(lines.length ? lines.map((line) => `  ${line}`) : ["  nothing explored yet"])];
+      const { lines, here } = buildNotebook({ rows: view.rows, legend: view.legend, rooms: view.rooms, player: view.player?.position });
+      const pie = here ? `   You are in a room ${["0", "1/4", "1/2", "3/4", "all"][pieQuarters(here)]} cleared` : "";
+      return [`Notebook (what you remember; m or Esc closes):${pie}`,
+        ...(lines.length ? lines.map((line) => `  ${line}`) : ["  nothing noted yet"]),
+        "  \u25cc none  \u25d4 1/4  \u25d2 1/2  \u25d5 3/4  \u25c9 cleared (of what you have seen)"];
     }
     if (panel.type === "order_actor") {
       return ["Order who? (a number picks, Esc closes):",
@@ -762,6 +765,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       showHelp,
       color,
       panel: panelLines(),
+      windowSize,
       aim: panel?.type === "aim" ? panel.cursor : null,
     });
   }

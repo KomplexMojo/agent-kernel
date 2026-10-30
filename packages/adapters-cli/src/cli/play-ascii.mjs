@@ -51,7 +51,7 @@ export function captureArgs({ recordPath, replayPath } = {}) {
 export function playAsciiScripted({ source, keys = "", color = false, fog = true, recordPath, replayPath }) {
   const result = spawnSync(
     process.execPath,
-    [UI_ASCII_CLI, ...levelArgs(source), "--json", ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]),
+    [UI_ASCII_CLI, ...levelArgs(source), "--json", "--no-window", ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]),
       ...captureArgs({ recordPath, replayPath }), "--keys", keys],
     { encoding: "utf8" },
   );
@@ -71,7 +71,7 @@ export function playAsciiScripted({ source, keys = "", color = false, fog = true
 export function playSessionScripted({ sessionPath, source = {}, keys = "", commands, actor, color = false, fog = true }) {
   const result = spawnSync(
     process.execPath,
-    [UI_ASCII_CLI, "--session", sessionPath, ...levelArgs(source), "--json", "--no-help",
+    [UI_ASCII_CLI, "--session", sessionPath, ...levelArgs(source), "--json", "--no-help", "--no-window",
       ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]),
       ...(actor !== undefined ? ["--actor", String(actor)] : []),
       ...(commands !== undefined ? ["--commands", JSON.stringify(commands)] : []),

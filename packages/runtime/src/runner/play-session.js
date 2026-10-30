@@ -221,7 +221,27 @@ export async function createPlaySession({
     }));
   }
 
-  const rememberParty = () => partyIds.forEach(rememberVisible);
+  // The notebook (Darren, 2026-10-30): which authored rooms exist, and what the party has seen in
+  // each. A room's "cleared" pie counts only things seen there, never the room's true contents.
+  const rooms = (simConfig?.layout?.data?.rooms ?? []).filter((room) => Number.isInteger(room?.x) && Number.isInteger(room?.y)
+    && Number.isInteger(room?.width) && Number.isInteger(room?.height) && typeof room?.id === "string");
+  const roomIdAt = (position) => rooms.find((room) => position.x >= room.x && position.x < room.x + room.width
+    && position.y >= room.y && position.y < room.y + room.height)?.id ?? null;
+  const seenThings = new Map();
+  const NOTEBOOK_ROLES = new Set(["delver", "warden", "hazard", "resource"]);
+  function noteSeenThings() {
+    if (rooms.length === 0) return;
+    const side = new Set([...partyIds, ...partyIds.flatMap(escortsOf)]);
+    const grids = partyIds.filter((id) => !runtime.hasActorExited(id)).map((id) => readVisible(id)).filter(Boolean);
+    for (const actor of readSnapshot().actors) {
+      if (seenThings.has(actor.id) || side.has(actor.id) || actor.raisedBy !== undefined || actor.lifecycle !== "alive") continue;
+      if (!NOTEBOOK_ROLES.has(categoryOf(actor, presentation))) continue;
+      const roomId = roomIdAt(actor.position);
+      if (roomId && (!fog || grids.some((grid) => grid[actor.position.y]?.[actor.position.x]))) seenThings.set(actor.id, roomId);
+    }
+  }
+
+  const rememberParty = () => { partyIds.forEach(rememberVisible); noteSeenThings(); };
   rememberParty();
 
   // Who left the level during the last command (#428): `{ id, label?, role, how }`, `how`
@@ -709,6 +729,23 @@ export async function createPlaySession({
     });
   }
 
+  /** The rooms the seat has set foot near, with what it has seen done in each (notebook input). */
+  function notebookRooms(snapshot) {
+    const memory = explored.get(activeId);
+    return rooms.flatMap((room) => {
+      let known = 0;
+      for (let y = room.y; y < room.y + room.height; y += 1) for (let x = room.x; x < room.x + room.width; x += 1) {
+        if (!fog || memory?.[y]?.[x]) known += 1;
+      }
+      if (known === 0) return [];
+      const things = [...seenThings].filter(([, roomId]) => roomId === room.id).map(([id]) => snapshot.actors.find((actor) => actor.id === id)).filter(Boolean);
+      const done = things.filter((actor) => actor.lifecycle !== "alive"
+        || (categoryOf(actor, presentation) === RESOURCE_CATEGORY && !hasLoot(actor))).length;
+      return [{ id: room.id, x: room.x, y: room.y, width: room.width, height: room.height,
+        seen: things.length, done, explored: known === room.width * room.height }];
+    });
+  }
+
   function view() {
     const fogOn = fog && !runtime.hasActorExited(activeId);
     const snapshot = readSnapshot();
@@ -734,6 +771,7 @@ export async function createPlaySession({
     return {
       ...built,
       party: partyView(snapshot),
+      rooms: notebookRooms(snapshot),
       inspections: inspectionsView(snapshot, fogOn ? readVisible() : null),
       lastSeen: lastSeenView(built.actors, snapshot, fogOn ? readVisible() : null),
       casts: castsView(snapshot, fogOn ? readVisible() : null),
