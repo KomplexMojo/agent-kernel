@@ -407,7 +407,8 @@ function fieldButton(rowIndex, fieldIndex, label, { on, kind, color } = {}) {
 function renderSheet() {
   const view = sheetState.sheet.view();
   const used = Math.min(1, view.total / Math.max(1, view.allowance));
-  $("allowance").innerHTML = `Budget ${view.total} of ${view.allowance} tokens · ${view.remaining >= 0 ? `${view.remaining} left` : `${-view.remaining} over`}`
+  // Spent climbs as you buy; the allowance is the level's fixed delver pool (not something mana max grows).
+  $("allowance").innerHTML = `Spent ${view.total} of ${view.allowance} tokens · ${view.remaining >= 0 ? `${view.remaining} left` : `${-view.remaining} over`}`
     + `<i><b style="width:${Math.round(used * 100)}%;--c:${view.remaining >= 0 ? "var(--accent)" : "#e07a6a"}"></b></i>`;
   const label = { kind: (v) => v, expression: (v) => v, range: (v) => `range ${v}`, intensity: (v) => `×${v}`, max: (v) => `max ${v}`, regen: (v) => `+${v}` };
   const rows = view.rows.map((row, rowIndex) => {
@@ -439,7 +440,7 @@ function renderSheet() {
     + `<p class="dim">${esc(view.motivation.name)} (you play it): ${view.motivation.price}. Every slot you hold starts on. Every price is the Allocator's.</p>`;
   $("sheet-note").innerHTML = sheetState.note
     ? esc(sheetState.note)
-    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap an affinity or form to change it; tap a number, then − or +.";
+    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap an affinity or form to change it; tap a number, then − or +. Spent climbs; the token allowance is fixed for this level.";
   // − and + are for numbers only.
   document.querySelectorAll("#sheet-keys .num")
     .forEach((button) => { button.disabled = !view.cursorNumeric; });

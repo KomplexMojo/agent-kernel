@@ -236,8 +236,11 @@ test("select puts the cursor on a tapped row and field, within bounds", async ()
   const { createCharacterSheet, SHEET_INTENT } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
   sheet.select(7, 0); // mana max
+  const before = sheet.view().total;
   sheet.apply(SHEET_INTENT.INC);
   assert.match(sheet.spec(), /mana:31:3/);
+  assert.equal(sheet.view().total, before + 1, "each mana max point costs one token; the allowance stays put");
+  assert.equal(sheet.view().allowance, 1000);
   sheet.select(0, 9);
   assert.deepEqual(sheet.view().cursor, { row: 0, field: 3 }, "a field past the end lands on the last one");
   sheet.select(99, 0);

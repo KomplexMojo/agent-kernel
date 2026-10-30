@@ -49,7 +49,7 @@ const WIDTHS = { kind: 10, expression: 8, range: 6, intensity: 6, mana: 11, max:
 /** @param {object} view the character sheet's `view()`; @param {{ color?: false|string, title?: string }} options */
 export function renderCharacterScreen(view, { color = false, title = "Your delver" } = {}) {
   const lines = [];
-  lines.push(`${title.toUpperCase()}    Budget ${view.total} / ${view.allowance}  ${allowanceBar(view.total, view.allowance, color)}`);
+  lines.push(`${title.toUpperCase()}    Spent ${view.total} / ${view.allowance}  ${allowanceBar(view.total, view.allowance, color)}`);
   lines.push("─".repeat(78));
   lines.push(`Motivation   ${view.motivation.name} (the playable right)${" ".repeat(34)}${String(view.motivation.price).padStart(5)}`);
   lines.push("");
