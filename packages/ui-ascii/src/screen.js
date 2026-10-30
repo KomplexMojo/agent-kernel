@@ -424,20 +424,6 @@ export function departuresLine(view) {
     + defeatByPhrase(entry.by)).join("; ");
 }
 
-// #488: the picture that takes the board's place when the player is defeated.
-const SKULL = Object.freeze([
-  "      _______      ",
-  "    /         \\    ",
-  "   |  ()   ()  |   ",
-  "   |     ^     |   ",
-  "    \\   ===   /    ",
-  "     |_|_|_|_|     ",
-  "  \\_           _/  ",
-  "     \\_______/     ",
-  "     /       \\     ",
-  "  __/         \\__  ",
-]);
-
 /** Who or what defeated the player: the last cast that landed on them, else a field they stood in. */
 export function defeatCause(view) {
   const id = view.player?.id;
@@ -448,10 +434,15 @@ export function defeatCause(view) {
   return sources.length ? `${[...new Set(sources)].join(", ")}'s field` : null;
 }
 
-function defeatScreen({ view, title, tickLine, color, message }) {
+// #488: compact defeat card — unicode skull + attempt summary (ASCII skull was crushed on the phone tile board).
+function defeatScreen({ view, title, tickLine, color, message, turns }) {
   const cause = defeatCause(view);
-  return [title, "", ...SKULL.map((row) => `  ${paint(row, GAME_COLOR_PALETTE.items.hazard, color)}`), "",
-    cause ? `Defeated by ${cause}.` : "Defeated.", tickLine, statusLine(view.status, message)].join("\n");
+  const skull = paint("☠", GAME_COLOR_PALETTE.items.hazard, color);
+  const attempt = Number.isFinite(turns) ? `Attempt: ${turns} turn${turns === 1 ? "" : "s"}.` : null;
+  return [title, "", `  ${skull}  Better luck next time.`, "",
+    cause ? `Defeated by ${cause}.` : "Defeated.",
+    ...(attempt ? [attempt] : []),
+    tickLine, statusLine(view.status, message)].join("\n");
 }
 
 /**
@@ -524,7 +515,7 @@ export function renderScreen({
   windowSize = null,
 }) {
   if (view.status?.defeated) {
-    const defeat = defeatScreen({ view, title, tickLine, color, message });
+    const defeat = defeatScreen({ view, title, tickLine, color, message, turns });
     return parts ? { defeat } : defeat;
   }
   const lines = [];

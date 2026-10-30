@@ -33,9 +33,11 @@ test("the phone board sizes square tiles with --tile, not letter-spacing", () =>
   const css = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/style.css"), "utf8");
   assert.match(browser, /setProperty\("--tile"/);
   assert.doesNotMatch(browser, /letterSpacing\s*=/);
-  assert.match(css, /#boardtext > span/);
+  assert.match(css, /#boardtext\.tiles > span/);
   assert.match(css, /width: var\(--tile\)/);
   assert.match(browser, /ansiToHtml\(row, \{ cells: true \}\)/);
+  assert.match(browser, /classList\.add\("defeat"\)/);
+  assert.match(css, /#boardtext\.defeat/);
 });
 
 test("empty-slot and More pickers keep #controls visible on desktop and with a keyboard", () => {
