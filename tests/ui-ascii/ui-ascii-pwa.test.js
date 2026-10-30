@@ -217,3 +217,10 @@ test("the phone page has a Map button that swaps the board for the notebook unti
   assert.match(source, /notebookLines\(game, parts\)/);
   assert.match(source, /windowSizeForViewport/);
 });
+
+test("each seed chip names a different kind (the one you are): ten default seeds, ten kinds", () => {
+  const { DEFAULT_SEEDS } = require("../../scripts/pwa/build-pwa.mjs");
+  const names = Array.from({ length: DEFAULT_SEEDS }, (_, seed) => affinitiesForSeed(seed).A);
+  assert.equal(new Set(names).size, names.length);
+  assert.equal(affinitiesForSeed(DEFAULT_SEEDS).A, affinitiesForSeed(0).A);
+});
