@@ -451,7 +451,15 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     const at = player?.position ?? cursor;
     const params = { target: { ...cursor }, ...(named ? { affinityKey: named } : {}) };
     if (raise) {
-      await act({ kind: "raise_barrier", params }, () => `You raise ${keyLabel(used)} ${aimLabel(at, cursor)}.`);
+      const barrierCells = () => {
+        const { rows, legend } = session.view();
+        return rows.reduce((total, row) => total + [...row].filter((glyph) => glyph === legend.barrier).length, 0);
+      };
+      const had = barrierCells();
+      await act({ kind: "raise_barrier", params }, () => {
+        const count = barrierCells() - had;
+        return `You raise ${keyLabel(used)} ${aimLabel(at, cursor)}: ${count} barrier${count === 1 ? "" : "s"}.`;
+      });
       return;
     }
     await act({ kind: "cast_affinity", params }, () => `You cast ${keyLabel(used)} ${aimLabel(at, cursor)}.`);
