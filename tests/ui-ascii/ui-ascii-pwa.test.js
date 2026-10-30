@@ -164,6 +164,29 @@ test("a list panel is offered as choices, and the state names what an open panel
   assert.equal(game.panelChoices(), null);
 });
 
+// #579: a phone empty slot must equip a held affinity without another being removed first.
+test("an empty slot offers every held affinity that is not equipped, and equipping fills it without removing another", async () => {
+  const { buildUnifiedLevel, viableVitals } = await import("../fixtures/ui-ascii/unified-level.mjs");
+  const affinities = [
+    { kind: "fire", expression: "push", stacks: 1 }, { kind: "water", expression: "push", stacks: 1 },
+    { kind: "earth", expression: "push", stacks: 1 },
+  ];
+  const level = buildUnifiedLevel({
+    id: "free-slots", tiles: ["#####", "#...#", "#...E", "#####"],
+    actors: [{ category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals(),
+      affinities, affinitySlots: 3, activeAffinityKey: "fire:push" }],
+  });
+  const game = await createGame({ levels: [{ name: "free-slots", ...level }], fog: false, showHelp: false });
+  const { slots, picks } = game.slots();
+  assert.deepEqual(slots.map((slot) => Boolean(slot.empty)), [false, true, true], "three slots, one used");
+  assert.deepEqual(picks.map((pick) => pick.key), ["water:push", "earth:push"], "an empty slot has something to take");
+  await game.toggleSlotAffinity("earth:push");
+  assert.deepEqual(game.view().player.equippedAffinityKeys, ["fire:push", "earth:push"], "fills the free slot, nothing removed");
+  await game.toggleSlotAffinity("water:push");
+  assert.deepEqual(game.view().player.equippedAffinityKeys, ["fire:push", "earth:push", "water:push"]);
+  assert.equal(game.slots().picks.length, 0);
+});
+
 // Darren, 2026-10-30: three slots, the rest a pack. The phone's swap puts a packed affinity in the
 // chosen slot's place in one turn; without a slot named, the oldest gives way (core's rule).
 test("toggleSlotAffinity with a slot named swaps a packed affinity into it, in one turn", async () => {
