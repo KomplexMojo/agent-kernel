@@ -189,12 +189,14 @@ export function overlayFieldMarks(rows, field, floorChar, fogChar = null) {
 
 /** #490: an `x` on the floor tile of a recent defeat, in the palette's hazard colour, until it ages out. */
 const DEFEAT_MARK_GLYPH = "x";
+// Where a resource was emptied (Darren, 2026-10-30): it shows briefly, then is gone.
+const SPENT_MARK_GLYPH = "*";
 export function overlayDefeatMarks(rows, marks, floorChar, styles = null, cellStyles = null) {
   if (!Array.isArray(marks) || marks.length === 0 || !floorChar) return rows;
   const grid = rows.map((row) => row.split(""));
   for (const mark of marks) {
     if (grid[mark.y]?.[mark.x] !== floorChar) continue;
-    grid[mark.y][mark.x] = DEFEAT_MARK_GLYPH;
+    grid[mark.y][mark.x] = mark.spent ? SPENT_MARK_GLYPH : DEFEAT_MARK_GLYPH;
     if (!styles || !cellStyles) continue;
     if (!cellStyles.has(mark.y)) cellStyles.set(mark.y, new Map());
     cellStyles.get(mark.y).set(mark.x, { fg: GAME_COLOR_PALETTE.items.hazard, bg: styles[floorChar]?.bg ?? "#241f22" });
@@ -499,7 +501,8 @@ export function renderScreen({
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
   // #479: a warden last seen stays at that spot (the remembered cell dims it).
-  const seen = overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.lastSeen, playerPosition);
+  const seen = overlayActors(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.lootBodies, playerPosition),
+    view.lastSeen, playerPosition);
   const board = overlayFieldMarks(overlayDefeatMarks(overlayCastPaths(overlayActors(seen, view.actors, playerPosition),
     view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells), view.field, view.legend?.floor, view.legend?.fog);
   // The tile a cast is being aimed at (#413).

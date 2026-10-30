@@ -104,8 +104,9 @@ test("take on an intact resource beside it takes it unbroken, whatever the taker
     const label = kind ?? "no affinity";
     for (let turn = 0; turn < 8 && session.strategies().pal?.status !== "done"; turn += 1) await session.act({ kind: "wait" });
     assert.equal(session.strategies().pal.status, "done", label);
-    const left = session.view().actors.find((actor) => actor.id === "chest");
-    assert.ok(left && left.lifecycle !== "defeated", `${label}: the resource is still there`);
+    // Emptied, the resource leaves the player's view (Darren, 2026-10-30); unbroken, it is still alive.
+    const left = session.debugView().actors.find((actor) => actor.id === "chest");
+    assert.ok(left && left.lifecycle === "alive", `${label}: the resource is unbroken`);
   }
 });
 

@@ -307,14 +307,14 @@ function renderSheet() {
   const used = Math.min(1, view.total / Math.max(1, view.allowance));
   $("allowance").innerHTML = `Budget ${view.total} of ${view.allowance} tokens · ${view.remaining >= 0 ? `${view.remaining} left` : `${-view.remaining} over`}`
     + `<i><b style="width:${Math.round(used * 100)}%;--c:${view.remaining >= 0 ? "var(--accent)" : "#e07a6a"}"></b></i>`;
-  const label = { kind: (v) => v, expression: (v) => v, range: (v) => `range ${v}`, intensity: (v) => `×${v}`, max: (v) => `max ${v}`, regen: (v) => `+${v}` };
+  const label = { kind: (v) => v, expression: (v) => v, range: (v, top) => `range ${v}${top ? `/${top}` : ""}`, intensity: (v, top) => `×${v}${top ? `/${top}` : ""}`, max: (v) => `max ${v}`, regen: (v) => `+${v}` };
   const rows = view.rows.map((row, rowIndex) => {
     const on = (fieldIndex) => row.active && view.cursor.field === fieldIndex;
     if (row.kind === "minion") {
       return `<div class="srow minion${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fieldButton(rowIndex, 0, row.fields[0].value, { on: on(0) })}`
         + `<span class="dim">${esc(row.loadout ?? (row.empty ? "tap to add a minion" : ""))}</span><em>${row.price}</em></div>`;
     }
-    const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value), {
+    const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value, field.limit), {
       on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
     })).join("");
     // A slot's mana, a guide: per tick for an emit or draw, per cast for a push or pull.

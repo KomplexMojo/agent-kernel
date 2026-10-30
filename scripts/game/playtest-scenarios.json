@@ -338,6 +338,143 @@
         "--tactic",
         "shrine;count=2"
       ]
+    },
+    {
+      "id": "full-budget",
+      "title": "Full budget: big level",
+      "shows": "six large rooms, wardens and traps built from the whole budget (95% spent)",
+      "focus": [
+        "The start line gives the spend: about 95% of the budget goes on the rooms, the traps and the wardens, and your delver's share on you. ak create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
+        "Four wardens guard six large rooms and two strong traps: does the level feel full, or empty between fights?",
+        "Your delver is built from its whole share, so it is strong: is it too strong for what the dungeon could buy?"
+      ],
+      "budgetTokens": 2200,
+      "args": [
+        "--room",
+        "size=large;count=6",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2,{A}:pull:3:2;equip={A}:push;motivation=user_controlled;vitals=health:100:3,mana:120:6,stamina:20:3,durability:20:2",
+        "--warden",
+        "count=4;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:24:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--hazard",
+        "affinity={C};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:5",
+        "--hazard",
+        "affinity={D};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:5"
+      ]
+    },
+    {
+      "id": "full-budget-vast",
+      "title": "Full budget: vast level",
+      "shows": "ten large rooms, six wardens and four traps from the whole budget (97% spent)",
+      "focus": [
+        "Ten large rooms on a 56 by 56 board, with the whole budget spent (about 97%). ak create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
+        "Two hunters come for you; four guards hold their rooms. Do the hunters find you across a board this big?",
+        "Four traps, one of your own kind: what does your kind's trap do to you?",
+        "On the phone: is the board still readable at this size?"
+      ],
+      "budgetTokens": 3600,
+      "args": [
+        "--room",
+        "size=large;count=10",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2,{A}:pull:3:2;equip={A}:push;motivation=user_controlled;vitals=health:240:4,mana:300:8,stamina:30:3,durability:30:2",
+        "--warden",
+        "count=4;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:24:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=2;id=hunter;affinity={D};affinities={D}:push:3:1;equip={D}:push;motivation=attacking;vitals=health:30:1,mana:30:2,stamina:12:1,durability:10:1",
+        "--hazard",
+        "affinity={C};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:5",
+        "--hazard",
+        "affinity={D};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:5",
+        "--hazard",
+        "affinity={B};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:5",
+        "--hazard",
+        "affinity={A};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5"
+      ]
+    },
+    {
+      "id": "full-budget-tactics",
+      "title": "Full budget: tactics",
+      "shows": "eight large rooms with a minefield and a boss retinue, from the whole budget (96% spent)",
+      "focus": [
+        "Eight large rooms with the whole budget spent (about 96%) through placement tactics: a minefield room and a boss with two minions. ak create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
+        "The minefield room has a safe line through its traps: can you find it?",
+        "The boss keeps its retinue near: do you pull minions off it first, or go for the boss?"
+      ],
+      "budgetTokens": 2900,
+      "args": [
+        "--room",
+        "size=large;count=8",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2,{A}:pull:3:2;equip={A}:push;motivation=user_controlled;vitals=health:210:3,mana:200:6,stamina:20:3,durability:20:2",
+        "--warden",
+        "count=3;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:24:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=boss;affinity={C};affinities={C}:emit:2:1,{C}:push:3:2;equip={C}:push;motivation=defending;vitals=health:75:2,mana:50:3,stamina:12:1,durability:12:1",
+        "--hazard",
+        "affinity={D};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:5",
+        "--tactic",
+        "minefield;hazards=3",
+        "--tactic",
+        "retinue;leader=boss-1;size=2"
+      ]
+    },
+    {
+      "id": "gather",
+      "title": "Gather your gear",
+      "shows": "start with two weak pushes and nothing else, break resources and loot wardens until you are equipped",
+      "focus": [
+        "You start with two weak pushes ({A} and {B}, range 1, intensity 1) and nothing else. An affinity resource gives its affinity only once it is broken, and a restoring kind cannot break anything, so the opposed pair makes sure one push can.",
+        "The first resource ({C} pull) is within 3 tiles of the start: push it to break it, then take its affinity from what is left (g). It is drawn R until it is empty.",
+        "To use what you took: i, then the affinity's number equips it.",
+        "Find the mana well (a permanent mana boost) and the slot resource (one more affinity slot).",
+        "Defeat the wardens and take their affinities from their bodies, also drawn R until emptied. An emptied resource shows * for a moment, then is gone.",
+        "Are you fully equipped by the time you reach the exit?"
+      ],
+      "budgetTokens": 9000,
+      "args": [
+        "--room",
+        "size=large;count=3",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:push:1:1,{B}:push:1:1;equip={A}:push,{B}:push;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
+        "--resource",
+        "affinity={C};expression=pull;stacks=2;mana=30;id=first",
+        "--resource",
+        "affinity={D};expression=push;stacks=3;mana=30;id=second",
+        "--resource",
+        "permanenceMode=permanent;vital=mana;delta=10;regen=1;id=well",
+        "--resource",
+        "slots=1;id=slot",
+        "--warden",
+        "count=2;id=guard;affinity={B};affinities={B}:push:2:1,{C}:pull:2:1;equip={B}:push;motivation=defending;vitals=health:12:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=keeper;affinity={D};affinities={D}:emit:1:1,{D}:push:2:1;equip={D}:push;motivation=defending;vitals=health:12:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--place",
+        "resource:first;near=spawn:3"
+      ]
+    },
+    {
+      "id": "earthworks",
+      "title": "Earthworks",
+      "shows": "earth barriers against attacking wardens, long corridors to block",
+      "focus": [
+        "You are earth: a push and a pull, with mana for barriers. Three wardens are attacking and come for you down the corridors.",
+        "Block a corridor: z, a move key to aim, Enter raises a line of barriers as wide as the push's range, for the push's own mana price (r3 ×2: 3 cells for 48 mana). Earth's barriers get twice the durability of other kinds'.",
+        "Wall a warden in: raise barriers around it, then pick it off or leave it boxed.",
+        "Watch what the wardens do at a barrier: do they break through, go round, or wait? The hunter's kind changes with the seed; a corrode hunter breaks barriers fast.",
+        "Is the mana worth it, or is it cheaper to fight?"
+      ],
+      "budgetTokens": 4000,
+      "args": [
+        "--room",
+        "size=medium;count=5",
+        "--delver",
+        "count=1;id=hero;affinity=earth;affinities=earth:push:3:2,earth:pull:2:1;equip=earth:push,earth:pull;motivation=user_controlled;vitals=health:30:1,mana:80:8,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=2;id=raider;affinity=wind;affinities=wind:push:2:1;equip=wind:push;motivation=attacking;vitals=health:20:1,mana:20:2,stamina:12:2,durability:10:1",
+        "--warden",
+        "count=1;id=hunter;affinity={C};affinities={C}:push:2:1;equip={C}:push;motivation=attacking;vitals=health:20:1,mana:20:2,stamina:12:2,durability:10:1"
+      ]
     }
   ]
 }

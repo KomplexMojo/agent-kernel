@@ -524,7 +524,9 @@ test("an intact resource next to the player is loot: growth and decay players al
     assert.deepEqual(result.accepted.map((a) => a.kind), ["take"], label);
     const health = session.view().player.vitals.find((vital) => vital.key === "health");
     assert.ok(health.current >= 9, `${label}: ${JSON.stringify(health)}`);
-    assert.ok(session.view().actors.some((a) => a.id === "chest"), `${label}: the resource is still there`);
+    // Taken unbroken: emptied, not defeated, so it leaves a spent mark and no departure (Darren, 2026-10-30).
+    assert.deepEqual(session.view().defeatMarks.map((mark) => mark.spent), [true], `${label}: emptied, not broken`);
+    assert.deepEqual(session.view().departures, [], label);
     assert.deepEqual(session.view().loot, [], `${label}: nothing left to take`);
   }
 });
@@ -655,3 +657,36 @@ test("replay refuses a capture that is not a player's or does not fit the level"
 // - repeated rejected moves each advance the tick by one
 // - loot from a defeated actor two tiles away is not offered
 // - an exhausted lasting affinity is reported as affinityExhausted on view().player
+
+// Darren, 2026-10-30: a defeated actor that still holds loot is shown as a resource until it is
+// emptied, and a resource with nothing left to take shows `*` for a few ticks, then is gone.
+test("a body with loot is shown as a resource until taken; an emptied resource disappears", async () => {
+  const { renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+  const session = await createPlaySession(buildDuelLevel({ playerAffinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] }));
+  await session.act(equip("decay:push"));
+  for (let i = 0; i < 6 && session.view().actors.some((a) => a.id === "warden_1"); i += 1) await session.act(cast("warden_1"));
+  assert.deepEqual(session.view().lootBodies.map(({ id, role, position }) => ({ id, role, position })),
+    [{ id: "warden_1", role: "resource", position: { x: 2, y: 1 } }]);
+  assert.match(renderScreen({ view: session.view(), levelName: "duel" }), /@R/);
+  await session.act({ kind: "take", params: { targetId: "warden_1", holdingId: "affinity:fire:push" } });
+  assert.deepEqual(session.view().lootBodies, [], "emptied, it is no longer shown");
+
+  const chest = buildUnifiedLevel({
+    id: "chest", tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals() },
+      { category: "resource", id: "resource_2", position: { x: 2, y: 1 }, vitals: { durability: { current: 1, max: 1, regen: 0 } },
+        holdings: [{ id: "boost", kind: "vital", permanenceMode: "consumable", vitals: [{ key: "health", delta: 5 }], claimedBy: null }] },
+    ],
+  });
+  const looter = await createPlaySession(chest);
+  const resource = () => looter.view().actors.find((actor) => actor.id === "resource_2");
+  assert.ok(resource());
+  await looter.act({ kind: "take", params: { targetId: "resource_2", holdingId: "boost" } });
+  assert.equal(resource(), undefined, "an emptied resource leaves the board");
+  assert.deepEqual(looter.view().defeatMarks, [{ x: 2, y: 1, role: "resource", spent: true, age: 0 }]);
+  assert.match(renderScreen({ view: looter.view(), levelName: "chest" }), /@\*/);
+  for (let i = 0; i < 3; i += 1) await looter.act({ kind: "wait" });
+  assert.deepEqual(looter.view().defeatMarks, []);
+  assert.match(renderScreen({ view: looter.view(), levelName: "chest" }), /@\./);
+});

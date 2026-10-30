@@ -120,6 +120,26 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   // Above max mana it can never be paid: an emit stays off, a cast is never made.
   const withReach = (mana) => (mana ? { ...mana, overMax: mana.amount > choices.vitals.mana.max } : null);
 
+  // How far a tap takes a held slot's range or intensity before it loops back to 1 (Darren,
+  // 2026-10-30). Core caps neither; what stops them in play is mana (core never pays a cost above
+  // max mana, so a larger value is never cast or never stays on) and the allowance. The limit is
+  // the largest value whose mana still fits max mana and whose total still fits the allowance.
+  const TAP_CEILING = 99;
+  function tapLimit(index, name) {
+    const slot = choices.slots[index];
+    if (!held(slot)) return 1;
+    const kept = slot[name];
+    let limit = 1;
+    for (let value = 2; value <= TAP_CEILING; value += 1) {
+      slot[name] = value;
+      const mana = manaCost(slot);
+      if (!mana || mana.amount > choices.vitals.mana.max || spent() > allowance) break;
+      limit = value;
+    }
+    slot[name] = kept;
+    return limit;
+  }
+
   // The minions as the build composes them (the Configurator's retinue for this delver), so the
   // sheet prices exactly what `ak create` adds.
   function composedMinions() {
@@ -187,6 +207,11 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     return found;
   }
 
+  // What the character and its minions cost together.
+  function spent() {
+    return priced().quote.cost + composedMinions().minions.reduce((sum, minion) => sum + minionQuote(minion).cost, 0);
+  }
+
   function view() {
     const cost = priced();
     const retinue = composedMinions();
@@ -207,7 +232,8 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
           id: `slot-${row.index + 1}`, kind: "slot", label: `${row.index + 1}`, active, empty: !held(slot),
           fields: [
             { name: "kind", value: slot.kind ?? "none" }, { name: "expression", value: slot.expression },
-            { name: "range", value: slot.range }, { name: "intensity", value: slot.intensity },
+            { name: "range", value: slot.range, ...(held(slot) ? { limit: tapLimit(row.index, "range") } : {}) },
+            { name: "intensity", value: slot.intensity, ...(held(slot) ? { limit: tapLimit(row.index, "intensity") } : {}) },
           ],
           // A guide, not a price: the mana the slot spends, per tick while on or per cast.
           mana: held(slot) ? withReach(manaCost(slot)) : null,
@@ -323,13 +349,21 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
 
   /**
    * A tap on one field: it takes the cursor, and a choice (kind, form, minion role) steps to its
-   * next value (kind: none, then each kind, then none again). A number only takes the cursor,
-   * for − and + to change.
+   * next value (kind: none, then each kind, then none again). A held slot's range or intensity
+   * steps up by one and loops back to 1 past its limit (`fields[].limit`). A vital only takes the
+   * cursor, for − and + to change.
    */
   function tap(row, field = 0) {
     select(row, field);
     if (cursor.row !== row) return;
-    if (!NUMERIC_FIELDS.includes(fieldsOf(rows()[row])[cursor.field])) change(1);
+    const target = rows()[row];
+    const name = fieldsOf(target)[cursor.field];
+    if (target.kind === "slot" && (name === "range" || name === "intensity")) {
+      const slot = choices.slots[target.index];
+      if (held(slot)) slot[name] = slot[name] + 1 > tapLimit(target.index, name) ? 1 : slot[name] + 1;
+      return;
+    }
+    if (!NUMERIC_FIELDS.includes(name)) change(1);
   }
 
   /**

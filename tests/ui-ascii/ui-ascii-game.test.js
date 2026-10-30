@@ -732,6 +732,19 @@ test("the vital line puts the player first, names only hit vitals and keeps to t
   assert.equal(vitalChangeLine({ player: { id: "delver_1" }, vitalChanges: [] }), "");
 });
 
+// Playtest 2026-10-30: "You hit W1 with corrode push: DU −8  W1 DU (−8)" said the hit twice.
+test("the vital line leaves out a hit the cast line already names, and keeps what it adds", () => {
+  const cast = { sourceId: "delver_1", targetId: "warden_1", kind: "corrode", expression: "push",
+    changes: [{ actorId: "warden_1", vital: "durability", delta: -8 }, { actorId: "delver_1", vital: "mana", delta: -24 }] };
+  const view = { player: { id: "delver_1" }, casts: [cast], vitalChanges: [
+    { actorId: "warden_1", label: "W1", vital: "durability", hit: -8, regen: 0, current: 2, max: 10 },
+    { actorId: "warden_1", label: "W1", vital: "stamina", hit: -1, regen: 0, current: 9, max: 10 },
+  ] };
+  assert.equal(vitalChangeLine(view), "W1 ST (\u22121)", "the field's stamina hit stays; the cast's durability hit is not repeated");
+  view.vitalChanges[0].regen = 1;
+  assert.match(vitalChangeLine(view), /W1 DU \(\u22128 \+1\)/, "regen it cancels is new, so the line stays");
+});
+
 test("a cast core refuses says why and costs the turn", async () => {
   const game = await createGame({ levels: duelLevels(), fog: false });
   await press(game, "f\r");
@@ -857,7 +870,9 @@ test("g next to a standing warden or a spent resource says why nothing can be ta
   });
   const game = await createGame({ levels: [{ name: "spent", ...level }], fog: false });
   await press(game, "gg");
-  assert.match(game.screen(), /resource_2 has nothing left to take\./);
+  // Emptied, it leaves the board (Darren, 2026-10-30): a `*` marks where it stood, and g finds nothing.
+  assert.match(game.screen(), /#@\*/);
+  assert.match(game.screen(), /Nothing here to take\./);
 });
 
 // #230, #345: in the affinity list, Tab picks a row, + / - run it at less or more range and
