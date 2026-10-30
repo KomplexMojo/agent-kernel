@@ -22,11 +22,11 @@ function actor(id: string, position: { x: number; y: number }, pair?: ActorAffin
     activeAffinityKey: pair ? `${pair.kind}:${pair.expression}` : null, holdings: [] };
 }
 
-function cast(kind: AffinityKind, expression: 'push' | 'pull', { target = { x: 5, y: 4 }, intensity = 1,
+function cast(kind: AffinityKind, expression: 'push' | 'pull', { target = { x: 5, y: 4 }, intensity = 1, stacks = 4,
   walls = [] as Array<{ x: number; y: number }>, others = [] as ActorRecord[] } = {}) {
   const terrain = Array(W * W).fill('floor');
   walls.forEach(({ x, y }) => { terrain[y * W + x] = 'wall'; });
-  const source = actor('source', CENTRE, { kind, expression, stacks: 4, intensity });
+  const source = actor('source', CENTRE, { kind, expression, stacks, intensity });
   const state = createActorRegistry({ dimensions: { width: W, height: W }, terrain,
     actors: [source, actor('target', target), ...others] });
   const result = castFocusedActorAffinity(state, 'source', 'target', { castManaBase: { [`${kind}:${expression}`]: 1 } });
@@ -51,6 +51,20 @@ test('a push moves the target its kind\'s steps away from the caster, in every d
       const { at, result } = cast(kind, 'push', { target });
       expect(at, `${kind} push ${dx},${dy}`).toEqual({ x: target.x + dx * steps(kind), y: target.y + dy * steps(kind) });
       expect(result.displaced).toEqual([{ actorId: 'target', from: target, to: at }]);
+    }
+  }
+});
+
+// Darren, 2026-10-30 (wind-knockback playtest): a push never carries its target beyond the
+// caster's own range, so the same push can hit it again; a target already at that range stays put.
+test('a push knocks its target back no further than the caster\'s range, for every kind', () => {
+  for (const kind of DISPLACERS) {
+    for (const [dx, dy] of DIRECTIONS) {
+      const target = { x: CENTRE.x + dx, y: CENTRE.y + dy };
+      const strong = cast(kind, 'push', { target, stacks: 2, intensity: 3 });
+      expect(strong.at, `${kind} push ${dx},${dy}`).toEqual({ x: CENTRE.x + dx * 2, y: CENTRE.y + dy * 2 });
+      const atEdge = cast(kind, 'push', { target: { x: CENTRE.x + dx * 2, y: CENTRE.y + dy * 2 }, stacks: 2, intensity: 3 });
+      expect(atEdge.result.displaced, `${kind} at the edge of its range`).toEqual([]);
     }
   }
 });
