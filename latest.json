@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-30T19-03-39-051Z-cdf873ad1e1a-22668b3a5093",
-    "key": "22668b3a5093a1b061789fe7f32b3db70e7b73f18937ab9270b895d18d4d68bb",
+    "id": "2026-10-30T19-36-43-907Z-1f829b0a036d-970bb18ccb09",
+    "key": "970bb18ccb09f7203822f258197e9685bfa4c92244246dd41b2be977a92b5476",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-30T19:03:39.051Z",
-    "completedAt": "2026-10-30T19:06:13.554Z",
-    "durationMs": 154503,
+    "startedAt": "2026-10-30T19:36:43.907Z",
+    "completedAt": "2026-10-30T19:39:18.259Z",
+    "durationMs": 154352,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "cdf873ad1e1a869f3b04cac843a1b8754c16fd7b",
-    "tree": "92fa9f9f52c0e868484f421deb49d548ecbfbb9d"
+    "commit": "1f829b0a036d4c539cbfe24d782fc95195208697",
+    "tree": "ca487e605ec2ed4d5e2a0d4a00100e294d687ee7"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -205,6 +205,7 @@
       "packages/runtime/src/render/visual-assets/tiles/overlays/wall-affinity-growth.png",
       "packages/runtime/src/render/visualization-snapshot.js",
       "packages/runtime/src/render/wall-glyphs.js",
+      "packages/runtime/src/render/window-size.js",
       "packages/runtime/src/runner/character-sheet.js",
       "packages/runtime/src/runner/core-facade.js",
       "packages/runtime/src/runner/core-setup.mjs",
