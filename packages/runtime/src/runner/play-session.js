@@ -302,6 +302,7 @@ export async function createPlaySession({
     if (entries.length === 0) return;
     battleLogTick = Math.max(...entries.map((entry) => entry.tick));
     const actors = readSnapshot().actors;
+    const vitalChanges = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1)?.emittedSnapshot?.view?.turn?.vitalChanges ?? [];
     for (const entry of entries) {
       const involved = [entry.sourceId, entry.targetId].filter(Boolean);
       const cells = involved.map((id) => actors.find((actor) => actor.id === id)?.position).filter(Boolean);
@@ -312,7 +313,11 @@ export async function createPlaySession({
       // #573: a party member's (or its minion's) field or cast that hurts one of its own side.
       const side = new Set([...partyIds, ...partyIds.flatMap(escortsOf)]);
       const ally = entry.sourceId !== entry.targetId && side.has(entry.sourceId) && side.has(entry.targetId);
-      battleLog.push({ entry, readers, ally });
+      // #582: the amount and the net after regen, for a target whose vitals the party may read.
+      const row = entry.event === "field" ? AFFINITY_TABLE.find((candidate) => candidate.kind === entry.kind) : null;
+      const change = row && (side.has(entry.targetId))
+        ? vitalChanges.find((candidate) => candidate.actorId === entry.targetId && candidate.vital === row.primaryVital) : null;
+      battleLog.push({ entry, readers, ally, ...(change ? { effect: { vital: change.vital, hit: change.hit, regen: change.regen } } : {}) });
     }
     if (battleLog.length > 500) battleLog.splice(0, battleLog.length - 500);
   }
@@ -320,8 +325,9 @@ export async function createPlaySession({
   /** The last `limit` battle-log lines the seat may read, oldest first: `{ tick, event, text }`. */
   function battleLogView(limit = 30) {
     return battleLog.filter(({ readers }) => readers.includes(activeId)).slice(-limit)
-      .map(({ entry, ally }) => ({ tick: entry.tick, event: entry.event, ...(ally ? { ally: true, targetId: entry.targetId } : {}),
-        text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null }) }));
+      .map(({ entry, ally, effect }) => ({ tick: entry.tick, event: entry.event, ...(ally ? { ally: true, targetId: entry.targetId } : {}),
+        ...(effect ? { detailed: true } : {}),
+        text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null, effect }) }));
   }
 
   // #479: a mobile actor the seat has seen stays known at its last position until the seat

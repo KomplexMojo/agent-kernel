@@ -197,3 +197,34 @@ test("G1 annotator/battle-log ABLATION: a silent Annotator leaves the log empty"
 // - take entries (loot) and exit entries through a played level
 // - an Annotator restored from view() mid-fight keeps the lifecycle memory (no phantom defeats)
 // - companion kills seen by the seat vs out of sight
+
+// #582: a field hit states the vital and amount with regen's share; it says "hurting" only when the vital ends lower.
+test("words: a field hit that regen cancels says so; a stronger one says hurting, with the net", async () => {
+  const { battleLogLine } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
+  const line = (effect) => battleLogLine({ event: "field", sourceId: "h", targetId: "me", kind: "wind", expression: "emit" },
+    { seatId: "me", labelOf: (id) => (id === "h" ? "H2" : null), effect });
+  assert.equal(line({ vital: "stamina", hit: -2, regen: 3 }), "H2 h's wind emit hits, but regen cancels it on you: ST \u22122, regen +3 (net 0).");
+  assert.equal(line({ vital: "stamina", hit: -5, regen: 3 }), "H2 h's wind emit is hurting you: ST \u22125, regen +3 (net \u22122).");
+  assert.equal(line({ vital: "durability", hit: -2, regen: 0 }), "H2 h's wind emit is hurting you: DU \u22122.");
+  assert.equal(line(null), "H2 h's wind emit is hurting you.", "no reading, no claim about amounts");
+});
+
+// #582, through the session: a warden's wind emit on the seat. Regen cancelling the hit reads as cancelled.
+for (const [regen, expected] of [[5, /hits, but regen cancels it on you: ST −\d+, regen \+\d+ \(net 0\)\./], [0, /is hurting you: ST −\d+\./]]) {
+  test(`a field on the seat with stamina regen ${regen} is worded by its net`, async () => {
+    const level = buildUnifiedLevel({
+      id: "net", tiles: ["#######", "#.....#", "#....E#", "#######"],
+      actors: [
+        { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+          vitals: { ...viableVitals({ stamina: 20 }), stamina: { current: 20, max: 20, regen } } },
+        { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"],
+          vitals: viableVitals({ mana: 60 }), affinities: [{ kind: "wind", expression: "emit", stacks: 1 }], activeAffinityKey: "wind:emit" },
+      ],
+    });
+    const session = await createPlaySession(level);
+    for (let i = 0; i < 3; i += 1) await session.act({ kind: "wait" });
+    const lines = session.view().battleLog.map((line) => line.text).filter((text) => /wind emit/.test(text));
+    assert.equal(lines.length, 1, lines.join(" | "));
+    assert.match(lines[0], expected);
+  });
+}

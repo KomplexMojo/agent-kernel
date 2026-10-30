@@ -103,6 +103,8 @@ export function battleLines(view) {
 export function allyWarningLines(view) {
   const tick = view.tick;
   return (view.battleLog || []).filter((line) => line.ally && line.tick === tick).map((line) => {
+    // #582: a line that already states the amount and the net needs no suffix.
+    if (line.detailed) return line.text;
     const change = (view.vitalChanges || []).find((c) => c.actorId === line.targetId && c.hit < 0);
     return `${line.text.replace(/\.$/, "")}${change ? ` (${changeLabel({ vital: change.vital, delta: change.hit })})` : ""}.`;
   });

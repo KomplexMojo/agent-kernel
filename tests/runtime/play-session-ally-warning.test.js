@@ -33,7 +33,7 @@ test("a harmful emit that hurts a minion is marked as ally fire on the first tic
   const lines = view.battleLog.filter((line) => line.ally);
   assert.equal(lines.length, 1, JSON.stringify(view.battleLog));
   assert.equal(lines[0].targetId, "pal");
-  assert.match(lines[0].text, /hurting/);
+  assert.match(lines[0].text, /(is hurting|hits, but regen cancels it on) D2 pal: DU/, "#582: the amount and the net, not a bare claim");
   assert.ok(view.vitalChanges.some((change) => change.actorId === "pal" && change.hit < 0));
 });
 
