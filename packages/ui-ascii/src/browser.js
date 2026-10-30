@@ -114,8 +114,6 @@ async function startGame(scenario, entry, capture = null, custom = null) {
 
 // The board is a fixed square. Its text is fitted to it once per level (and on resize), from the
 // level's own width and height, so what happens below it never changes its size or place.
-const GLYPH_WIDTH = 0.602;
-const LINE_HEIGHT = 1.2;
 // The play window follows the display (an iPhone at 393 px shows 11x11 tiles of 32 px); ?window=N overrides.
 function displayWindow() {
   const forced = Number(new URLSearchParams(globalThis.location?.search ?? "").get("window"));
@@ -130,6 +128,11 @@ function notebookLines(game, parts) {
   return parts.panel.slice(1, -1).map((line) => line.replace(/^ {2}/, ""));
 }
 
+/** Plain notebook rows as one span per character, so they share the board's square-tile CSS. */
+function notebookHtml(lines) {
+  return lines.map((line) => [...line].map((char) => `<span>${esc(char)}</span>`).join("")).join("\n");
+}
+
 const MIN_TILES = 11; // the notebook is drawn at least as big as the window, so a few notes are not blown up
 function fitBoard() {
   current.game.setWindow(displayWindow());
@@ -139,10 +142,10 @@ function fitBoard() {
   const side = $("board").clientWidth;
   const cols = Math.max(MIN_TILES, ...board.map((row) => [...row].length));
   const rows = Math.max(MIN_TILES, board.length);
-  // Square tiles: letter spacing pads each glyph out to the line height.
-  const font = Math.max(6, Math.floor(Math.min(side / (cols * LINE_HEIGHT), side / (rows * LINE_HEIGHT))));
-  $("boardtext").style.fontSize = `${font}px`;
-  $("boardtext").style.letterSpacing = `${((LINE_HEIGHT - GLYPH_WIDTH) * font).toFixed(2)}px`;
+  // Square tiles sized in pixels: each glyph is an inline-block span of --tile (see style.css).
+  // Letter-spacing cannot paint a cell background, and it also made rows wrap into black voids.
+  const tile = Math.max(6, Math.floor(side / Math.max(cols, rows)));
+  $("boardtext").style.setProperty("--tile", `${tile}px`);
 }
 
 const touchButton = (key, label, className = "") => `<button class="k ${className}" data-key="${encodeURIComponent(key)}">${label}</button>`;
@@ -215,7 +218,7 @@ function render() {
     $("vitals").innerHTML = "";
   } else {
     const notebook = notebookLines(game, parts);
-    $("boardtext").innerHTML = notebook ? notebook.map(esc).join("\n") : parts.board.map(ansiToHtml).join("\n");
+    $("boardtext").innerHTML = notebook ? notebookHtml(notebook) : parts.board.map((row) => ansiToHtml(row, { cells: true })).join("\n");
     fitBoard();
     $("vitals").innerHTML = parts.vitals.map((vital) => `<div>${esc(vital.label)} ${esc(vital.text)}<i style="width:${Math.round(Math.max(0, Math.min(1, vital.fraction)) * 100)}%;background:${vital.colorHex}"></i></div>`).join("")
       + (parts.soaked ? `<div>${esc(parts.soaked)}</div>` : "");

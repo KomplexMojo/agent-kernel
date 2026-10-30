@@ -22,8 +22,11 @@ body.kbd #game { --controls: 0px; --side: min(calc(100vw - 16px), calc(100dvh - 
 #bar { height: 34px; flex: none; margin-top: max(4px, env(safe-area-inset-top)); display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
 #bar button { padding: 4px 12px; font-size: 16px; }
 #bar-buttons { display: flex; gap: 6px; } #bar #mapbtn { font-size: 14px; } #bar #mapbtn.on { border-color: var(--accent); color: var(--accent); }
-#board { width: var(--side); height: var(--side); flex: none; margin: 0 auto; background: #08080a; border: 1px solid var(--edge); border-radius: 8px; display: grid; place-items: center; overflow: hidden; }
-#boardtext { margin: 0; white-space: pre-wrap; line-height: 1.2; text-align: left; }
+/* Board chrome matches fog so any sub-pixel gap never reads as a black void. */
+#board { width: var(--side); height: var(--side); flex: none; margin: 0 auto; background: #12181c; border: 1px solid var(--edge); border-radius: 8px; display: grid; place-items: center; overflow: hidden; }
+/* Square tiles: each glyph is a span of --tile (set by fitBoard). Letter-spacing left black voids. */
+#boardtext { --tile: 32px; margin: 0; white-space: pre; line-height: var(--tile); font-size: calc(var(--tile) * 0.72); letter-spacing: 0; text-align: left; }
+#boardtext > span { display: inline-block; width: var(--tile); height: var(--tile); line-height: var(--tile); text-align: center; vertical-align: top; overflow: hidden; }
 #vitals { height: 32px; flex: none; display: flex; gap: 6px; } #vitals div { flex: 1; min-width: 0; background: var(--panel); border-radius: 6px; padding: 3px 4px; font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; }
 #vitals i { display: block; height: 5px; border-radius: 3px; margin-top: 3px; }
 #msg { height: 62px; flex: none; overflow-y: auto; background: var(--panel); border-radius: 8px; padding: 4px 8px; font-size: 12px; line-height: 1.3; color: var(--dim); overscroll-behavior: contain; }

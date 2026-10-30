@@ -7,8 +7,11 @@ const escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").r
 /**
  * The game's 24-bit ANSI screen as HTML spans. Reads only what `screen.js` writes:
  * `38;2;r;g;b` (foreground), `48;2;r;g;b` (background) and `0` (reset).
+ *
+ * `cells: true` wraps every character in its own span so the phone board can size each
+ * glyph as a square tile (letter-spacing cannot fill a tile background and left black voids).
  */
-export function ansiToHtml(text) {
+export function ansiToHtml(text, { cells = false } = {}) {
   let fg = null;
   let bg = null;
   let out = "";
@@ -28,7 +31,14 @@ export function ansiToHtml(text) {
     }
     if (!parts[i]) continue;
     const style = [fg && `color:${fg}`, bg && `background:${bg}`].filter(Boolean).join(";");
-    out += style ? `<span style="${style}">${escapeHtml(parts[i])}</span>` : escapeHtml(parts[i]);
+    if (!cells) {
+      out += style ? `<span style="${style}">${escapeHtml(parts[i])}</span>` : escapeHtml(parts[i]);
+      continue;
+    }
+    for (const char of parts[i]) {
+      const body = escapeHtml(char);
+      out += style ? `<span style="${style}">${body}</span>` : `<span>${body}</span>`;
+    }
   }
   return out;
 }

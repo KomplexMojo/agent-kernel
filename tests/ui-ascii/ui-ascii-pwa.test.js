@@ -28,6 +28,16 @@ test("web.mjs and the app share one ansiToHtml", () => {
   assert.equal(require("../../packages/ui-ascii/src/web.mjs").ansiToHtml, ansiToHtml);
 });
 
+test("the phone board sizes square tiles with --tile, not letter-spacing", () => {
+  const browser = readFileSync(join(SRC, "browser.js"), "utf8");
+  const css = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/style.css"), "utf8");
+  assert.match(browser, /setProperty\("--tile"/);
+  assert.doesNotMatch(browser, /letterSpacing\s*=/);
+  assert.match(css, /#boardtext > span/);
+  assert.match(css, /width: var\(--tile\)/);
+  assert.match(browser, /ansiToHtml\(row, \{ cells: true \}\)/);
+});
+
 test("a PWA report is one playtest.mjs reads back, with the commands that were played", async () => {
   const scenario = loadPlaytestScenarios().scenarios[0];
   const commands = [{ kind: "move", params: { direction: "east" } }, { kind: "wait" }];
