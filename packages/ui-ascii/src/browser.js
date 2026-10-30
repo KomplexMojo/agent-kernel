@@ -14,6 +14,7 @@ import { ansiToHtml } from "./html.js";
 import { intentForKey } from "./keymap.js";
 import { defeatCause } from "./screen.js";
 import { encodeReplay, renderReport } from "./report.js";
+import { reloadForUpdate } from "./update-reload.js";
 import { createCharacterSheet } from "../../runtime/src/runner/character-sheet.js";
 import { windowSizeForViewport } from "../../runtime/src/render/window-size.js";
 import { GAME_AFFINITY_COLOR_HEX } from "../../runtime/src/contracts/game-elements.js";
@@ -581,33 +582,32 @@ async function checkForUpdate() {
   } catch { /* offline: keep playing */ }
 }
 
-/** Bound a promise so a stuck service worker cannot keep Update from reloading. */
-function withTimeout(promise, ms) {
-  return Promise.race([Promise.resolve(promise).catch(() => undefined), new Promise((resolve) => setTimeout(resolve, ms))]);
-}
-
-// Drop the old cached files and reload; the saved game stays on the device and shows as Resume.
-// Never wait forever on serviceWorker.update() — that hang is what made Update look dead.
-async function applyUpdate() {
+// Drop every service worker and cache, then navigate; the saved game stays on the device.
+// Do not ask the worker to check for updates first (that call hangs); always replace with a full URL + cache-bust query.
+async function applyUpdate(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
   const apply = $("update-apply");
   const later = $("update-later");
-  if (apply) apply.disabled = true;
+  if (apply) { apply.disabled = true; apply.textContent = "Updating…"; }
   if (later) later.disabled = true;
   $("update-text").textContent = "Updating…";
   try {
-    const registration = await withTimeout(navigator.serviceWorker?.getRegistration?.(), 1000);
-    if (registration) {
-      await withTimeout(registration.update(), 2000);
-      await withTimeout(registration.unregister(), 2000);
-    }
-    if (globalThis.caches?.keys) {
-      const names = await withTimeout(caches.keys(), 2000);
-      if (Array.isArray(names) && names.length) await withTimeout(Promise.all(names.map((name) => caches.delete(name))), 3000);
-    }
-  } catch { /* reload anyway */ }
-  const url = new URL(location.href);
-  url.searchParams.set("_", String(Date.now()));
-  location.replace(`${url.pathname}${url.search}${url.hash}`);
+    await reloadForUpdate({
+      getRegistrations: async () => (await navigator.serviceWorker?.getRegistrations?.()) ?? [],
+      deleteCaches: async () => {
+        if (!globalThis.caches?.keys) return;
+        const names = await caches.keys();
+        await Promise.all(names.map((name) => caches.delete(name)));
+      },
+      replace: (href) => { location.replace(href); },
+      href: location.href,
+    });
+  } catch {
+    const url = new URL(location.href);
+    url.searchParams.set("_", String(Date.now()));
+    location.replace(url.href);
+  }
 }
 
 /** Start the page. `appHost.buildLevel({ argv, solverAnswers })` builds a level from `ak create` arguments. */
@@ -616,7 +616,9 @@ export async function startApp(appHost = {}) {
   setup();
   catalog = await (await fetch("catalog.json")).json();
   renderPicker();
+  // onclick as well as addEventListener: some embedded browsers drop the listener-only path.
   $("update-apply").addEventListener("click", applyUpdate);
+  $("update-apply").onclick = applyUpdate;
   $("update-later").addEventListener("click", () => { $("update").hidden = true; });
   $("menu-version").textContent = `Build ${BUILD}`;
   checkForUpdate();

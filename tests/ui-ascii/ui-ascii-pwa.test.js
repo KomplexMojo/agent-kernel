@@ -57,10 +57,9 @@ test("p opens the playtest report (and More lists it)", () => {
 
 test("Update clears caches with a timeout and reloads (never hangs on serviceWorker.update)", () => {
   const browser = readFileSync(join(SRC, "browser.js"), "utf8");
-  assert.match(browser, /function withTimeout\(/);
   assert.match(browser, /async function applyUpdate\(/);
-  assert.match(browser, /registration\.unregister\(/);
-  assert.match(browser, /location\.replace\(/);
+  assert.match(browser, /reloadForUpdate\(/);
+  assert.doesNotMatch(browser, /\.update\(\)/);
   assert.match(browser, /Updating…/);
   assert.match(browser, /closest\?\.\("dialog, #update"\)/);
 });
