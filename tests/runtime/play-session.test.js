@@ -548,7 +548,7 @@ test("view().player reports its slots: how many, what is equipped in order, and 
 test("view().player states core's cast rules as data: castable slots, their reach, the slot cap", async () => {
   const session = await createPlaySession(buildDuelLevel());
   assert.deepEqual(session.view().player.castableAffinities, {}, "nothing equipped, nothing to cast");
-  assert.equal(session.view().player.maxAffinitySlots, 6);
+  assert.equal(session.view().player.maxAffinitySlots, 3);
   await session.act(equip("water:push"));
   await session.act(equip("light:emit"));
   // Emit works on its own, so only the push is castable; it reaches one tile per stack.

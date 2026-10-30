@@ -17,9 +17,10 @@ function create(args) {
   return { result, read, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
-test("delvers and wardens start with the authored slots and equips, and pay for extra slots", () => {
+// Darren, 2026-10-30: three equipped slots at most, the rest carried as a pack; no slot is bought.
+test("delvers and wardens start with their preset slots and the authored equips; a fourth affinity is carried", () => {
   const run = create([
-    "--delver", "count=1;affinity=earth;motivation=exploring;affinities=earth:push:3,light:emit:1,dark:emit:1;slots=5;equip=earth:push:2,light:emit,dark:emit",
+    "--delver", "count=1;affinity=earth;motivation=exploring;affinities=earth:push:3,light:emit:1,dark:emit:1,fire:pull:1;equip=earth:push:2,light:emit,dark:emit",
     "--warden", "count=1;affinity=corrode;motivation=random;equip=corrode:push",
     "--budget-tokens", "20000",
   ]);
@@ -27,7 +28,8 @@ test("delvers and wardens start with the authored slots and equips, and pay for 
     assert.equal(run.result.status, 0, run.result.stderr);
     const actors = Object.fromEntries(run.read("initial-state.json").actors.map((actor) => [actor.id, actor]));
     const delver = actors["card_delver_1-1"];
-    assert.equal(delver.affinitySlots, 5);
+    assert.equal(delver.affinitySlots ?? 3, 3);
+    assert.ok(delver.affinities.some((entry) => entry.kind === "fire" && entry.expression === "pull"), "the fourth is held, in the pack");
     assert.equal(delver.activeAffinityKey, "earth:push");
     assert.deepEqual(delver.equippedAffinityKeys, ["earth:push", "light:emit", "dark:emit"]);
     assert.deepEqual(delver.equippedAffinityStacks, { "earth:push": 2 });
@@ -36,8 +38,7 @@ test("delvers and wardens start with the authored slots and equips, and pay for 
     assert.equal(warden.activeAffinityKey, "corrode:push");
 
     const slotLines = run.read("budget-receipt.json").lineItems.filter((line) => line.id === "resource_affinity_slot");
-    assert.deepEqual(slotLines.map((line) => [line.subjectRef.id, line.quantity]), [["card_delver_1-1", 2]],
-      "only the two slots above the delver's preset of three are charged");
+    assert.deepEqual(slotLines, [], "no slot is bought");
   } finally {
     run.cleanup();
   }
@@ -46,7 +47,7 @@ test("delvers and wardens start with the authored slots and equips, and pay for 
 test("a spec core could not load is refused with what is wrong", () => {
   const cases = [
     ["count=1;affinity=growth;equip=growth:emit", /delver\[1\] cannot equip growth:emit: it holds only growth:push/],
-    ["count=1;affinity=growth;slots=7", /delver\[1\] slots must be an integer from 1 to 6, got 7/],
+    ["count=1;affinity=growth;slots=4", /delver\[1\] slots must be an integer from 1 to 3, got 4: extra slots are retired/],
     ["count=1;affinity=growth;equip=growth", /delver\[1\] equip\[1\] must be kind:expression\[:stacks\]/],
   ];
   for (const [spec, message] of cases) {

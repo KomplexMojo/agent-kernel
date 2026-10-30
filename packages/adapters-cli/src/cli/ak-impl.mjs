@@ -310,8 +310,7 @@ Options:
                   Both payloads may be combined in one spec. manaRegen defaults to 0, which grants the
                   affinity temporarily until its mana is spent; manaRegen>0 refills the pool, making the
                   granted affinity permanent (and costing 5*manaRegen^2 more tokens to author).
-                  Slots payload: slots=<n>[;id=<id>] is slot-unlock loot: taking it opens n more affinity
-                  slots (an actor is capped at 6). The most valuable loot, priced per slot.
+                  slots=<n> (slot-unlock loot) is retired: an actor equips at most 3 and carries the rest.
                   Legacy: tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
@@ -320,8 +319,8 @@ Options:
                     where <expression> is push|pull (spatial) or emit|draw (field)
   --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]
                     where <expression> is push|pull (spatial) or emit|draw (field)
-                Delver and warden slots/equip (create too): slots=<n> sets affinity slots (1-6; preset delver 3, warden 2);
-                each slot above the preset is charged at the slot-unlock price. equip= lists starting equips in order,
+                Delver and warden slots/equip (create too): slots=<n> sets affinity slots, 1 to the preset (delver 3,
+                warden 2); extra slots are retired and further affinities are a pack. equip= lists starting equips in order,
                 each held by the actor; :<stacks> runs it at fewer stacks than it holds. Any mix may be equipped.
                 Delver and warden strategy (create too): standing orders the actor follows on its own turns, as compact
                 goals in order (reach:exit|reach:<x>/<y>, defeat:<id>, take:<id>, guard:<id>[:radius], follow:<id>[:distance],

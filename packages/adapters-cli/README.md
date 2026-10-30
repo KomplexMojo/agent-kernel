@@ -433,13 +433,11 @@ Inputs/outputs:
   rejected instead of leaving declared rooms uncarved.
 - `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
-- `--resource` format: a resource carries a **vital payload**, an **affinity payload**, a **slots payload**, or a combination.
+- `--resource` format: a resource carries a **vital payload**, an **affinity payload**, or both.
   - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
   - Affinity payload: `affinity=<fire|water|earth|wind|growth|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]`
-  - Slots payload: `slots=<n>[;id=<id>]` is slot-unlock loot: taking it opens `n` more equipped-affinity
-    slots, up to the cap of 6 (at 6 the take is refused and the loot stays). It is the most valuable loot,
-    priced on an escalating curve (`resource_affinity_slot`, triangular: the nth slot costs n × 600), and only resources carry it: defeated delvers and wardens
-    never drop slots. The artifact records it as `slotGrant`.
+  - `slots=<n>` (slot-unlock loot) is retired and refused (Darren, 2026-10-30): an actor equips at most three
+    affinities and carries the rest as a pack.
   - Legacy: `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
 
   Produces a `ResourceArtifact` written to `resource-<n>.json` in the output directory.
@@ -491,14 +489,15 @@ Inputs/outputs:
   default 1). A hit is the expression's base × intensity² (push/pull 2, emit/draw 1). A hazard takes the same pair as
   `stacks=<range>;intensity=<n>`. Example: `affinities=fire:push:6:2` throws a fireball 6 tiles for 2 × 2² = 8.
 - `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
-  affinities the actor can equip at once (1-6; the preset is delver 3, warden 2), and slots above the preset are
-  charged at the slot-unlock price (`resource_affinity_slot`), which escalates: the nth extra slot costs n × 600. `equip` lists its starting equips in equip order; each
+  affinities the actor can equip at once, from 1 to its preset (delver 3, warden 2; core caps any actor at 3). Buying
+  slots above the preset is retired (Darren, 2026-10-30): affinities past the slots are held as a pack, and equipping
+  one in play takes a turn and puts the oldest equipped one back. `equip` lists its starting equips in equip order; each
   must be an affinity the actor holds (`affinities=`, else its `affinity` at the default expression), and `:<stacks>`
   runs it at fewer stacks than it holds. Any mix may be equipped, opposite emits included. The Configurator validates
   both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`:
   ```bash
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
-    --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1;slots=4;equip=earth:push:2,growth:emit"
+    --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1,fire:pull:1;equip=earth:push:2,growth:emit"
   ```
 - `--place` (repeatable, `place` on `ak_create`) asks for placement as relationships, solved by the Configurator's
   placement search: `<subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]`.

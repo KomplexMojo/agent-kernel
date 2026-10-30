@@ -471,8 +471,8 @@ export const DEFAULT_VITALS = Object.freeze({
 /**
  * How many affinity slots each unified preset starts with (maintainer, 2026-10-12): every
  * preset has the same affinity capabilities, only this differs. The Configurator assembles
- * actors from it; the Allocator charges authored slots above it at the slot-unlock price.
- * Core caps any actor at MAX_AFFINITY_SLOTS (core-ts actor-inventory.ts).
+ * actors from it. Slots above it are retired (Darren, 2026-10-30): further affinities are a pack.
+ * Core caps any actor at MAX_AFFINITY_SLOTS (3, core-ts actor-inventory.ts).
  */
 export const PRESET_AFFINITY_SLOTS = Object.freeze({ delver: 3, warden: 2, hazard: 1, resource: 1, barrier: 1 });
 

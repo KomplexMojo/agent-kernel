@@ -71,8 +71,11 @@ export function validateActorInventory(actor: ActorRecord): void {
   }
 }
 
-/** Hard cap on equipped slots (maintainer, 2026-10-12); slot loot never raises it further. */
-export const MAX_AFFINITY_SLOTS = 6;
+/**
+ * Hard cap on equipped slots: three (Darren, 2026-10-30, was 6). Any further affinities an actor
+ * holds are its pack, and equipping one into full slots makes the oldest give way, for a turn.
+ */
+export const MAX_AFFINITY_SLOTS = 3;
 
 /** Equipped keys in equip order; the first is always `activeAffinityKey`. */
 export function equippedActorAffinityKeys(actor: ActorRecord): ActorAffinityKey[] {

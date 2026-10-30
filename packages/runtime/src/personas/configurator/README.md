@@ -158,7 +158,8 @@ At a high level, the Configurator:
 > `authorActorEquipment`, beside it, authors a delver or warden card's `slots=` and `equip=`
 > (`ak create`) into core's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and
 > `equippedAffinityStacks`. It refuses only what core could not load: more equips than slots, an
-> affinity the actor does not hold, a duplicate, more stacks than held, slots outside 1-6. Any mix,
+> affinity the actor does not hold, a duplicate, more stacks than held, slots outside 1 to the preset
+> (extra slots are retired, Darren 2026-10-30: affinities past the slots are carried as a pack). Any mix,
 > opposite emits included, is allowed. The preset slot counts are `PRESET_AFFINITY_SLOTS` in contracts.
 >
 > Range and intensity (#340, #343): an authored affinity entry may carry `intensity` beside its
@@ -618,9 +619,9 @@ Requests require a stable ID and common vital records; rewards are explicit
 preserved. An omitted position stays omitted until placement. CLI V3
 `permanenceMode` plus grant `vitals` becomes one unclaimed vital holding; source
 durability uses the Configurator default rather than synthesizing loot from the
-source pool. A `slotGrant` becomes one unclaimed `slot` holding (slot-unlock loot);
-only the resource preset may carry a slot holding, so it is floor loot and no
-defeated delver or warden drops one. Version-specific `tier`/`stat` shapes are still rejected.
+source pool. A `slotGrant` (slot-unlock loot) is refused: it is retired (Darren, 2026-10-30), since an
+actor equips at most three affinities and carries the rest. A slot holding on any preset but a resource
+is refused too. Version-specific `tier`/`stat` shapes are still rejected.
 `mapHazards` uses the same mechanical boundary: authored regen vitals keep their
 quantities and drop the authoring `kind` field; one-time `{amount}` becomes
 `{current:amount, max:amount, regen:0}`. Incomplete records are skipped so

@@ -433,7 +433,8 @@ premium changes price, never scaling. Hazards pay no premium: a hazard threatens
 
 A resource placed by `ak create` reaches the Allocator as an actor, and its loot is a holding.
 The actor loop prices each holding through the same extractors as the resource-spec path, so no
-second formula exists. A `slot` holding is charged `resource_affinity_slot` per slot, and so is
+second formula exists. (Since 2026-10-30 the Configurator refuses slot loot and slots above the preset, so
+these lines no longer appear on a built level; the pricing below stays until it is removed.) A `slot` holding is charged `resource_affinity_slot` per slot, and so is
 each slot an actor was authored with above its preset (`ak create slots=`; presets from
 `PRESET_AFFINITY_SLOTS`), on the receipt path and the card path alike: opening a slot costs the
 same bought at authoring or found on the floor. `resource_affinity_slot` is the one triangular

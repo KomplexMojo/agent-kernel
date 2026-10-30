@@ -27,6 +27,8 @@ export const SHEET_INTENT = Object.freeze({
 
 const BIG_STEP = 5;
 // Every slot you hold starts equipped (Darren, 2026-10-29): emits are on, casts are ready.
+/** Affinity rows on the sheet: the equipped slots, then the pack. */
+export const SHEET_AFFINITY_ROWS = 6;
 export const SLOT_FIELDS = Object.freeze(["kind", "expression", "range", "intensity"]);
 export const VITAL_FIELDS = Object.freeze(["max", "regen"]);
 export const MINION_FIELDS = Object.freeze(["role"]);
@@ -53,11 +55,19 @@ export function sheetChoicesFromSpec(spec) {
     const at = segment.indexOf("=");
     if (at > 0) fields.set(segment.slice(0, at).trim().toLowerCase(), segment.slice(at + 1).trim());
   });
-  const slots = [];
+  const held = [];
   String(fields.get("affinities") || "").split(",").filter(Boolean).forEach((entry) => {
     const [kind, expression, range, intensity] = entry.split(":");
-    slots.push({ kind, expression, range: Number(range) || 1, intensity: Number(intensity) || 1 });
+    held.push({ kind, expression, range: Number(range) || 1, intensity: Number(intensity) || 1 });
   });
+  // Held affinities fill the equipped slots, the `equip=` ones first; any past the slots are the pack.
+  const equipKeys = String(fields.get("equip") || "").split(",").map((entry) => entry.split(":").slice(0, 2).join(":")).filter(Boolean);
+  const listed = (slot) => equipKeys.includes(`${slot.kind}:${slot.expression}`);
+  const at = (slot) => equipKeys.indexOf(`${slot.kind}:${slot.expression}`);
+  const ordered = [...held.filter(listed).sort((a, b) => at(a) - at(b)), ...held.filter((slot) => !listed(slot))];
+  const equipped = ordered.slice(0, MAX_AFFINITY_SLOTS);
+  const pack = ordered.slice(MAX_AFFINITY_SLOTS);
+  const slots = [...equipped, ...Array.from({ length: MAX_AFFINITY_SLOTS - equipped.length }, () => null), ...pack];
   const vitals = {};
   GAME_VITAL_KEYS.forEach((key) => { vitals[key] = { max: ACTOR_VIABILITY_FLOOR[key]?.max ?? 10, regen: ACTOR_VIABILITY_FLOOR[key]?.regen ?? 1 }; });
   String(fields.get("vitals") || "").split(",").filter(Boolean).forEach((entry) => {
@@ -67,9 +77,8 @@ export function sheetChoicesFromSpec(spec) {
     const numbers = parts.slice(1).map(Number);
     vitals[key] = numbers.length >= 3 ? { max: numbers[1], regen: numbers[2] } : { max: numbers[0], regen: numbers[1] };
   });
-  const slotCount = Math.max(Number(fields.get("slots")) || 0, PRESET_AFFINITY_SLOTS.delver, slots.length);
   const minions = String(fields.get("minions") || "").split("+").map((role) => role.trim()).filter(Boolean);
-  return { slots, vitals, slotCount, minions };
+  return { slots, vitals, minions };
 }
 
 /** The caller's figure, else the delver pool of the Allocator's reference budget. */
@@ -97,10 +106,12 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   let choices = clone(initial);
   const cursor = { row: 0, field: 0 };
 
-  // Every slot a delver could have is a row; one set to none is not bought. The first
-  // PRESET_AFFINITY_SLOTS.delver come with the delver, and the Allocator prices each one past that.
-  const slotRows = () => Array.from({ length: MAX_AFFINITY_SLOTS }, (_, index) => ({ kind: "slot", index }));
-  const slotsBought = () => Math.max(PRESET_AFFINITY_SLOTS.delver, choices.slots.filter(held).length);
+  // Darren, 2026-10-30: the first MAX_AFFINITY_SLOTS rows are the equipped slots, ready at once;
+  // the rest are the pack, carried and swapped in for a turn in play. A row set to none is not bought.
+  const slotRows = () => Array.from({ length: SHEET_AFFINITY_ROWS }, (_, index) => ({ kind: "slot", index }));
+  const slotsBought = () => PRESET_AFFINITY_SLOTS.delver;
+  const isPacked = (index) => index >= MAX_AFFINITY_SLOTS;
+  const equippedSlots = () => choices.slots.slice(0, MAX_AFFINITY_SLOTS).filter(held);
   // Minions: each one picked so far, then one more row (set to none) to add another. The
   // allowance is the only limit.
   const minionRows = () => Array.from({ length: choices.minions.length + 1 }, (_, index) => ({ kind: "minion", index }));
@@ -145,7 +156,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   function composedMinions() {
     if (choices.minions.length === 0) return { minions: [], roles: [], notes: [] };
     const owned = choices.slots.filter(held);
-    const equipped = owned[0];
+    const equipped = equippedSlots()[0];
     const leader = {
       id: `${id}-1`,
       category: "delver",
@@ -230,6 +241,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
         const slot = choices.slots[row.index] ?? blankSlot();
         return {
           id: `slot-${row.index + 1}`, kind: "slot", label: `${row.index + 1}`, active, empty: !held(slot),
+          ...(isPacked(row.index) ? { packed: true } : {}),
           fields: [
             { name: "kind", value: slot.kind ?? "none" }, { name: "expression", value: slot.expression },
             { name: "range", value: slot.range, ...(held(slot) ? { limit: tapLimit(row.index, "range") } : {}) },
@@ -266,7 +278,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
       cursorNumeric: NUMERIC_FIELDS.includes(fieldsOf(rows()[cursor.row])[cursor.field]),
       motivation: { name: "user_controlled", price: cost.motivation },
       // What every emit and draw costs together each tick, against the mana regen bought.
-      manaPerTick: list.reduce((sum, row) => sum + (row.mana?.per === "tick" ? row.mana.amount : 0), 0),
+      manaPerTick: list.reduce((sum, row) => sum + (row.mana?.per === "tick" && !row.packed ? row.mana.amount : 0), 0),
       slotsExtraPrice: cost.slotsExtra,
       total,
       allowance,
@@ -274,8 +286,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
       problems: found.concat(cost.quote.errors ?? []),
       ok: found.length === 0 && !cost.quote.errors,
       slotCount: slotsBought(),
-      freeSlots: PRESET_AFFINITY_SLOTS.delver,
-      maxSlots: MAX_AFFINITY_SLOTS,
+      equipSlots: MAX_AFFINITY_SLOTS,
       choices: { kind: SLOT_KIND_CHOICES, expression: AFFINITY_EXPRESSIONS, role: roleChoices },
       minions: [...choices.minions],
     };
@@ -384,9 +395,9 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     if (kept.length > 0) {
       parts.push(`affinity=${kept[0].kind}`);
       parts.push(`affinities=${kept.map((slot) => `${slot.kind}:${slot.expression}:${slot.range}${slot.intensity > 1 ? `:${slot.intensity}` : ""}`).join(",")}`);
-      parts.push(`equip=${kept.map((slot) => `${slot.kind}:${slot.expression}`).join(",")}`);
+      const ready = equippedSlots();
+      if (ready.length > 0) parts.push(`equip=${ready.map((slot) => `${slot.kind}:${slot.expression}`).join(",")}`);
     }
-    if (slotsBought() > PRESET_AFFINITY_SLOTS.delver) parts.push(`slots=${slotsBought()}`);
     parts.push("motivation=user_controlled");
     // The Configurator composes them as a retinue this delver leads; the Allocator prices them.
     if (choices.minions.length > 0) parts.push(`minions=${choices.minions.join("+")}`);
