@@ -104,7 +104,8 @@ type SoakRegistry = Pick<ReturnType<typeof createActorRegistry>, 'soakActor'>;
  * as many steps as the cast's intensity times its kind's `displaceSteps` (#536: wind 2, the
  * rest 1). A step goes only into a free cell: a wall, the board's
  * edge, any living actor (the caster included) or a target that cannot move stops it there,
- * with no extra harm. Costs the target no stamina.
+ * with no extra harm. Costs the target no stamina. A push never carries its target beyond the
+ * caster's own range (Darren, 2026-10-30), so the same push can hit it again.
  */
 function displaceTarget(registry: DisplaceRegistry, sourceId: string, targetId: string,
   pair: ActorAffinityEntry): ActorDisplacement[] {
@@ -116,8 +117,10 @@ function displaceTarget(registry: DisplaceRegistry, sourceId: string, targetId: 
   if (step.x === 0 && step.y === 0) return [];
   let at = from;
   const steps = Math.max(1, affinityIntensity(pair)) * (affinityTableRow(pair.kind)?.displaceSteps ?? 1);
+  const reach = actorCastRange(pair);
   for (let moved = 0; moved < steps; moved += 1) {
     const next = { x: at.x + step.x, y: at.y + step.y };
+    if (Math.max(Math.abs(next.x - source.position.x), Math.abs(next.y - source.position.y)) > reach) break;
     if (registry.explainMove(targetId, next) !== null
       || registry.getActorsAt(next).some(other => other.lifecycle === 'alive')) break;
     registry.moveActor(targetId, next);

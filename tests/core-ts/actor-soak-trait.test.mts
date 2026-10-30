@@ -44,7 +44,8 @@ test('a soak-trait push soaks its target for `intensity` turns; each move costs 
       const registry = board([actor('caster', 0, [{ kind, expression: 'push', stacks: 3, intensity }]), actor('target', 2)]);
       tick(registry, 1, [{ actorId: 'caster', kind: 'cast_affinity', params: { targetId: 'target' } }], kind);
       expect(registry.getActor('target')!.soaked, `${kind} ×${intensity}`).toBe(intensity);
-      let x = 2 + intensity;
+      // Knocked back up to the caster's range 3 (Darren, 2026-10-30), so read where it landed.
+      let x = registry.getActor('target')!.position.x;
       for (let turn = 0; turn < intensity; turn += 1) {
         const before = stamina(registry);
         x += 1; expect(tick(registry, 2 + turn, [step(x)])).toEqual([true]);
