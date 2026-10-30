@@ -298,8 +298,8 @@ async function openCharacter(scenario, entry) {
   window.scrollTo(0, 0);
 }
 
-function fieldButton(rowIndex, fieldIndex, label, { on, kind, color, sub } = {}) {
-  return `<button class="f${on ? " on" : ""}${kind ? " kind" : ""}" data-row="${rowIndex}" data-field="${fieldIndex}"${color ? ` style="--c:${color}"` : ""}>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ""}</button>`;
+function fieldButton(rowIndex, fieldIndex, label, { on, kind, color } = {}) {
+  return `<button class="f${on ? " on" : ""}${kind ? " kind" : ""}" data-row="${rowIndex}" data-field="${fieldIndex}"${color ? ` style="--c:${color}"` : ""}>${esc(label)}</button>`;
 }
 
 function renderSheet() {
@@ -315,8 +315,7 @@ function renderSheet() {
         + `<span class="dim">${esc(row.loadout ?? (row.empty ? "tap to add a minion" : ""))}</span><em>${row.price}</em></div>`;
     }
     const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value), {
-      // A tap steps range and intensity up to this, then back to 1.
-      sub: field.limit ? `max ${field.limit}` : null, on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
+      on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
     })).join("");
     // A slot's mana, a guide: per tick for an emit or draw, per cast for a push or pull.
     const mana = row.kind === "slot"
