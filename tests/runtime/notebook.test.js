@@ -41,8 +41,8 @@ test("the room you stand in is marked @ and named; nothing noted gives no lines"
 
 test("a doorway stub outside one room does not draw phantom hallways through the room", () => {
   // Scale-4 blocks: room body is several notebook cells; a single seen floor tile north of the
-  // room used to be led through the body to the centre, so the notebook looked like corridors
-  // inside a room the player had fully walked (draw-reach seed 9 playtest).
+  // room hashes into that footprint. Leading it through the body painted corridor art inside a
+  // room the player had walked (draw-reach seed 9 playtest). Body-overlap tiles are not hallways.
   const rows = [
     "~~~~~~~~~~~~",
     "~~~~~.~~~~~~",
@@ -59,8 +59,73 @@ test("a doorway stub outside one room does not draw phantom hallways through the
   ];
   const rooms = [room({ x: 2, y: 2, width: 8, height: 8, seen: 40, done: 10 })];
   const { lines } = buildNotebook({ rows, legend, rooms, player: { x: 5, y: 5 }, scale: 4 });
+  assert.deepEqual(lines, ["@"], "room is one mark; doorway tile on the body footprint is not a stub");
+});
+
+test("spawn or doorway on a room body block is not a dangling corridor stub", () => {
+  // full-budget-tactics seed 9: spawn S sits one tile north of the start room but shares the
+  // room's notebook cell, which used to render as `│` above `@`.
+  const rows = [
+    "????????",
+    "????S???",
+    "???.....",
+    "???.....",
+    "???.....",
+    "???.....",
+    "????????",
+    "????????",
+  ];
+  const rooms = [room({ id: "R8", x: 3, y: 2, width: 5, height: 4 })];
+  const { lines } = buildNotebook({
+    rows, legend: { ...legend, fog: "?", wallGlyphs: ["│", "─", "┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼"] },
+    rooms, player: { x: 5, y: 2 }, scale: 4,
+  });
+  assert.deepEqual(lines, ["@"]);
+});
+
+test("a short doorway compressed onto room footprints still joins the two marks", () => {
+  // Two rooms one tile apart: the door tile sits outside both rects but in a body block, so it
+  // must not paint a stub on the footprint — yet the pies still need a line between them.
+  const rows = [
+    "~~~~~~~~~~~~",
+    "~~~~~~~~~~~~",
+    "~~....~~~~~~",
+    "~~....~~~~~~",
+    "~~....~~~~~~",
+    "~~....~~~~~~",
+    "~~~.~~~~~~~~",
+    "~~....~~~~~~",
+    "~~....~~~~~~",
+    "~~....~~~~~~",
+    "~~....~~~~~~",
+    "~~~~~~~~~~~~",
+  ];
+  const rooms = [
+    room({ id: "A", x: 2, y: 2, width: 4, height: 4, seen: 1, done: 1, explored: true }),
+    room({ id: "B", x: 2, y: 7, width: 4, height: 4, seen: 1, done: 0 }),
+  ];
+  const { lines } = buildNotebook({ rows, legend, rooms, player: { x: 3, y: 3 }, scale: 4 });
   const drawing = lines.join("\n");
   assert.match(drawing, /@/);
-  // Junctions only appear when a path was painted through the room body; stubs may still show │.
-  assert.doesNotMatch(drawing, /[└┘┌┐├┤┬┴┼]/, "no corridor junctions inside the room");
+  assert.match(drawing, /◌/);
+  // Scale may place the two marks in neighbouring cells (no │ between) or one apart (a │).
+  assert.equal(lines.length, 2, "door joins the rooms into one contiguous sketch");
+  assert.doesNotMatch(drawing, /[└┘┌┐├┤┬┴┼]/);
+});
+
+test("a hallway outside the room footprint still meets the room mark", () => {
+  // Room starts at y=5 so body blocks are y>=1; hallway floor at y=1..3 sits in block y=0 and
+  // must be led down to the pie (full-budget-tactics seed 9 geometry).
+  const rows = Array.from({ length: 16 }, () => "~".repeat(16));
+  const put = (x, y, ch) => { const row = [...rows[y]]; row[x] = ch; rows[y] = row.join(""); };
+  const rooms = [room({ x: 2, y: 5, width: 8, height: 8, seen: 2, done: 1 })];
+  for (let y = 5; y < 13; y += 1) for (let x = 2; x < 10; x += 1) put(x, y, ".");
+  put(5, 1, ".");
+  put(5, 2, ".");
+  put(5, 3, ".");
+  const { lines } = buildNotebook({ rows, legend, rooms, player: null, scale: 4 });
+  const drawing = lines.join("\n");
+  assert.match(drawing, /◒/);
+  assert.match(drawing, /│/, "hallway meets the room");
+  assert.doesNotMatch(drawing, /[└┘┌┐├┤┬┴┼]/);
 });
