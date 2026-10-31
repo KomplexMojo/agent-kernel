@@ -1,12 +1,12 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-31T04-24-49-055Z-8cbd107cf270-aabb61b3dfca",
+    "id": "2026-10-31T04-57-49-899Z-8cbd107cf270-aabb61b3dfca",
     "key": "aabb61b3dfcabc88b45f8f17e46caa28e5574f9fc3335dbaa8b9593b75f273f5",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-31T04:24:49.055Z",
-    "completedAt": "2026-10-31T04:27:23.602Z",
-    "durationMs": 154547,
+    "startedAt": "2026-10-31T04:57:49.899Z",
+    "completedAt": "2026-10-31T04:59:33.779Z",
+    "durationMs": 103880,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
@@ -266,12 +266,12 @@
     "infrastructure": {
       "count": 1,
       "reasons": [
-        "content catalog identity mismatch"
+        "preflight tests failed"
       ]
     }
   },
   "artifacts": {
-    "retentionId": null
+    "retentionId": "preflights/aabb61b3dfcabc88b45f8f17e46caa28e5574f9fc3335dbaa8b9593b75f273f5"
   },
   "qualifies": false
 }
