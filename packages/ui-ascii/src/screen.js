@@ -383,6 +383,12 @@ export function ordersLine(orders) {
   }).join("  ")}`;
 }
 
+/** #617: what a step, a diagonal step and a sprint cost in stamina; empty when the view does not say. */
+export function moveCostLine(player) {
+  const cost = player?.moveStamina;
+  return cost ? `Move costs: step ${cost.step} · diagonal ${cost.diagonal} · sprint ${cost.sprint} stamina` : "";
+}
+
 /** #420: ` soaked N` while an actor is soaked (each move costs more stamina); nothing when dry. */
 export function soakedNote(actor) {
   return Number.isInteger(actor?.soaked) && actor.soaked > 0 ? ` soaked ${actor.soaked}` : "";
@@ -559,6 +565,7 @@ export function renderScreen({
   if (soakedNote(view.player)) vitals.push(soakedNote(view.player).trim());
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
+  if (moveCostLine(view.player)) lines.push(moveCostLine(view.player));
   for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard }));

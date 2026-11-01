@@ -49,6 +49,16 @@ function rejectionMessage(reason, player, params) {
     const price = player.castableAffinities?.[key]?.mana;
     if (key && price !== undefined) return `Not enough mana: ${key.replace(":", " ")} costs ${price}, you have ${currentMana(player)}.`;
   }
+  // #617: a refused move says what it costs and what you have.
+  if (reason === "InsufficientStamina" && player?.moveStamina) {
+    const have = (player.vitals || []).find((vital) => vital.key === "stamina")?.current ?? 0;
+    // A refused move carries core's params: `target` (and `via` for a sprint), not the direction asked.
+    const from = player.position;
+    const to = params?.target;
+    const diagonal = Boolean(from && to && to.x !== from.x && to.y !== from.y);
+    const cost = params?.via ? player.moveStamina.sprint : diagonal ? player.moveStamina.diagonal : player.moveStamina.step;
+    return `Too tired to ${params?.via ? "sprint" : "move"}: it costs ${cost} stamina, you have ${have}.`;
+  }
   return REJECTION_MESSAGES[reason] || `Rejected (${reason}).`;
 }
 
