@@ -1,0 +1,25 @@
+{
+  "scenario": "duel",
+  "seed": 0,
+  "arm": "treatment",
+  "budgetTokens": 3600,
+  "strategy": "dash",
+  "outcome": "exited",
+  "ticks": 30,
+  "seat": "hero-1",
+  "finalVitals": {
+    "health": 20
+  },
+  "minVitals": {
+    "health": 12
+  },
+  "delverPool": {
+    "capTokens": 900,
+    "spentTokens": 234
+  },
+  "build": {
+    "fingerprint": "hero-1[fire:push:3:1|health20]",
+    "actors": []
+  },
+  "ruleHits": []
+}
