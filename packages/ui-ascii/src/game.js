@@ -856,7 +856,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         if (!pair) return { index, empty: true };
         const item = entry(pair);
         return { index, ...item, castable: Boolean(castable(player)[item.key]), mana: castable(player)[item.key]?.mana ?? null,
-          overMana: (castable(player)[item.key]?.mana ?? 0) > currentMana(player), off: off.includes(item.key) };
+          overMana: (castable(player)[item.key]?.mana ?? 0) > currentMana(player),
+          armed: panel?.affinityKey === item.key, off: off.includes(item.key) };
       }),
       picks: known.filter((pair) => !equipped.includes(`${pair.kind}:${pair.expression}`)).map(entry),
     };

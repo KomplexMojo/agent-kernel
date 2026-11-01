@@ -1131,3 +1131,12 @@ test("a cast one mana short names the price and what you have; the slot shows th
   }
   assert.match(refused, new RegExp(`Not enough mana: water push costs ${slot.mana}, you have \\d+\\.`));
 });
+
+test("a cast leaves no slot armed; aiming a slot arms it (#589)", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i1");
+  await press(game, "1");
+  assert.equal(game.slots().slots[0].armed, true);
+  await press(game, "\r");
+  assert.ok(game.slots().slots.every((slot) => !slot.armed), "no slot is armed once the cast resolves");
+});
