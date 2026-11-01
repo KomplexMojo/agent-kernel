@@ -238,12 +238,30 @@ function presentVitals(player) {
   return (player?.vitals || []).filter((vital) => vital.max > 0);
 }
 
-export function statusLine(status, message, { traps = false, trapGlyph } = {}) {
+/**
+ * #620: the goal ladder for the status strip. The floor goal is always the exit; the immediate one
+ * is what is in front of you: the nearest hostile in sight, else an ally you are with. Read from the
+ * view only (so fog hides what it hides); nothing here is a second goal system.
+ */
+export function goalLadder(view) {
+  const from = view?.player?.position;
+  const hostiles = (view?.actors || []).filter((actor) => actor.role === "warden" && actor.position);
+  if (from && hostiles.length > 0) {
+    const away = (actor) => Math.max(Math.abs(actor.position.x - from.x), Math.abs(actor.position.y - from.y));
+    const nearest = [...hostiles].sort((a, b) => away(a) - away(b))[0];
+    return { immediate: `Now: deal with ${nearest.label ?? nearest.id} (${away(nearest)} away).` };
+  }
+  const ally = (view?.orders || []).find((entry) => entry.status !== "done" && entry.doing);
+  if (ally) return { immediate: `Now: ${ally.label ?? ally.id} ${goalPhrase(ally.doing)}.` };
+  return {};
+}
+
+export function statusLine(status, message, { traps = false, trapGlyph, immediate } = {}) {
   if (message) return message;
   if (status?.exited) return "You escaped! Press Enter for the next level, r to replay, q to quit.";
   if (status?.defeated) return "You were defeated. Press r to try the level again, q to quit.";
   if (status?.atExit) return "You reached the exit. Press . to step through.";
-  const exit = `Find the exit (${ASCII_TERRAIN_GLYPHS.exit}).`;
+  const exit = `${immediate ? `${immediate} ` : ""}Find the exit (${ASCII_TERRAIN_GLYPHS.exit}).`;
   return traps ? `${exit} Mind the traps (${trapGlyph ?? ASCII_ENTITY_GLYPHS.hazard}).` : exit;
 }
 
@@ -556,7 +574,7 @@ export function renderScreen({
       info,
       log: battleLogLines(view, 30).reverse(),
       tick: tickLine,
-      status: statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard }),
+      status: statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard, immediate: goalLadder(view).immediate }),
       panel: Array.isArray(panel) ? panel : [],
       help: helpLines,
     };
@@ -568,7 +586,7 @@ export function renderScreen({
   if (moveCostLine(view.player)) lines.push(moveCostLine(view.player));
   for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
   lines.push(tickLine);
-  lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard }));
+  lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard, immediate: goalLadder(view).immediate }));
   lines.push(...battleLogLines(view));
   if (Array.isArray(panel) && panel.length > 0) {
     lines.push("");

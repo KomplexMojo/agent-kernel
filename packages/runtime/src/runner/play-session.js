@@ -411,6 +411,12 @@ export async function createPlaySession({
     return structuredClone(frame?.personaViews?.actor?.context?.strategies ?? {});
   }
 
+  // What thinking actors adopted on their own (#308), as the Actor keeps it in its context.
+  function cognition() {
+    const frame = runtime.getTickFrames().at(-1);
+    return structuredClone(frame?.personaViews?.actor?.context?.cognition ?? {});
+  }
+
   // Every actor id a strategy names may be given as a label.
   function withStrategyRefsResolved(strategy) {
     if (!strategy || typeof strategy !== "object") return strategy;
@@ -529,7 +535,7 @@ export async function createPlaySession({
 
   // What each actor under orders is doing, for a UI or a caller: one line per actor.
   function ordersView() {
-    return Object.entries(strategies()).map(([id, entry]) => {
+    const ordered = Object.entries(strategies()).map(([id, entry]) => {
       const strategy = entry.order ?? initialState.strategies?.[id];
       const goal = strategy?.goals?.[entry.goal];
       return {
@@ -543,7 +549,14 @@ export async function createPlaySession({
         ...(entry.reason ? { reason: entry.reason } : {}),
         ...(entry.ignored ? { ignored: entry.ignored } : {}),
       };
-    }).sort((left, right) => compareIds(left.id, right.id));
+    });
+    // #620: a thinking actor on your side that adopted a goal of its own (the Actor's `cognition`
+    // context) shows it too, `adopted: true`. A hostile's adopted goal is never listed.
+    const adopted = Object.entries(cognition())
+      .filter(([id, entry]) => entry?.adopted && !ordered.some((row) => row.id === id) && id !== activeId && orderable(id))
+      .map(([id, entry]) => ({ id, label: labels.get(id) ?? null, status: entry.status ?? "active", goal: 0, goals: 1,
+        doing: entry.adopted, adopted: true }));
+    return [...ordered, ...adopted].sort((left, right) => compareIds(left.id, right.id));
   }
 
   // A cast's target may be a label; what the command means stays the Actor's.
