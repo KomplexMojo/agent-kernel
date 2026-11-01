@@ -623,7 +623,7 @@ test("the HUD shows a row per slot; in the panel a digit equips into a free slot
   const game = await createGame({ levels: duelLevels(), fog: false });
   assert.match(game.screen(), /Slots: all 3 empty \(press i to equip\)/);
   await press(game, "i1i2");
-  assert.match(game.screen(), /Slot 1: water push r3 ×2\n.*Slot 2: light emit r1 ×1\n.*Slot 3: empty/);
+  assert.match(game.screen(), /Slot 1: water push r3 ×2 · \d+ MP\n.*Slot 2: light emit r1 ×1\n.*Slot 3: empty/);
   await press(game, "i");
   assert.match(game.screen(), /1\) water push r3 ×2  \[slot 1\]/);
   await press(game, "1");
@@ -1112,4 +1112,22 @@ test("#593: the notebook shows S beside the start room's pie, coloured like the 
   assert.doesNotMatch(plain, /\bE\b.*\bE\b/);
   const colored = game.screen({ color: "truecolor", parts: true }).panel.join("\n");
   assert.match(colored, /\u001b\[48;2;\d+;\d+;\d+m\u001b\[38;2;\d+;\d+;\d+mS\u001b\[0m/);
+});
+
+test("a cast one mana short names the price and what you have; the slot shows the price (#588)", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i1");
+  const slot = game.slots().slots[0];
+  assert.ok(slot.mana > 0);
+  assert.equal(slot.overMana, false);
+  assert.match(game.screen(), new RegExp(`Slot 1: water push r3 ×2 · ${slot.mana} MP`));
+  // Burn mana down with casts until one is refused; the refusal names both numbers.
+  let refused = "";
+  for (let i = 0; i < 40 && !refused; i += 1) {
+    await press(game, "f");
+    await press(game, "\r");
+    const m = game.state().message || "";
+    if (/Not enough mana/.test(m)) refused = m;
+  }
+  assert.match(refused, new RegExp(`Not enough mana: water push costs ${slot.mana}, you have \\d+\\.`));
 });

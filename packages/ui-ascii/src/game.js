@@ -39,7 +39,16 @@ const REJECTION_MESSAGES = Object.freeze({
   not_yours: "Only your party and actors on your side take orders.",
 });
 
-function rejectionMessage(reason, player) {
+/** Current mana of a view's seated player, or 0. */
+const currentMana = (player) => (player?.vitals || []).find((vital) => vital.key === "mana")?.current ?? 0;
+
+function rejectionMessage(reason, player, params) {
+  // #588: a refused cast says what it costs and what you have.
+  if (reason === "InsufficientMana" && player) {
+    const key = params?.affinityKey ?? (player.equippedAffinityKeys || []).find((k) => player.castableAffinities?.[k]);
+    const price = player.castableAffinities?.[key]?.mana;
+    if (key && price !== undefined) return `Not enough mana: ${key.replace(":", " ")} costs ${price}, you have ${currentMana(player)}.`;
+  }
   return REJECTION_MESSAGES[reason] || `Rejected (${reason}).`;
 }
 
@@ -252,13 +261,14 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function act(command, describe = () => "", { actorId } = {}) {
     const before = session.status();
     if (actorId === undefined && (before.exited || before.defeated)) return null;
+    const playerBefore = actorId === undefined ? session.view().player : null;
     const result = await session.act(command, actorId === undefined ? {} : { actorId });
     // A command the session refused outright (not your party, already gone) runs no tick.
     if (result.tick !== before.tick) turns += 1;
     const rejected = result.rejected[0];
     // At the exit, or once defeated, the status line already says what to do next.
     if (result.status.defeated) message = "";
-    else if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason, session.view().player);
+    else if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason, playerBefore, rejected.params);
     else if (result.accepted.length > 0) message = describe();
     // #463: name what the tick's casts did to and by the player.
     if (result.tick !== before.tick && !result.status.defeated) {
@@ -845,7 +855,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         const pair = known.find((candidate) => `${candidate.kind}:${candidate.expression}` === equipped[index]);
         if (!pair) return { index, empty: true };
         const item = entry(pair);
-        return { index, ...item, castable: Boolean(castable(player)[item.key]), mana: castable(player)[item.key]?.mana ?? null, off: off.includes(item.key) };
+        return { index, ...item, castable: Boolean(castable(player)[item.key]), mana: castable(player)[item.key]?.mana ?? null,
+          overMana: (castable(player)[item.key]?.mana ?? 0) > currentMana(player), off: off.includes(item.key) };
       }),
       picks: known.filter((pair) => !equipped.includes(`${pair.kind}:${pair.expression}`)).map(entry),
     };
