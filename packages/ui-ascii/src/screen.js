@@ -468,8 +468,9 @@ function defeatScreen({ view, title, tickLine, color, message, turns }) {
  * player, moving with them and clamped at the level's edge. Everything else is what the player
  * remembers, in the notebook. Without it, the whole board.
  */
-function paintBoard({ board, view, styles, actorCells, color, windowSize }) {
-  const player = view.player?.position;
+function paintBoard({ board, view, styles, actorCells, color, windowSize, aim = null }) {
+  // While aiming, the window follows the cursor so the target is always on screen (Darren, 2026-11-01).
+  const player = aim ?? view.player?.position;
   const height = board.length;
   const width = Math.max(0, ...board.map((row) => [...row].length));
   const size = Number.isInteger(windowSize) && windowSize > 0 && player ? windowSize : null;
@@ -534,7 +535,7 @@ export function renderScreen({
   if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
     board[aim.y] = `${board[aim.y].slice(0, aim.x)}${ASCII_AIM_GLYPH}${board[aim.y].slice(aim.x + 1)}`;
   }
-  const painted = paintBoard({ board, view, styles, actorCells, color, windowSize });
+  const painted = paintBoard({ board, view, styles, actorCells, color, windowSize, aim });
   painted.forEach((row) => lines.push(`  ${row}`));
   lines.push("");
   if (parts) {

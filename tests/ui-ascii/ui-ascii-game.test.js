@@ -1090,3 +1090,16 @@ test("the play surface is an odd window that follows the player (two-contexts mo
   const whole = await createGame({ levels: [loadBundledLevel("long-way-round")], fog: false, showHelp: false, window: null });
   assert.equal(whole.screen({ parts: true }).board.length, 30);
 });
+
+test("while aiming, the window follows the cursor and returns to you after (Darren, 2026-11-01)", async () => {
+  const game = await createGame({ levels: [loadBundledLevel("long-way-round")], fog: false, showHelp: false, window: 7 });
+  const has = (text, char) => game.screen({ parts: true }).board.some((row) => row.includes(char));
+  await press(game, "i1");
+  assert.ok(has(game.screen(), "@"));
+  await press(game, "f" + "l".repeat(5));
+  assert.equal(game.state().panel, "aim");
+  assert.ok(game.screen({ parts: true }).board.every((row) => row.length === 7), "the window keeps its size while following the cursor");
+  assert.ok(!has(game.screen(), "@"), "the player scrolled out of the window while the cursor is 5 tiles away");
+  await press(game, "\u001b");
+  assert.ok(has(game.screen(), "@"));
+});
