@@ -128,7 +128,7 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
       vitals: actor.vitals,
       proposed: 0, accepted: 0, casts: 0, moves: 0,
       refusedStreak: 0, maxRefusedStreak: 0, silentStreak: 0, maxSilentStreak: 0, idleStreak: 0, maxIdleStreak: 0, idleNote: null,
-      minVitals: {}, lifecycle: actor.lifecycle, exitedAt: null, defeatedAt: null,
+      minVitals: {}, lifecycle: actor.lifecycle, exitedAt: null, defeatedAt: null, sawHostile: false, unseenDefeat: false,
       unaffordable: isObjectActor(actor) ? [] : unaffordableCasts(actor, castManaBase),
     };
   }
@@ -164,11 +164,15 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
         if (record.minVitals[vital] === undefined || current < record.minVitals[vital]) record.minVitals[vital] = current;
       }
       if (entry.lifecycle === "exited" && record.exitedAt === null) record.exitedAt = frame.tick;
-      if (entry.lifecycle === "defeated" && record.defeatedAt === null) record.defeatedAt = frame.tick;
+      if (entry.lifecycle === "defeated" && record.defeatedAt === null) {
+        record.defeatedAt = frame.tick;
+        record.unseenDefeat = !record.object && !record.sawHostile;
+      }
       record.lifecycle = entry.lifecycle;
       record.final = { position: entry.position, vitals: entry.vitals };
     }
     trackIdleAttackers(actors, frame.emittedSnapshot?.view?.registry, frame.acceptedActions ?? []);
+    trackHostileSight(actors, frame.emittedSnapshot?.view?.registry);
     for (const record of Object.values(actors)) {
       if (record.object || lifecycleBefore.get(record.id) !== "alive") continue;
       const p = proposed[record.id] ?? 0;
@@ -182,6 +186,25 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
     }
   }
   return { ticks, actors, metrics: summarizeMetrics(actors, ticks) };
+}
+
+/**
+ * #619: marks each living mover that has a living actor of another alignment in its sight (core's
+ * own fog rule) after this tick. A defeat is judged on what was seen on earlier ticks only, so an
+ * actor defeated before it ever saw a hostile reads as `unseenDefeat`. A snapshot without terrain
+ * (a hand-built record) has no fog: every hostile is in sight.
+ */
+function trackHostileSight(actors, snapshot) {
+  const alive = (snapshot?.actors ?? []).filter((entry) => entry.lifecycle === "alive" && entry.position);
+  if (!alive.length) return;
+  const observation = snapshot.dimensions && snapshot.terrain ? readActorRegistryObservation(createActorRegistry(snapshot), 0) : null;
+  for (const entry of alive) {
+    const record = actors[entry.id];
+    if (!record || record.object || record.sawHostile) continue;
+    const visible = observation ? readActorRegistryVisibleCells(observation, entry.id) : null;
+    record.sawHostile = alive.some((other) => other.id !== entry.id && other.alignment !== entry.alignment
+      && (!visible || visible[other.position.y]?.[other.position.x]));
+  }
 }
 
 /**
@@ -232,6 +255,8 @@ function summarizeMetrics(actors, ticks) {
     firstExit: exits.length ? Math.min(...exits) : null,
     exited: exits.length,
     defeated: Object.values(actors).filter((record) => record.defeatedAt !== null).length,
+    // #619 (a metric, not a rule): defeats of an actor that had never had a hostile in sight.
+    unseenDefeats: Object.values(actors).filter((record) => record.unseenDefeat).length,
     healthLost: Math.round(healthLost * 100) / 100,
     casts: movers.reduce((sum, record) => sum + record.casts, 0),
     moves: movers.reduce((sum, record) => sum + record.moves, 0),
