@@ -6,10 +6,11 @@
  */
 import { createPlaySession, PLAY_DIRECTION_STEPS, replayPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
-import { renderScreen, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
+import { renderScreen, paintBoardRow, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 import { AFFINITY_COLOR_HEX } from "../../runtime/src/render/affinity-palette.js";
 import { WINDOW_DEFAULT } from "../../runtime/src/render/window-size.js";
+import { buildAsciiCellStyles } from "../../runtime/src/render/ascii-cell-style.js";
 import { buildNotebook, pieQuarters } from "../../runtime/src/render/notebook.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
@@ -702,7 +703,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     return { quit: false };
   }
 
-  function panelLines() {
+  function panelLines(color = false) {
     if (!panel) return null;
     if (panel.type === "affinities") {
       const player = session.view().player;
@@ -718,7 +719,11 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     }
     if (panel.type === "map") {
       const view = session.view();
-      const { lines, here } = buildNotebook({ rows: view.rows, legend: view.legend, rooms: view.rooms, player: view.player?.position });
+      // #593: the start and exit marks take the board's S and E colours (the `\u001b` codes also reach the phone page).
+      const styles = color ? buildAsciiCellStyles(view.legend) : null;
+      const markGlyph = { start: view.legend?.spawn, exit: view.legend?.exit };
+      const paint = styles ? (glyph, mark) => paintBoardRow(glyph, { [glyph]: styles[markGlyph[mark]] }, null, null, color === "256" ? "256" : "truecolor") : null;
+      const { lines, here } = buildNotebook({ rows: view.rows, legend: view.legend, rooms: view.rooms, player: view.player?.position, paint });
       const pie = here ? `   You are in a room ${["0", "1/4", "1/2", "3/4", "all"][pieQuarters(here)]} cleared` : "";
       return [`Notebook (what you remember; m or Esc closes):${pie}`,
         ...(lines.length ? lines.map((line) => `  ${line}`) : ["  nothing noted yet"]),
@@ -766,7 +771,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       message,
       showHelp,
       color,
-      panel: panelLines(),
+      panel: panelLines(color),
       windowSize,
       aim: panel?.type === "aim" ? panel.cursor : null,
     });

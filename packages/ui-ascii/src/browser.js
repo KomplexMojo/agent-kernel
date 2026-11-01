@@ -143,9 +143,9 @@ function notebookLines(game, parts) {
   return parts.panel.slice(1, -1).map((line) => line.replace(/^ {2}/, ""));
 }
 
-/** Plain notebook rows as one span per character, so they share the board's square-tile CSS. */
+/** Notebook rows as one span per character (the board's square-tile CSS); start/exit marks arrive coloured (#593). */
 function notebookHtml(lines) {
-  return lines.map((line) => [...line].map((char) => `<span>${esc(char)}</span>`).join("")).join("\n");
+  return lines.map((line) => ansiToHtml(line, { cells: true })).join("\n");
 }
 
 const MIN_TILES = 11; // the notebook is drawn at least as big as the window, so a few notes are not blown up

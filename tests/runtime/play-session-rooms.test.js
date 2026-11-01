@@ -18,3 +18,15 @@ test("with fog only the room you start in is in the notebook; without it, all th
   const open = await createPlaySession({ ...level("trap-rooms"), fog: false });
   assert.equal(open.view().rooms.length, 3);
 });
+
+test("#593: start is marked from turn 1; the exit only once its tile has been seen", async () => {
+  const session = await createPlaySession({ ...level("trap-rooms"), fog: true });
+  const first = session.view().rooms;
+  assert.equal(first.length, 1);
+  assert.equal(first[0].start, true);
+  assert.ok(first.every((room) => room.exit === false), "no exit before it has been in sight");
+  const open = await createPlaySession({ ...level("trap-rooms"), fog: false });
+  const all = open.view().rooms;
+  assert.equal(all.filter((room) => room.exit).length, 1, "with the whole level known, exactly one room holds the exit");
+  assert.equal(all.filter((room) => room.start).length, 1);
+});

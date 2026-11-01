@@ -1103,3 +1103,13 @@ test("while aiming, the window follows the cursor and returns to you after (Darr
   await press(game, "\u001b");
   assert.ok(has(game.screen(), "@"));
 });
+
+test("#593: the notebook shows S beside the start room's pie, coloured like the board's S", async () => {
+  const game = await createGame({ levels: [loadBundledLevel("trap-rooms")], fog: true, showHelp: false });
+  await press(game, "m");
+  const plain = game.screen({ parts: true }).panel.join("\n");
+  assert.match(plain, /S/);
+  assert.doesNotMatch(plain, /\bE\b.*\bE\b/);
+  const colored = game.screen({ color: "truecolor", parts: true }).panel.join("\n");
+  assert.match(colored, /\u001b\[48;2;\d+;\d+;\d+m\u001b\[38;2;\d+;\d+;\d+mS\u001b\[0m/);
+});

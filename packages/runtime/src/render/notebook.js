@@ -34,9 +34,10 @@ const LINE_ASCII = Object.freeze({ "": "+", N: "|", S: "|", NS: "|", E: "-", W: 
  * @param {Array}    args.rooms       `view.rooms`: the rooms the seat has been near, with seen/done/explored
  * @param {{x:number,y:number}|null} [args.player]
  * @param {boolean}  [args.ascii]     digits and `- | +` instead of pies and line glyphs
+ * @param {(glyph:string, mark:"start"|"exit")=>string} [args.paint]  colours a start/exit cell (#593); without it, plain text
  * @returns {{ lines: string[], here: object|null }}
  */
-export function buildNotebook({ rows, legend = {}, rooms = [], player = null, scale = NOTEBOOK_SCALE, ascii = false } = {}) {
+export function buildNotebook({ rows, legend = {}, rooms = [], player = null, scale = NOTEBOOK_SCALE, ascii = false, paint = null } = {}) {
   const grid = (rows || []).map((row) => [...row]);
   const walls = new Set([legend.wall, ...(Array.isArray(legend.wallGlyphs) ? legend.wallGlyphs : [])].filter(Boolean));
   const open = (char) => char !== undefined && char !== " " && char !== legend.fog && !walls.has(char);
@@ -129,15 +130,33 @@ export function buildNotebook({ rows, legend = {}, rooms = [], player = null, sc
   // You are marked on your room's own mark (the caption names its pie), or on the hallway cell you stand in.
   if (player) cells.set(hereRoom ? centreOf(hereRoom) : block(player.x, player.y), "@");
 
+  // #593: a room holding the start or the exit gets an S and/or E beside its pie, in the blank cell
+  // to the right, else the left. With no blank cell the pie takes the colour instead (exit wins);
+  // the letter is never placed over a hallway or another room's note.
+  const marked = new Map(); // cell key -> "start" | "exit"
+  const claimed = new Set();
+  const free = (x, y) => !cells.has(`${x},${y}`) && !claimed.has(`${x},${y}`);
+  for (const [key, room] of marks) {
+    const kinds = [room.start ? "start" : null, room.exit ? "exit" : null].filter(Boolean);
+    if (kinds.length === 0) continue;
+    const [x, y] = parse(key);
+    const spots = [[x - 1, y], [x + 1, y]].filter(([sx, sy]) => free(sx, sy));
+    const place = (spot, kind) => { claimed.add(`${spot[0]},${spot[1]}`); marked.set(`${spot[0]},${spot[1]}`, kind); cells.set(`${spot[0]},${spot[1]}`, kind === "start" ? "S" : "E"); };
+    if (kinds.length === 2 && spots.length === 2) { place(spots[0], "start"); place(spots[1], "exit"); }
+    else if (kinds.length === 1 && spots.length > 0) place(spots[spots.length - 1], kinds[0]);
+    else if (cells.get(key) !== "@") marked.set(key, kinds[kinds.length - 1]);
+  }
+
   if (cells.size === 0) return { lines: [], here: hereRoom };
   const coords = [...cells.keys()].map(parse);
   const [minX, maxX] = [Math.min(...coords.map(([x]) => x)), Math.max(...coords.map(([x]) => x))];
   const [minY, maxY] = [Math.min(...coords.map(([, y]) => y)), Math.max(...coords.map(([, y]) => y))];
   const lines = [];
   for (let y = minY; y <= maxY; y += 1) {
-    let line = "";
-    for (let x = minX; x <= maxX; x += 1) line += cells.get(`${x},${y}`) ?? " ";
-    lines.push(line.trimEnd());
+    const row = [];
+    for (let x = minX; x <= maxX; x += 1) row.push([cells.get(`${x},${y}`) ?? " ", marked.get(`${x},${y}`) ?? null]);
+    while (row.length > 0 && row[row.length - 1][0] === " ") row.pop();
+    lines.push(row.map(([glyph, mark]) => (mark && paint ? paint(glyph, mark) : glyph)).join(""));
   }
   return { lines, here: hereRoom };
 }

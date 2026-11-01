@@ -129,3 +129,24 @@ test("a hallway outside the room footprint still meets the room mark", () => {
   assert.match(drawing, /│/, "hallway meets the room");
   assert.doesNotMatch(drawing, /[└┘┌┐├┤┬┴┼]/);
 });
+
+test("#593: S and E sit beside the pie, start then exit, painted when a painter is given", () => {
+  const fog = "~".repeat(16);
+  const rows = [fog, fog, fog, fog];
+  const both = buildNotebook({ rows, legend, rooms: [room({ start: true, exit: true })], player: null });
+  assert.deepEqual(both.lines, ["S◌E"]);
+  const start = buildNotebook({ rows, legend, rooms: [room({ start: true })], player: null });
+  assert.deepEqual(start.lines, ["◌S"]);
+  const none = buildNotebook({ rows, legend, rooms: [room()], player: null });
+  assert.deepEqual(none.lines, ["◌"]);
+  const painted = buildNotebook({ rows, legend, rooms: [room({ exit: true })], player: null, paint: (glyph, mark) => `<${mark}:${glyph}>` });
+  assert.deepEqual(painted.lines, ["◌<exit:E>"]);
+});
+
+test("#593: with no blank cell beside the pie, the pie takes the colour and the exit wins", () => {
+  const rows = ["~~~~~~~~~~~~~~~~", "................", "~~~~~~~~~~~~~~~~", "~~~~~~~~~~~~~~~~"];
+  const rooms = [room({ id: "A", x: 0, y: 0, width: 4, height: 4, start: true, exit: true }), room({ id: "B", x: 12, y: 0, width: 4, height: 4 })];
+  const { lines } = buildNotebook({ rows, legend, rooms, player: null, paint: (glyph, mark) => `<${mark}:${glyph}>` });
+  // The left of room A is free, the right is the hallway: start takes the left letter only when both fit, so the pie is coloured.
+  assert.match(lines[0], /^<exit:◌>[─]+◌$/);
+});
