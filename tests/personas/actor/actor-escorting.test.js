@@ -85,10 +85,29 @@ test("the Configurator carries an authored escort beside the roster, and refuses
   };
   const actors = [delver("ally", { x: 2, y: 2 }, ["exploring"]),
     delver("pal", { x: 1, y: 2 }, ["escorting"], { escort: { target: "ally", distance: 3 } })];
-  assert.deepEqual(configurator.buildInitialStateArtifact({ ...base, actors }).escorts, { pal: { target: "ally", distance: 3 } });
+  const state = configurator.buildInitialStateArtifact({ ...base, actors });
+  assert.deepEqual(state.escorts, { pal: { target: "ally", distance: 3 } });
+  // AK-6 — core exit dwell reads escortOf on the actor; the escorts map stays for Actor follow.
+  assert.equal(state.actors.find((actor) => actor.id === "pal").escortOf, "ally");
+  assert.equal(state.actors.find((actor) => actor.id === "ally").escortOf, undefined);
   assert.throws(() => configurator.buildInitialStateArtifact({ ...base, actors: [actors[1]] }), /escort.*ghost|ally/);
   assert.throws(() => configurator.buildInitialStateArtifact({ ...base, actors: [actors[0], delver("pal", { x: 1, y: 2 }, ["escorting"])],
     escorts: { pal: { target: "ally", distance: 0 } } }), /distance/);
+});
+
+test("an escort standing on the exit does not leave while its leader is still alive (AK-6)", async () => {
+  // Minion already on the exit; hero held off it. Without the escortOf gate the minion
+  // would dwell out in two ticks and be gone for the rest of the level for no value.
+  const { trail } = await run({
+    ticks: 4,
+    actors: [
+      delver("hero", { x: 3, y: 2 }, ["user_controlled"], { ...LIT, capabilities: { canMove: false } }),
+      delver("pal", { x: WIDTH - 2, y: 2 }, ["escorting", "friendly"], { escort: { target: "hero", distance: 1 } }),
+    ],
+  });
+  assert.ok(trail.every((cells) => cells.pal.lifecycle === "alive"),
+    `escort must stay while hero lives: ${JSON.stringify(trail.map((c) => c.pal))}`);
+  assert.ok(trail.every((cells) => cells.hero.lifecycle === "alive"));
 });
 
 test("an escort keeps up with its ally as the ally walks to the exit, whatever its affinity", async () => {

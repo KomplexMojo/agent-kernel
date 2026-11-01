@@ -97,6 +97,26 @@ function collectEscorts(actors, escorts) {
   return collected;
 }
 
+/**
+ * AK-6 — core exit dwell needs the escort leader on the actor record (`escortOf`).
+ * The `escorts` map stays beside the roster for Actor distance/follow; `escortOf` is
+ * the mechanical gate so a minion cannot retire while its leader is still alive.
+ * A missing authored target is the first `user_controlled` actor in the level (same
+ * default the Actor uses when following).
+ */
+function stampEscortOf(rosterActors, escorting) {
+  if (!escorting || Object.keys(escorting).length === 0) return rosterActors;
+  const playable = rosterActors.find((actor) => Array.isArray(actor.motivations)
+    && actor.motivations.includes("user_controlled"))?.id;
+  return rosterActors.map((actor) => {
+    const escort = escorting[actor.id];
+    if (!escort) return actor;
+    const target = escort.target ?? playable;
+    if (!target || target === actor.id) return actor;
+    return { ...actor, escortOf: target };
+  });
+}
+
 export function buildInitialStateArtifact({
   meta, simConfigRef, actors, dimensions, terrain, strategies, escorts, ...unsupported
 } = {}) {
@@ -105,8 +125,9 @@ export function buildInitialStateArtifact({
   const roster = normalizeActorRoster({ actors, dimensions, terrain });
   const authored = collectStrategies(actors, strategies);
   const escorting = collectEscorts(actors, escorts);
+  const stampedActors = stampEscortOf(roster.actors, escorting);
   return structuredClone({ schema: INITIAL_STATE_SCHEMA, schemaVersion: 1,
-    meta: stampPersona(meta, PERSONA_IDS.configurator), simConfigRef, actors: roster.actors, presentation: roster.presentation,
+    meta: stampPersona(meta, PERSONA_IDS.configurator), simConfigRef, actors: stampedActors, presentation: roster.presentation,
     ...(Object.keys(authored).length > 0 ? { strategies: authored } : {}),
     ...(Object.keys(escorting).length > 0 ? { escorts: escorting } : {}) });
 }

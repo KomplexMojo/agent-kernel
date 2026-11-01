@@ -519,7 +519,8 @@ are delvers that escort it and take its orders (`escorting` + `friendly`, an `es
 at distance 1, since bare sight is one tile),
 with the same loadouts, floor and slot, and `fitRetinues` checks the Allocator's
 `delverShareApproved` too. `composeRetinue` is published so the character sheet prices exactly the
-minions the build adds.
+minions the build adds. When InitialState carries `escorts`, the Configurator also stamps
+`escortOf` onto those actors so core refuses exit dwell while the leader is still alive (AK-6).
 
 `minefield` (#418, `minefield.js`): a room the spawn-to-exit route passes through (`room=<id>`, else
 one picked from the seed, inner rooms first, with at least two doorways) gets `hazards=<n>`

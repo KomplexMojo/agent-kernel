@@ -15,7 +15,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
   | 'BlockedByWall' | 'ActorCollision';
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
-  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
+  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'escortOf', 'affinityExhausted',
   'affinitySlots', 'raisedBy', 'soaked', 'regenPaused', 'watching', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
 ]);
 
@@ -99,6 +99,10 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       || record.watching.some(id => typeof id !== 'string' || !id || id === record.id))) {
       throw new Error('invalid watching');
     }
+    if (record.escortOf !== undefined && (typeof record.escortOf !== 'string' || !record.escortOf
+      || record.escortOf === record.id)) {
+      throw new Error('invalid escortOf');
+    }
     const actor = copy(record);
     validateActorRecordVitals(actor);
     validateActorInventory(actor);
@@ -116,6 +120,11 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     if (actor.lifecycle !== 'exited') {
       occupants.push(actor);
       occupancy.set(cell, occupants);
+    }
+  }
+  for (const actor of actors.values()) {
+    if (actor.escortOf !== undefined && !actors.has(actor.escortOf)) {
+      throw new Error(`invalid escortOf: ${actor.id} escorts missing ${actor.escortOf}`);
     }
   }
   // Ordinal UTF-16 order, never locale-dependent ordering or caller insertion order.
@@ -289,9 +298,10 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     },
     advanceExitDwell(): string[] {
       const exited: string[] = [];
+      const lifecycleOf = (id: string) => actors.get(id)?.lifecycle;
       for (const actor of ordered) {
         const cell = index(actor.position);
-        if (!advanceActorExit(actor, terrain[cell] === 'exit')) continue;
+        if (!advanceActorExit(actor, terrain[cell] === 'exit', lifecycleOf)) continue;
         occupancy.set(cell, (occupancy.get(cell) ?? []).filter(other => other.id !== actor.id));
         exited.push(actor.id);
       }

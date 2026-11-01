@@ -80,5 +80,47 @@ test('exit removal retains other occupants sharing the terrain cell', () => {
   expect(state.getActorsAt({ x: 0, y: 0 }).map(record => record.id)).toEqual(['stays']);
   expect(state.isSightBlocked({ x: 0, y: 0 })).toBe(true);
 });
+
+/**
+ * Playtest seed 12 / AK-6: a delver minion that races onto the exit while its leader is
+ * still alive must not retire. Exit dwell is a win only for the party once the leader is
+ * gone (exited or defeated); otherwise the player loses the minion for no game value.
+ */
+test('an escort does not exit while its leader is still alive on the level', () => {
+  const leader = actor('hero');
+  leader.position = { x: 1, y: 0 };
+  leader.capabilities.canExit = false;
+  leader.capabilities.blocksMovement = false;
+  const minion = actor('minion');
+  minion.escortOf = 'hero';
+  minion.capabilities.blocksMovement = false;
+  const state = world([leader, minion]);
+  expect(end(state, 1)).toEqual([]);
+  expect(end(state, 2)).toEqual([]);
+  expect(state.getActor('minion')!.lifecycle).toBe('alive');
+  expect(state.getActor('minion')!.exitDwell ?? 0).toBe(0);
+  expect(state.getActor('hero')!.lifecycle).toBe('alive');
+});
+
+test('an escort may exit after its leader has left or been defeated', () => {
+  for (const how of ['exited', 'defeated'] as const) {
+    const leader = actor('hero');
+    leader.position = { x: 1, y: 0 };
+    leader.capabilities.canExit = false;
+    leader.capabilities.blocksMovement = false;
+    leader.lifecycle = how;
+    if (how === 'defeated') leader.vitals.health!.current = 0;
+    const minion = actor('minion');
+    minion.escortOf = 'hero';
+    minion.capabilities.blocksMovement = false;
+    const state = world([leader, minion]);
+    expect(end(state, 1)).toEqual([]);
+    expect(end(state, 2)).toEqual(['minion']);
+    expect(state.getActor('minion')!.lifecycle).toBe('exited');
+  }
+});
+
 // ## TODO: Test Permutations
 // - The production Moderator must finish the exit phase once after regeneration.
+// - escortOf pointing at a missing id is refused at registry load
+// - dwell does not bank while the leader is alive, then complete in one tick when the leader leaves
