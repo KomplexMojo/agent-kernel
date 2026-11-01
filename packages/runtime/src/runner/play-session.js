@@ -74,6 +74,7 @@ import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
 import { unpayableActorAffinities } from "../../../core-ts/src/rules/actor-upkeep.ts";
 import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
+import { computeActorMoveStaminaCost } from "../../../core-ts/src/rules/move.ts";
 import { actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
 import { revealedValue } from "../../../core-ts/src/rules/actor-observation.ts";
 
@@ -778,6 +779,7 @@ export async function createPlaySession({
       field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
         upkeepTable: typeof runtime.readAffinityUpkeepTable === "function" ? runtime.readAffinityUpkeepTable() : [],
         castPrices,
+        movementStamina: simConfig.actionCosts?.movementStamina,
     });
     return {
       ...built,
@@ -988,7 +990,18 @@ function lootNextTo(snapshot, player) {
  * @param {object} args.status        { tick, exited, atExit, defeated }
  * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, glyphSet = "unicode" }) {
+/** Stamina one step, one diagonal step and one sprint cost, on core's formula; null when the actor's price is unknown. */
+function moveStaminaCosts(cardinal, soaked) {
+  if (!Number.isInteger(cardinal)) return null;
+  const at = (x, y) => ({ x, y });
+  return {
+    step: computeActorMoveStaminaCost(at(0, 0), at(1, 0), undefined, cardinal, soaked),
+    diagonal: computeActorMoveStaminaCost(at(0, 0), at(1, 1), undefined, cardinal, soaked),
+    sprint: computeActorMoveStaminaCost(at(0, 0), at(2, 0), at(1, 0), cardinal, soaked),
+  };
+}
+
+export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, movementStamina = undefined, glyphSet = "unicode" }) {
   // Actor glyphs (#575) come from the glyph set; the table rides on the legend for every UI to read.
   const glyphs = actorGlyphs(glyphSet);
   const legend = { ...baseLegend, ...(baseLegend.barrier === ASCII_TERRAIN_GLYPHS.barrier ? { barrier: glyphs.barrier } : {}) };
@@ -1034,6 +1047,8 @@ export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend,
         // Core's rules, stated as data so the UI never restates them: which equipped
         // slots can be cast, how far each reaches and what one cast costs, and the most slots anyone holds.
         castableAffinities: actorCastableAffinities(player, castPrices),
+        // #617: what one move costs this actor in stamina (core's formula, soak included), so a UI can say it.
+        moveStamina: moveStaminaCosts(movementStamina?.[player.id], Boolean(player.soaked)),
         maxAffinitySlots: MAX_AFFINITY_SLOTS,
         position: { ...player.position },
       }

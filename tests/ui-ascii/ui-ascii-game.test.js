@@ -1140,3 +1140,17 @@ test("a cast leaves no slot armed; aiming a slot arms it (#589)", async () => {
   await press(game, "\r");
   assert.ok(game.slots().slots.every((slot) => !slot.armed), "no slot is armed once the cast resolves");
 });
+
+test("a move the stamina cannot pay names the cost and what you have; the HUD lists move costs (#617)", async () => {
+  const hall = buildUnifiedLevel({ id: "hall", tiles: ["############", "S..........E", "############"],
+    actors: [{ category: "delver", id: "hero", position: { x: 1, y: 1 }, vitals: viableVitals({ stamina: 6 }), motivations: ["user_controlled"] }] });
+  const game = await createGame({ levels: [{ name: "hall", ...hall }], fog: false });
+  assert.match(game.screen(), /Move costs: step \d+ · diagonal \d+ · sprint \d+ stamina/);
+  let refused = "";
+  for (let i = 0; i < 12 && !refused; i += 1) {
+    await press(game, "L");
+    const m = game.state().message || "";
+    if (/Too tired/.test(m)) refused = m;
+  }
+  assert.match(refused, /Too tired to sprint: it costs \d+ stamina, you have \d+\./);
+});
