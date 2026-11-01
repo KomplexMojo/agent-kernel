@@ -124,6 +124,16 @@ export const playTools = [
     buildArgs: (args) => ["view", ...buildArgv(args, [...sessionSpec, ...saveSpec])],
   }),
   createTool({
+    name: "ak_play_legal",
+    description: "List what the seated actor can do now in a live game, without playing anything (no turn passes). "
+      + "Returns the usual result plus `legal`: [{ id, label, command }] ordered by id (wait, step and sprint in each open direction, casts at targets in reach it can pay for, takes), "
+      + "read from what the seat sees, so fog hides what it hides. Pass a listed `command` to ak_play_act `commands` to play it. "
+      + "It is a candidate list: wall, barrier, actor and stamina checks keep obvious refusals out, but core decides, so a listed command can still be refused. " + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: { properties: { session: sessionProperty } },
+    buildArgs: (args) => ["legal", ...buildArgv(args, sessionSpec)],
+  }),
+  createTool({
     name: "ak_play_switch",
     description: "Seat another party member in a live game (an actor authored user_controlled, by id or label such as D2). Free: no turn passes, and fog follows the new seat. "
       + "A companion, warden or trap cannot be seated (results say not_playable). " + SESSION_RESULT,

@@ -8,59 +8,14 @@
  * Use:  node scripts/testing/play-sim.mjs --driver t1-contact --model phi4   (live Ollama, manual)
  */
 import { createHash } from "node:crypto";
-import { PLAY_DIRECTION_STEPS } from "../../packages/runtime/src/runner/play-session.js";
+import { listLegalPlayCommands } from "../../packages/runtime/src/runner/play-legal-commands.js";
 
 export const DEFAULT_BURST = 5;
 export const DEFAULT_RETRIES = 2;
 
-const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-const vitalNow = (player, key) => (player?.vitals || []).find((vital) => vital.key === key)?.current ?? 0;
-
-/**
- * Commands the seat could try now, as `{ id, label, command }`, ordered by id. Read from the view
- * only (so fog hides what it hides). It is a candidate list: wall, barrier, actor and stamina checks
- * keep obvious refusals out; core still decides.
- */
-export function listLegalPlayCommands(view) {
-  const player = view?.player;
-  if (!player || view.status?.exited || view.status?.defeated) return [];
-  const actions = [{ id: "wait", label: "wait a turn", command: { kind: "wait" } }];
-  const rows = view.rows || [];
-  const legend = view.legend || {};
-  const solid = new Set([legend.wall, legend.barrier, ...(legend.wallGlyphs || [])].filter(Boolean));
-  const occupied = new Set([...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.position).map((actor) => `${actor.position.x},${actor.position.y}`));
-  const free = (x, y) => {
-    const glyph = [...(rows[y] || "")][x];
-    return glyph !== undefined && glyph !== legend.fog && !solid.has(glyph) && !occupied.has(`${x},${y}`);
-  };
-  const stamina = vitalNow(player, "stamina");
-  const costs = player.moveStamina;
-  for (const [direction, { dx, dy }] of Object.entries(PLAY_DIRECTION_STEPS)) {
-    const to = { x: player.position.x + dx, y: player.position.y + dy };
-    if (!free(to.x, to.y)) continue;
-    const step = costs ? (dx !== 0 && dy !== 0 ? costs.diagonal : costs.step) : 0;
-    if (step <= stamina) actions.push({ id: `move:${direction}`, label: `step ${direction}`, command: { kind: "move", params: { direction } } });
-    const far = { x: to.x + dx, y: to.y + dy };
-    if (free(far.x, far.y) && (costs ? costs.sprint : 0) <= stamina) {
-      actions.push({ id: `sprint:${direction}`, label: `sprint ${direction}`, command: { kind: "move", params: { direction, sprint: true } } });
-    }
-  }
-  const mana = vitalNow(player, "mana");
-  const targets = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.position);
-  for (const [key, { range, mana: price }] of Object.entries(player.castableAffinities || {})) {
-    if (price !== undefined && price > mana) continue;
-    for (const target of targets) {
-      if (chebyshev(player.position, target.position) > range) continue;
-      actions.push({ id: `cast:${key}@${target.id}`, label: `cast ${key.replace(":", " ")} at ${target.label ?? target.id}`,
-        command: { kind: "cast_affinity", params: { targetId: target.id, affinityKey: key } } });
-    }
-  }
-  for (const item of view.loot || []) {
-    actions.push({ id: `take:${item.targetId}:${item.holdingId}`, label: `take from ${item.targetId}`,
-      command: { kind: "take", params: { targetId: item.targetId, holdingId: item.holdingId } } });
-  }
-  return actions.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-}
+// The legal list lives in the runtime (#653), so a seat driven through `ak_play_legal` and this
+// driver ask the same function. Re-exported: the T1 tests and play-sim import it from here.
+export { listLegalPlayCommands };
 
 /** A picker backed by a model: it must answer `{ "action": "<id>" }` with an id from the list. */
 export function llmPicker({ adapter, model }) {

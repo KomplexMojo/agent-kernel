@@ -156,6 +156,46 @@ test("orders: ak_create authors a strategy, ak_play_order replaces it, ak_play_a
   }
 });
 
+test("ak_play_legal lists what the seat can do without spending a turn, and a listed command plays", async () => {
+  const server = startServer();
+  try {
+    await server.initialize();
+    const { tools } = await server.request("tools/list", {});
+    assert.ok(tools.some((tool) => tool.name === "ak_play_legal"), "ak_play_legal is listed");
+    const created = await server.callTool("ak_create", {
+      room: ["size=medium;count=2"],
+      delver: [{ count: 1, id: "hero", affinity: "earth", motivation: ["user_controlled"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1" }],
+      budgetTokens: 6000,
+      runId: "legal-mcp",
+      createdAt: "2026-10-14T00:00:00.000Z",
+    });
+    assert.equal(created.ok, true, JSON.stringify(created));
+    await server.callTool("ak_play_start", { session: "mcp-legal", runId: "legal-mcp" });
+
+    const legal = await server.callTool("ak_play_legal", { session: "mcp-legal" });
+    assert.equal(legal.ok, true, JSON.stringify(legal));
+    assert.equal(legal.action, "legal");
+    assert.equal(legal.turns, 0, "listing is not a turn");
+    assert.ok(Array.isArray(legal.legal) && legal.legal.length > 0);
+    const ids = legal.legal.map((entry) => entry.id);
+    assert.deepEqual(ids, [...ids].sort());
+    assert.ok(ids.includes("wait"));
+    for (const entry of legal.legal) {
+      assert.equal(typeof entry.label, "string");
+      assert.equal(typeof entry.command.kind, "string");
+    }
+
+    const step = legal.legal.find((entry) => entry.command.kind === "move") ?? legal.legal.find((entry) => entry.id === "wait");
+    const acted = await server.callTool("ak_play_act", { session: "mcp-legal", commands: [step.command] });
+    assert.equal(acted.ok, true, JSON.stringify(acted));
+    assert.equal(acted.turns, 1, "a listed command is one turn");
+
+    await server.callTool("ak_play_end", { session: "mcp-legal" });
+  } finally {
+    await server.close();
+  }
+});
+
 // ## TODO: Test Permutations
 // - ak_play_order to a warden answers not_yours; a malformed strategy answers invalid_strategy with the reason.
 // - ak_play_advance with until "contact" stops when a hostile comes into sight.

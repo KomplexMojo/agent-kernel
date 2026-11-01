@@ -51,6 +51,7 @@ You are the game's front end, like `packages/ui-ascii`: you turn what the player
 |---|---|
 | A new level | `ak_create` with spec objects and a `runId`, then `ak_play_ascii {runId}` |
 | To play | `ak_play_start {runId}` once, then `ak_play_act {commands?, keys?}` a few turns at a time; `ak_play_view` to look |
+| To see what the seat can do now | `ak_play_legal` (a candidate list of `{ id, label, command }`; play one with `ak_play_act {commands}`; no turn passes) |
 | To play another party member | `ak_play_switch {actor: "D2"}` (free), or `actorId` on a command |
 | To give a companion or party member orders | `ak_play_order {actor: "D3", strategy: {goals, tactics?}}` (one turn) |
 | To let orders play out | `ak_play_advance {ticks, until: "orders_done" \| "contact"}` |

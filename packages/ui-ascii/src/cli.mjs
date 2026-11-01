@@ -23,6 +23,7 @@ import { createWatch } from "./watch.js";
 import { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat, realtimeLine } from "./realtime.js";
 import { DEFAULT_WEB_PORT, lanAddresses, startWebGame } from "./web.mjs";
 import { WINDOW_DEFAULT, windowSizeForTerminal } from "../../runtime/src/render/window-size.js";
+import { listLegalPlayCommands } from "../../runtime/src/runner/play-legal-commands.js";
 
 const USAGE = `Usage: ak-maze [options]
 
@@ -55,6 +56,8 @@ const USAGE = `Usage: ak-maze [options]
   --session <path>        a game kept in a file across calls: replay it if it exists, then
                           --actor, --commands and --keys, then save it back (with --json, the
                           result adds active, party and inSight). A new session needs a level
+  --legal                 with --session --json: add legal, the commands the seat could try now as
+                          { id, label, command } (a candidate list; core still decides)
   --actor <id|label>      play this party member (a user_controlled actor) first; free
   --commands <json>       a JSON array of commands to act first, each { kind, params?, actorId? },
                           { kind: "switch", actorId }, { kind: "order", actorId, strategy } (a turn)
@@ -113,6 +116,7 @@ export function parseArgs(argv) {
       }
       case "--no-help": options.showHelp = false; break;
       case "--session": options.sessionPath = next(); break;
+      case "--legal": options.legal = true; break;
       case "--actor": options.actor = next(); break;
       case "--commands": {
         const text = next();
@@ -401,6 +405,7 @@ async function session(options) {
   console.log(JSON.stringify({
     ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party,
     ...(orders.length ? { orders } : {}), inSight,
+    ...(options.legal ? { legal: listLegalPlayCommands(view) } : {}),
     ...(results.length ? { results } : {}), ...(message ? { message } : {}), hud: hudLine(view, { turns }), screen,
     ...(warnings.length ? { warnings } : {}),
   }));

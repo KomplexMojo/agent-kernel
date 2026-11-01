@@ -65,14 +65,14 @@ export function playAsciiScripted({ source, keys = "", color = false, fog = true
  * One call on a game kept in a session file (`ak play-session`): the UI replays the file
  * if it exists (else starts the level `source` names), seats `actor`, acts `commands`
  * (structured, labels allowed) and `keys`, writes the file back, and returns
- * `{ ok, session, level, turns, status, active, party, inSight, results?, hud, screen }`,
+ * `{ ok, session, level, turns, status, active, party, inSight, legal? (with `legal`), results?, hud, screen }`,
  * or `{ ok: false, error }`.
  */
-export function playSessionScripted({ sessionPath, source = {}, keys = "", commands, actor, color = false, fog = true }) {
+export function playSessionScripted({ sessionPath, source = {}, keys = "", commands, actor, color = false, fog = true, legal = false }) {
   const result = spawnSync(
     process.execPath,
     [UI_ASCII_CLI, "--session", sessionPath, ...levelArgs(source), "--json", "--no-help", "--no-window",
-      ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]),
+      ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]), ...(legal ? ["--legal"] : []),
       ...(actor !== undefined ? ["--actor", String(actor)] : []),
       ...(commands !== undefined ? ["--commands", JSON.stringify(commands)] : []),
       "--keys", keys],
