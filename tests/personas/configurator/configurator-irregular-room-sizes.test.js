@@ -126,6 +126,42 @@ test("generateGridLayoutFromInput sculpts true non-rectangular footprints (carve
   );
 });
 
+// Playtest generate-random uses CLI large rooms (min 8, max 12). A prior sculpt skip
+// keyed off default 9×9 area wrongly left every 8×12 chamber as a filled rectangle.
+test("CLI large rooms (8–12) sculpt footprints and plan interior barriers", async () => {
+  const { generateGridLayoutFromInput, countRoomFootprintTiles } = await import(
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+  const result = generateGridLayoutFromInput({
+    seed: 3,
+    width: 48,
+    height: 48,
+    shape: { roomCount: 4, roomMinSize: 8, roomMaxSize: 12, corridorWidth: 1 },
+    connectivity: { requirePath: true },
+  });
+  assert.ok(result.ok, JSON.stringify(result.errors));
+  const layout = result.value;
+  assert.ok(layout.rooms.length >= 4, "expected four large rooms");
+  assert.ok(
+    layout.rooms.every((room) => room.width * room.height > 81),
+    "fixture must exercise rooms above the old 9×9 area skip",
+  );
+  const mask = Array.from({ length: layout.height }, (_, y) => (
+    Array.from({ length: layout.width }, (_, x) => layout.terrain[y * layout.width + x] !== "wall")
+  ));
+  const sculpted = layout.rooms.filter((room) => (
+    countRoomFootprintTiles(mask, room) < room.width * room.height
+  ));
+  assert.ok(
+    sculpted.length >= 1,
+    `large rooms must sculpt; got 0/${layout.rooms.length} non-rect footprints`,
+  );
+  assert.ok(
+    (layout.interiorBarriers || []).length > 0,
+    "large rooms must still plan destroyable interior barriers",
+  );
+});
+
 test("randomIrregularRoomDimensions orientation follows wide/tall roll", async () => {
   const { randomIrregularRoomDimensions } = await import(
     "../../../packages/runtime/src/personas/configurator/level-layout.js"

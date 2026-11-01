@@ -15,13 +15,20 @@ const TARGET_ROOM_WALKABLE_SHARE = 0.85;
 // place a room capable of holding this many tiles; see I4 minimum-viable-
 // interior rejection in generateGridLayoutFromInput).
 const MIN_VIABLE_ROOM_INTERIOR_TILES = 3;
-// Sculpt is for playable dungeon rooms (default max 9×9). Feasibility can
-// materialize ~10⁶-tile synthetic rooms; footprint erosion there is useless
-// and its connectivity check is O(area), so skip above this bbox area.
-const MAX_SCULPT_ROOM_AREA = DEFAULT_ROOM_MAX_SIZE * DEFAULT_ROOM_MAX_SIZE;
+// Playable rooms top out at CLI `large` (12×12, see ROOM_SIZE_PROFILES). Feasibility
+// can invent a single ~10³-side chamber; sculpt/furniture there is useless and O(area),
+// so skip only when a room side exceeds this playable ceiling (not default 9×9 area —
+// that wrongly skipped every irregular large room, e.g. generate-random 8×12).
+const MAX_SCULPT_ROOM_SIDE = 48;
 // Cap destroyable furniture per room so divider planning stays cheap on large
 // authored rooms while still guaranteeing at least one barrier when possible.
 const MAX_INTERIOR_BARRIERS_PER_ROOM = 8;
+
+function roomTooLargeForSculpt(room) {
+  return !room
+    || room.width > MAX_SCULPT_ROOM_SIDE
+    || room.height > MAX_SCULPT_ROOM_SIDE;
+}
 
 const NEIGHBORS = Object.freeze([
   { dx: 0, dy: -1 },
@@ -2577,8 +2584,8 @@ function restoreRoomFloor(mask, snapshot) {
 function sculptRoomFootprint(mask, room, rng) {
   // Need roomEdgeDistance >= 2 candidates (perimeter + one ring stay floor).
   if (room.width < 5 || room.height < 5) return false;
+  if (roomTooLargeForSculpt(room)) return false;
   const bboxArea = room.width * room.height;
-  if (bboxArea > MAX_SCULPT_ROOM_AREA) return false;
   const before = snapshotRoomFloor(mask, room);
   const center = roomCenter(room);
   const candidates = [];
@@ -2711,7 +2718,7 @@ export function planInteriorBarrierCells(mask, rooms, levelGen, {
   for (let roomId = 0; roomId < rooms.length; roomId += 1) {
     const room = rooms[roomId];
     // Skip furniture on feasibility-scale synthetic rooms.
-    if (room.width * room.height > MAX_SCULPT_ROOM_AREA) continue;
+    if (roomTooLargeForSculpt(room)) continue;
     for (let y = room.y; y < room.y + room.height; y += 1) {
       for (let x = room.x; x < room.x + room.width; x += 1) {
         if (!mask[y]?.[x]) continue;
@@ -2747,7 +2754,7 @@ export function planInteriorBarrierCells(mask, rooms, levelGen, {
   for (let roomId = 0; roomId < rooms.length; roomId += 1) {
     if (byRoom[roomId].length > 0) continue;
     const room = rooms[roomId];
-    if (room.width * room.height > MAX_SCULPT_ROOM_AREA) continue;
+    if (roomTooLargeForSculpt(room)) continue;
     const interior = [];
     for (let y = room.y; y < room.y + room.height; y += 1) {
       for (let x = room.x; x < room.x + room.width; x += 1) {
