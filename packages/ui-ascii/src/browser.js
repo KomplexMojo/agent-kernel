@@ -172,7 +172,7 @@ const HELP_BLOCKS = [
   { title: "Move", items: [
     { keys: ["arrows", "WASD", "hjkl"], text: "step one tile" },
     { keys: ["y", "u", "b", "n"], text: "diagonals" },
-    { keys: ["shift+move", "x then move"], text: "sprint two tiles" },
+    { keys: ["shift+move", "x toggle"], text: "sprint two tiles (x stays on)" },
     { keys: [".", "space"], text: "wait a turn" },
   ] },
   { title: "Play", items: [

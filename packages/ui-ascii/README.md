@@ -87,7 +87,7 @@ Colour is on by default in a terminal and uses the application's approved palett
 |---|---|
 | arrows · WASD · `h j k l` | move |
 | `y u b n` | move diagonally |
-| shift + a move key (upper case, or shift+arrow), or `x` then a move | sprint: two tiles in one turn for 3/2 the two steps' stamina, more than regen returns (#437) |
+| shift + a move key (upper case, or shift+arrow), or toggle `x` / Sprint | sprint: two tiles in one turn for 3/2 the two steps' stamina, more than regen returns (#437). Shift is one-shot; `x` / Sprint stays on until toggled off |
 | `.` or space | wait one tick |
 | Enter | next level (after escaping) |
 | `r` | restart the level |
