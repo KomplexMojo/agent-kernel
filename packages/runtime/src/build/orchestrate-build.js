@@ -27,6 +27,7 @@ import {
 const configuratorBuild = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 const {
   generateGridLayoutFromInput,
+  buildInteriorBarrierActors,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   assembleMovementStamina,
@@ -646,10 +647,22 @@ export async function orchestrateBuild({
     }
 
     resolvedActors = resolvedActors || actorsInput.actors;
+    const barrierCellKey = (point) => `${point?.x},${point?.y}`;
+    const occupiedBeforeBarriers = new Set(
+      [...actorsInput.actors, ...placedActors]
+        .map((actor) => actor?.position)
+        .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
+        .map(barrierCellKey),
+    );
+    // Barriers are planned before tactic seating; drop any that now collide with placed actors.
+    const freeBarrierCells = (layout.interiorBarriers || [])
+      .filter((cell) => !occupiedBeforeBarriers.has(barrierCellKey(cell)));
+    const interiorBarrierActors = buildInteriorBarrierActors(freeBarrierCells)
+      .map(prepareForPricing);
     const normalizedActors = configuratorBuild.placeActors({
       actors: actorsInput.actors,
       layout,
-      reservedActors: placedActors,
+      reservedActors: [...placedActors, ...interiorBarrierActors],
       delverCount: configuratorInputs?.delverCount,
       pinnedPositions: constrainedActorPositions,
     });
@@ -657,8 +670,20 @@ export async function orchestrateBuild({
       actorsInput.actors = normalizedActors.actors;
     }
     const existingActorIds = new Set(actorsInput.actors.map((actor) => actor?.id).filter(Boolean));
-    actorsInput.actors = [...actorsInput.actors,
+    const withPlaced = [...actorsInput.actors,
       ...placedActors.filter((actor) => actor?.id && !existingActorIds.has(actor.id))];
+    const afterPlacedIds = new Set(withPlaced.map((actor) => actor?.id).filter(Boolean));
+    const occupiedAfterPlace = new Set(
+      withPlaced
+        .map((actor) => actor?.position)
+        .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
+        .map(barrierCellKey),
+    );
+    actorsInput.actors = [...withPlaced,
+      ...interiorBarrierActors.filter((actor) => (
+        actor?.id && !afterPlacedIds.has(actor.id)
+        && !occupiedAfterPlace.has(barrierCellKey(actor.position))
+      ))];
     resolvedActors = actorsInput.actors;
 
     simConfig = buildSimConfigArtifact({

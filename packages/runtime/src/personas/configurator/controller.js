@@ -72,6 +72,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // Ungated, like `deriveRoomLayout` above: pure functions of their arguments that stamp no
     // provenance. See the import-block note in configurator-services.js.
     generateGridLayoutFromInput: services.generateGridLayoutFromInput,
+    buildInteriorBarrierActors: services.buildInteriorBarrierActors,
     buildSimConfigArtifact: services.buildSimConfigArtifact,
     buildInitialStateArtifact: services.buildInitialStateArtifact,
     resolveAffinityEffects: services.resolveAffinityEffects,

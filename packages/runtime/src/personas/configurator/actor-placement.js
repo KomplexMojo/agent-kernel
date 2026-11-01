@@ -151,6 +151,7 @@ function collectReservedPlacementKeys(layout, reservedActors = []) {
   // Approaches are seating targets, so they remain available until assigned.
   if (Array.isArray(data.hazards)) data.hazards.forEach(addPoint);
   if (Array.isArray(data.resources)) data.resources.forEach(addPoint);
+  if (Array.isArray(data.interiorBarriers)) data.interiorBarriers.forEach(addPoint);
   if (Array.isArray(reservedActors)) reservedActors.forEach(addPoint);
   return reserved;
 }

@@ -8,6 +8,8 @@ export const LEVEL_GEN_DEFAULTS = Object.freeze({
   patternLineWidth: 1,
   patternGapEvery: 4,
   patternInset: 1,
+  // Destroyable earth barrier furniture inside rooms (not permanent wall terrain).
+  interiorBarriers: true,
   edgeBias: false,
   minDistance: 0,
   requirePath: true,

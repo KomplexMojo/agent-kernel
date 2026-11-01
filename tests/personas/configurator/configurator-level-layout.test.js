@@ -65,16 +65,13 @@ assert.equal(explicit.ok, true);
 assert.deepEqual(rows(implicit.value), rows(explicit.value));
 assert.deepEqual(implicit.value.rooms, explicit.value.rooms);
 
-let blockedInsideRooms = 0;
-(implicit.value.rooms || []).forEach((room) => {
-  for (let y = room.y; y < room.y + room.height; y += 1) {
-    const row = String(rows(implicit.value)[y] || "");
-    for (let x = room.x; x < room.x + room.width; x += 1) {
-      if (row[x] === "#") blockedInsideRooms += 1;
-    }
-  }
-});
-assert.equal(blockedInsideRooms, 0);
+// Default pattern is none: planned barriers are actors on floor, not pattern-carved walls.
+// Sculpted non-rect footprints may leave wall cells inside the placement bbox.
+assert.ok((implicit.value.interiorBarriers || []).length > 0, "default layout plans interior barriers");
+for (const cell of implicit.value.interiorBarriers) {
+  const glyph = rows(implicit.value)[cell.y]?.[cell.x];
+  assert.notEqual(glyph, "#", `barrier cell ${cell.x},${cell.y} must not be wall terrain`);
+}
 });
 
 test("level layout honors walkable tile targets for connected rooms", async () => {const { generateGridLayoutFromInput } = await import("../../../packages/runtime/src/personas/configurator/level-layout.js");
