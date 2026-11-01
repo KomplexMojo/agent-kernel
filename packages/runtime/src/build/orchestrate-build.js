@@ -657,8 +657,11 @@ export async function orchestrateBuild({
     // Barriers are planned before tactic seating; drop any that now collide with placed actors.
     const freeBarrierCells = (layout.interiorBarriers || [])
       .filter((cell) => !occupiedBeforeBarriers.has(barrierCellKey(cell)));
-    const interiorBarrierActors = buildInteriorBarrierActors(freeBarrierCells)
-      .map(prepareForPricing);
+    // Furniture alone does not make an actor-less (room-only) build runnable or "has actors".
+    const hasRealActors = actorsInput.actors.length > 0 || placedActors.length > 0;
+    const interiorBarrierActors = hasRealActors
+      ? buildInteriorBarrierActors(freeBarrierCells).map(prepareForPricing)
+      : [];
     const normalizedActors = configuratorBuild.placeActors({
       actors: actorsInput.actors,
       layout,

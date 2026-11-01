@@ -54,8 +54,8 @@ test("allocator denies one token below a warden pool boundary while total budget
 
     assert.notEqual(result.status, 0);
     // remaining was 188 until #198 gave medium rooms their real 5-8 range (more floor billed),
-    // then 173 until #340 re-pinned the boundary.
-    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=192/);
+    // then 173 until #340 re-pinned the boundary, then 192 until #607 sculpted room footprints (more floor billed).
+    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=193/);
     assert.match(result.stderr, /deniedLines=actor:actor_spawn:wardens/);
     assert.match(result.stderr, /deniedPools=wardens:208\/207/);
     // #145 — the shortfall (how many more tokens this one pool alone needed) used to be

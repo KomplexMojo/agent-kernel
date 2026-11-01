@@ -100,6 +100,8 @@ export async function runScenario(scenario, { keep = false } = {}) {
   }
 }
 
+// #607: the Configurator seats destroyable earth barriers as furniture; they may touch each other.
+const isBarrierFurniture = (actor) => /^barrier_\d+_\d+$/.test(actor?.id ?? "");
 const isObjectActor = (actor) => actor?.capabilities?.canMove === false && (actor.motivations ?? []).length === 0;
 
 /**
@@ -125,6 +127,7 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
     actors[actor.id] = {
       id: actor.id,
       object: isObjectActor(actor),
+      furniture: isBarrierFurniture(actor),
       motivations: actor.motivations ?? [],
       position: actor.position,
       vitals: actor.vitals,
@@ -324,11 +327,11 @@ export function checkRules(scenario, analysis) {
       violations.push({ rule: "idle_attacker", actor: record.id, detail: `${record.maxIdleStreak} turns; ${record.idleNote}` });
     }
     for (const detail of record.unaffordable ?? []) violations.push({ rule: "unaffordable_cast", actor: record.id, detail });
-    if (record.defeatedAt !== null && record.defeatedAt <= 1) {
+    if (record.defeatedAt !== null && record.defeatedAt <= 1 && !record.furniture) {
       violations.push({ rule: "tick_one_defeat", actor: record.id });
     }
   }
-  const objects = records.filter((record) => record.object);
+  const objects = records.filter((record) => record.object && !record.furniture);
   for (let i = 0; i < objects.length; i += 1) {
     for (let j = i + 1; j < objects.length; j += 1) {
       const a = objects[i].position;

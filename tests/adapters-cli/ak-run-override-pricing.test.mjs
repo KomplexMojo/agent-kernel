@@ -39,7 +39,8 @@ test("an added actor is priced by the Allocator against the level's own budget",
   assert.equal(result.status, 0, result.stderr);
 
   const receipt = readJson(join(outDir, "budget-receipt.json"));
-  const spawns = receipt.lineItems.filter((item) => item.id === "actor_spawn").map((item) => item.subjectRef.id);
+  const spawns = receipt.lineItems.filter((item) => item.id === "actor_spawn").map((item) => item.subjectRef.id)
+    .filter((id) => !/^barrier_\d+_\d+$/.test(id));
   assert.deepEqual(spawns.sort(), ["card_delver_1-1", "extra_1"]);
   assert.equal(receipt.totalCost + receipt.remaining, original.totalCost + original.remaining);
   assert.ok(receipt.totalCost > original.totalCost);

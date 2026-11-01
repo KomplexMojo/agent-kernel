@@ -115,7 +115,7 @@ test("cli warden-plan keeps defending wardens non-ambulatory by default", () => 
   ]);
 
   const initialState = readJson(join(outDir, "initial-state.json"));
-  assert.equal(initialState.actors[0].vitals.stamina.regen, 0);
+  assert.equal(initialState.actors.filter((actor) => !/^barrier_\d+_\d+$/.test(actor.id))[0].vitals.stamina.regen, 0);
 });
 
 test("cli warden-plan supports multiple warden configurations in one command", () => {
@@ -174,8 +174,9 @@ test("cli warden-plan supports advanced affinities, vitals, and receipt accounti
   assert.equal(warden.vitals.stamina.regen, 1);
 
   const initialState = readJson(join(outDir, "initial-state.json"));
-  assert.equal(initialState.actors.length, 1);
-  const actor = initialState.actors[0];
+  const placed = initialState.actors.filter((actor) => !/^barrier_\d+_\d+$/.test(actor.id));
+  assert.equal(placed.length, 1);
+  const actor = placed[0];
   assert.equal(actor.vitals.health.max, 15);
   assert.equal(actor.vitals.stamina.regen, 1);
   assert.deepEqual(actor.affinities, [
