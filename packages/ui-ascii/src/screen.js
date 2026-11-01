@@ -270,7 +270,9 @@ export function affinityLines(player, { hints = true } = {}) {
     const unpayable = (player.unpayableAffinities || []).find((entry) => entry.key === key);
     const note = !off.includes(key) ? ""
       : unpayable ? `  (off: upkeep ${unpayable.upkeep} > max mana ${unpayable.maxMana})` : "  (off until mana is full)";
-    return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ${slotLevelLabel(player, pair)}${note}`;
+    const price = player.castableAffinities?.[key]?.mana;
+    const cost = price === undefined ? "" : ` · ${price} MP`;
+    return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ${slotLevelLabel(player, pair)}${cost}${note}`;
   });
 }
 

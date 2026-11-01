@@ -218,7 +218,7 @@ function renderSlots(game) {
     if (slot.empty) return `<button class="slot empty" data-slot="${slot.index}" ${picks.length ? "" : "disabled"}>+ empty</button>`;
     const state = slot.castable ? (slot.mana === null ? "cast" : `${slot.mana} mana`) : slot.off ? "drained" : "ON";
     return `<button class="slot${slot.key === current.selected ? " on" : ""}${slot.off ? " off" : ""}" data-slot="${slot.index}" style="--c:${slot.color ?? "#888"}">
-      <b>${esc(slot.kind)}</b><small>${esc(slot.expression)} r${slot.stacks.running} ×${slot.intensity.running}</small><em>${state}</em></button>`;
+      <b>${esc(slot.kind)}</b><small>${esc(slot.expression)} r${slot.stacks.running} ×${slot.intensity.running}</small><em${slot.castable && slot.overMana ? ' class="bad"' : ""}>${state}</em></button>`;
   }).join("");
   const held = slots.find((slot) => slot.key === current.selected);
   // Range and power steppers are off the play screen for now (Darren, 2026-10-30: they broke the layout).
