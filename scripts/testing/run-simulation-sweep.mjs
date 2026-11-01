@@ -29,7 +29,7 @@ const concurrency = Number(option("concurrency", 4));
 
 // A metric moving by more than this share (or appearing/disappearing) is called out.
 const CHANGE_THRESHOLD = 0.25;
-const METRICS = ["firstExit", "exited", "defeated", "healthLost", "casts", "moves", "acceptRate"];
+const METRICS = ["firstExit", "exited", "defeated", "unseenDefeats", "healthLost", "casts", "moves", "acceptRate"];
 
 const scenarios = catalogues.flatMap((name) => loadScenarios(name).map((scenario) => ({ ...scenario, catalogue: name })))
   .filter((scenario) => !only || scenario.id === only);
@@ -115,11 +115,11 @@ for (const entry of report.scenarios) {
 }
 if (!previous) lines.push("No previous report to compare with.");
 else if (changed === 0) lines.push(`No metric moved by more than ${CHANGE_THRESHOLD * 100}%.`);
-lines.push("", "## Metrics", "", "| scenario | first exit | exited | defeated | health lost | casts | moves | accept rate | violations |",
-  "|---|---|---|---|---|---|---|---|---|");
+lines.push("", "## Metrics", "", "| scenario | first exit | exited | defeated | unseen defeats | health lost | casts | moves | accept rate | violations |",
+  "|---|---|---|---|---|---|---|---|---|---|");
 for (const entry of report.scenarios) {
   const m = entry.metrics ?? {};
-  lines.push(`| ${entry.id} | ${m.firstExit ?? "–"} | ${m.exited ?? "–"} | ${m.defeated ?? "–"} | ${m.healthLost ?? "–"} | `
+  lines.push(`| ${entry.id} | ${m.firstExit ?? "–"} | ${m.exited ?? "–"} | ${m.defeated ?? "–"} | ${m.unseenDefeats ?? "–"} | ${m.healthLost ?? "–"} | `
     + `${m.casts ?? "–"} | ${m.moves ?? "–"} | ${m.acceptRate ?? "–"} | ${entry.violations.map((v) => v.rule).join(", ") || "–"} |`);
 }
 writeFileSync(join(outDir, "report.md"), `${lines.join("\n")}\n`);

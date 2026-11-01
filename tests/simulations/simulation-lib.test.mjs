@@ -138,3 +138,20 @@ test("known issues hide their violations and are reported once they stop happeni
   expect(unexpected).toEqual([{ rule: "refused_streak", actor: "y-1" }]);
   expect(fixed).toEqual([{ rule: "silent_actor", actor: "x-1", issue: "#2" }]);
 });
+
+// #619: a defeat of an actor that never had a hostile in sight is counted, not failed.
+test("a defeat with no hostile ever in sight counts as unseen; one after a hostile was seen does not", () => {
+  const victim = fighter("d-1", "external", ["exploring"], 1);
+  const foe = fighter("w-1", "dungeon", ["attacking"], 3);
+  const down = { ...victim, lifecycle: "defeated" };
+  const run = (ticks) => analyzeRun({ initialState: { actors: [victim, foe] }, frames: frames(ticks) });
+  // A hand-built record has no terrain, so every other-side actor is in sight; a same-side one is no hostile.
+  const sameSide = run([{ actors: [victim, { ...foe, alignment: "external" }] }, { actors: [down, { ...foe, alignment: "external" }] }]);
+  expect(sameSide.metrics.unseenDefeats).toBe(1);
+  expect(sameSide.actors["d-1"].unseenDefeat).toBe(true);
+  const seen = run([{ actors: [victim, foe] }, { actors: [down, foe] }]);
+  expect(seen.actors["d-1"].unseenDefeat).toBe(false);
+  expect(seen.metrics.unseenDefeats).toBe(0);
+  expect(checkRules({ args: [] }, sameSide).map((v) => v.rule)).not.toContain("defeat_without_hostile_observation");
+});
+
