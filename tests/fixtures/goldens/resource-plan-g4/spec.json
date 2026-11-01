@@ -1817,6 +1817,40 @@
           "activeAffinityKey": "water:emit",
           "holdings": [],
           "category": "resource"
+        },
+        {
+          "category": "barrier",
+          "id": "barrier_2_2",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "vitals": {
+            "durability": {
+              "current": 80,
+              "max": 80,
+              "regen": 1
+            },
+            "health": {
+              "current": 10,
+              "max": 10,
+              "regen": 1
+            },
+            "mana": {
+              "current": 10,
+              "max": 10,
+              "regen": 1
+            }
+          },
+          "affinities": [
+            {
+              "kind": "earth",
+              "expression": "push",
+              "stacks": 2,
+              "intensity": 2
+            }
+          ],
+          "activeAffinityKey": "earth:push"
         }
       ]
     }

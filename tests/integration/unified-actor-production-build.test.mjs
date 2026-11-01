@@ -16,7 +16,7 @@ test('production build preserves a placed resource actor and holdings through th
     } },
   } });
   const { registry, costs, presentation } = initializeCoreFromArtifacts(JSON.parse(JSON.stringify(result)));
-  expect(registry.snapshot().actors).toHaveLength(1);
+  expect(registry.snapshot().actors.filter((a) => !a.id.startsWith('barrier_'))).toHaveLength(1);
   expect(registry.getActor('ore')).toMatchObject({ capabilities: { canMove: true }, holdings,
     vitals: { durability: { current: 8, max: 8, regen: 0 } } });
   expect(presentation.ore.category).toBe('resource');

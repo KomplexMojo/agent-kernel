@@ -160,8 +160,9 @@ test("cli delver-plan supports advanced affinities, vitals, setup mode, and rece
   assert.equal(delver.vitals.mana.regen, 2);
 
   const initialState = readJson(join(outDir, "initial-state.json"));
-  assert.equal(initialState.actors.length, 1);
-  const actor = initialState.actors[0];
+  const placed = initialState.actors.filter((actor) => !/^barrier_\d+_\d+$/.test(actor.id));
+  assert.equal(placed.length, 1);
+  const actor = placed[0];
   assert.equal(actor.vitals.health.max, 12);
   assert.equal(actor.vitals.mana.regen, 2);
   assert.deepEqual(actor.affinities, [

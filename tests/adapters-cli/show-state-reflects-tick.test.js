@@ -141,7 +141,7 @@ describe("ak_show_state reflects the cursor tick", () => {
     // The terminal UI's screen: a title, a blank line, then the board rows indented by two.
     const rows = (await renderAscii(runDir, 0)).split("\n").slice(2).map((line) => line.slice(2));
 
-    initialState.actors.forEach((actor) => {
+    initialState.actors.filter((actor) => !/^barrier_\d+_\d+$/.test(actor.id)).forEach((actor) => {
       const { x, y } = actor.position;
       assert.match(
         rows[y]?.[x] ?? "",

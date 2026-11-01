@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "producedBy": "configurator",
     "cost": {
-      "runTotalTokens": 197,
+      "runTotalTokens": 196,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -27,6 +27,100 @@
     "schemaVersion": 1
   },
   "actors": [
+    {
+      "id": "barrier_4_7",
+      "position": {
+        "x": 4,
+        "y": 7
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 80,
+          "max": 80,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 2,
+          "intensity": 2
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "barrier_6_7",
+      "position": {
+        "x": 6,
+        "y": 7
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 80,
+          "max": 80,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 2,
+          "intensity": 2
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
     {
       "id": "card_delver_1-1",
       "position": {
@@ -124,6 +218,12 @@
     }
   ],
   "presentation": {
+    "barrier_4_7": {
+      "category": "barrier"
+    },
+    "barrier_6_7": {
+      "category": "barrier"
+    },
     "card_delver_1-1": {
       "category": "delver"
     },

@@ -28,6 +28,53 @@
   },
   "actors": [
     {
+      "id": "barrier_2_2",
+      "position": {
+        "x": 2,
+        "y": 2
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 80,
+          "max": 80,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 2,
+          "intensity": 2
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
       "id": "resource_1",
       "position": {
         "x": 3,
@@ -70,6 +117,9 @@
     }
   ],
   "presentation": {
+    "barrier_2_2": {
+      "category": "barrier"
+    },
     "resource_1": {
       "category": "resource"
     }

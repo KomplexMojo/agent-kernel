@@ -38,6 +38,9 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+
+// #607: barrier_* is level furniture, not an acting roster member.
+const notFurniture = (actor) => !/^barrier_\d+_\d+$/.test(actor.id);
 const { mkdtempSync, existsSync, rmSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
@@ -109,7 +112,7 @@ describe("CLI create+run moves every actor (kernel command-core surface)", () =>
     assert.equal(createResult.ok, true, `create must succeed: ${JSON.stringify(createResult)}`);
 
     const initialState = readJson(join(outDir, "initial-state.json"));
-    const actorIds = (initialState.actors || []).map((a) => a.id);
+    const actorIds = (initialState.actors || []).filter(notFurniture).map((a) => a.id);
     assert.equal(actorIds.length, 3, `expected 3 actors, got ${actorIds.length}`);
 
     const runOutDir = join(outDir, "run");
@@ -205,7 +208,7 @@ describe("CLI create+run multi-actor permutations", () => {
       createArgs: ["--warden", "count=3;affinity=fire;motivation=random"],
       ticks: 24,
     });
-    const wardenIds = initialState.actors.map((a) => a.id);
+    const wardenIds = initialState.actors.filter(notFurniture).map((a) => a.id);
     assert.equal(wardenIds.length, 3, `expected 3 wardens, got ${wardenIds.length}`);
     const acted = collectActedActorIds(frames);
     for (const id of wardenIds) {
@@ -223,7 +226,7 @@ describe("CLI create+run multi-actor permutations", () => {
       ],
       ticks: 100,
     });
-    const ids = initialState.actors.map((a) => a.id);
+    const ids = initialState.actors.filter(notFurniture).map((a) => a.id);
     assert.equal(ids.length, 11, `expected 11 actors, got ${ids.length}`);
     const acted = collectActedActorIds(frames);
     for (const id of ids) {
@@ -274,7 +277,7 @@ describe("CLI create+run multi-actor permutations", () => {
       ],
       ticks: 1,
     });
-    const ids = initialState.actors.map((a) => a.id);
+    const ids = initialState.actors.filter(notFurniture).map((a) => a.id);
     assert.equal(ids.length, 3);
     const acted = collectActedActorIds(frames);
     for (const id of ids) {

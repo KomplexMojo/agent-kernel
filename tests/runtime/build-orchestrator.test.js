@@ -91,7 +91,7 @@ test("orchestrateBuild aligns actors to walkable layout positions", async () => 
   assert.ok(spawnApproach);
   assert.ok(exitApproach);
 
-  const actors = buildResult.initialState.actors;
+  const actors = buildResult.initialState.actors.filter((actor) => !actor.id.startsWith("barrier_"));
   assert.ok(actors.length > 0);
 
   const used = new Set();
@@ -156,7 +156,7 @@ test("orchestrateBuild places delvers at entry and wardens inside rooms", async 
   assert.equal(buildSpecResult.ok, true);
 
   const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-test" });
-  const actors = buildResult.initialState.actors;
+  const actors = buildResult.initialState.actors.filter((actor) => !actor.id.startsWith("barrier_"));
   // PX.6: what the build RESOLVED is published as output; `inputs` is the causal record
   // the Configurator locked and is no longer mutated by the build.
   const actorConfig = buildResult.spec.configurator.resolved.actors;
@@ -299,7 +299,7 @@ test("orchestrateBuild translates cardSet delvers/wardens and applies strategic 
   assert.equal(byRole.wardens.length, 1);
 
   const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-test" });
-  const actors = buildResult.initialState.actors;
+  const actors = buildResult.initialState.actors.filter((actor) => !actor.id.startsWith("barrier_"));
   assert.equal(actors.length, 2);
 
   const data = buildResult.simConfig.layout.data;
@@ -377,7 +377,7 @@ test("orchestrateBuild keeps spawn and actor placements distinct", async () => {
   const spawnApproach = buildResult.simConfig.layout.data.spawnApproach;
   const terrain = buildResult.simConfig.layout.data.terrain;
   const width = buildResult.simConfig.layout.data.width;
-  const actors = buildResult.initialState.actors;
+  const actors = buildResult.initialState.actors.filter((actor) => !actor.id.startsWith("barrier_"));
 
   assert.ok(spawnApproach);
   assert.equal(actors.length, 3);
@@ -584,7 +584,7 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
     Math.abs(fireWarden.position.y - layout.exitApproach.y)) <= 1);
   assert.equal(inRoom(waterWarden.position, waterRoom), true);
 
-  const generatedHazards = hazardActors.filter((actor) => actor.id !== "def_fire" && actor.id !== "def_water" && actor.id !== "delver_1");
+  const generatedHazards = hazardActors.filter((actor) => actor.id !== "def_fire" && actor.id !== "def_water" && actor.id !== "delver_1" && !actor.id.startsWith("barrier_"));
   assert.ok(generatedHazards.length > 0);
   assert.equal(generatedHazards.every((actor) => actor.affinities?.some((affinity) => affinity.expression === "emit")), true);
 
@@ -616,7 +616,8 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
   ].join(":");
   const firstHazardKeys = generatedHazards.map(hazardKey).sort();
   const secondHazardActors = second.initialState.actors.filter((actor) => second.initialState.presentation?.[actor.id]?.category === "hazard"
-    || (actor.capabilities?.canMove === false && !["def_fire", "def_water", "delver_1"].includes(actor.id)));
+    || (actor.capabilities?.canMove === false && !["def_fire", "def_water", "delver_1"].includes(actor.id)))
+    .filter((actor) => !actor.id.startsWith("barrier_"));
   const secondHazardKeys = secondHazardActors.map(hazardKey).sort();
   assert.deepEqual(secondHazardKeys, firstHazardKeys);
 });

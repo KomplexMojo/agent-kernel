@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 197,
+      "runTotalTokens": 196,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -2000,6 +2000,74 @@
           "activeAffinityKey": "fire:emit",
           "holdings": [],
           "category": "hazard"
+        },
+        {
+          "category": "barrier",
+          "id": "barrier_4_7",
+          "position": {
+            "x": 4,
+            "y": 7
+          },
+          "vitals": {
+            "durability": {
+              "current": 80,
+              "max": 80,
+              "regen": 1
+            },
+            "health": {
+              "current": 10,
+              "max": 10,
+              "regen": 1
+            },
+            "mana": {
+              "current": 10,
+              "max": 10,
+              "regen": 1
+            }
+          },
+          "affinities": [
+            {
+              "kind": "earth",
+              "expression": "push",
+              "stacks": 2,
+              "intensity": 2
+            }
+          ],
+          "activeAffinityKey": "earth:push"
+        },
+        {
+          "category": "barrier",
+          "id": "barrier_6_7",
+          "position": {
+            "x": 6,
+            "y": 7
+          },
+          "vitals": {
+            "durability": {
+              "current": 80,
+              "max": 80,
+              "regen": 1
+            },
+            "health": {
+              "current": 10,
+              "max": 10,
+              "regen": 1
+            },
+            "mana": {
+              "current": 10,
+              "max": 10,
+              "regen": 1
+            }
+          },
+          "affinities": [
+            {
+              "kind": "earth",
+              "expression": "push",
+              "stacks": 2,
+              "intensity": 2
+            }
+          ],
+          "activeAffinityKey": "earth:push"
         }
       ]
     }
