@@ -16,6 +16,12 @@
  *   dash   reach the exit and nothing else (default)
  *   fight  reach the exit, but cast at the nearest hostile once one is within 2 tiles
  *
+ * `--build-source llm --model <id>` (M3, #614) lets a local Ollama model propose the player's
+ * character near each arm's delver allowance; the character sheet (the Allocator's prices) must
+ * accept it, with up to 3 attempts, else the arm records `build_refused`. Live use is manual
+ * (Ollama on localhost:11434, `--ollama-url` to change); the model id and prompt hash go in each
+ * record. It is analysis, never a gate. The default stays the scenario's own character.
+ *
  * The treatment scales `--budget-tokens` by 0.9. The delver pool is a fixed share of that total
  * (ak create does not take a per-pool cap), so the whole level shrinks with it; each run records
  * the delver pool's cap and spend from the budget receipt so the arms can be compared on it.
@@ -28,8 +34,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPlaySession } from "../../packages/runtime/src/runner/play-session.js";
-import { loadPlaytestScenarios, scenarioArgs } from "../game/playtest.mjs";
+import { loadPlaytestScenarios, playerDelverSpec, scenarioArgs } from "../game/playtest.mjs";
 import { analyzeRun, checkRules } from "./simulation-lib.mjs";
+import { proposeCharacterSpec } from "./play-sim-llm-build.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -67,9 +74,9 @@ function readJson(path) {
 }
 
 /** Build one arm through `ak create`; returns { ok, dir, error?, args } and cleans nothing up. */
-export function buildArm(scenario, seed, { arm, budgetTokens }, workDir, createdAt) {
+export function buildArm(scenario, seed, { arm, budgetTokens }, workDir, createdAt, character) {
   const dir = join(workDir, `${scenario.id}-s${seed}-${arm}`);
-  const args = scenarioArgs({ ...scenario, budgetTokens }, seed);
+  const args = scenarioArgs({ ...scenario, budgetTokens }, seed, undefined, character);
   const result = ak(["create", "--run-id", `play-sim-${scenario.id}-s${seed}-${arm}`, "--created-at", createdAt, ...args, "--out-dir", dir]);
   if (result.status !== 0) return { ok: false, dir, args, error: `${result.stderr}${result.stdout}`.trim().slice(0, 600) };
   return { ok: true, dir, args };
@@ -122,9 +129,21 @@ function delverPool(dir) {
 }
 
 /** One record: scenario, seed, arm, build fingerprint, outcome, metrics, rule hits. */
-export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks }) {
-  const built = buildArm(scenario, seed, armSpec, workDir, createdAt);
+export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks, llm = null }) {
   const base = { scenario: scenario.id, seed, arm: armSpec.arm, budgetTokens: armSpec.budgetTokens, strategy };
+  let character;
+  if (llm) {
+    // M3: size the arm's delver allowance from a plain build, then let the model fill it.
+    const probe = buildArm(scenario, seed, armSpec, workDir, createdAt);
+    const allowance = probe.ok ? delverPool(probe.dir)?.capTokens : undefined;
+    if (!Number.isFinite(allowance)) return { ...base, outcome: "create_failed", ticks: 0, delverPool: null, build: null, ruleHits: [{ rule: "create_failed", detail: probe.error ?? "no delver pool in the receipt" }] };
+    const proposed = await proposeCharacterSpec({ llm: llm.adapter, model: llm.model, allowance, baseSpec: playerDelverSpec(scenario, seed) });
+    base.llm = { model: proposed.model, promptHash: proposed.promptHash, attempts: proposed.attempts };
+    if (!proposed.ok) return { ...base, outcome: "build_refused", ticks: 0, delverPool: { capTokens: allowance, spentTokens: null }, build: null, ruleHits: [{ rule: "build_refused", detail: proposed.problems.join("; ").slice(0, 400) }] };
+    character = proposed.spec;
+    base.llm.spec = character;
+  }
+  const built = buildArm(scenario, seed, armSpec, workDir, createdAt, character);
   if (!built.ok) {
     return { ...base, outcome: "create_failed", ticks: 0, delverPool: null, build: null, ruleHits: [{ rule: "create_failed", detail: built.error }] };
   }
@@ -148,7 +167,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
   };
 }
 
-export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, log = () => {} } = {}) {
+export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, llm = null, log = () => {} } = {}) {
   const catalog = loadPlaytestScenarios();
   const picked = (scenarios?.length ? scenarios : catalog.scenarios.map((entry) => entry.id)).map((id) => {
     const found = catalog.scenarios.find((entry) => entry.id === id);
@@ -162,7 +181,7 @@ export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, bas
     for (const scenario of picked) {
       for (const seed of seeds) {
         for (const armSpec of armBudgets(scenario, { baseline, treatment })) {
-          const record = await runOne(scenario, seed, armSpec, { workDir, createdAt: catalog.createdAt, strategy, maxTicks });
+          const record = await runOne(scenario, seed, armSpec, { workDir, createdAt: catalog.createdAt, strategy, maxTicks, llm });
           const file = `${scenario.id}-s${seed}-${armSpec.arm}.json`;
           writeFileSync(join(outDir, file), `${JSON.stringify(record, null, 2)}\n`);
           runs.push({ file, ...record });
@@ -190,6 +209,9 @@ function parseArgs(argv) {
     else if (arg === "--treatment-only") options.baseline = false;
     else if (arg === "--strategy") options.strategy = argv[++i];
     else if (arg === "--max-ticks") options.maxTicks = Number(argv[++i]);
+    else if (arg === "--build-source") options.buildSource = argv[++i];
+    else if (arg === "--model") options.model = argv[++i];
+    else if (arg === "--ollama-url") options.ollamaUrl = argv[++i];
     else throw new Error(`unknown option ${arg}`);
   }
   if (!options.baseline && !options.treatment) throw new Error("--baseline-only and --treatment-only exclude each other");
@@ -202,7 +224,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const options = parseArgs(process.argv.slice(2));
     const runId = new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
     const outDir = options.outDir ?? join(ROOT, "artifacts/play-sim", runId);
-    const { summary } = await runPlaySim({ ...options, outDir, log: (line) => console.log(line) });
+    let llm = null;
+    if (options.buildSource === "llm") {
+      if (!options.model) throw new Error("--build-source llm needs --model");
+      const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
+      llm = { model: options.model, adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}) };
+    } else if (options.buildSource && options.buildSource !== "default") throw new Error(`unknown --build-source ${options.buildSource} (default or llm)`);
+    const { summary } = await runPlaySim({ ...options, llm, outDir, log: (line) => console.log(line) });
     console.log(`Wrote ${summary.runs.length} run(s) to ${outDir}`);
   } catch (error) {
     console.error(error.message);
