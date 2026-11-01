@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-01T02-48-35-369Z-cf17bcc71777-40e2b084faa0",
-    "key": "40e2b084faa0fdf31966faf6eabdaac11069c98a836920fc0b0afc82aedbda58",
+    "id": "2026-11-01T03-20-34-861Z-5ea18848a9a5-326d13d42aaf",
+    "key": "326d13d42aaffa226cda93ed324aa51f47cf9cfaf4157b2a9a231e357ba8c192",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-01T02:48:35.369Z",
-    "completedAt": "2026-11-01T02:49:00.511Z",
-    "durationMs": 25142,
+    "startedAt": "2026-11-01T03:20:34.861Z",
+    "completedAt": "2026-11-01T03:20:59.979Z",
+    "durationMs": 25118,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "cf17bcc71777f59c7a8e30e8d414ec332c952b54",
-    "tree": "e7b2125c5b44c2870c5dbe16fcd8694fb5b6b436"
+    "commit": "5ea18848a9a580cb4db99c404d2a577eeaa54be2",
+    "tree": "181726d433961e877508b2adca87e6de78590bf7"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -130,10 +130,12 @@
       "packages/runtime/src/personas/configurator/contracts.ts",
       "packages/runtime/src/personas/configurator/controller.js",
       "packages/runtime/src/personas/configurator/cost-model.js",
+      "packages/runtime/src/personas/configurator/defaults.js",
       "packages/runtime/src/personas/configurator/doorway-sight.js",
       "packages/runtime/src/personas/configurator/feasibility.js",
       "packages/runtime/src/personas/configurator/guidance-level-builder.js",
       "packages/runtime/src/personas/configurator/input-preparation.js",
+      "packages/runtime/src/personas/configurator/interior-barriers.js",
       "packages/runtime/src/personas/configurator/level-gen.js",
       "packages/runtime/src/personas/configurator/level-layout.js",
       "packages/runtime/src/personas/configurator/logical-validation.js",
@@ -271,7 +273,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/40e2b084faa0fdf31966faf6eabdaac11069c98a836920fc0b0afc82aedbda58"
+    "retentionId": "preflights/326d13d42aaffa226cda93ed324aa51f47cf9cfaf4157b2a9a231e357ba8c192"
   },
   "qualifies": false
 }
