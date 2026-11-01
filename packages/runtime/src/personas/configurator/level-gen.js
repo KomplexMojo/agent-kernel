@@ -301,6 +301,12 @@ export function normalizeLevelGenInput(input = {}) {
     errors,
     undefined,
   );
+  const interiorBarriers = readOptionalBoolean(
+    shapeInput.interiorBarriers,
+    "shape.interiorBarriers",
+    errors,
+    LEVEL_GEN_DEFAULTS.interiorBarriers,
+  );
 
   const maxDistance = width && height ? Math.max(0, width - 1) + Math.max(0, height - 1) : 0;
   const spawnInput = input.spawn || {};
@@ -365,6 +371,7 @@ export function normalizeLevelGenInput(input = {}) {
     if (patternInset !== undefined) shape.patternInset = patternInset;
     if (patternInfillPercent !== undefined) shape.patternInfillPercent = patternInfillPercent;
   }
+  shape.interiorBarriers = interiorBarriers;
 
   const value = {
     width,

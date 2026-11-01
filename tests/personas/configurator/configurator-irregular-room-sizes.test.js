@@ -97,6 +97,35 @@ test("generateGridLayoutFromInput produces mostly non-square rooms by default (p
   );
 });
 
+test("generateGridLayoutFromInput sculpts true non-rectangular footprints (carved area < bbox)", async () => {
+  const { generateGridLayoutFromInput, countRoomFootprintTiles } = await import(
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+
+  const result = generateGridLayoutFromInput({
+    seed: 777,
+    width: 60,
+    height: 60,
+    shape: { roomCount: 10, roomMinSize: 5, roomMaxSize: 12, interiorBarriers: false },
+    connectivity: { requirePath: true },
+  });
+  assert.ok(result.ok, `generateGridLayoutFromInput failed: ${JSON.stringify(result.errors)}`);
+  const layout = result.value;
+  // Rebuild a mask of floor cells from terrain for footprint counting.
+  const mask = Array.from({ length: layout.height }, (_, y) => (
+    Array.from({ length: layout.width }, (_, x) => layout.terrain[y * layout.width + x] !== "wall")
+  ));
+  const sculpted = layout.rooms.filter((room) => {
+    if (room.width < 4 || room.height < 4) return false;
+    const footprint = countRoomFootprintTiles(mask, room);
+    return footprint < room.width * room.height;
+  });
+  assert.ok(
+    sculpted.length >= Math.ceil(layout.rooms.length * 0.4),
+    `expected many non-rect footprints, got ${sculpted.length}/${layout.rooms.length}`,
+  );
+});
+
 test("randomIrregularRoomDimensions orientation follows wide/tall roll", async () => {
   const { randomIrregularRoomDimensions } = await import(
     "../../../packages/runtime/src/personas/configurator/level-layout.js"

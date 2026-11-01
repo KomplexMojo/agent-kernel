@@ -45,6 +45,7 @@ export function catalogFor(scenarios, createdAt, commit, seedEntries) {
     commit,
     scenarios: scenarios.map((scenario) => ({
       id: scenario.id, title: scenario.title, shows: scenario.shows ?? "",
+      ...(scenario.pwaRandom ? { random: true } : {}),
       seeds: seedEntries.filter((entry) => entry.scenarioId === scenario.id).map(({ scenarioId, ...entry }) => entry),
     })),
   };
@@ -126,8 +127,11 @@ export async function buildPwa({ out = join(ROOT, "dist/pwa"), seeds = DEFAULT_S
   rmSync(out, { recursive: true, force: true });
   mkdirSync(join(out, "levels"), { recursive: true });
 
-  const jobs = scenarios.flatMap((scenario) => Array.from({ length: seeds }, (_, seed) => ({ scenario, seed })));
-  log(`Building ${jobs.length} levels (${scenarios.length} scenarios x ${seeds} seeds)...`);
+  const jobs = scenarios.flatMap((scenario) => {
+    const count = Number.isInteger(scenario.pwaSeeds) && scenario.pwaSeeds > 0 ? scenario.pwaSeeds : seeds;
+    return Array.from({ length: count }, (_, seed) => ({ scenario, seed }));
+  });
+  log(`Building ${jobs.length} levels (${scenarios.length} scenarios; default ${seeds} seeds, per-scenario pwaSeeds when set)...`);
   const entries = await pool(jobs, 4, async ({ scenario, seed }) => {
     const { created, level } = await runCreate(scenario, seed, catalogSource.createdAt);
     const entry = seedEntry(scenario, seed, created);

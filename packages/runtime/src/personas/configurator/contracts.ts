@@ -23,6 +23,8 @@ export interface LevelGenShapeInput {
   patternGapEvery?: number;
   patternInset?: number;
   patternInfillPercent?: number;
+  /** When true (default), place destroyable earth barrier actors inside rooms. */
+  interiorBarriers?: boolean;
 }
 
 export interface LevelGenConstraintInput {

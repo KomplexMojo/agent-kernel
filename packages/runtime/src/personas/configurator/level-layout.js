@@ -15,6 +15,13 @@ const TARGET_ROOM_WALKABLE_SHARE = 0.85;
 // place a room capable of holding this many tiles; see I4 minimum-viable-
 // interior rejection in generateGridLayoutFromInput).
 const MIN_VIABLE_ROOM_INTERIOR_TILES = 3;
+// Sculpt is for playable dungeon rooms (default max 9×9). Feasibility can
+// materialize ~10⁶-tile synthetic rooms; footprint erosion there is useless
+// and its connectivity check is O(area), so skip above this bbox area.
+const MAX_SCULPT_ROOM_AREA = DEFAULT_ROOM_MAX_SIZE * DEFAULT_ROOM_MAX_SIZE;
+// Cap destroyable furniture per room so divider planning stays cheap on large
+// authored rooms while still guaranteeing at least one barrier when possible.
+const MAX_INTERIOR_BARRIERS_PER_ROOM = 8;
 
 const NEIGHBORS = Object.freeze([
   { dx: 0, dy: -1 },
@@ -2498,11 +2505,304 @@ function buildTerrain(mask, spawn, exit, hazardIndex) {
   }));
 }
 
+/** Count walkable cells that still sit inside a room's placement bbox. */
+export function countRoomFootprintTiles(mask, room) {
+  let count = 0;
+  for (let y = room.y; y < room.y + room.height; y += 1) {
+    for (let x = room.x; x < room.x + room.width; x += 1) {
+      if (mask[y]?.[x]) count += 1;
+    }
+  }
+  return count;
+}
+
+function roomFootprintConnected(mask, room) {
+  let start = null;
+  let total = 0;
+  const xMax = room.x + room.width;
+  const yMax = room.y + room.height;
+  for (let y = room.y; y < yMax; y += 1) {
+    for (let x = room.x; x < xMax; x += 1) {
+      if (!mask[y]?.[x]) continue;
+      total += 1;
+      if (!start) start = { x, y };
+    }
+  }
+  if (total === 0) return false;
+  // Local BFS inside the room bbox — never flood the full mask (feasibility
+  // synthetic rooms can be ~10⁶ tiles).
+  const seen = new Set([`${start.x},${start.y}`]);
+  const queue = [start];
+  let head = 0;
+  let reachable = 0;
+  while (head < queue.length) {
+    const current = queue[head];
+    head += 1;
+    reachable += 1;
+    for (const delta of NEIGHBORS) {
+      const nx = current.x + delta.dx;
+      const ny = current.y + delta.dy;
+      if (nx < room.x || ny < room.y || nx >= xMax || ny >= yMax) continue;
+      if (!mask[ny]?.[nx]) continue;
+      const key = `${nx},${ny}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return reachable === total;
+}
+
+function snapshotRoomFloor(mask, room) {
+  const cells = [];
+  for (let y = room.y; y < room.y + room.height; y += 1) {
+    for (let x = room.x; x < room.x + room.width; x += 1) {
+      cells.push({ x, y, walkable: Boolean(mask[y]?.[x]) });
+    }
+  }
+  return cells;
+}
+
+function restoreRoomFloor(mask, snapshot) {
+  for (const cell of snapshot) {
+    mask[cell.y][cell.x] = cell.walkable;
+  }
+}
+
+/**
+ * Subtract deep-interior cells from a filled room bbox so the walkable footprint
+ * is not a filled x×y rectangle, while keeping the perimeter ring intact for
+ * portals/corridors and a connected interior of at least MIN_VIABLE_ROOM_INTERIOR_TILES.
+ */
+function sculptRoomFootprint(mask, room, rng) {
+  // Need roomEdgeDistance >= 2 candidates (perimeter + one ring stay floor).
+  if (room.width < 5 || room.height < 5) return false;
+  const bboxArea = room.width * room.height;
+  if (bboxArea > MAX_SCULPT_ROOM_AREA) return false;
+  const before = snapshotRoomFloor(mask, room);
+  const center = roomCenter(room);
+  const candidates = [];
+  for (let y = room.y; y < room.y + room.height; y += 1) {
+    for (let x = room.x; x < room.x + room.width; x += 1) {
+      if (!mask[y]?.[x]) continue;
+      if (roomEdgeDistance(room, x, y) < 2) continue;
+      if (x === center.x && y === center.y) continue;
+      candidates.push({ x, y });
+    }
+  }
+  if (candidates.length === 0) return false;
+
+  if (rng() < 0.5) {
+    // Interior L / notch: remove a block from one corner of the deep-inner rect.
+    const inner = {
+      x: room.x + 2,
+      y: room.y + 2,
+      width: room.width - 4,
+      height: room.height - 4,
+    };
+    if (inner.width < 1 || inner.height < 1) {
+      restoreRoomFloor(mask, before);
+      return false;
+    }
+    const cutW = Math.max(1, Math.ceil(inner.width / 2));
+    const cutH = Math.max(1, Math.ceil(inner.height / 2));
+    const corner = Math.floor(rng() * 4);
+    const originX = corner === 0 || corner === 3 ? inner.x : inner.x + inner.width - cutW;
+    const originY = corner === 0 || corner === 1 ? inner.y : inner.y + inner.height - cutH;
+    for (let y = originY; y < originY + cutH; y += 1) {
+      for (let x = originX; x < originX + cutW; x += 1) {
+        if (x === center.x && y === center.y) continue;
+        if (mask[y]?.[x]) mask[y][x] = false;
+      }
+    }
+  } else {
+    shuffleInPlace(candidates, rng);
+    const targetRemove = Math.max(1, Math.min(candidates.length, Math.floor(bboxArea * (0.12 + rng() * 0.18))));
+    for (let i = 0; i < targetRemove; i += 1) {
+      const cell = candidates[i];
+      mask[cell.y][cell.x] = false;
+    }
+  }
+  const tiles = countRoomFootprintTiles(mask, room);
+  if (tiles < MIN_VIABLE_ROOM_INTERIOR_TILES || tiles >= bboxArea || !roomFootprintConnected(mask, room)) {
+    restoreRoomFloor(mask, before);
+    return false;
+  }
+  return true;
+}
+
+/** Carve non-rectangular footprints into already-placed room bboxes. */
+export function sculptRoomFootprints(mask, rooms, rng) {
+  if (!Array.isArray(rooms)) return;
+  for (const room of rooms) {
+    sculptRoomFootprint(mask, room, rng);
+  }
+}
+
+function barrierPatternForPlanning(levelGen) {
+  const shape = levelGen?.shape && typeof levelGen.shape === "object" ? levelGen.shape : {};
+  const explicit = readPatternSettings(levelGen);
+  if (explicit.type !== LEVEL_PATTERN_TYPES.none) return explicit;
+  // Default divider geometry for destroyable barriers when pattern is none.
+  return {
+    type: LEVEL_PATTERN_TYPES.grid,
+    spacing: Number.isInteger(shape.patternSpacing) ? shape.patternSpacing : LEVEL_GEN_DEFAULTS.patternSpacing,
+    lineWidth: Number.isInteger(shape.patternLineWidth) ? shape.patternLineWidth : LEVEL_GEN_DEFAULTS.patternLineWidth,
+    gapEvery: Number.isInteger(shape.patternGapEvery) ? shape.patternGapEvery : LEVEL_GEN_DEFAULTS.patternGapEvery,
+    inset: Number.isInteger(shape.patternInset) ? shape.patternInset : LEVEL_GEN_DEFAULTS.patternInset,
+  };
+}
+
+function pathExistsAvoiding(mask, start, goal, blockedKeys) {
+  if (!start || !goal || !mask[start.y]?.[start.x] || !mask[goal.y]?.[goal.x]) return false;
+  if (blockedKeys.has(`${start.x},${start.y}`) || blockedKeys.has(`${goal.x},${goal.y}`)) return false;
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  // Set-based visited — avoid allocating a full WxH grid on large maps.
+  const seen = new Set([`${start.x},${start.y}`]);
+  const queue = [start];
+  let head = 0;
+  while (head < queue.length) {
+    const current = queue[head];
+    head += 1;
+    if (current.x === goal.x && current.y === goal.y) return true;
+    for (const delta of NEIGHBORS) {
+      const next = { x: current.x + delta.dx, y: current.y + delta.dy };
+      if (next.x < 0 || next.y < 0 || next.x >= width || next.y >= height) continue;
+      const key = `${next.x},${next.y}`;
+      if (seen.has(key)) continue;
+      if (!mask[next.y][next.x]) continue;
+      if (blockedKeys.has(key)) continue;
+      seen.add(key);
+      queue.push(next);
+    }
+  }
+  return false;
+}
+
+/**
+ * Plan destroyable interior barrier cells on floor (mask stays walkable).
+ * Leaves gap paths so spawn→exit remains reachable without clearing barriers.
+ */
+export function planInteriorBarrierCells(mask, rooms, levelGen, {
+  reserved = [],
+  spawnApproach = null,
+  exitApproach = null,
+} = {}) {
+  // Explicit false disables; otherwise default true.
+  const enabled = levelGen?.shape?.interiorBarriers ?? LEVEL_GEN_DEFAULTS.interiorBarriers;
+  if (enabled === false) return [];
+  if (!Array.isArray(mask) || !Array.isArray(rooms) || rooms.length === 0) return [];
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const reservedKeys = new Set(
+    (Array.isArray(reserved) ? reserved : [])
+      .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
+      .map((point) => `${point.x},${point.y}`),
+  );
+  if (spawnApproach) reservedKeys.add(`${spawnApproach.x},${spawnApproach.y}`);
+  if (exitApproach) reservedKeys.add(`${exitApproach.x},${exitApproach.y}`);
+
+  const pattern = barrierPatternForPlanning(levelGen);
+  const byRoom = rooms.map(() => []);
+  const candidates = [];
+
+  // Scan only room bboxes (not the full grid) so large feasibility layouts stay cheap.
+  for (let roomId = 0; roomId < rooms.length; roomId += 1) {
+    const room = rooms[roomId];
+    // Skip furniture on feasibility-scale synthetic rooms.
+    if (room.width * room.height > MAX_SCULPT_ROOM_AREA) continue;
+    for (let y = room.y; y < room.y + room.height; y += 1) {
+      for (let x = room.x; x < room.x + room.width; x += 1) {
+        if (!mask[y]?.[x]) continue;
+        if (reservedKeys.has(`${x},${y}`)) continue;
+        const { onPatternLine, activeAxes } = evaluatePatternCell(pattern, x, y, width, height);
+        if (!onPatternLine) continue;
+        if (shouldPreservePatternGap({
+          x, y, room, activeAxes, gapEvery: pattern.gapEvery, inset: pattern.inset,
+        })) continue;
+        const cell = { x, y, roomId };
+        candidates.push(cell);
+        byRoom[roomId].push(cell);
+      }
+    }
+    if (byRoom[roomId].length > MAX_INTERIOR_BARRIERS_PER_ROOM) {
+      // Keep evenly spaced samples so gaps still dominate pathfinding.
+      const trimmed = [];
+      const step = byRoom[roomId].length / MAX_INTERIOR_BARRIERS_PER_ROOM;
+      for (let i = 0; i < MAX_INTERIOR_BARRIERS_PER_ROOM; i += 1) {
+        trimmed.push(byRoom[roomId][Math.floor(i * step)]);
+      }
+      byRoom[roomId] = trimmed;
+    }
+  }
+
+  // Rebuild candidates from per-room lists (after per-room caps).
+  candidates.length = 0;
+  for (const roomCells of byRoom) {
+    for (const cell of roomCells) candidates.push(cell);
+  }
+
+  // Ensure every room with enough interior gets at least one barrier.
+  for (let roomId = 0; roomId < rooms.length; roomId += 1) {
+    if (byRoom[roomId].length > 0) continue;
+    const room = rooms[roomId];
+    if (room.width * room.height > MAX_SCULPT_ROOM_AREA) continue;
+    const interior = [];
+    for (let y = room.y; y < room.y + room.height; y += 1) {
+      for (let x = room.x; x < room.x + room.width; x += 1) {
+        if (!mask[y]?.[x]) continue;
+        if (reservedKeys.has(`${x},${y}`)) continue;
+        if (roomEdgeDistance(room, x, y) <= 0) continue;
+        interior.push({ x, y, roomId });
+      }
+    }
+    if (interior.length === 0) continue;
+    const pick = interior[Math.floor(interior.length / 2)];
+    byRoom[roomId].push(pick);
+    candidates.push(pick);
+  }
+
+  if (candidates.length === 0) return [];
+
+  const pathOk = (cells) => {
+    if (!spawnApproach || !exitApproach) return true;
+    if (!cells.length) return true;
+    return pathExistsAvoiding(
+      mask,
+      spawnApproach,
+      exitApproach,
+      new Set(cells.map((cell) => `${cell.x},${cell.y}`)),
+    );
+  };
+
+  // Prefer the capped divider set when it leaves a gap path; otherwise keep at
+  // most one barrier per room without O(n²) drops.
+  if (pathOk(candidates)) {
+    return candidates.map(({ x, y }) => ({ x, y }));
+  }
+  const selected = [];
+  for (let roomId = 0; roomId < rooms.length; roomId += 1) {
+    const options = byRoom[roomId];
+    if (!options.length) continue;
+    for (const cell of options) {
+      const trial = [...selected, cell];
+      if (pathOk(trial)) {
+        selected.push(cell);
+        break;
+      }
+    }
+  }
+  return selected.map(({ x, y }) => ({ x, y }));
+}
+
 function generateMask(levelGen, rng) {
   const { width, height } = levelGen;
   const mask = createMask(width, height, false);
   const settings = readRoomSettings(levelGen);
   const rooms = placeRooms(mask, rng, settings);
+  // Non-rectangular footprints: subtract from filled bboxes before corridors.
+  sculptRoomFootprints(mask, rooms, rng);
   // Keep generation room-first: place distinct room islands, then connect.
   ensureRoomsConnected(mask, rooms, rng, settings.corridorWidth);
   applyPatternOverlay(mask, rooms, levelGen);
@@ -2667,6 +2967,16 @@ export function generateGridLayout(levelGen) {
   if (hazards.length > 0) {
     layout.hazards = hazards.map((hazard) => ({ ...hazard }));
   }
+  const reservedForBarriers = [
+    spawnApproach,
+    exitApproach,
+    ...hazards.map((hazard) => ({ x: hazard.x, y: hazard.y })),
+  ];
+  layout.interiorBarriers = planInteriorBarrierCells(mask, rooms, levelGen, {
+    reserved: reservedForBarriers,
+    spawnApproach,
+    exitApproach,
+  });
   if (hazardMappingErrors.length > 0) {
     // Non-enumerable so JSON.stringify(layout) / normal consumers stay
     // unaffected; generateGridLayoutFromInput reads this to reject the

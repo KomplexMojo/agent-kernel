@@ -88,7 +88,9 @@ function deriveLevelGenFromCounts(counts, minSide) {
   const levelGen = {
     width: side,
     height: side,
-    shape: {},
+    // Feasibility only needs walkable counts / spawn–exit geometry. Skip
+    // interior furniture so exact checks near MAX_EXACT stay affordable.
+    shape: { interiorBarriers: false },
   };
   if (totalTiles > 0) {
     levelGen.walkableTilesTarget = totalTiles;

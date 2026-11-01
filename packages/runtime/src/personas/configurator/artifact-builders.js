@@ -7,7 +7,7 @@ import { normalizeActorStrategy } from '../actor/persona.js';
 const LAYOUT_FIELDS = new Set(['width', 'height', 'terrain', 'rooms', 'connectivity',
   'bounds', 'entryRoomId', 'exitRoomId', 'spawnApproach', 'exitApproach', 'render']);
 const LEFTOVER_LAYOUT_FIELDS = new Set(['hazards', 'resources', 'tiles', 'kinds', 'actors',
-  'spawn', 'exit', 'legend']);
+  'spawn', 'exit', 'legend', 'interiorBarriers']);
 function cloneLayoutData(layout) {
   if (!layout || typeof layout !== 'object' || Array.isArray(layout)) {
     throw new Error(`invalid normalized layout: expected object, received ${typeof layout}`);

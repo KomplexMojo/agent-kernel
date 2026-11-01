@@ -14,6 +14,7 @@ import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 // surface, retiring three allowlist rows. Local names unchanged, so call sites are untouched.
 const {
   generateGridLayoutFromInput,
+  buildInteriorBarrierActors,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   resolveAffinityEffects,
@@ -1740,10 +1741,16 @@ export function createCommandKernel(host = {}) {
     }
 
     const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
+    const interiorBarrierActors = buildInteriorBarrierActors(layout.interiorBarriers || []);
     const existingActorIds = new Set(actorsInput.actors.map((actor) => actor?.id).filter(Boolean));
-    const actors = [
+    const withPlaced = [
       ...actorsInput.actors,
       ...placedActors.filter((actor) => actor?.id && !existingActorIds.has(actor.id)),
+    ];
+    const afterPlacedIds = new Set(withPlaced.map((actor) => actor?.id).filter(Boolean));
+    const actors = [
+      ...withPlaced,
+      ...interiorBarrierActors.filter((actor) => actor?.id && !afterPlacedIds.has(actor.id)),
     ];
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
 

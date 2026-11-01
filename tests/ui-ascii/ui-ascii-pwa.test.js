@@ -273,3 +273,23 @@ test("each seed chip names a different kind (the one you are): ten default seeds
   assert.equal(new Set(names).size, names.length);
   assert.equal(affinitiesForSeed(DEFAULT_SEEDS).A, affinitiesForSeed(0).A);
 });
+
+test("generate-random is a pwaRandom scenario with a larger seed pool in the catalog", () => {
+  const { scenarios, createdAt } = loadPlaytestScenarios();
+  const scenario = scenarios.find((entry) => entry.id === "generate-random");
+  assert.ok(scenario, "generate-random scenario exists");
+  assert.equal(scenario.pwaRandom, true);
+  assert.equal(scenario.pwaSeeds, 24);
+  const entries = Array.from({ length: scenario.pwaSeeds }, (_, seed) => ({
+    scenarioId: scenario.id,
+    ...seedEntry(scenario, seed, { cost: { totalSpend: 1, budgetTokens: 2, status: "approved" } }),
+  }));
+  const catalog = catalogFor([scenario], createdAt, "abc1234", entries);
+  assert.equal(catalog.scenarios[0].random, true);
+  assert.equal(catalog.scenarios[0].seeds.length, 24);
+  const html = readFileSync(join(SRC, "../pwa/index.html"), "utf8");
+  const source = readFileSync(join(SRC, "browser.js"), "utf8");
+  assert.match(html, /id="another-random"/);
+  assert.match(source, /isRandomScenario/);
+  assert.match(source, /Generate & play/);
+});

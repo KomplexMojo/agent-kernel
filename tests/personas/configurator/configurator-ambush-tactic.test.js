@@ -20,7 +20,7 @@ function warden(id, kind) {
     ...(kind ? { affinities: [{ kind, expression: "emit", stacks: 1 }], activeAffinityKey: `${kind}:emit` } : {}) };
 }
 
-function spec({ tactics, kind = null, guards = 3 }) {
+function spec({ tactics, kind = null, guards = 3, levelGenShape = null }) {
   return {
     schema: "agent-kernel/BuildSpec",
     schemaVersion: 1,
@@ -31,7 +31,7 @@ function spec({ tactics, kind = null, guards = 3 }) {
       inputs: {
         levelGen: {
           width: 40, height: 30, seed: 5,
-          shape: { roomCount: 5, roomMinSize: 5, roomMaxSize: 7, corridorWidth: 1 },
+          shape: levelGenShape || { roomCount: 5, roomMinSize: 5, roomMaxSize: 7, corridorWidth: 1 },
           connectivity: { requirePath: true },
         },
         delverCount: 1,
@@ -105,9 +105,18 @@ test("visible=true seats the guards in the open, within 2 of the loot", async ()
 });
 
 test("a room that cannot hide every guard hides what fits, says so, and still builds", async () => {
-  const { seats, row } = await build({ tactics: [{ tactic: "ambush", params: { guards: 12 } }], guards: 12 });
-  assert.ok(row.hidden < 12, `hid ${row.hidden}`);
-  assert.match(row.note, new RegExp(`hides ${row.hidden} of 12 guards`));
+  // Tight rooms (max 6) leave fewer doorway-blind seats than 12 guards need.
+  // Barriers off so hide capacity is pure geometry.
+  const asked = 12;
+  const { seats, row } = await build({
+    tactics: [{ tactic: "ambush", params: { guards: asked } }],
+    guards: asked,
+    levelGenShape: {
+      roomCount: 5, roomMinSize: 5, roomMaxSize: 6, corridorWidth: 1, interiorBarriers: false,
+    },
+  });
+  assert.ok(row.hidden < asked, `hid ${row.hidden}`);
+  assert.match(row.note, new RegExp(`hides ${row.hidden} of ${asked} guards`));
   assert.equal(row.guards.every((id) => seats[id]), true);
 });
 

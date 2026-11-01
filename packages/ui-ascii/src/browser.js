@@ -72,20 +72,33 @@ function renderPicker() {
 let briefScenario = null;
 let briefSeed = 0;
 
+function isRandomScenario(scenario) {
+  return Boolean(scenario?.random);
+}
+
 function openBrief(scenario, seed = Math.floor(Math.random() * scenario.seeds.length)) {
   briefScenario = scenario;
   briefSeed = seed;
   $("brief-title").textContent = scenario.title;
   $("seeds").innerHTML = "";
-  for (const entry of scenario.seeds) {
-    const chip = document.createElement("button");
-    chip.className = `chip${entry.seed === briefSeed ? " on" : ""}`;
-    chip.textContent = `${entry.seed} · ${entry.picks.A}`;
-    chip.addEventListener("click", () => openBrief(scenario, entry.seed));
-    $("seeds").appendChild(chip);
+  const random = isRandomScenario(scenario);
+  $("seed-heading").hidden = random;
+  $("seeds").hidden = random;
+  $("another-random").hidden = !random;
+  $("start").textContent = random ? "Generate & play" : "Start";
+  if (!random) {
+    for (const entry of scenario.seeds) {
+      const chip = document.createElement("button");
+      chip.className = `chip${entry.seed === briefSeed ? " on" : ""}`;
+      chip.textContent = `${entry.seed} · ${entry.picks.A}`;
+      chip.addEventListener("click", () => openBrief(scenario, entry.seed));
+      $("seeds").appendChild(chip);
+    }
   }
   const entry = scenario.seeds[briefSeed];
-  $("brief-who").textContent = entry.traits ? `You carry ${entry.traits}; the wardens carry ${entry.picks.B} and ${entry.picks.D}.` : `You are ${levelLabel(entry)}; other pair ${entry.picks.C}/${entry.picks.D}.`;
+  $("brief-who").textContent = random
+    ? `A random prebuilt level from this scenario's seed pool (${scenario.seeds.length} offline). ${entry.traits ? `This draw: you carry ${entry.traits}.` : `This draw: you are ${levelLabel(entry)}.`}`
+    : (entry.traits ? `You carry ${entry.traits}; the wardens carry ${entry.picks.B} and ${entry.picks.D}.` : `You are ${levelLabel(entry)}; other pair ${entry.picks.C}/${entry.picks.D}.`);
   $("brief-focus").innerHTML = "";
   for (const line of entry.focus) {
     const item = document.createElement("li");
@@ -523,7 +536,18 @@ function setup() {
     if (save.character && !custom) { writeSave(null); renderPicker(); return; }
     await startGame(scenario, entry, save.capture, custom).catch(() => { writeSave(null); renderPicker(); });
   });
-  $("start").addEventListener("click", () => startGame(briefScenario, briefScenario.seeds[briefSeed], null).then(() => writeSave(null) || persist()));
+  $("start").addEventListener("click", () => {
+    const scenario = briefScenario;
+    const seed = isRandomScenario(scenario)
+      ? Math.floor(Math.random() * scenario.seeds.length)
+      : briefSeed;
+    if (isRandomScenario(scenario)) briefSeed = seed;
+    return startGame(scenario, scenario.seeds[seed], null).then(() => writeSave(null) || persist());
+  });
+  $("another-random").addEventListener("click", () => {
+    if (!briefScenario || !isRandomScenario(briefScenario)) return;
+    openBrief(briefScenario, Math.floor(Math.random() * briefScenario.seeds.length));
+  });
   $("back-picker").addEventListener("click", renderPicker);
   $("configure").addEventListener("click", () => openCharacter(briefScenario, briefScenario.seeds[briefSeed]));
   $("back-brief").addEventListener("click", () => openBrief(sheetState.scenario, sheetState.entry.seed));
