@@ -460,13 +460,26 @@ export function defeatCause(view) {
   return sources.length ? `${[...new Set(sources)].join(", ")}'s field` : null;
 }
 
+/**
+ * #618: the one-sentence defeat attribution, from the Annotator's battle-log entry for the seat's
+ * own defeat (worded by the runtime, so every UI says the same thing): `You were defeated by W1
+ * warden_1's fire push. Your health ran out.` Null when the log holds none (then the UI falls back
+ * to reading the last cast or field).
+ */
+export function defeatSentence(view) {
+  const entry = [...(Array.isArray(view.battleLog) ? view.battleLog : [])].reverse().find((item) => item.seatDefeat);
+  if (!entry) return null;
+  return entry.defeatVital ? `${entry.text} Your ${entry.defeatVital} ran out.` : entry.text;
+}
+
 // #488: compact defeat card — unicode skull + attempt summary (ASCII skull was crushed on the phone tile board).
 function defeatScreen({ view, title, tickLine, color, message, turns }) {
   const cause = defeatCause(view);
+  const logged = defeatSentence(view);
   const skull = paint("☠", GAME_COLOR_PALETTE.items.hazard, color);
   const attempt = Number.isFinite(turns) ? `Attempt: ${turns} turn${turns === 1 ? "" : "s"}.` : null;
   return [title, "", `  ${skull}  Better luck next time.`, "",
-    cause ? `Defeated by ${cause}.` : "Defeated.",
+    logged ?? (cause ? `Defeated by ${cause}.` : "Defeated."),
     ...(attempt ? [attempt] : []),
     tickLine, statusLine(view.status, message)].join("\n");
 }
