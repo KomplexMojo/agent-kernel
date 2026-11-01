@@ -168,7 +168,8 @@ test("a delver leads a retinue of escorting, orderable delvers in the roles it n
   for (const { id, role } of report[0].minions) {
     const minion = actors.find((actor) => actor.id === id);
     assert.equal(minion.category, "delver");
-    assert.deepEqual(minion.motivations, ["escorting", "friendly"], "never user_controlled");
+    assert.deepEqual(minion.motivations, ["escorting", "friendly", "goal_oriented"],
+      "escort + orderable + can follow order goals; never user_controlled");
     assert.deepEqual(minion.escort, { target: "hero-1", distance: 1 }, "beside it: bare sight is one tile");
     assert.deepEqual({ kind: minion.affinities[0].kind, expression: minion.affinities[0].expression }, expected[role]);
   }

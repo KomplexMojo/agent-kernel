@@ -16,10 +16,12 @@
  * warden share cannot afford is shrunk by `fitRetinues` against the Allocator's receipt.
  *
  * A delver may lead one too (the player's own minions, 2026-10-29): its minions are delvers
- * that escort it and take its orders (`escorting` + `friendly`, never `user_controlled`), with
- * the same loadouts, floor and slot, priced from the delver share. They start with it, seated as
- * delvers are, so they pose no placement question (and the phone app, which has no solver,
- * builds the same level). `roles` names the roles
+ * that escort it and take its orders (`escorting` + `friendly` + `goal_oriented`, never
+ * `user_controlled`), with the same loadouts, floor and slot, priced from the delver share.
+ * `goal_oriented` is required so Actor `strategyDepth` reaches goals — without it, mid-game
+ * orders land as status `ignored` ("ignores its orders" on the play screen; seed-12 playtest
+ * 2026-11-01). They start with it, seated as delvers are, so they pose no placement question
+ * (and the phone app, which has no solver, builds the same level). `roles` names the roles
  * in order (`shield+support`) instead of filling them by count.
  */
 import { AFFINITY_TABLE } from "../../../../core-ts/src/state/affinity-table.ts";
@@ -27,8 +29,8 @@ import { ACTOR_VIABILITY_FLOOR } from "../../contracts/domain-constants.js";
 
 export const RETINUE_ROLES = Object.freeze(["shield", "support", "striker"]);
 const RETINUE_PARAMS = Object.freeze(["leader", "size", "roles"]);
-// What a delver's minions do: keep near it and take its orders.
-const DELVER_MINION_MOTIVATIONS = Object.freeze(["escorting", "friendly"]);
+// Keep near the leader; friendly so the seat may order them; goal_oriented so orders are followed.
+const DELVER_MINION_MOTIVATIONS = Object.freeze(["escorting", "friendly", "goal_oriented"]);
 const DEFAULT_SIZE = RETINUE_ROLES.length;
 export const RETINUE_DISTANCE = 2;
 // A delver's minion keeps beside it: bare sight is one tile, so one any further loses its
