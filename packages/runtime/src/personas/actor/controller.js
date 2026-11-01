@@ -28,7 +28,7 @@ import { actorCastManaPrice } from "../../../../core-ts/src/rules/actor-cast.ts"
 import { computeActorMoveStaminaCost } from "../../../../core-ts/src/rules/move.ts";
 import { equipActorAffinity, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
-import { actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
+import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
 import { affinityTableRow } from "../../../../core-ts/src/state/affinity-table.ts";
 import {
   DEFAULT_DELTAS,
@@ -1442,9 +1442,10 @@ function buildTakingProposals(receiver, view, { lastTurn = null, tick } = {}) {
   const order = takesFromBack(lastTurn, receiver.id, view, tick) ? -1 : 1;
   const byId = (left, right) => order * (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
   const sources = (Array.isArray(view?.actors) ? view.actors : [])
-    // Core's take rule (#406, #435): a defeated actor's holdings, or an intact resource's.
+    // Core's take rule (#406, #435, AK-7): open enemy corpses and intact resources; not allies'.
     .filter(source => source.id !== receiver.id
-      && chebyshevDistance(receiver.position, source.position) <= 1 && actorHoldingsOpen(source))
+      && chebyshevDistance(receiver.position, source.position) <= 1
+      && actorHoldingsOpen(source) && actorHoldingsClaimableBy(receiver, source))
     .sort(byId);
   return sources.flatMap(source => (Array.isArray(source.holdings) ? source.holdings : [])
     .filter(holding => holding.claimedBy === null)

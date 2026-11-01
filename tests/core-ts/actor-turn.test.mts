@@ -50,7 +50,9 @@ test('movement preserves the existing diagonal stamina cost and fails atomically
   expect(state.getActor('a')!.vitals.stamina!.current).toBe(8);
 });
 test('taking consumes one action and cannot be followed by movement', () => {
-  const state = registry(); state.changeVital('b', 'health', -10);
+  // Enemy corpse: b is dungeon so AK-7 same-side sealing does not refuse the take.
+  const foe = actor('b', 1); foe.alignment = 'dungeon';
+  const state = registry([actor('a'), foe]); state.changeVital('b', 'health', -10);
   const turn = createActorTurn(state, 1, costs);
   expect(turn.apply({ actorId: 'a', tick: 1, kind: 'take', params: { targetId: 'b', holdingId: 'affinity:fire:push' } })).toBe(true);
   expect(turn.apply({ actorId: 'a', tick: 1, kind: 'move', params: { target: { x: 1, y: 0 } } })).toBe(false);

@@ -2,18 +2,19 @@ import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
 import type { ActorRecord, ActorHolding } from '../../packages/core-ts/src/state/actor-types.ts';
 
-function actor(id: string, x = 0): ActorRecord {
-  return { id, alignment: 'dungeon', lifecycle: 'alive', position: { x, y: 0 },
+function actor(id: string, x = 0, alignment: ActorRecord['alignment'] = 'dungeon'): ActorRecord {
+  return { id, alignment, lifecycle: 'alive', position: { x, y: 0 },
     defeatVital: 'health', vitals: { health: { current: 3, max: 10, regen: 1 }, mana: { current: 8, max: 10, regen: 0 } },
     capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true,
       canExit: false, blocksMovement: false, blocksSight: false },
     motivations: [], affinities: [], activeAffinityKey: null, holdings: [] };
 }
 function setup(holdings: ActorHolding[] = []) {
+  // Enemy corpse loot: source is dungeon, scavengers are external (AK-7 forbids same-side).
   const source = actor('source'); source.affinities = [{ kind: 'fire', expression: 'emit', stacks: 8 },
     { kind: 'fire', expression: 'draw', stacks: 2 }]; source.holdings = holdings;
   return createActorRegistry({ dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'],
-    actors: [source, actor('looter', 1), actor('other', 1), actor('far', 2)] });
+    actors: [source, actor('looter', 1, 'external'), actor('other', 1, 'external'), actor('far', 2, 'external')] });
 }
 const reward = 'affinity:fire:emit';
 test('defeat creates one reward per pair; atomic claims survive competition and replay', () => {
@@ -67,5 +68,23 @@ test('invalid holdings and overflowing claims cannot partially grant or claim', 
   expect(state.takeHolding('looter', 'source', reward)).toBe(false);
   expect(state.snapshot()).toEqual(before);
 });
+test('a same-alignment receiver cannot take from a defeated ally (AK-7)', () => {
+  const ally = actor('ally', 0, 'external');
+  ally.affinities = [{ kind: 'growth', expression: 'push', stacks: 2 }];
+  const mate = actor('mate', 1, 'external');
+  const enemy = actor('enemy', 1, 'dungeon');
+  const state = createActorRegistry({
+    dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'],
+    actors: [ally, mate, enemy],
+  });
+  state.changeVital('ally', 'health', -3);
+  expect(state.getActor('ally')!.lifecycle).toBe('defeated');
+  expect(state.getActor('ally')!.holdings.map(h => h.id)).toEqual(['affinity:growth:push']);
+  expect(state.takeHolding('mate', 'ally', 'affinity:growth:push')).toBe(false);
+  expect(state.getActor('mate')!.affinities).toEqual([]);
+  expect(state.takeHolding('enemy', 'ally', 'affinity:growth:push')).toBe(true);
+  expect(state.getActor('enemy')!.affinities).toEqual([{ kind: 'growth', expression: 'push', stacks: 1 }]);
+});
 // ## TODO: Test Permutations
 // - Tick executor must prohibit movement auto-pickup and a second action after take.
+// - a same-alignment take from an intact dungeon resource still succeeds (#406)

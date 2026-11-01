@@ -186,8 +186,14 @@ function lootLabel(item) {
 /** Why `g` finds nothing (#479): who is next to the player and why their holdings are closed. */
 function takeRefusal(view) {
   const from = view.player?.position;
-  const near = from ? [...(view.actors || []), ...(view.hazards || [])]
-    .filter((actor) => actor.position && Math.max(Math.abs(actor.position.x - from.x), Math.abs(actor.position.y - from.y)) <= 1) : [];
+  const adjacent = (actor) => actor?.position && from
+    && Math.max(Math.abs(actor.position.x - from.x), Math.abs(actor.position.y - from.y)) <= 1;
+  // AK-7: a same-side corpse is listed in lootBodies with claimable:false (core refuses the take).
+  const sealedAlly = (view.lootBodies || []).find((body) => adjacent(body) && body.claimable === false);
+  if (sealedAlly) {
+    return `${sealedAlly.label ?? sealedAlly.id}'s gear stays with them — allies do not strip fallen allies.`;
+  }
+  const near = from ? [...(view.actors || []), ...(view.hazards || [])].filter(adjacent) : [];
   if (near.length === 0) return "Nothing here to take.";
   const spent = near.filter((actor) => actor.role === "resource");
   if (spent.length > 0) return `${spent[0].id} has nothing left to take.`;

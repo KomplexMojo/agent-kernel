@@ -875,6 +875,26 @@ test("g next to a standing warden or a spent resource says why nothing can be ta
   assert.match(game.screen(), /Nothing here to take\./);
 });
 
+// AK-7: a fallen ally's affinity rewards are not party loot — g names the commitment, not "nothing here".
+test("g next to a defeated ally says their gear stays with them (AK-7)", async () => {
+  const level = buildUnifiedLevel({
+    id: "ally-corpse",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals() },
+      { category: "delver", id: "ally_1", position: { x: 2, y: 1 }, lifecycle: "defeated",
+        motivations: ["friendly"],
+        vitals: { ...viableVitals(), health: { current: 0, max: 10, regen: 1 } },
+        affinities: [{ kind: "growth", expression: "push", stacks: 2 }], holdings: [] },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "ally-corpse", ...level }], fog: false });
+  assert.deepEqual(game.view().loot, []);
+  assert.equal(game.view().lootBodies.find((body) => body.id === "ally_1")?.claimable, false);
+  await press(game, "g");
+  assert.match(game.screen(), /gear stays with them — allies do not strip fallen allies\./);
+});
+
 // #230, #345: in the affinity list, Tab picks a row, + / - run it at less or more range and
 // ] / [ at more or less intensity.
 test("+ and - re-level the highlighted equipped affinity's range, a turn each; the HUD shows running/held", async () => {

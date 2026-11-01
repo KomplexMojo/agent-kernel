@@ -75,7 +75,7 @@ import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLO
 import { unpayableActorAffinities } from "../../../core-ts/src/rules/actor-upkeep.ts";
 import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
 import { computeActorMoveStaminaCost } from "../../../core-ts/src/rules/move.ts";
-import { actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
+import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
 import { revealedValue } from "../../../core-ts/src/rules/actor-observation.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
@@ -960,7 +960,7 @@ export function toViewActor(actor, presentation, labels, revealLevel, upkeepTabl
 }
 
 // Holdings are core's data: authored ones, plus one per affinity once an actor is defeated.
-// Core says whose may be taken (a defeated actor's, or an intact resource's, #406); this only
+// Core says whose may be taken (enemy corpses / intact resources, #406 + AK-7); this only
 // lists them, by actor id, in the shape a take command needs.
 const holdsUnclaimed = (actor) => (Array.isArray(actor.holdings) ? actor.holdings : []).some((holding) => holding.claimedBy === null);
 // A resource still has something to give while it holds an unclaimed holding or, intact, an
@@ -971,7 +971,8 @@ const isSpent = (actor, presentation) => categoryOf(actor, presentation) === RES
 function lootNextTo(snapshot, player) {
   const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   return snapshot.actors
-    .filter((actor) => actor.id !== player.id && actorHoldingsOpen(actor) && Array.isArray(actor.holdings)
+    .filter((actor) => actor.id !== player.id && actorHoldingsOpen(actor) && actorHoldingsClaimableBy(player, actor)
+      && Array.isArray(actor.holdings)
       && Math.max(Math.abs(actor.position.x - player.position.x), Math.abs(actor.position.y - player.position.y)) <= 1)
     .sort(byId)
     .flatMap((actor) => actor.holdings
@@ -1078,11 +1079,13 @@ export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend,
     actors: others.filter((actor) => categoryOf(actor, presentation) !== HAZARD_CATEGORY && !isSpent(actor, presentation))
       .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id], upkeepTable)),
     // Darren, 2026-10-30 ("show it as a resource"): a defeated actor in sight that still holds
-    // something to take is shown as a resource until it is emptied. Taking is core's rule as before.
+    // something. `claimable` follows core (#406 + AK-7): enemy corpses yes, same-side no — the
+    // board only draws claimable ones as loot; sealed allies still sit here for the g refusal.
     lootBodies: snapshot.actors.filter((actor) => actor.id !== playerId && actor.lifecycle === "defeated"
       && categoryOf(actor, presentation) !== BARRIER_CATEGORY && holdsUnclaimed(actor) && inSight(actor))
       .map((actor) => ({ id: actor.id, ...(labels.has(actor.id) ? { label: labels.get(actor.id) } : {}),
-        role: RESOURCE_CATEGORY, position: { ...actor.position } })),
+        role: RESOURCE_CATEGORY, position: { ...actor.position },
+        claimable: Boolean(player && actorHoldingsClaimableBy(player, actor)) })),
   };
 }
 

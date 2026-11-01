@@ -134,8 +134,20 @@ test('an intact resource is open: its authored holdings are proposed without def
   expect(registry.getActor('source').lifecycle).toBe('alive');
 });
 
+test('a defeated ally is not a taking candidate (AK-7)', () => {
+  const snapshot = setup().snapshot();
+  snapshot.actors.find(actor => actor.id === 'source').alignment = 'external';
+  const registry = createActorRegistry(snapshot);
+  const observation = readActorRegistryObservation(registry, 0);
+  expect(decide(observation).actions.some(action => action.kind === 'take')).toBe(false);
+  expect(registry.takeHolding('self', 'source', 'affinity:fire:emit')).toBe(false);
+  const request = decide(observation, 'self', true).effects.find(effect => effect.kind === 'solver_request');
+  expect((request?.request.problem.data.candidateActions || []).some(candidate => candidate.action.kind === 'take')).toBe(false);
+});
+
 // ## TODO: Test Permutations
 // - a lone taker that was never refused keeps id order on every turn
 // - a refused taker beside two sources reverses both
 // - three takers: the two refused at the front meet again at the back
 // - Permuting source and holding enumeration preserves deterministic claim ordering.
+// - a take order aimed at a same-side corpse stalls with ally_source
