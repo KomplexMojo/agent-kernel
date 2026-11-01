@@ -666,8 +666,8 @@ test("a body with loot is shown as a resource until taken; an emptied resource d
   const session = await createPlaySession(buildDuelLevel({ playerAffinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] }));
   await session.act(equip("decay:push"));
   for (let i = 0; i < 6 && session.view().actors.some((a) => a.id === "warden_1"); i += 1) await session.act(cast("warden_1"));
-  assert.deepEqual(session.view().lootBodies.map(({ id, role, position }) => ({ id, role, position })),
-    [{ id: "warden_1", role: "resource", position: { x: 2, y: 1 } }]);
+  assert.deepEqual(session.view().lootBodies.map(({ id, role, position, claimable }) => ({ id, role, position, claimable })),
+    [{ id: "warden_1", role: "resource", position: { x: 2, y: 1 }, claimable: true }]);
   assert.match(renderScreen({ view: session.view(), levelName: "duel" }), /@◙/);
   await session.act({ kind: "take", params: { targetId: "warden_1", holdingId: "affinity:fire:push" } });
   assert.deepEqual(session.view().lootBodies, [], "emptied, it is no longer shown");
@@ -690,4 +690,25 @@ test("a body with loot is shown as a resource until taken; an emptied resource d
   for (let i = 0; i < 3; i += 1) await looter.act({ kind: "wait" });
   assert.deepEqual(looter.view().defeatMarks, []);
   assert.match(renderScreen({ view: looter.view(), levelName: "chest" }), /@\./);
+
+  // AK-7: a same-side corpse stays sealed — listed with claimable:false, not offered in loot,
+  // and not drawn as a resource glyph.
+  const allyCorpse = buildUnifiedLevel({
+    id: "ally-corpse", tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals() },
+      { category: "delver", id: "ally_1", position: { x: 2, y: 1 }, lifecycle: "defeated",
+        motivations: ["friendly"],
+        vitals: { ...viableVitals(), health: { current: 0, max: 10, regen: 1 } },
+        affinities: [{ kind: "growth", expression: "push", stacks: 2 }], holdings: [] },
+    ],
+  });
+  const sealed = await createPlaySession(allyCorpse);
+  assert.deepEqual(sealed.view().loot, []);
+  assert.deepEqual(sealed.view().lootBodies.map(({ id, role, position, claimable }) => ({ id, role, position, claimable })), [
+    { id: "ally_1", role: "resource", position: { x: 2, y: 1 }, claimable: false },
+  ]);
+  assert.doesNotMatch(renderScreen({ view: sealed.view(), levelName: "ally-corpse" }), /@◙/);
+  const refused = await sealed.act({ kind: "take", params: { targetId: "ally_1", holdingId: "affinity:growth:push" } });
+  assert.ok(refused.rejected.some((entry) => entry.reason === "InvalidTarget"));
 });

@@ -566,7 +566,9 @@ export function renderScreen({
   const playerPosition = view.player?.position;
   // #479: a warden last seen stays at that spot (the remembered cell dims it).
   const glyphs = view.legend?.glyphs;
-  const seen = overlayActors(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition, glyphs), view.lootBodies, playerPosition, glyphs),
+  // AK-7: only claimable corpses draw as loot; sealed same-side bodies stay off the resource glyph.
+  const lootBodies = (view.lootBodies || []).filter((body) => body.claimable !== false);
+  const seen = overlayActors(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition, glyphs), lootBodies, playerPosition, glyphs),
     view.lastSeen, playerPosition, glyphs);
   const board = overlayFieldMarks(overlayDefeatMarks(overlayCastPaths(overlayActors(seen, view.actors, playerPosition, glyphs),
     view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells), view.field, view.legend?.floor, view.legend?.fog);

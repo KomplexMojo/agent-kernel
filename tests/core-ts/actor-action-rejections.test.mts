@@ -53,10 +53,14 @@ test('equipping what is already equipped is AffinityAlreadyEquipped', () => {
 });
 test('a take with nothing there to claim is NothingToTake; out of reach is NotAdjacent', () => {
   const take = (holdingId: string) => ({ actorId: 'a', kind: 'take', params: { targetId: 'b', holdingId } }) as const;
-  const fallen = (x: number) => actor('b', x, { lifecycle: 'defeated', activeAffinityKey: null,
+  // Enemy corpse (dungeon) so AK-7 same-side sealing does not mask NothingToTake / NotAdjacent.
+  const fallen = (x: number) => actor('b', x, { alignment: 'dungeon', lifecycle: 'defeated', activeAffinityKey: null,
     vitals: { health: { current: 0, max: 10, regen: 0 } } } as Partial<ActorRecord>);
   expect(refusal([actor('a'), fallen(1)], take('affinity:water:push'))).toBe('NothingToTake');
   expect(refusal([actor('a'), fallen(3)], take('affinity:fire:push'))).toBe('NotAdjacent');
+  expect(refusal([actor('a'), actor('b', 1, { lifecycle: 'defeated', activeAffinityKey: null,
+    vitals: { health: { current: 0, max: 10, regen: 0 } } } as Partial<ActorRecord>)],
+    take('affinity:fire:push'))).toBe('InvalidTarget');
 });
 test('every reason core gives is a ValidationError name', () => {
   for (const name of ['NoActiveAffinity', 'AffinityNotCastable', 'TargetOutOfRange', 'InsufficientMana',

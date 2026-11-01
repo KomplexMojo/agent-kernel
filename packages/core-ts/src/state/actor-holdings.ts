@@ -3,12 +3,32 @@ import { affinityKey } from './actor-inventory.ts';
 import { getActorAffinityEffect } from '../rules/actor-affinity.ts';
 
 /**
- * #406: whose holdings a receiver may take. A defeated actor's, always; an intact one's only
+ * #406: whose holdings are open on the floor. A defeated actor's, always; an intact one's only
  * when it cannot move (a resource), and then only its authored holdings: affinity rewards
  * are derived at defeat, so an intact actor has none to give.
+ *
+ * Open is not the same as claimable: a same-side corpse stays open for enemies to scavenge,
+ * but allies may not strip it (AK-7 / playtest seed 12 — "took growth push from" a dead minion).
  */
 export function actorHoldingsOpen(source: ActorRecord): boolean {
   return source.lifecycle === 'defeated' || source.lifecycle === 'alive' && !source.capabilities.canMove;
+}
+
+function sameAlignment(left: string | undefined, right: string | undefined): boolean {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+  const a = left.trim().toLowerCase();
+  const b = right.trim().toLowerCase();
+  return Boolean(a && b && a === b);
+}
+
+/**
+ * Whether this receiver may claim from that source at all (before adjacency / holding id).
+ * Intact resources stay claimable across alignment (#406); defeated allies do not (AK-7).
+ */
+export function actorHoldingsClaimableBy(receiver: ActorRecord, source: ActorRecord): boolean {
+  if (!actorHoldingsOpen(source)) return false;
+  if (source.lifecycle === 'defeated' && sameAlignment(receiver.alignment, source.alignment)) return false;
+  return true;
 }
 
 export function validateActorHoldings(actor: ActorRecord): void {
@@ -70,6 +90,7 @@ export function explainTakeActorHolding(receiver: ActorRecord | undefined, sourc
   if (!receiver || receiver.lifecycle !== 'alive') return 'WrongActor';
   if (!receiver.capabilities.canTake) return 'InvalidCapability';
   if (!source || !actorHoldingsOpen(source)) return 'InvalidTarget';
+  if (!actorHoldingsClaimableBy(receiver, source)) return 'InvalidTarget';
   if (Math.max(Math.abs(receiver.position.x - source.position.x),
     Math.abs(receiver.position.y - source.position.y)) > 1) return 'NotAdjacent';
   const holding = source.holdings.find(entry => entry.id === holdingId);
