@@ -944,7 +944,7 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
   assert.match(game.screen(), /Better luck next time/);
   assert.match(game.screen(), /Attempt: \d+ turns?\./);
   assert.doesNotMatch(game.screen(), /###/);
-  assert.match(game.screen(), /Defeated by .*warden_1's fire push/);
+  assert.match(game.screen(), /You were defeated by .*warden_1's fire push\. Your \w+ ran out\./, "the Annotator's defeat entry, worded by the runtime (#618)");
   const turns = game.state().turns;
   await press(game, "d");
   assert.equal(game.state().turns, turns, "a move after defeat is ignored");

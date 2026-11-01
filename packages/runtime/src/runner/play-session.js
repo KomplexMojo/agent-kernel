@@ -347,6 +347,8 @@ export async function createPlaySession({
   function battleLogView(limit = 30) {
     return battleLog.filter(({ readers }) => readers.includes(activeId)).slice(-limit)
       .map(({ entry, ally, effect }) => ({ tick: entry.tick, event: entry.event, ...(ally ? { ally: true, targetId: entry.targetId } : {}),
+        // #618: the seat's own defeat, as the Annotator logged it, with the vital that ran out (what the player can read on their HUD).
+        ...(entry.event === "defeat" && entry.targetId === activeId ? { seatDefeat: true, ...(entry.defeatVital ? { defeatVital: entry.defeatVital } : {}) } : {}),
         ...(effect ? { detailed: true } : {}),
         text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null, effect }) }));
   }
