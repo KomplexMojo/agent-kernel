@@ -732,6 +732,16 @@ export async function createPlaySession({
   /** The rooms the seat has set foot near, with what it has seen done in each (notebook input). */
   function notebookRooms(snapshot) {
     const memory = explored.get(activeId);
+    const { width: boardWidth, height: boardHeight } = snapshot.dimensions;
+    // #593: the start and exit tiles sit in a room or at its door, one tile outside its rectangle. A tile
+    // counts for a room only once the seat's memory holds that very tile (never an unseen one, #497).
+    const marked = new Map(); // room id -> { start, exit }
+    for (let y = 0; y < boardHeight; y += 1) for (let x = 0; x < boardWidth; x += 1) {
+      const terrain = snapshot.terrain[y * boardWidth + x];
+      if ((terrain !== "spawn" && terrain !== "exit") || (fog && !memory?.[y]?.[x])) continue;
+      const room = rooms.find((r) => x >= r.x - 1 && x <= r.x + r.width && y >= r.y - 1 && y <= r.y + r.height);
+      if (room) marked.set(room.id, { ...marked.get(room.id), [terrain === "spawn" ? "start" : "exit"]: true });
+    }
     return rooms.flatMap((room) => {
       let known = 0;
       for (let y = room.y; y < room.y + room.height; y += 1) for (let x = room.x; x < room.x + room.width; x += 1) {
@@ -742,7 +752,8 @@ export async function createPlaySession({
       const done = things.filter((actor) => actor.lifecycle !== "alive"
         || (categoryOf(actor, presentation) === RESOURCE_CATEGORY && !hasLoot(actor))).length;
       return [{ id: room.id, x: room.x, y: room.y, width: room.width, height: room.height,
-        seen: things.length, done, explored: known === room.width * room.height }];
+        seen: things.length, done, explored: known === room.width * room.height,
+        start: Boolean(marked.get(room.id)?.start), exit: Boolean(marked.get(room.id)?.exit) }];
     });
   }
 
