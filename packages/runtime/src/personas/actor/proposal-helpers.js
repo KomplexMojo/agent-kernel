@@ -295,6 +295,61 @@ export function buildMoveProposal({ observation, payload, simConfig }) {
   return [{ kind: "move", params: { target: to } }];
 }
 
+/** The tile kinds with every other actor that can move cleared: the way as it is once they have moved on. */
+function withoutMobileActors(tileKinds, view, actorId, baseTiles) {
+  if (!tileKinds || !Array.isArray(view?.actors)) return tileKinds;
+  const cleared = tileKinds.map((row) => (Array.isArray(row) ? [...row] : row));
+  for (const other of view.actors) {
+    if (!other?.position || other.id === actorId || other.capabilities?.canMove === false) continue;
+    const { x, y } = other.position;
+    if (Array.isArray(cleared[y]) && cleared[y][x] !== undefined && isPassable({ x, y }, null, baseTiles)) cleared[y][x] = 0;
+  }
+  return cleared;
+}
+
+/**
+ * #645: whether to hold ground this tick because another actor holds the shortest route.
+ *
+ * A delver sees only what is adjacent, so a patrol that crosses a one-wide gateway is in sight
+ * from one cell and out of sight from the next. Re-planning every tick with no memory, the
+ * delver walked up to the gateway, saw it held, stepped back along the longer detour, lost
+ * sight and re-planned through the gateway: a two-cycle that never arrived. The step back is
+ * the problem, not the detour, so the hold applies only when the planned step does NOT close on
+ * the exit (a detour that closes on it is walked as before). A held way is then waited out or
+ * detoured on a seeded per-tick coin: stateless (the context stays serializable), identical for
+ * the same seed and tick, and it breaks the lockstep with a patrol. A blocker that never moves
+ * costs the delver the same detour a few ticks later, never a standstill.
+ *
+ * `step` is the move `buildMoveProposal` planned. "Held" means the shortest route, with every
+ * actor that can move taken away, has another actor on its next cell. Actors that cannot move
+ * (barrier furniture) stay walls: they hold nothing for a moment, and they bar the diagonal
+ * squeeze past them. Terrain, raised barriers and a free route are never "held".
+ */
+export function holdsForHeldRoute({ observation, payload, simConfig, step, personaSeed }) {
+  const target = step?.params?.target;
+  if (step?.kind !== "move" || !target) return false;
+  const view = resolveObservationView(observation);
+  if (!view) return false;
+  const baseTiles = resolveBaseTiles(payload, view, simConfig);
+  const exit = resolveExit(payload, view, baseTiles, simConfig);
+  const actor = resolveActor(view, payload?.actorId, observation);
+  if (!exit || !actor?.position) return false;
+  const tileKinds = resolveTileKinds(view, payload);
+  const route = findPath(actor.position, exit, withoutMobileActors(tileKinds, view, payload?.actorId, baseTiles), baseTiles);
+  if (!route || route.length < 2) return false;
+  if (!isOccupied(route[1], view, payload?.actorId)) return false;
+  // Only a true detour: a route round the holder that is no longer than the shortest one loses
+  // nothing, and no route round it at all is walked up to the holder as before.
+  const around = findPath(actor.position, exit, tileKinds, baseTiles);
+  if (!around || around.length <= route.length) return false;
+  const before = chebyshevDistance(actor.position, exit);
+  const after = chebyshevDistance(target, exit);
+  if (Number.isFinite(before) && Number.isFinite(after) && after < before) return false;
+  const tick = Number.isFinite(payload?.tick) ? payload.tick : view.tick;
+  const seed = resolveActorRandomSeed(view, payload?.actorId, payload, personaSeed);
+  return deterministicRandom(seed, payload?.actorId, tick, 645) < 0.5;
+}
+
 /**
  * Whether two alignments are on one side. The Actor's single allegiance rule: unknown or
  * missing alignments are never allied, so a consumer cannot guess "allied" by default.
