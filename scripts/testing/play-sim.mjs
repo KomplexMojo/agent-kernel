@@ -16,6 +16,10 @@
  *   dash   reach the exit and nothing else (default)
  *   fight  reach the exit, but cast at the nearest hostile once one is within 2 tiles
  *
+ * `--driver t1-contact --model <id>` (M4, #615) hands the seat to a model for a short burst whenever
+ * a hostile comes into sight, choosing only from `listLegalPlayCommands` (play-sim-t1.mjs); T0
+ * resumes after each burst. Default driver `t0`.
+ *
  * `--build-source llm --model <id>` (M3, #614) lets a local Ollama model propose the player's
  * character near each arm's delver allowance; the character sheet (the Allocator's prices) must
  * accept it, with up to 3 attempts, else the arm records `build_refused`. Live use is manual
@@ -37,6 +41,7 @@ import { createPlaySession } from "../../packages/runtime/src/runner/play-sessio
 import { loadPlaytestScenarios, playerDelverSpec, scenarioArgs } from "../game/playtest.mjs";
 import { analyzeRun, checkRules } from "./simulation-lib.mjs";
 import { proposeCharacterSpec } from "./play-sim-llm-build.mjs";
+import { llmPicker, runBurst } from "./play-sim-t1.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -85,7 +90,7 @@ export function buildArm(scenario, seed, { arm, budgetTokens }, workDir, created
 const vitalsOf = (view) => Object.fromEntries((view?.player?.vitals ?? []).map((vital) => [vital.key, vital.current]));
 
 /** Play a built level with the T0 driver; returns the outcome and what was seen on the way. */
-export async function playArm(dir, { strategy = "dash", maxTicks = DEFAULT_MAX_TICKS } = {}) {
+export async function playArm(dir, { strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, picker = null, burst, retries } = {}) {
   const simConfig = readJson(join(dir, "sim-config.json"));
   const initialState = readJson(join(dir, "initial-state.json"));
   const session = await createPlaySession({ simConfig, initialState, fog: false });
@@ -96,18 +101,26 @@ export async function playArm(dir, { strategy = "dash", maxTicks = DEFAULT_MAX_T
   const minVitals = { ...lastVitals };
   let outcome = "timeout";
   let status = ordered.status;
+  const t1 = { bursts: 0, picks: 0, illegal: 0, refusedByCore: 0 };
   while (status.tick < maxTicks) {
-    const step = await session.advance({ ticks: Math.min(CHUNK, maxTicks - status.tick) });
+    const step = await session.advance({ ticks: Math.min(CHUNK, maxTicks - status.tick), ...(picker ? { until: "contact" } : {}) });
     status = step.status;
+    if (picker && step.stoppedBy === "contact") {
+      const log = await runBurst({ session, picker, burst, retries });
+      t1.bursts += 1; t1.picks += log.picks.length; t1.illegal += log.illegal; t1.refusedByCore += log.refusedByCore;
+      status = session.status();
+      // T0 resumes: the standing order carries on until the next contact.
+      if (!status.exited && !status.defeated) status = (await session.advance({ ticks: CHUNK })).status;
+    }
     const now = vitalsOf(session.view());
     if (Object.keys(now).length) {
       lastVitals = now;
       for (const [key, value] of Object.entries(now)) minVitals[key] = Math.min(minVitals[key] ?? value, value);
     }
-    if (step.stoppedBy === "exited" || status.exited) { outcome = "exited"; break; }
-    if (step.stoppedBy === "defeated" || status.defeated) { outcome = "defeated"; break; }
+    if (status.exited) { outcome = "exited"; break; }
+    if (status.defeated) { outcome = "defeated"; break; }
   }
-  return { outcome, ticks: status.tick, seat, finalVitals: lastVitals, minVitals };
+  return { outcome, ticks: status.tick, seat, finalVitals: lastVitals, minVitals, ...(picker ? { t1 } : {}) };
 }
 
 /** Rule tags: the static rules on the built level, plus the ones only play can show. */
@@ -129,7 +142,7 @@ function delverPool(dir) {
 }
 
 /** One record: scenario, seed, arm, build fingerprint, outcome, metrics, rule hits. */
-export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks, llm = null }) {
+export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks, llm = null, picker = null }) {
   const base = { scenario: scenario.id, seed, arm: armSpec.arm, budgetTokens: armSpec.budgetTokens, strategy };
   let character;
   if (llm) {
@@ -147,7 +160,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
   if (!built.ok) {
     return { ...base, outcome: "create_failed", ticks: 0, delverPool: null, build: null, ruleHits: [{ rule: "create_failed", detail: built.error }] };
   }
-  const played = await playArm(built.dir, { strategy, maxTicks });
+  const played = await playArm(built.dir, { strategy, maxTicks, picker });
   const initialState = readJson(join(built.dir, "initial-state.json"));
   const actors = (initialState.actors ?? []).filter((actor) => !/^barrier_/.test(actor.id)).map((actor) => ({ id: actor.id, motivations: actor.motivations ?? [], affinities: (actor.affinities ?? []).map((pair) => `${pair.kind}:${pair.expression}:${pair.stacks}:${pair.intensity ?? 1}`), vitals: Object.fromEntries(Object.entries(actor.vitals ?? {}).map(([key, vital]) => [key, vital.max])) }));
   const fingerprint = actors.map((actor) => `${actor.id}[${actor.affinities.join(",")}|${Object.entries(actor.vitals).map(([key, max]) => `${key}${max}`).join(",")}]`).join(" ");
@@ -159,6 +172,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
     finalVitals: played.finalVitals ?? null,
     minVitals: played.minVitals,
     // Cast and move counts are not exposed by the play session; null rather than a guess.
+    ...(played.t1 ? { driver: "t1-contact", t1: played.t1 } : { driver: "t0" }),
     castCount: null,
     moveCount: null,
     delverPool: delverPool(built.dir),
@@ -167,7 +181,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
   };
 }
 
-export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, llm = null, log = () => {} } = {}) {
+export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, llm = null, picker = null, log = () => {} } = {}) {
   const catalog = loadPlaytestScenarios();
   const picked = (scenarios?.length ? scenarios : catalog.scenarios.map((entry) => entry.id)).map((id) => {
     const found = catalog.scenarios.find((entry) => entry.id === id);
@@ -181,7 +195,7 @@ export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, bas
     for (const scenario of picked) {
       for (const seed of seeds) {
         for (const armSpec of armBudgets(scenario, { baseline, treatment })) {
-          const record = await runOne(scenario, seed, armSpec, { workDir, createdAt: catalog.createdAt, strategy, maxTicks, llm });
+          const record = await runOne(scenario, seed, armSpec, { workDir, createdAt: catalog.createdAt, strategy, maxTicks, llm, picker });
           const file = `${scenario.id}-s${seed}-${armSpec.arm}.json`;
           writeFileSync(join(outDir, file), `${JSON.stringify(record, null, 2)}\n`);
           runs.push({ file, ...record });
@@ -209,6 +223,7 @@ function parseArgs(argv) {
     else if (arg === "--treatment-only") options.baseline = false;
     else if (arg === "--strategy") options.strategy = argv[++i];
     else if (arg === "--max-ticks") options.maxTicks = Number(argv[++i]);
+    else if (arg === "--driver") options.driver = argv[++i];
     else if (arg === "--build-source") options.buildSource = argv[++i];
     else if (arg === "--model") options.model = argv[++i];
     else if (arg === "--ollama-url") options.ollamaUrl = argv[++i];
@@ -230,7 +245,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
       llm = { model: options.model, adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}) };
     } else if (options.buildSource && options.buildSource !== "default") throw new Error(`unknown --build-source ${options.buildSource} (default or llm)`);
-    const { summary } = await runPlaySim({ ...options, llm, outDir, log: (line) => console.log(line) });
+    let picker = null;
+    if (options.driver === "t1-contact") {
+      if (!options.model) throw new Error("--driver t1-contact needs --model");
+      const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
+      picker = llmPicker({ adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}), model: options.model });
+    } else if (options.driver && options.driver !== "t0") throw new Error(`unknown --driver ${options.driver} (t0 or t1-contact)`);
+    const { summary } = await runPlaySim({ ...options, llm, picker, outDir, log: (line) => console.log(line) });
     console.log(`Wrote ${summary.runs.length} run(s) to ${outDir}`);
   } catch (error) {
     console.error(error.message);
