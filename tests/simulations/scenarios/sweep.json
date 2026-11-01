@@ -613,6 +613,53 @@
         "--seed",
         "7"
       ]
+    },
+    {
+      "id": "sweep-demand-kite",
+      "note": "demand class KITE: a fire push 6:1 attacker out-ranges a water push 1:1 attacker in a medium room; staying at range beats closing in",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=kiter;affinity=fire;affinities=fire:push:6:1;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=brawler;affinity=water;affinities=water:push:1:1;equip=water:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-demand-optional-risk",
+      "note": "demand class OPTIONAL RISK: the health loot sits in a room whose guard stands in the open (ambush, visible); leaving without it is safe, taking it means a fight",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=3",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=15;id=loot",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=guard;affinity=water;affinities=water:push:2:2;equip=water:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--tactic",
+        "ambush;guards=1;visible=true",
+        "--seed",
+        "3"
+      ]
+    },
+    {
+      "id": "sweep-demand-recovery",
+      "note": "demand class RECOVERY BEAT: a wounded delver (health 10 of 30) with a health resource in the level meets a stationary warden near the exit; recovering before the fight pays",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=15",
+        "--delver",
+        "count=1;id=hurt;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:10:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=gate;affinity=water;affinities=water:push:2:2;equip=water:push;motivation=stationary;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
+      ]
     }
   ]
 }
