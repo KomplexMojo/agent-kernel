@@ -12,6 +12,7 @@ the one question it exists to answer: an unlisted directory reads as "no owner d
 |---|---|
 | `README.md` | Project overview, Ports & Adapters structure, quick-start commands. |
 | `docs/README.md` | Architecture law, design intent, vision constraints, and the reading order for the rest of `docs/`. |
+| `docs/vitals-decision-audit.md` | What each vital decides, what spends and restores it, and the wait-regen grind metric. |
 | `docs/playability-checklist.md` | Review checklist for changes that alter what a player sees, chooses, or is told (understand to return to play). |
 | `docs/pr-gameplay-change-report.md` | PR body template for gameplay changes: problem, change, decision impact, trade-offs, validation, uncertainty. |
 | `tests/README.md` | How the Vitest suite is organized and the contract for delegated test work (`## TODO: Test Permutations` stubs). |

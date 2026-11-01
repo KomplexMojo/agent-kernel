@@ -30,6 +30,8 @@ export const REFUSED_STREAK_LIMIT = 5;
 export const SILENT_STREAK_LIMIT = 20;
 /** Longest run of turns an attacking actor may have a hostile in sight and cast reach without landing a cast (#415). */
 export const IDLE_ATTACKER_LIMIT = 10;
+/** #621 (a metric, not a rule): consecutive safe turns spent resting while a vital refills that count as a grind. */
+export const WAIT_REGEN_LIMIT = 10;
 /** Accepted casts after which an actor must have spent some mana. */
 export const FREE_CAST_LIMIT = 10;
 
@@ -128,7 +130,7 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
       vitals: actor.vitals,
       proposed: 0, accepted: 0, casts: 0, moves: 0,
       refusedStreak: 0, maxRefusedStreak: 0, silentStreak: 0, maxSilentStreak: 0, idleStreak: 0, maxIdleStreak: 0, idleNote: null,
-      minVitals: {}, lifecycle: actor.lifecycle, exitedAt: null, defeatedAt: null, sawHostile: false, unseenDefeat: false,
+      minVitals: {}, lifecycle: actor.lifecycle, exitedAt: null, defeatedAt: null, sawHostile: false, unseenDefeat: false, waitRegenStreak: 0, maxWaitRegenStreak: 0,
       unaffordable: isObjectActor(actor) ? [] : unaffordableCasts(actor, castManaBase),
     };
   }
@@ -172,7 +174,7 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
       record.final = { position: entry.position, vitals: entry.vitals };
     }
     trackIdleAttackers(actors, frame.emittedSnapshot?.view?.registry, frame.acceptedActions ?? []);
-    trackHostileSight(actors, frame.emittedSnapshot?.view?.registry);
+    trackHostileSight(actors, frame.emittedSnapshot?.view?.registry, frame.acceptedActions ?? []);
     for (const record of Object.values(actors)) {
       if (record.object || lifecycleBefore.get(record.id) !== "alive") continue;
       const p = proposed[record.id] ?? 0;
@@ -194,16 +196,22 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
  * actor defeated before it ever saw a hostile reads as `unseenDefeat`. A snapshot without terrain
  * (a hand-built record) has no fog: every hostile is in sight.
  */
-function trackHostileSight(actors, snapshot) {
+function trackHostileSight(actors, snapshot, acceptedActions = []) {
   const alive = (snapshot?.actors ?? []).filter((entry) => entry.lifecycle === "alive" && entry.position);
   if (!alive.length) return;
   const observation = snapshot.dimensions && snapshot.terrain ? readActorRegistryObservation(createActorRegistry(snapshot), 0) : null;
+  const busy = new Set(acceptedActions.filter((action) => action.kind !== "wait").map((action) => action.actorId));
   for (const entry of alive) {
     const record = actors[entry.id];
-    if (!record || record.object || record.sawHostile) continue;
+    if (!record || record.object) continue;
     const visible = observation ? readActorRegistryVisibleCells(observation, entry.id) : null;
-    record.sawHostile = alive.some((other) => other.id !== entry.id && other.alignment !== entry.alignment
+    const hostileNow = alive.some((other) => other.id !== entry.id && other.alignment !== entry.alignment
       && (!visible || visible[other.position.y]?.[other.position.x]));
+    if (hostileNow) record.sawHostile = true;
+    // #621: a safe turn at rest while a vital is still refilling.
+    const refilling = Object.values(entry.vitals ?? {}).some((vital) => Number(vital?.current) < Number(vital?.max));
+    record.waitRegenStreak = !hostileNow && refilling && !busy.has(entry.id) ? record.waitRegenStreak + 1 : 0;
+    record.maxWaitRegenStreak = Math.max(record.maxWaitRegenStreak, record.waitRegenStreak);
   }
 }
 
@@ -257,6 +265,9 @@ function summarizeMetrics(actors, ticks) {
     defeated: Object.values(actors).filter((record) => record.defeatedAt !== null).length,
     // #619 (a metric, not a rule): defeats of an actor that had never had a hostile in sight.
     unseenDefeats: Object.values(actors).filter((record) => record.unseenDefeat).length,
+    // #621 (a metric): movers whose longest safe rest-while-refilling streak reached WAIT_REGEN_LIMIT, and the longest streak.
+    waitRegenGrinds: movers.filter((record) => record.maxWaitRegenStreak >= WAIT_REGEN_LIMIT).length,
+    maxWaitRegenStreak: Math.max(0, ...movers.map((record) => record.maxWaitRegenStreak)),
     healthLost: Math.round(healthLost * 100) / 100,
     casts: movers.reduce((sum, record) => sum + record.casts, 0),
     moves: movers.reduce((sum, record) => sum + record.moves, 0),

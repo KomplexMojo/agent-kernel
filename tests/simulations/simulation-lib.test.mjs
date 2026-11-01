@@ -1,6 +1,7 @@
 // The rule checks the simulation tests rely on, against small hand-built run records.
 import {
   IDLE_ATTACKER_LIMIT,
+  WAIT_REGEN_LIMIT,
   REFUSED_STREAK_LIMIT,
   SILENT_STREAK_LIMIT,
   analyzeRun,
@@ -155,3 +156,23 @@ test("a defeat with no hostile ever in sight counts as unseen; one after a hosti
   expect(checkRules({ args: [] }, sameSide).map((v) => v.rule)).not.toContain("defeat_without_hostile_observation");
 });
 
+
+// #621: resting in safety while a vital refills, for the limit, is counted as a grind (a metric).
+test("a safe rest while a vital refills for the limit is a wait-regen grind; a move or a hostile resets it", () => {
+  const hurt = { ...delver("g-1", ["exploring"]), vitals: { health: { current: 5, max: 10, regen: 1 } } };
+  const rest = { actors: [hurt] };
+  const run = (ticks) => analyzeRun({ initialState: { actors: [hurt] }, frames: frames(ticks) });
+  const long = run(Array(WAIT_REGEN_LIMIT).fill(rest));
+  expect(long.metrics.waitRegenGrinds).toBe(1);
+  expect(long.metrics.maxWaitRegenStreak).toBe(WAIT_REGEN_LIMIT);
+  const moved = { actors: [hurt], accepted: [{ actorId: "g-1", kind: "move" }] };
+  const broken = run([...Array(WAIT_REGEN_LIMIT - 1).fill(rest), moved, ...Array(WAIT_REGEN_LIMIT - 1).fill(rest)]);
+  expect(broken.metrics.waitRegenGrinds).toBe(0);
+  const foe = { ...fighter("w-1", "dungeon", ["attacking"], 3), vitals: { health: { current: 10, max: 10, regen: 1 } } };
+  const watched = analyzeRun({ initialState: { actors: [hurt, foe] }, frames: frames(Array(WAIT_REGEN_LIMIT).fill({ actors: [hurt, foe] })) });
+  expect(watched.metrics.waitRegenGrinds).toBe(0);
+  const full = { ...hurt, vitals: { health: { current: 10, max: 10, regen: 1 } } };
+  expect(analyzeRun({ initialState: { actors: [full] }, frames: frames(Array(WAIT_REGEN_LIMIT).fill({ actors: [full] })) }).metrics.waitRegenGrinds).toBe(0);
+});
+
+// ## TODO: Test Permutations
