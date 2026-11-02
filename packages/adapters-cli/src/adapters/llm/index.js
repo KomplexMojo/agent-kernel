@@ -9,11 +9,11 @@ export function createLlmAdapter({ baseUrl = DEFAULT_LLM_BASE_URL, fetchFn = glo
     throw new Error("LLM adapter requires a fetch implementation.");
   }
   const adapter = createOllamaModelAdapter({ fetchFn, config: { baseUrl } });
-  async function generate({ model, prompt, options = {}, stream = false, format } = {}) {
+  async function generate({ model, prompt, options = {}, stream = false, format, think } = {}) {
     if (!model || !prompt) {
       throw new Error("LLM generate requires model and prompt.");
     }
-    return adapter.generateRawOllama({ model, prompt, options, stream, format });
+    return adapter.generateRawOllama({ model, prompt, options, stream, format, think });
   }
   return {
     generate,
