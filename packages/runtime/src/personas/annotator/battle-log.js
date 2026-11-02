@@ -7,10 +7,32 @@
  * in runtime render (`render/battle-log-lines.js`). Observation only: nothing reads these back
  * into a decision. No vitals: a cast shows its affinity and whether it struck (#497). A take names
  * what it gave (a vital grant, an affinity, a slot): that is the loot, not anyone's vitals.
+ * #692: a cast that struck another also says, in words only, how hurt the target looks after the
+ * tick (`condition`, a band on its defeat vital), how hard that hit was (`hit`, scaled to the
+ * struck vital's max) and whether its slots amplified or resisted it (`reception`).
  */
+
+/** #692: the words for one struck actor, from core's rules; never a number. */
+function struckWords(cast, reading) {
+  const out = {};
+  if (cast.reception) out.reception = cast.reception;
+  if (!reading) return out;
+  const defeat = reading.vitals?.[reading.defeatVital];
+  const band = defeat ? actorConditionBand(defeat.current, defeat.max) : null;
+  if (band) out.condition = band;
+  let strongest = 0;
+  for (const change of cast.changes ?? []) {
+    const max = reading.vitals?.[change.vital]?.max;
+    if (change.actorId === cast.targetId && change.delta < 0 && max > 0) strongest = Math.max(strongest, -change.delta / max);
+  }
+  const hit = strongest > 0 ? actorHitWord(strongest, 1) : null;
+  if (hit) out.hit = hit;
+  return out;
+}
 import { BATTLE_LOG_ENTRY_SCHEMA } from "../../contracts/artifacts.ts";
 import { requireClock } from "../_shared/require-clock.js";
 import { affinityTableRow } from "../../../../core-ts/src/state/affinity-table.ts";
+import { actorConditionBand, actorHitWord } from "../../../../core-ts/src/rules/actor-condition.ts";
 
 const PERSONA = "annotator";
 
@@ -38,8 +60,9 @@ export function fieldHitsOf(battle) {
 
 /**
  * @param {object} args
- * @param {object} args.battle         `{ tick, casts, takes, lifecycles, exitedActorIds, defeated }` from the observation;
- *   `defeated` is `{ [actorId]: { defeatVital, fields: [{ sourceId, kind }] } }`
+ * @param {object} args.battle         `{ tick, casts, takes, lifecycles, exitedActorIds, defeated, struck? }` from the observation;
+ *   `defeated` is `{ [actorId]: { defeatVital, fields: [{ sourceId, kind }] } }`;
+ *   `struck` is `{ [actorId]: { defeatVital, vitals: { [key]: { current, max } } } }` for each actor a cast struck (#692)
  * @param {object} [args.previous]     the lifecycles the Annotator saw last tick, `{ [actorId]: lifecycle }`
  * @param {string[]} [args.previousFieldHits]  last tick's field contacts (`fieldHitKey`), so an ongoing one is not repeated
  */
@@ -56,6 +79,7 @@ export function buildBattleLogEntries({ battle, previous = {}, previousFieldHits
       kind: cast.kind,
       expression: cast.expression,
       struck: Boolean(cast.targetId && cast.targetId !== cast.sourceId),
+      ...(cast.targetId && cast.targetId !== cast.sourceId ? struckWords(cast, battle.struck?.[cast.targetId]) : {}),
     });
   }
   // Playtest 2026-10-30: a lasting field (emit, draw) hurting someone is logged when it starts.

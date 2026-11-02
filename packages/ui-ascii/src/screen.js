@@ -22,6 +22,7 @@ import { ASCII_AIM_GLYPH, ASCII_ENTITY_GLYPHS, ASCII_FIELD_MARK_GLYPH, ASCII_TER
 import { HELP_LINES } from "./keymap.js";
 import { GAME_COLOR_PALETTE } from "../../runtime/src/contracts/game-elements.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
+import { conditionNote } from "../../runtime/src/render/battle-log-lines.js";
 
 const BAR_WIDTH = 10;
 const RESET = "\u001b[0m";
@@ -415,7 +416,8 @@ export function soakedNote(actor) {
 /**
  * Everyone in sight right now, by label, so a person or Claude can name them; a source
  * that is off until its mana is full says so, like the player's own slot line (#412),
- * and a soaked actor says how many turns it stays soaked (#420).
+ * and a soaked actor says how many turns it stays soaked (#420). An actor our side has hit says
+ * how hurt it looked then, and how long ago (#692); never its vitals.
  */
 export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
@@ -423,7 +425,8 @@ export function inSightLine(view) {
   return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${revealNote(actor)}`
     + (actor.affinityUnpayable ? ` (off: upkeep ${actor.affinityUnpayable.upkeep} > max mana ${actor.affinityUnpayable.maxMana})`
       : actor.affinityOff ? " (off until mana is full)" : "")
-    + (soakedNote(actor) ? ` (${soakedNote(actor).trim()})` : "")).join("  ")}`;
+    + (soakedNote(actor) ? ` (${soakedNote(actor).trim()})` : "")
+    + (conditionNote(actor.condition) ? ` (${conditionNote(actor.condition)})` : "")).join("  ")}`;
 }
 
 // How each kind of thing leaves (#428): an exit is a departure, never mistaken for a defeat.

@@ -36,6 +36,8 @@ export interface ActorTurnCast {
   path: ActorPosition[];
   targetId?: string;
   changes: ActorVitalChange[];
+  /** #692: how the struck actor's slots took it; absent when they changed nothing. */
+  reception?: 'amplified' | 'resisted';
 }
 /**
  * #410: one actor's vital this turn: `hit` is the net of the fields on it and the casts others
@@ -225,7 +227,8 @@ export function createActorTurn(
             const struck = along ? (result as { struckId?: string }).struckId : aimed?.id;
             const path = along ? (result as { path?: ActorPosition[] }).path ?? [] : [];
             (state.casts ??= []).push({ sourceId: actor.id, kind: pair.kind, expression: pair.expression,
-              path, ...(struck ? { targetId: struck } : {}), changes: result.changes });
+              path, ...(struck ? { targetId: struck } : {}), changes: result.changes,
+              ...(result.reception ? { reception: result.reception } : {}) });
             // #410: what the cast did to others is their hit this turn; the caster's price is not.
             for (const change of result.changes) {
               if (change.actorId !== actor.id) addVitalChange(state, change.actorId, change.vital, 'hit', change.delta);

@@ -2273,6 +2273,15 @@ export interface BattleLogEntryV1 {
   /** cast: whether it landed on another actor. */
   struck?: boolean;
   /**
+   * #692, cast that struck another: how hurt the target looks after the tick, as a band on its defeat
+   * vital (`unhurt` >75% of max, `hurt` >50%, `bloodied` >25%, else `near_defeat`); words only, never vitals.
+   */
+  condition?: "unhurt" | "hurt" | "bloodied" | "near_defeat";
+  /** #692: how hard the hit was against the struck vital's max (`glancing` <10%, `solid` <25%, else `crushing`). */
+  hit?: "glancing" | "solid" | "crushing";
+  /** #692: the target's slots amplified the cast (an opposite slot, a breach) or resisted it (immune, absorbed). */
+  reception?: "amplified" | "resisted";
+  /**
    * take: what it gave, as core's holding: `{ kind: "vital", vitals: [{ key, delta, regen? }], permanenceMode }`,
    * or `{ kind: "affinity", affinity, expression }`.
    */

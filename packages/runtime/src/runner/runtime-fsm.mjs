@@ -111,6 +111,18 @@ function defeatedReadings(snapshot, readFields) {
   }]));
 }
 
+// #692: the vitals of each actor another's cast struck this tick, as the tick left them, so the
+// Annotator can word how hurt it looks (a band, a hit word). Facts only; the entry carries no numbers.
+function struckReadings(turn, snapshot) {
+  const ids = new Set((turn?.casts ?? []).filter((cast) => cast.targetId && cast.targetId !== cast.sourceId).map((cast) => cast.targetId));
+  if (ids.size === 0) return {};
+  return Object.fromEntries(snapshot.actors.filter((actor) => ids.has(actor.id)).map((actor) => [actor.id, {
+    defeatVital: actor.defeatVital,
+    vitals: Object.fromEntries(Object.entries(actor.vitals ?? {}).filter(([, pool]) => pool)
+      .map(([key, pool]) => [key, { current: pool.current, max: pool.max }])),
+  }]));
+}
+
 // Playtest 2026-10-30: who a field hurt this tick, so the battle log can say an emit or draw is
 // doing damage. Facts only: an actor whose field-phase change (core's `hit` less what casts did)
 // was a loss, with every other actor's field on its cell; the Annotator decides which harm.
@@ -1543,6 +1555,7 @@ export function createFsmRuntime({
             exitedActorIds: applied.exitedActorIds ?? [],
             defeated: defeatedReadings(applied.actorSnapshot,
               () => (actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [])),
+            struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
             fieldHits: fieldHitReadings(applied.actorTurn, applied.actorSnapshot,
               () => (actorRegistry ? readActorRegistryObservation(actorRegistry, tick).affinityFields : [])),
           },

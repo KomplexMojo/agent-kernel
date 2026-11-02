@@ -35,6 +35,26 @@ function takenWords(taken) {
   return "";
 }
 
+/** #692: the words a band reads as: "it looks bloodied". */
+export const CONDITION_WORDS = Object.freeze({ unhurt: "unhurt", hurt: "hurt", bloodied: "bloodied", near_defeat: "near defeat", unknown: "unknown" });
+
+/** #692: `: a solid hit, amplified; it looks bloodied` for the caster's side; nothing otherwise. */
+function struckNote(entry, showCondition) {
+  if (!showCondition) return "";
+  const how = [entry.hit ? `a ${entry.hit} hit` : null, entry.reception ?? null].filter(Boolean).join(", ");
+  const looks = entry.condition ? `it looks ${CONDITION_WORDS[entry.condition]}` : null;
+  const parts = [how, looks].filter(Boolean);
+  return parts.length ? `: ${parts.join("; ")}` : "";
+}
+
+/** #692: how a remembered band reads in a list: `looks bloodied, 2 ticks ago`; `condition unknown` once it has faded. */
+export function conditionNote(condition) {
+  if (!condition?.band) return "";
+  if (condition.band === "unknown") return "condition unknown";
+  const age = Number.isInteger(condition.age) && condition.age > 0 ? `, ${condition.age} tick${condition.age === 1 ? "" : "s"} ago` : "";
+  return `looks ${CONDITION_WORDS[condition.band] ?? condition.band}${age}`;
+}
+
 /**
  * @param {object} entry   an `agent-kernel/BattleLogEntry`
  * @param {object} [who]
@@ -42,8 +62,9 @@ function takenWords(taken) {
  * @param {(id: string) => (string|null)} [who.labelOf]  the glyph label of an actor, when it has one
  * @param {{vital: string, hit: number, regen: number}} [who.effect]  a `field` entry's effect on a target
  *   the reader may see the vitals of (itself or its own side, #497), so the line can state the amount and the net
+ * @param {boolean} [who.showCondition]  #692: the reader is on the caster's side, so a struck cast says how it landed
  */
-export function battleLogLine(entry, { seatId, labelOf = () => null, effect = null } = {}) {
+export function battleLogLine(entry, { seatId, labelOf = () => null, effect = null, showCondition = false } = {}) {
   const name = (id) => {
     if (id === seatId) return "you";
     const label = labelOf(id);
@@ -55,7 +76,7 @@ export function battleLogLine(entry, { seatId, labelOf = () => null, effect = nu
   switch (entry.event) {
     case "cast": {
       const source = name(entry.sourceId);
-      if (entry.struck) return `${cap(source)} cast ${attack} and struck ${name(entry.targetId)}.`;
+      if (entry.struck) return `${cap(source)} cast ${attack} and struck ${name(entry.targetId)}${struckNote(entry, showCondition)}.`;
       return `${cap(source)} cast ${attack}${entry.targetId ? ` at ${name(entry.targetId)}` : ""}.`;
     }
     case "take": {
