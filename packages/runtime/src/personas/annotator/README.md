@@ -59,7 +59,9 @@ turns what the tick applied (casts, takes, lifecycle changes, exits; supplied on
 struck (#497). A cast that struck another also carries words for how it landed (#692): `condition`,
 a band on the target's defeat vital after the tick (`unhurt` / `hurt` / `bloodied` / `near_defeat`),
 `hit` (`glancing` / `solid` / `crushing` against the struck vital's max) and `reception`
-(`amplified` / `resisted`, from core's cast). The cuts are core's (`rules/actor-condition.ts`); the
+(`amplified` / `resisted`, from core's cast). When the hit landed hardest on a vital other than the
+defeat vital (armour before health), `struckVital` and `struckCondition` band that vital too (Darren,
+2026-11-02), worded "its durability looks worn". The cuts are core's (`rules/actor-condition.ts`); the
 observation's `struck` readings hold the numbers and never reach an entry. `play-session` shows them
 only to the caster's side and ages the band, reading `unknown` after `ACTOR_CONDITION_FADE_TICKS`. The words live in `render/battle-log-lines.js`; `play-session` keeps the entries, filters
 them to what the seat may read, and `ui-ascii` and the phone app only render. The Annotator remembers

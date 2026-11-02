@@ -37,22 +37,33 @@ function takenWords(taken) {
 
 /** #692: the words a band reads as: "it looks bloodied". */
 export const CONDITION_WORDS = Object.freeze({ unhurt: "unhurt", hurt: "hurt", bloodied: "bloodied", near_defeat: "near defeat", unknown: "unknown" });
+/** #692: the same bands on a vital that is not the defeat vital (armour, stamina): it wears, it is not "hurt". */
+export const STRUCK_VITAL_WORDS = Object.freeze({ unhurt: "intact", hurt: "worn", bloodied: "badly worn", near_defeat: "nearly gone" });
 
-/** #692: `: a solid hit, amplified; it looks bloodied` for the caster's side; nothing otherwise. */
+/** `its durability looks badly worn` (the line) or `durability badly worn` (a list); empty without a struck band. */
+function struckVitalWords(vital, band, inLine) {
+  if (!vital || !band) return "";
+  const words = STRUCK_VITAL_WORDS[band] ?? band;
+  return inLine ? `its ${vital} looks ${words}` : `${vital} ${words}`;
+}
+
+/** #692: `: a solid hit, amplified; its durability looks worn; it looks unhurt` for the caster's side; nothing otherwise. */
 function struckNote(entry, showCondition) {
   if (!showCondition) return "";
   const how = [entry.hit ? `a ${entry.hit} hit` : null, entry.reception ?? null].filter(Boolean).join(", ");
+  const struck = struckVitalWords(entry.struckVital, entry.struckCondition, true) || null;
   const looks = entry.condition ? `it looks ${CONDITION_WORDS[entry.condition]}` : null;
-  const parts = [how, looks].filter(Boolean);
+  const parts = [how, struck, looks].filter(Boolean);
   return parts.length ? `: ${parts.join("; ")}` : "";
 }
 
-/** #692: how a remembered band reads in a list: `looks bloodied, 2 ticks ago`; `condition unknown` once it has faded. */
+/** #692: how a remembered band reads in a list: `looks unhurt, durability worn, 2 ticks ago`; `condition unknown` once it has faded. */
 export function conditionNote(condition) {
   if (!condition?.band) return "";
   if (condition.band === "unknown") return "condition unknown";
   const age = Number.isInteger(condition.age) && condition.age > 0 ? `, ${condition.age} tick${condition.age === 1 ? "" : "s"} ago` : "";
-  return `looks ${CONDITION_WORDS[condition.band] ?? condition.band}${age}`;
+  const struck = struckVitalWords(condition.struckVital, condition.struckBand, false);
+  return `looks ${CONDITION_WORDS[condition.band] ?? condition.band}${struck ? `, ${struck}` : ""}${age}`;
 }
 
 /**

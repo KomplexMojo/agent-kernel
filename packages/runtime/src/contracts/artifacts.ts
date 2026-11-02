@@ -2281,6 +2281,9 @@ export interface BattleLogEntryV1 {
   hit?: "glancing" | "solid" | "crushing";
   /** #692: the target's slots amplified the cast (an opposite slot, a breach) or resisted it (immune, absorbed). */
   reception?: "amplified" | "resisted";
+  /** #692: the vital the hit landed hardest on, when it is not the defeat vital (armour before health), and its band. */
+  struckVital?: string;
+  struckCondition?: "unhurt" | "hurt" | "bloodied" | "near_defeat";
   /**
    * take: what it gave, as core's holding: `{ kind: "vital", vitals: [{ key, delta, regen? }], permanenceMode }`,
    * or `{ kind: "affinity", affinity, expression }`.
