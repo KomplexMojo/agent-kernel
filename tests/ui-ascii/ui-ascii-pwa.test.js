@@ -48,6 +48,18 @@ test("empty-slot and More pickers keep #controls visible on desktop and with a k
   assert.match(css, /body\.kbd\.picking #controls/);
 });
 
+// AK-18 / Darren screenshot: status chip must stay one line beside Map+☰; no affinity hint under slots;
+// that reclaimed 34px goes to a taller battle log (#msg).
+test("phone status bar stays one line; affinity hint is gone; battle log is taller", () => {
+  const browser = readFileSync(join(SRC, "browser.js"), "utf8");
+  const css = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/style.css"), "utf8");
+  assert.match(css, /#title \{[^}]*white-space: nowrap/);
+  assert.match(css, /#title \{[^}]*text-overflow: ellipsis/);
+  assert.match(css, /#msg \{ height: 96px;/);
+  assert.match(css, /\.tune\.hint \{ height: 0;/);
+  assert.doesNotMatch(browser, /tap a slot to aim it, or an empty one to equip/);
+});
+
 test("p opens the playtest report (and More lists it)", () => {
   const browser = readFileSync(join(SRC, "browser.js"), "utf8");
   assert.match(browser, /key === "p".*openReport\(\)/s);

@@ -222,10 +222,11 @@ function renderSlots(game) {
   }).join("");
   const held = slots.find((slot) => slot.key === current.selected);
   // Range and power steppers are off the play screen for now (Darren, 2026-10-30: they broke the layout).
+  // Empty-slot instructional hint removed (AK-18): that row collapses so the battle log can be taller.
   $("tune").className = held ? "tune" : "tune hint";
   $("tune").innerHTML = held
     ? `${picks.length ? `<button data-tune="swap">swap</button>` : ""}<button data-tune="off">unequip</button>`
-    : "tap a slot to aim it, or an empty one to equip";
+    : "";
   return picks;
 }
 

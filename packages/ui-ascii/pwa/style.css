@@ -20,8 +20,9 @@ button:active { background: #33333c; }
 #game { --controls: 176px; --side: min(calc(100vw - 16px), calc(100dvh - 330px), 560px); padding: 0 8px; max-width: 600px; height: 100dvh; display: flex; flex-direction: column; gap: 6px; }
 body.kbd #game { --controls: 0px; --side: min(calc(100vw - 16px), calc(100dvh - 190px), 560px); }
 #bar { height: 34px; flex: none; margin-top: max(4px, env(safe-area-inset-top)); display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
+#title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #bar button { padding: 4px 12px; font-size: 16px; }
-#bar-buttons { display: flex; gap: 6px; } #bar #mapbtn { font-size: 14px; } #bar #mapbtn.on { border-color: var(--accent); color: var(--accent); }
+#bar-buttons { display: flex; flex: none; gap: 6px; } #bar #mapbtn { font-size: 14px; } #bar #mapbtn.on { border-color: var(--accent); color: var(--accent); }
 /* Board chrome matches fog so any sub-pixel gap never reads as a black void. */
 #board { width: var(--side); height: var(--side); flex: none; margin: 0 auto; background: #12181c; border: 1px solid var(--edge); border-radius: 8px; display: grid; place-items: center; overflow: hidden; }
 /* Square tiles: each glyph is a span of --tile (set by fitBoard). Letter-spacing left black voids. */
@@ -35,7 +36,10 @@ body.kbd #game { --controls: 0px; --side: min(calc(100vw - 16px), calc(100dvh - 
 #boardtext.defeat .defeat-summary { color: var(--accent); font-size: 0.92em; }
 #vitals { height: 32px; flex: none; display: flex; gap: 6px; } #vitals div { flex: 1; min-width: 0; background: var(--panel); border-radius: 6px; padding: 3px 4px; font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; }
 #vitals i { display: block; height: 5px; border-radius: 3px; margin-top: 3px; }
-#msg { height: 62px; flex: none; overflow-y: auto; background: var(--panel); border-radius: 8px; padding: 4px 8px; font-size: 12px; line-height: 1.3; color: var(--dim); overscroll-behavior: contain; }
+/* 96px = former 62px band + the 34px affinity-hint row that no longer shows instructional text. */
+#msg { height: 96px; flex: none; overflow-y: auto; background: var(--panel); border-radius: 8px; padding: 4px 8px; font-size: 12px; line-height: 1.3; color: var(--dim); overscroll-behavior: contain; }
+/* When a slot is selected, swap/unequip reclaim that 34px so total chrome stays fixed. */
+#game:has(#tune:not(.hint)) #msg { height: 62px; }
 #msg .first { color: var(--fg); }
 #slots { height: 52px; flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 .slot { position: relative; padding: 4px 6px 4px 18px; text-align: left; display: flex; flex-direction: column; justify-content: center; line-height: 1.25; min-width: 0; }
@@ -46,7 +50,8 @@ body.kbd #game { --controls: 0px; --side: min(calc(100vw - 16px), calc(100dvh - 
 .slot.empty { border-style: dashed; color: var(--dim); align-items: center; padding-left: 6px; } .slot.empty::before { display: none; } .slot:disabled { opacity: 0.4; }
 .tune { height: 34px; flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 .tune > button { font-size: 11px; padding: 0; } .tune button:disabled { opacity: 0.35; }
-.tune.hint { display: block; background: none; color: var(--dim); font-size: 11px; text-align: center; line-height: 34px; }
+/* Empty (no slot selected): collapse — space went to #msg. Swap/unequip still use .tune at 34px. */
+.tune.hint { height: 0; min-height: 0; overflow: hidden; margin: 0; padding: 0; border: 0; visibility: hidden; }
 #controls { height: var(--controls); flex: none; display: flex; gap: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
 body.kbd #controls { display: none; }
 /* Slot / More pickers need the controls band even when a keyboard or mouse hid it. */
