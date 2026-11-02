@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-02T20-30-31-450Z-17db21af2ed8-74d8cd39492d",
-    "key": "74d8cd39492d8ceb0b3f414082a02073add74e5343a4894de59c8e4f506e9ac3",
+    "id": "2026-11-02T21-03-21-232Z-89d4b9697428-1a671e259132",
+    "key": "1a671e25913268d0d8cd53da667e41fb1ea7e8a0e83c652f71341e203472d4f4",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-02T20:30:31.450Z",
-    "completedAt": "2026-11-02T20:30:57.430Z",
-    "durationMs": 25980,
+    "startedAt": "2026-11-02T21:03:21.232Z",
+    "completedAt": "2026-11-02T21:03:48.221Z",
+    "durationMs": 26989,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "17db21af2ed86c07080864a9137b1f4d3386092e",
-    "tree": "d34ad38adb2d4ef186d4d2822b2a0c12c5c86c93"
+    "commit": "89d4b96974281adb94e8ed7a6a453ca6ddfe3aba",
+    "tree": "a57f1de7da61c01b975d110c8fb9065dc7d5cc07"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -94,6 +94,7 @@
       "packages/runtime/src/personas/actor/controller.js",
       "packages/runtime/src/personas/actor/motivations/ai-controlled.js",
       "packages/runtime/src/personas/actor/motivations/escorting.js",
+      "packages/runtime/src/personas/actor/motivations/exploring.js",
       "packages/runtime/src/personas/actor/motivations/friendly.js",
       "packages/runtime/src/personas/actor/motivations/index.js",
       "packages/runtime/src/personas/actor/motivations/stealthy.js",
@@ -275,7 +276,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/74d8cd39492d8ceb0b3f414082a02073add74e5343a4894de59c8e4f506e9ac3"
+    "retentionId": "preflights/1a671e25913268d0d8cd53da667e41fb1ea7e8a0e83c652f71341e203472d4f4"
   },
   "qualifies": false
 }
