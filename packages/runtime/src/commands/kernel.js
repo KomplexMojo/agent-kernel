@@ -15,8 +15,7 @@ import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 const {
   generateGridLayoutFromInput,
   buildInteriorBarrierActors,
-  buildResourceEnclosureBarrierActors,
-  planResourceEnclosureCells,
+  buildResourceEnclosureBarrierActorsForResources,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   resolveAffinityEffects,
@@ -1744,51 +1743,16 @@ export function createCommandKernel(host = {}) {
 
     const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
     const barrierCellKey = (point) => `${point?.x},${point?.y}`;
-    const rosterBeforeBarriers = [...actorsInput.actors, ...placedActors];
-    const occupiedBeforeBarriers = new Set(
-      rosterBeforeBarriers
-        .map((actor) => actor?.position)
-        .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
-        .map(barrierCellKey),
-    );
-    const enclosureCells = planResourceEnclosureCells(
-      layout,
-      rosterBeforeBarriers.filter((actor) => actor?.category === "resource"),
-      { occupied: occupiedBeforeBarriers },
-    );
-    const takeFree = (cells) => {
-      const out = [];
-      const seen = new Set();
-      for (const cell of cells) {
-        const key = barrierCellKey(cell);
-        if (!Number.isInteger(cell?.x) || !Number.isInteger(cell?.y)) continue;
-        if (occupiedBeforeBarriers.has(key) || seen.has(key)) continue;
-        seen.add(key);
-        out.push(cell);
-      }
-      return out;
-    };
-    const freeDividerCells = takeFree(layout.interiorBarriers || []);
-    const dividerKeys = new Set(freeDividerCells.map(barrierCellKey));
-    const freeEnclosureCells = takeFree(enclosureCells).filter((cell) => !dividerKeys.has(barrierCellKey(cell)));
-    const interiorBarrierActors = [
-      ...buildInteriorBarrierActors(freeDividerCells),
-      ...buildResourceEnclosureBarrierActors(freeEnclosureCells),
-    ];
     const existingActorIds = new Set(actorsInput.actors.map((actor) => actor?.id).filter(Boolean));
     const withPlaced = [
       ...actorsInput.actors,
       ...placedActors.filter((actor) => actor?.id && !existingActorIds.has(actor.id)),
     ];
-    const afterPlacedIds = new Set(withPlaced.map((actor) => actor?.id).filter(Boolean));
-    const actors = [
-      ...withPlaced,
-      ...interiorBarrierActors.filter((actor) => actor?.id && !afterPlacedIds.has(actor.id)),
-    ];
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
 
     // #276: with no budget the Allocator's reference budget and price list apply, as for
     // `ak create` (#274). Only a caller-supplied receipt with no budget is taken as already priced.
+    // Price before cages so enclosure durability can follow each resource's token total.
     const pricedHere = Boolean(budget) || !budgetReceipt;
     if (pricedHere) {
       const allocator = createAllocatorPersona({ clock: UNUSED_CLOCK });
@@ -1803,7 +1767,7 @@ export function createCommandKernel(host = {}) {
         budget,
         priceList,
         layout,
-        actors,
+        actors: withPlaced,
         proposalMeta: createMeta({ producedBy: "cli-configurator", runId }),
         receiptMeta: createMeta({ producedBy: "cli-configurator", runId }),
         // CR.9 M3: motivation vocabulary is the Configurator's, injected here rather
@@ -1812,6 +1776,52 @@ export function createCommandKernel(host = {}) {
       });
       budgetReceipt = spendResult.receipt;
     }
+
+    const occupiedBeforeBarriers = new Set(
+      withPlaced
+        .map((actor) => actor?.position)
+        .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
+        .map(barrierCellKey),
+    );
+    const resourceTokenValueById = new Map();
+    for (const item of budgetReceipt?.lineItems || []) {
+      if (item?.category !== "resources") continue;
+      const id = item?.subjectRef?.id;
+      if (typeof id !== "string" || !id) continue;
+      const add = Number.isFinite(item.totalCost) ? item.totalCost : 0;
+      resourceTokenValueById.set(id, (resourceTokenValueById.get(id) || 0) + add);
+    }
+    const takeFree = (cells) => {
+      const out = [];
+      const seen = new Set();
+      for (const cell of cells) {
+        const key = barrierCellKey(cell);
+        if (!Number.isInteger(cell?.x) || !Number.isInteger(cell?.y)) continue;
+        if (occupiedBeforeBarriers.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        out.push(cell);
+      }
+      return out;
+    };
+    const freeDividerCells = takeFree(layout.interiorBarriers || []);
+    const dividerKeys = new Set(freeDividerCells.map(barrierCellKey));
+    const interiorBarrierActors = [
+      ...buildInteriorBarrierActors(freeDividerCells),
+      ...buildResourceEnclosureBarrierActorsForResources(
+        layout,
+        withPlaced.filter((actor) => actor?.category === "resource"),
+        {
+          occupied: occupiedBeforeBarriers,
+          tokenValueById: resourceTokenValueById,
+          skipKeys: dividerKeys,
+        },
+      ),
+    ];
+    const afterPlacedIds = new Set(withPlaced.map((actor) => actor?.id).filter(Boolean));
+    const actors = [
+      ...withPlaced,
+      ...interiorBarrierActors.filter((actor) => actor?.id && !afterPlacedIds.has(actor.id)),
+    ];
 
     const simConfig = buildSimConfigArtifact({
       meta: createMeta({ producedBy: "cli-configurator", runId }),

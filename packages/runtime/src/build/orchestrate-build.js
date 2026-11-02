@@ -28,8 +28,7 @@ const configuratorBuild = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 const {
   generateGridLayoutFromInput,
   buildInteriorBarrierActors,
-  buildResourceEnclosureBarrierActors,
-  planResourceEnclosureCells,
+  buildResourceEnclosureBarrierActorsForResources,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   assembleMovementStamina,
@@ -658,10 +657,15 @@ export async function orchestrateBuild({
         .map(barrierCellKey),
     );
     const resourceActorsForEnclosure = rosterBeforeBarriers.filter((actor) => actor?.category === "resource");
-    // Room dividers (tough) plus a king-move cage around every resource (fragile; walls count).
-    const enclosureCells = planResourceEnclosureCells(layout, resourceActorsForEnclosure, {
-      occupied: occupiedBeforeBarriers,
-    });
+    // Allocator token totals per resource (receipt line items); Configurator maps them to cage durability.
+    const resourceTokenValueById = new Map();
+    for (const item of budgetReceipt?.lineItems || []) {
+      if (item?.category !== "resources") continue;
+      const id = item?.subjectRef?.id;
+      if (typeof id !== "string" || !id) continue;
+      const add = Number.isFinite(item.totalCost) ? item.totalCost : 0;
+      resourceTokenValueById.set(id, (resourceTokenValueById.get(id) || 0) + add);
+    }
     const takeFree = (cells) => {
       const out = [];
       const seen = new Set();
@@ -676,13 +680,16 @@ export async function orchestrateBuild({
     };
     const freeDividerCells = takeFree(layout.interiorBarriers || []);
     const dividerKeys = new Set(freeDividerCells.map(barrierCellKey));
-    const freeEnclosureCells = takeFree(enclosureCells).filter((cell) => !dividerKeys.has(barrierCellKey(cell)));
     // Furniture alone does not make an actor-less (room-only) build runnable or "has actors".
     const hasRealActors = actorsInput.actors.length > 0 || placedActors.length > 0;
     const interiorBarrierActors = hasRealActors
       ? [
         ...buildInteriorBarrierActors(freeDividerCells),
-        ...buildResourceEnclosureBarrierActors(freeEnclosureCells),
+        ...buildResourceEnclosureBarrierActorsForResources(layout, resourceActorsForEnclosure, {
+          occupied: occupiedBeforeBarriers,
+          tokenValueById: resourceTokenValueById,
+          skipKeys: dividerKeys,
+        }),
       ].map(prepareForPricing)
       : [];
     const normalizedActors = configuratorBuild.placeActors({

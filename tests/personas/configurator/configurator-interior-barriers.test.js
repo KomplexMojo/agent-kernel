@@ -150,6 +150,37 @@ test("resource enclosure barriers are fragile enough for a weak push", async () 
   assert.ok(actors[0].vitals.durability.max <= 2);
 });
 
+test("enclosure durability rises with Allocator token value", async () => {
+  const {
+    enclosureDurabilityForTokenValue,
+    buildResourceEnclosureBarrierActorsForResources,
+    RESOURCE_ENCLOSURE_DURABILITY,
+  } = await import(
+    "../../../packages/runtime/src/personas/configurator/interior-barriers.js"
+  );
+  assert.equal(enclosureDurabilityForTokenValue(0), RESOURCE_ENCLOSURE_DURABILITY);
+  assert.equal(enclosureDurabilityForTokenValue(16), 16);
+  assert.equal(enclosureDurabilityForTokenValue(99.1), 100);
+  assert.ok(enclosureDurabilityForTokenValue(100) > enclosureDurabilityForTokenValue(16));
+
+  const width = 7;
+  const height = 7;
+  const terrain = Array.from({ length: width * height }, () => "floor");
+  const layout = { width, height, terrain };
+  const resources = [
+    { id: "cheap", position: { x: 2, y: 2 } },
+    { id: "pricey", position: { x: 5, y: 5 } },
+  ];
+  const actors = buildResourceEnclosureBarrierActorsForResources(layout, resources, {
+    tokenValueById: { cheap: 16, pricey: 100 },
+  });
+  const near = (x, y) => actors.find((actor) => (
+    Math.max(Math.abs(actor.position.x - x), Math.abs(actor.position.y - y)) === 1
+  ));
+  assert.equal(near(2, 2).vitals.durability.max, 16);
+  assert.equal(near(5, 5).vitals.durability.max, 100);
+});
+
 test("occupied neighbours are skipped so blockers can finish the cage", async () => {
   const { planResourceEnclosureCells } = await import(
     "../../../packages/runtime/src/personas/configurator/interior-barriers.js"
