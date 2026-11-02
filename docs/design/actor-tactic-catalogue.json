@@ -1,0 +1,126 @@
+{
+  "schema": "agent-kernel/ActorTacticCatalogue",
+  "schemaVersion": 1,
+  "issue": 673,
+  "tracker": 611,
+  "classes": ["works", "doesnt_work", "z3_solve", "list"],
+  "scoring": {
+    "primary": ["tokenValueAcquired", "nonRenewableUse"],
+    "tokenValueSource": "Allocator price list (no second table)",
+    "vitalThresholds": { "warning": 50, "actionNeeded": 25 },
+    "vitalOptionsLost": {
+      "stamina": ["retreat", "move"],
+      "mana": ["attack cast", "defend cast"],
+      "health": ["engage"]
+    },
+    "notes": "Renewable vitals are never charged for spending. They are scored by turns under 50% (warning) and under 25% (action needed), the options lost, and whether the actor changed what it was doing at 25%."
+  },
+  "evidence": {
+    "runs": {
+      "haiku-first-look-s0": "Haiku 5.5 via ak play-session, scenario first-look, seed 0, fog on, 2026-11-02 (issues #670, #671, #672). Defeated tick 74.",
+      "qwen-first-look-s0": "qwen3.8:27b seat driver, scenario first-look, seed 0, run 20261102-173839 (issue #670). Defeated tick 159, in water."
+    },
+    "limits": "Raw run records are not in the repo (artifacts/ is ignored). Entries cite the turn logs quoted in #670-#672. Token value and the three vital-pressure numbers were not recorded by the seat driver, so they are null unless the issue text gives them."
+  },
+  "entries": [
+    {
+      "id": "leave-hurting-tile",
+      "class": "list",
+      "trigger": "The actor stands in a field that harms it, or its health fell last turn and it did not move.",
+      "action": "Step to the adjacent free cell that harms least; hold only when no step is better.",
+      "evidence": [
+        { "run": "haiku-first-look-s0", "turns": "66-74", "note": "Waited in water while health fell 20, 16, 12, 8, 4, 0." },
+        { "run": "qwen-first-look-s0", "turns": "to 159", "note": "Died soaked, stamina 0, waiting." }
+      ],
+      "observed": "doesnt_work",
+      "covers": { "motivation": "reflexive", "strategy": { "when": { "vital": "health", "below": 50 }, "do": { "kind": "retreat" } } },
+      "gap": "reflexive already steps out of a harming field (#308), but a step needs stamina. Both losing runs reached stamina 0 first, so the reflex had nothing to spend (see keep-a-step-in-reserve).",
+      "vitalPressure": [
+        { "vital": "health", "turnsBelow50": null, "turnsBelow25": null, "optionsLost": ["engage"], "reactedAt25": false },
+        { "vital": "stamina", "turnsBelow50": 9, "turnsBelow25": 9, "optionsLost": ["retreat", "move"], "reactedAt25": false }
+      ],
+      "tokenValueAcquired": null,
+      "nonRenewableUse": "defeat"
+    },
+    {
+      "id": "keep-a-step-in-reserve",
+      "class": "list",
+      "trigger": "Stamina is under 25% (or cannot pay one step) and a hostile caster or a harming field is within reach.",
+      "action": "Stop spending stamina on anything but the step out; retreat before stamina hits 0.",
+      "evidence": [
+        { "run": "haiku-first-look-s0", "turns": "66-74", "note": "A water push took stamina to 0 and soaked the hero; wait was the only legal action; stamina did not recover because each push soaked again." }
+      ],
+      "observed": "doesnt_work",
+      "covers": { "strategy": { "when": { "vital": "stamina", "below": 25 }, "do": { "kind": "retreat" } } },
+      "gap": "The tactic has to fire above the line where retreat becomes unaffordable. Whether the rule itself (#671) should leave an always-affordable step is Darren's call and out of scope here.",
+      "vitalPressure": [
+        { "vital": "stamina", "turnsBelow50": 9, "turnsBelow25": 9, "optionsLost": ["retreat", "move"], "reactedAt25": false }
+      ],
+      "tokenValueAcquired": null,
+      "nonRenewableUse": "defeat"
+    },
+    {
+      "id": "do-not-repeat-a-refused-command",
+      "class": "list",
+      "trigger": "The same command was refused, or changed nothing, on the previous turn.",
+      "action": "Pick a different command from the legal list; never offer the refused one again until the position changes.",
+      "evidence": [
+        { "run": "haiku-first-look-s0", "turns": "several", "note": "Diagonal moves from the legal list were refused with 'Something is in the way' several times (#672, not yet verified)." }
+      ],
+      "observed": "doesnt_work",
+      "covers": { "operations": "moveWasRefused in actor/controller.js (#457) already skips a refused move for the Actor's own proposals" },
+      "gap": "Covers NPC moves only. A seat or ai_controlled actor gets no such memory; the legal list itself is the fix if #672 confirms a mismatch.",
+      "vitalPressure": [],
+      "tokenValueAcquired": null,
+      "nonRenewableUse": null
+    },
+    {
+      "id": "probe-before-entering-a-guarded-corridor",
+      "class": "z3_solve",
+      "trigger": "The only unexplored way on is a corridor whose far end is unseen, and a hostile with a ranged affinity was last seen near it.",
+      "action": "Stop at the edge, outside the hostile's reach plus one, and look (light push/pull or inspect) before committing a step inside.",
+      "evidence": [
+        { "run": "haiku-first-look-s0", "turns": "to 74", "note": "W1 sat in the only unexplored corridor; the hero walked into its water push at range 2 and the exit was never seen." }
+      ],
+      "observed": "doesnt_work",
+      "covers": { "strategy": { "when": { "hostileWithin": 3 }, "do": { "kind": "retreat" } } },
+      "gap": "A fixed hostileWithin line is a list; choosing where to stand so a corridor is seen without entering reach is geometry over reach, line of sight and stamina, a multi-step plan. This is the case the #674 oracle should test first.",
+      "vitalPressure": [
+        { "vital": "health", "turnsBelow50": null, "turnsBelow25": null, "optionsLost": ["engage"], "reactedAt25": false }
+      ],
+      "tokenValueAcquired": null,
+      "nonRenewableUse": "defeat"
+    },
+    {
+      "id": "route-around-a-guards-reach",
+      "class": "z3_solve",
+      "trigger": "The hero holds no attack and a guard covers a cell on the only known route.",
+      "action": "Choose the route that keeps every step outside the guard's range plus one, or turn back and look for another way.",
+      "evidence": [
+        { "run": "haiku-first-look-s0", "turns": "to 74", "note": "The starting kit was one passive fire emit; no attack was ever offered (#670)." },
+        { "run": "qwen-first-look-s0", "turns": "to 159", "note": "Same kit, same guard." }
+      ],
+      "observed": "doesnt_work",
+      "covers": { "operations": "fieldUtilityRanks safety rank ranks one step at a time" },
+      "gap": "A one-step safety rank cannot see that every route crosses the reach. This is a path-with-constraints problem; the prior probe found the policy suboptimal in 19/45 boards and 9/45 survive a rank reorder at H=6. A*/BFS is likely enough, so z3 is not assumed.",
+      "vitalPressure": [],
+      "tokenValueAcquired": null,
+      "nonRenewableUse": "defeat"
+    },
+    {
+      "id": "do-not-burn-your-own-resource",
+      "class": "list",
+      "trigger": "An owned emit field would cover a resource the actor wants to acquire.",
+      "action": "Leave the emit off, or move so the field does not cover the resource, until the resource is taken.",
+      "evidence": [
+        { "run": "haiku-first-look-s0", "turns": "early", "note": "The hero's own fire emit r2 burned its own resource R1 (#670)." }
+      ],
+      "observed": "doesnt_work",
+      "covers": { "strategy": { "goals": [{ "kind": "take", "target": "R1" }] } },
+      "gap": "Resource value is lost before it is acquired, so it lowers tokenValueAcquired directly. The take goal does not know the emit reaches it.",
+      "vitalPressure": [],
+      "tokenValueAcquired": null,
+      "nonRenewableUse": "resource destroyed"
+    }
+  ]
+}
