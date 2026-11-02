@@ -35,6 +35,9 @@ test("a picker plays turns from the legal list; illegal ids are refused, retried
     expect(log.illegal).toBe(1);
     expect(log.picks).toBe(3);
     expect(log.transcript.map((entry) => entry.pick)).toEqual(["wait", "wait", "wait"]);
+    // Each turn keeps what was on offer and on screen before the pick.
+    expect(log.transcript[0].legal).toContain("wait");
+    expect(typeof log.transcript[0].screen).toBe("string");
     expect(log.seat).toMatch(/\S/);
     expect(Object.keys(log.finalVitals)).toContain("health");
     expect(log.outcome).toBe("timeout");
