@@ -73,7 +73,7 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
   try {
     await server.initialize();
     const { tools } = await server.request("tools/list", {});
-    for (const name of ["ak_play_start", "ak_play_act", "ak_play_view", "ak_play_legal", "ak_play_switch", "ak_play_order", "ak_play_advance", "ak_play_end"]) {
+    for (const name of ["ak_play_start", "ak_play_act", "ak_play_view", "ak_play_legal", "ak_play_switch", "ak_play_order", "ak_play_advance", "ak_play_tick", "ak_play_end"]) {
       assert.ok(tools.some((tool) => tool.name === name), `${name} is listed`);
     }
 
