@@ -96,3 +96,23 @@ test("the model sees its recent turns, so it can notice a loop or a tile that hu
   expect(prompts[0]).toMatch(/move:east -> HP 20\/20 tick 1/);
   expect(prompts[0]).toMatch(/move:west \(refused\) -> HP 18\/20 tick 2/);
 });
+
+test("the model is shown the Annotator's battle log, and every session result carries it", async () => {
+  const { llmSeatPicker } = await import("../../scripts/testing/play-sim-seat.mjs");
+  const prompts = [];
+  const adapter = { generate: async (request) => { prompts.push(request.prompt); return { response: '{"action":"wait"}' }; } };
+  const picker = llmSeatPicker({ adapter, model: "m" });
+  await picker({ result: { screen: "", hud: "", inSight: [], battleLog: ["T3 W1 hits you with fire push: HP \u22124"] }, actions: [{ id: "wait", label: "wait" }] });
+  expect(prompts[0]).toMatch(/Battle log/);
+  expect(prompts[0]).toContain("T3 W1 hits you with fire push");
+
+  const { work, dir } = built();
+  const transport = createCliTransport();
+  try {
+    const started = transport.start({ dir });
+    expect(Array.isArray(started.battleLog)).toBe(true);
+  } finally {
+    transport.cleanup();
+    rmSync(work, { recursive: true, force: true });
+  }
+}, 120000);

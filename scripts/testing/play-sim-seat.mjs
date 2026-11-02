@@ -61,6 +61,7 @@ export function llmSeatPicker({ adapter, model }) {
       "Goal: reach the exit (E). ? is unexplored, @ is you, other letters are other actors.",
       result.screen,
       ...(history.length ? ["Your last turns (oldest first; do not repeat a pattern that goes nowhere, and leave a tile that is hurting you):", ...history.map((turn) => `  ${turn.pick}${turn.refused ? " (refused)" : ""} -> ${turn.hud}`)] : []),
+      ...(result.battleLog?.length ? ["Battle log (the Annotator's record of what happened to you and around you, newest last):", ...result.battleLog.map((line) => `  ${line}`)] : []),
       `Now: ${result.hud ?? ""}`,
       `In sight: ${(result.inSight || []).map((actor) => `${actor.label ?? actor.id} at ${JSON.stringify(actor.position)}`).join("; ") || "nobody"}.`,
       "Actions:", ...actions.map((action) => `  ${action.id}: ${action.label}`),

@@ -19,7 +19,7 @@ import {
   loadLevelFromRunDir,
   loadRunFromDir,
 } from "./levels.js";
-import { hudLine } from "./screen.js";
+import { battleLogLines, hudLine } from "./screen.js";
 import { createWatch } from "./watch.js";
 import { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat, realtimeLine } from "./realtime.js";
 import { DEFAULT_WEB_PORT, lanAddresses, startWebGame } from "./web.mjs";
@@ -55,7 +55,7 @@ const USAGE = `Usage: ak-maze [options]
   --no-help               start with the key help hidden (? shows it)
   --session <path>        a game kept in a file across calls: replay it if it exists, then
                           --actor, --commands and --keys, then save it back (with --json, the
-                          result adds active, party, inSight and legal). A new session needs a level
+                          result adds active, party, inSight, legal and battleLog). A new session needs a level
   --actor <id|label>      play this party member (a user_controlled actor) first; free
   --commands <json>       a JSON array of commands to act first, each { kind, params?, actorId? },
                           { kind: "switch", actorId }, { kind: "order", actorId, strategy } (a turn)
@@ -402,6 +402,7 @@ async function session(options) {
   console.log(JSON.stringify({
     ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party,
     ...(orders.length ? { orders } : {}), inSight, legal: listLegalPlayCommands(view),
+    battleLog: battleLogLines(view, 20),
     ...(results.length ? { results } : {}), ...(message ? { message } : {}), hud: hudLine(view, { turns }), screen,
     ...(warnings.length ? { warnings } : {}),
   }));
