@@ -76,6 +76,13 @@ export function llmSeatPicker({ adapter, model }) {
   return picker;
 }
 
+/** A picker that replays a recorded transcript's picks in order: the same game with no model call (#679). */
+export function replayPicker(transcript) {
+  const picks = transcript.map((turn) => turn.pick);
+  let next = 0;
+  return async () => picks[next++] ?? null;
+}
+
 /**
  * Play one level from `levelDir` to its end (exit, defeat, or `maxTurns`). Returns the outcome and
  * a transcript: one entry per turn with the pick, whether core refused it, and the HUD after.
