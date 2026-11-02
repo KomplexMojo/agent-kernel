@@ -64,6 +64,7 @@ export function llmSeatPicker({ adapter, model }) {
       ...(result.battleLog?.length ? ["Battle log (the Annotator's record of what happened to you and around you, newest last):", ...result.battleLog.map((line) => `  ${line}`)] : []),
       `Now: ${result.hud ?? ""}`,
       `In sight: ${(result.inSight || []).map((actor) => `${actor.label ?? actor.id} at ${JSON.stringify(actor.position)}`).join("; ") || "nobody"}.`,
+      ...(result.legalNote ? [`Note: ${result.legalNote}`] : []),
       "Actions:", ...actions.map((action) => `  ${action.id}: ${action.label}`),
       ...(problem ? [`Your last answer was refused: ${problem}`] : []),
     ].join("\n");
