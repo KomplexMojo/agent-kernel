@@ -156,6 +156,31 @@ test('of two exhausted slots, only the one full mana can pay comes back on (#441
   expect(registry.getActor('src')!.exhaustedAffinityKeys).toEqual(['earth:emit']);
 });
 
+// Playtest AK-11 (first-look seed 9): light draw r4×4 and dark emit r4×4 both cost
+// 2 + 4 + 16 = 22; mana 30 / regen 20 can sustain only one. Equip-order light pays,
+// dark goes off, and recovery needs a *full* pool — light's upkeep keeps mana at
+// 28 after regen, so dark stays off forever while light remains lit. Intended (#412).
+test('a lit lasting slot that keeps mana below max leaves a drained sibling off (#412)', () => {
+  const record = actor('hero', 0);
+  record.affinitySlots = 3;
+  record.affinities = [
+    { kind: 'light', expression: 'draw', stacks: 4, intensity: 4 },
+    { kind: 'dark', expression: 'emit', stacks: 4, intensity: 4 },
+  ];
+  record.activeAffinityKey = 'light:draw';
+  record.equippedAffinityKeys = ['light:draw', 'dark:emit'];
+  record.vitals.mana = { current: 30, max: 30, regen: 20 };
+  const registry = corridor(6, [record]);
+  closeTurn(registry, 0);
+  const after = registry.getActor('hero')!;
+  expect(after.exhaustedAffinityKeys).toEqual(['dark:emit']);
+  expect(after.vitals.mana!.current).toBe(28); // 30 − 22 + 20
+  closeTurn(registry, 1);
+  closeTurn(registry, 2);
+  expect(registry.getActor('hero')!.exhaustedAffinityKeys).toEqual(['dark:emit']);
+  expect(registry.getActor('hero')!.vitals.mana!.current).toBeLessThan(30);
+});
+
 test('an exhausted flag survives a snapshot round trip and rejects non-booleans', () => {
   const record = lamp('lamp', 0, 3); record.affinityExhausted = true;
   expect(corridor(4, [record]).snapshot().actors[0].affinityExhausted).toBe(true);
