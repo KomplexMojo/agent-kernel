@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-02T22-10-49-522Z-0d42fb5a8b1f-e689229d7396",
-    "key": "e689229d73964587951fd8b40aedda69bd5999d946e7fd90589d263a4eb8f67e",
+    "id": "2026-11-02T22-44-43-961Z-18360a0a132e-a61541f485e9",
+    "key": "a61541f485e94376c606858074afe289c5993f38fed5fba01450586fef86c92d",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-02T22:10:49.522Z",
-    "completedAt": "2026-11-02T22:11:15.596Z",
-    "durationMs": 26074,
+    "startedAt": "2026-11-02T22:44:43.961Z",
+    "completedAt": "2026-11-02T22:45:10.916Z",
+    "durationMs": 26955,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "0d42fb5a8b1fe609281cfd6a40b40382677bbdef",
-    "tree": "87a582675000daae309ea568ac34c0d81581c774"
+    "commit": "18360a0a132e93cd05b8dd36d900bb0fd613e963",
+    "tree": "0e32147e3c98da4cb421548e38e49a0c24e9755d"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -44,6 +44,7 @@
       "packages/core-ts/src/mvp-movement.ts",
       "packages/core-ts/src/rules/actor-affinity.ts",
       "packages/core-ts/src/rules/actor-cast.ts",
+      "packages/core-ts/src/rules/actor-condition.ts",
       "packages/core-ts/src/rules/actor-exit.ts",
       "packages/core-ts/src/rules/actor-exposure.ts",
       "packages/core-ts/src/rules/actor-fields.ts",
@@ -276,7 +277,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/e689229d73964587951fd8b40aedda69bd5999d946e7fd90589d263a4eb8f67e"
+    "retentionId": "preflights/a61541f485e94376c606858074afe289c5993f38fed5fba01450586fef86c92d"
   },
   "qualifies": false
 }
