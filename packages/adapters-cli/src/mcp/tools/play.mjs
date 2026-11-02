@@ -20,6 +20,8 @@ const actingSpec = [
 const SESSION_RESULT = "Returns { screen, status, turns, active, party, orders?, inSight, hud, results? }: show `screen` verbatim in a code block. "
   + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position, motivations and status; "
   + "`orders` lists every actor following a strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (active, searching: target out of sight, stalled: with a reason, done, ignored: its thinking motivation does not reach the strategy); "
+  + "`battleLog` is the last 20 lines of the Annotator's battle log for the seated actor, newest last (what hit whom, field effects, defeats); "
+  + "`legal` lists the commands the seat can try now (see ak_play_legal); "
   + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id, and its motivations (the stack that explains how it acts). "
   + "Fog of war is on: report only what the screen and inSight show.";
 
@@ -124,8 +126,18 @@ export const playTools = [
     buildArgs: (args) => ["view", ...buildArgv(args, [...sessionSpec, ...saveSpec])],
   }),
   createTool({
+    name: "ak_play_legal",
+    description: "List the commands the seated actor can try right now in a live game, without playing anything: `legal` is [{ id, label, command }] ordered by id "
+      + "(wait, move:<dir>, sprint:<dir>, cast:<affinity>@<target>, equip:<kind:expression> and unequip:<kind:expression> for held affinities, one turn each, take:...). Pass a listed `command` to ak_play_act. Read from what the seat can see (fog respected) and a candidate list: "
+      + "obvious refusals (walls, barriers, occupied tiles, unaffordable stamina or mana) are left out, but core still decides and a listed command can be refused. A step into a cell you cannot see right now (typically a diagonal past a corner, where a barrier can stand unseen) is listed with `unseen: true` and a label saying so; it may be refused with ActorCollision. When too little stamina is why no step is listed, `legalNote` says what a step costs (soak included) and what you have. "
+      + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: { properties: { session: sessionProperty } },
+    buildArgs: (args) => ["legal", ...buildArgv(args, sessionSpec)],
+  }),
+  createTool({
     name: "ak_play_switch",
-    description: "Seat another party member in a live game (an actor authored user_controlled, by id or label such as D2). Free: no turn passes, and fog follows the new seat. "
+    description: "Seat another party member in a live game (an actor authored user_controlled or ai_controlled, by id or label such as D2). Free: no turn passes, and fog follows the new seat. "
       + "A companion, warden or trap cannot be seated (results say not_playable). " + SESSION_RESULT,
     command: "play-session",
     inputSchema: {
@@ -183,6 +195,27 @@ export const playTools = [
       },
     },
     buildArgs: (args) => ["advance", ...buildArgv(args, [...sessionSpec, { key: "ticks" }, { key: "until" }])],
+  }),
+  createTool({
+    name: "ak_play_tick",
+    description: "Run ONE tick in a live game commanding several ai_controlled actors at once (wardens, hazards, any actor authored ai_controlled), instead of commanding one, switching, and advancing the world once per actor. "
+      + "actorCommands maps an actor's id or label (W1, H2) to a command as in ak_play_act. Actors left out play their own motivations. "
+      + "Refused entries are named in results[].rejected and the others still run: not_playable (not ai_controlled; the player's party is commanded with ak_play_act), unknown_actor, exited, defeated, "
+      + "single_actor_only (inspect, watch, switch, order and advance need a tick of their own). No valid entry means no tick. " + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: {
+      properties: {
+        session: sessionProperty,
+        actorCommands: {
+          type: "object",
+          description: "{ \"W1\": { kind, params? }, \"H2\": { kind, params? } }: one command per ai_controlled actor, ids or labels.",
+          additionalProperties: { type: "object", additionalProperties: true },
+        },
+        save: saveProperty,
+      },
+      required: ["actorCommands"],
+    },
+    buildArgs: (args) => ["tick", ...buildArgv(args, [...sessionSpec, { key: "actorCommands", flag: "actor-commands", format: (value) => JSON.stringify(value) }, ...saveSpec])],
   }),
   createTool({
     name: "ak_play_end",

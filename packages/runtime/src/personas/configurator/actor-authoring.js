@@ -19,6 +19,7 @@ import {
   MOTIVATION_KINDS,
   DELVER_SETUP_MODES,
   getMotivationExclusiveGroup,
+  MOTIVATION_FAMILIES,
   DEFAULT_AFFINITY_EXPRESSION,
   PRESET_AFFINITY_SLOTS,
 } from "../../contracts/domain-constants.js";
@@ -36,7 +37,7 @@ function isNonEmptyString(value) {
  * Authors an actor's motivations from its spec's `motivation=` value: one kind, or
  * several joined with `+` or `,` (`exploring+attacking`), at most one per family
  * (mobility, posture, cognition). `user_controlled` sits beside any of them and makes
- * the actor playable; nothing is added that was not asked for. Order is kept, repeats
+ * the actor playable, `ai_controlled` likewise for an AI driver (any role, hazards too); nothing is added that was not asked for. Order is kept, repeats
  * collapse, an unknown kind or two kinds from one family is refused.
  *
  * @returns {string[]}
@@ -53,6 +54,12 @@ export function authorMotivations({ role, index, raw } = {}) {
       throw new Error(`${label} motivation must be one of: ${MOTIVATION_KINDS.join(", ")}.`);
     }
     if (kinds.includes(kind)) continue;
+    // `control` is not an exclusive family (it sits beside any autonomous kind), but one
+    // actor has one set of hands: a player or an AI, never both.
+    if (MOTIVATION_FAMILIES.control.includes(kind)) {
+      const held = kinds.find((other) => MOTIVATION_FAMILIES.control.includes(other));
+      if (held) throw new Error(`${label} motivations ${held} and ${kind} are both control; take at most one.`);
+    }
     const family = getMotivationExclusiveGroup(kind);
     if (family) {
       const taken = byFamily.get(family.id);

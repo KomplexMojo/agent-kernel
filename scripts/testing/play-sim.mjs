@@ -20,10 +20,15 @@
  * a hostile comes into sight, choosing only from `listLegalPlayCommands` (play-sim-t1.mjs); T0
  * resumes after each burst. Default driver `t0`.
  *
+ * `--driver seat --model <id>` (#654) hands the seat to a model for the whole level, through
+ * `ak play-session` (the command behind ak_play_start / ak_play_legal / ak_play_act), seeing only
+ * the fogged screen and the legal list (play-sim-seat.mjs). No T0 order is given.
+ *
  * `--build-source llm --model <id>` (M3, #614) lets a local Ollama model propose the player's
  * character near each arm's delver allowance; the character sheet (the Allocator's prices) must
  * accept it, with up to 3 attempts, else the arm records `build_refused`. Live use is manual
- * (Ollama on localhost:11434, `--ollama-url` to change); the model id and prompt hash go in each
+ * (`--provider anthropic` swaps Ollama for the Anthropic API: ANTHROPIC_API_KEY from the environment, `--model` required, key never logged;
+ * the Ollama host comes from `--ollama-url`, else OLLAMA_HOST, else localhost:11434; the model from `--model`, else OLLAMA_MODEL); the model id and prompt hash go in each
  * record. It is analysis, never a gate. The default stays the scenario's own character.
  *
  * The treatment scales `--budget-tokens` by 0.9. The delver pool is a fixed share of that total
@@ -42,6 +47,9 @@ import { loadPlaytestScenarios, playerDelverSpec, scenarioArgs } from "../game/p
 import { analyzeRun, checkRules } from "./simulation-lib.mjs";
 import { proposeCharacterSpec } from "./play-sim-llm-build.mjs";
 import { llmPicker, runBurst } from "./play-sim-t1.mjs";
+import { resolveModelEnv } from "./play-sim-model-env.mjs";
+import { createCliTransport, llmSeatPicker, runSeat } from "./play-sim-seat.mjs";
+import { createAnthropicAdapter, resolveProvider } from "./play-sim-anthropic.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -90,7 +98,17 @@ export function buildArm(scenario, seed, { arm, budgetTokens }, workDir, created
 const vitalsOf = (view) => Object.fromEntries((view?.player?.vitals ?? []).map((vital) => [vital.key, vital.current]));
 
 /** Play a built level with the T0 driver; returns the outcome and what was seen on the way. */
-export async function playArm(dir, { strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, picker = null, burst, retries } = {}) {
+export async function playArm(dir, { strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, picker = null, burst, retries, seatPicker = null, transport = null } = {}) {
+  if (seatPicker) {
+    const own = transport ?? createCliTransport();
+    try {
+      const log = await runSeat({ transport: own, levelDir: dir, picker: seatPicker, maxTurns: maxTicks, retries });
+      return { outcome: log.outcome, ticks: log.ticks, seat: log.seat, finalVitals: log.finalVitals, minVitals: log.minVitals,
+        seatLog: { turns: log.turns, illegal: log.illegal, rejectedAnswers: log.rejectedAnswers, refusedByCore: log.refusedByCore, ...(log.error ? { error: log.error } : {}), transcript: log.transcript } };
+    } finally {
+      if (!transport) own.cleanup();
+    }
+  }
   const simConfig = readJson(join(dir, "sim-config.json"));
   const initialState = readJson(join(dir, "initial-state.json"));
   const session = await createPlaySession({ simConfig, initialState, fog: false });
@@ -142,7 +160,7 @@ function delverPool(dir) {
 }
 
 /** One record: scenario, seed, arm, build fingerprint, outcome, metrics, rule hits. */
-export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks, llm = null, picker = null }) {
+export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks, llm = null, picker = null, seatPicker = null, transport = null }) {
   const base = { scenario: scenario.id, seed, arm: armSpec.arm, budgetTokens: armSpec.budgetTokens, strategy };
   let character;
   if (llm) {
@@ -160,7 +178,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
   if (!built.ok) {
     return { ...base, outcome: "create_failed", ticks: 0, delverPool: null, build: null, ruleHits: [{ rule: "create_failed", detail: built.error }] };
   }
-  const played = await playArm(built.dir, { strategy, maxTicks, picker });
+  const played = await playArm(built.dir, { strategy, maxTicks, picker, seatPicker, transport });
   const initialState = readJson(join(built.dir, "initial-state.json"));
   const actors = (initialState.actors ?? []).filter((actor) => !/^barrier_/.test(actor.id)).map((actor) => ({ id: actor.id, motivations: actor.motivations ?? [], affinities: (actor.affinities ?? []).map((pair) => `${pair.kind}:${pair.expression}:${pair.stacks}:${pair.intensity ?? 1}`), vitals: Object.fromEntries(Object.entries(actor.vitals ?? {}).map(([key, vital]) => [key, vital.max])) }));
   const fingerprint = actors.map((actor) => `${actor.id}[${actor.affinities.join(",")}|${Object.entries(actor.vitals).map(([key, max]) => `${key}${max}`).join(",")}]`).join(" ");
@@ -172,7 +190,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
     finalVitals: played.finalVitals ?? null,
     minVitals: played.minVitals,
     // Cast and move counts are not exposed by the play session; null rather than a guess.
-    ...(played.t1 ? { driver: "t1-contact", t1: played.t1 } : { driver: "t0" }),
+    ...(played.seatLog ? { driver: "seat", seat: played.seat ?? null, seatLog: played.seatLog } : played.t1 ? { driver: "t1-contact", t1: played.t1 } : { driver: "t0" }),
     castCount: null,
     moveCount: null,
     delverPool: delverPool(built.dir),
@@ -181,7 +199,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
   };
 }
 
-export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, llm = null, picker = null, log = () => {} } = {}) {
+export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, llm = null, picker = null, seatPicker = null, transport = null, model = null, log = () => {} } = {}) {
   const catalog = loadPlaytestScenarios();
   const picked = (scenarios?.length ? scenarios : catalog.scenarios.map((entry) => entry.id)).map((id) => {
     const found = catalog.scenarios.find((entry) => entry.id === id);
@@ -195,7 +213,7 @@ export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, bas
     for (const scenario of picked) {
       for (const seed of seeds) {
         for (const armSpec of armBudgets(scenario, { baseline, treatment })) {
-          const record = await runOne(scenario, seed, armSpec, { workDir, createdAt: catalog.createdAt, strategy, maxTicks, llm, picker });
+          const record = await runOne(scenario, seed, armSpec, { workDir, createdAt: catalog.createdAt, strategy, maxTicks, llm, picker, seatPicker, transport });
           const file = `${scenario.id}-s${seed}-${armSpec.arm}.json`;
           writeFileSync(join(outDir, file), `${JSON.stringify(record, null, 2)}\n`);
           runs.push({ file, ...record });
@@ -206,7 +224,10 @@ export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, bas
   } finally {
     rmSync(workDir, { recursive: true, force: true });
   }
+  const usedModel = Boolean(llm || picker || seatPicker);
+  // A model run is a probe, like a benchmark --local run: never a qualifying baseline, never a gate.
   const summary = { schema: "agent-kernel/PlaySimRun", version: 1, strategy, seeds, maxTicks,
+    ...(usedModel ? { matrix: "local-unversioned", model } : {}),
     runs: runs.map(({ file, scenario, seed, arm, outcome, ticks, ruleHits: hits }) => ({ file, scenario, seed, arm, outcome, ticks, ruleHits: hits.map((hit) => hit.rule) })) };
   writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
   return { outDir, runs, summary };
@@ -227,6 +248,7 @@ function parseArgs(argv) {
     else if (arg === "--build-source") options.buildSource = argv[++i];
     else if (arg === "--model") options.model = argv[++i];
     else if (arg === "--ollama-url") options.ollamaUrl = argv[++i];
+    else if (arg === "--provider") options.provider = argv[++i];
     else throw new Error(`unknown option ${arg}`);
   }
   if (!options.baseline && !options.treatment) throw new Error("--baseline-only and --treatment-only exclude each other");
@@ -239,19 +261,29 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const options = parseArgs(process.argv.slice(2));
     const runId = new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
     const outDir = options.outDir ?? join(ROOT, "artifacts/play-sim", runId);
+    const { model, baseUrl } = resolveModelEnv(options);
+    const { provider, apiKey } = resolveProvider(options.provider);
+    const adapterFor = async () => {
+      if (provider === "anthropic") return createAnthropicAdapter({ apiKey, baseUrl: process.env.ANTHROPIC_BASE_URL || undefined });
+      const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
+      return createLlmAdapter(baseUrl ? { baseUrl } : {});
+    };
     let llm = null;
-    if (options.buildSource === "llm") {
-      if (!options.model) throw new Error("--build-source llm needs --model");
-      const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
-      llm = { model: options.model, adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}) };
-    } else if (options.buildSource && options.buildSource !== "default") throw new Error(`unknown --build-source ${options.buildSource} (default or llm)`);
     let picker = null;
+    let seatPicker = null;
+    if (options.buildSource === "llm") {
+      if (!model) throw new Error("--build-source llm needs --model (or OLLAMA_MODEL)");
+      llm = { model, adapter: await adapterFor() };
+    } else if (options.buildSource && options.buildSource !== "default") throw new Error(`unknown --build-source ${options.buildSource} (default or llm)`);
     if (options.driver === "t1-contact") {
-      if (!options.model) throw new Error("--driver t1-contact needs --model");
-      const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
-      picker = llmPicker({ adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}), model: options.model });
-    } else if (options.driver && options.driver !== "t0") throw new Error(`unknown --driver ${options.driver} (t0 or t1-contact)`);
-    const { summary } = await runPlaySim({ ...options, llm, picker, outDir, log: (line) => console.log(line) });
+      if (!model) throw new Error("--driver t1-contact needs --model (or OLLAMA_MODEL)");
+      picker = llmPicker({ adapter: await adapterFor(), model });
+    } else if (options.driver === "seat") {
+      if (!model) throw new Error("--driver seat needs --model (or OLLAMA_MODEL)");
+      seatPicker = llmSeatPicker({ adapter: await adapterFor(), model });
+    } else if (options.driver && options.driver !== "t0") throw new Error(`unknown --driver ${options.driver} (t0, t1-contact or seat)`);
+    if (llm || picker || seatPicker) console.log(provider === "anthropic" ? `model ${model} via the Anthropic API` : `model ${model} at ${baseUrl ?? "the adapter default (localhost:11434)"}`);
+    const { summary } = await runPlaySim({ ...options, model, llm, picker, seatPicker, outDir, log: (line) => console.log(line) });
     console.log(`Wrote ${summary.runs.length} run(s) to ${outDir}`);
   } catch (error) {
     console.error(error.message);

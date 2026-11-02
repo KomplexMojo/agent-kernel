@@ -73,7 +73,7 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
   try {
     await server.initialize();
     const { tools } = await server.request("tools/list", {});
-    for (const name of ["ak_play_start", "ak_play_act", "ak_play_view", "ak_play_switch", "ak_play_order", "ak_play_advance", "ak_play_end"]) {
+    for (const name of ["ak_play_start", "ak_play_act", "ak_play_view", "ak_play_legal", "ak_play_switch", "ak_play_order", "ak_play_advance", "ak_play_tick", "ak_play_end"]) {
       assert.ok(tools.some((tool) => tool.name === name), `${name} is listed`);
     }
 
@@ -95,9 +95,20 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
     assert.deepEqual(started.party.map((member) => member.label), ["D1", "D2"]);
     assert.ok(existsSync(join(SESSIONS, "mcp-party.json")));
 
+    // #653: the seat's legal commands, ordered by id, playable as listed.
+    const legalView = await server.callTool("ak_play_legal", { session: "mcp-party" });
+    assert.equal(legalView.ok, true, JSON.stringify(legalView));
+    assert.equal(legalView.turns, 0);
+    const ids = legalView.legal.map((entry) => entry.id);
+    assert.ok(ids.includes("wait"));
+    assert.deepEqual(ids, [...ids].sort());
+    assert.deepEqual(started.legal.map((entry) => entry.id), ids);
+    const playedLegal = await server.callTool("ak_play_act", { session: "mcp-party", commands: [legalView.legal.find((entry) => entry.id === "wait").command] });
+    assert.equal(playedLegal.turns, 1);
+
     const switched = await server.callTool("ak_play_switch", { session: "mcp-party", actor: "D2" });
     assert.equal(switched.active, "hero-2");
-    assert.equal(switched.turns, 0);
+    assert.equal(switched.turns, 1);
 
     const acted = await server.callTool("ak_play_act", {
       session: "mcp-party",
@@ -105,11 +116,11 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
       keys: ".",
     });
     assert.equal(acted.ok, true, JSON.stringify(acted));
-    assert.equal(acted.turns, 3);
+    assert.equal(acted.turns, 4);
     assert.deepEqual(acted.results.map((result) => result.accepted[0]?.actorId), ["hero-2", "hero-1"]);
 
     const viewed = await server.callTool("ak_play_view", { session: "mcp-party" });
-    assert.equal(viewed.turns, 3);
+    assert.equal(viewed.turns, 4);
     assert.match(viewed.screen, /Party: D1 hero-1 \(exploring\) {2}\[D2 hero-2 \(exploring\)\]/);
 
     const ended = await server.callTool("ak_play_end", { session: "mcp-party" });

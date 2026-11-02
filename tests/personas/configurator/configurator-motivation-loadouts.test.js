@@ -87,7 +87,7 @@ test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
   assert.deepEqual(MOTIVATION_FAMILIES.mobility, ["random", "stationary", "exploring", "patrolling", "escorting"]);
   assert.deepEqual(MOTIVATION_FAMILIES.posture, ["attacking", "defending", "stealthy", "friendly"]);
   assert.deepEqual(MOTIVATION_FAMILIES.cognition, ["reflexive", "goal_oriented", "strategy_focused"]);
-  assert.deepEqual(MOTIVATION_FAMILIES.control, ["user_controlled"]);
+  assert.deepEqual(MOTIVATION_FAMILIES.control, ["user_controlled", "ai_controlled"]);
 
   // All family members are in MOTIVATION_KINDS
   const allFamilyKinds = [
@@ -98,7 +98,7 @@ test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
   ];
   assert.deepEqual([...MOTIVATION_KINDS].sort(), [...allFamilyKinds].sort());
   // MOTIVATION_KINDS runs in core's code order: a kind added later (#251) comes last.
-  assert.equal(MOTIVATION_KINDS.at(-1), "escorting");
+  assert.equal(MOTIVATION_KINDS.at(-1), "ai_controlled");
 });
 
 test("user_controlled composes outside posture and mobility exclusivity", async () => {

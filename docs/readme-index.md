@@ -13,6 +13,8 @@ the one question it exists to answer: an unlisted directory reads as "no owner d
 | `README.md` | Project overview, Ports & Adapters structure, quick-start commands. |
 | `docs/README.md` | Architecture law, design intent, vision constraints, and the reading order for the rest of `docs/`. |
 | `docs/vitals-decision-audit.md` | What each vital decides, what spends and restores it, and the wait-regen grind metric. |
+| `docs/design/actor-tactic-catalogue.md` | Tactics mined from LLM seat runs, classed works / doesn't / z3 solve / list, with data in the sibling JSON (#673). |
+| `docs/design/strategy-sources-2026-11-02.md` | Strategy sources (catalogue vs LLM tactic plan) compared by play-sim outcome, with the tool and the honest limits of the first run (#677). |
 | `docs/playability-checklist.md` | Review checklist for changes that alter what a player sees, chooses, or is told (understand to return to play). |
 | `docs/pr-gameplay-change-report.md` | PR body template for gameplay changes: problem, change, decision impact, trade-offs, validation, uncertainty. |
 | `tests/README.md` | How the Vitest suite is organized and the contract for delegated test work (`## TODO: Test Permutations` stubs). |

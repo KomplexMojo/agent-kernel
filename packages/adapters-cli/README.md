@@ -328,7 +328,7 @@ Inputs/outputs:
 
 ### `play-session`
 A game that lasts across calls, for a caller that is not at a terminal (the MCP tools
-`ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`,
+`ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_legal`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`, `ak_play_tick`,
 `ak_play_end`). The game is kept in
 `artifacts/play-sessions/<name>.json` (`--session`, default `game`; `AK_PLAY_SESSIONS_DIR` moves it) as a
 player `CapturedInputArtifact` that names its level, so it survives a restart and replays exactly. Each call
@@ -340,14 +340,22 @@ ak play-session act --session g --keys "dd" --commands '[{"kind":"cast_affinity"
 ak play-session switch --session g --actor D2                       # seat another party member; free
 ak play-session order --session g --actor D3 --strategy follow:D1:2  # new standing orders; one turn
 ak play-session advance --session g --ticks 20 --until orders_done  # let orders play out
+ak play-session tick --session g --actor-commands '{"W1":{"kind":"wait"},"H2":{"kind":"wait"}}'  # one tick for several ai_controlled actors (#680)
 ak play-session view --session g --save artifacts/games/g.json      # look, and keep a copy
+ak play-session legal --session g                                   # `legal`: commands the seat can try now
 ak play-session end --session g                                     # final board; removes the live file
 ak play-session start --session g2 --load artifacts/games/g.json    # reopen a copy
 ```
 
-- Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, results?, hud, screen, saved?, ended? }`.
+<<<<<<< Updated upstream
+- Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, legal, battleLog, results?, hud, screen, saved?, ended? }`.
   `party` is every actor authored `user_controlled` (the actors a player may seat), each with a short label
+  (`D1`, `D2`), position, motivations and status; `legal` is the commands the seat can try now (#653; a step into a cell out of sight carries `unseen: true`, since a barrier can stand there unseen and core refuses it with ActorCollision, #672), `legalNote` appears when stamina is why no step is offered (what a step costs, soak included, what you have, what waiting gives back, #671), `battleLog` the last 20 lines of the Annotator's battle log for the seat, newest last; `inSight` is every other actor and trap the seated actor sees now,
+=======
+- Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, results?, hud, screen, saved?, ended? }`.
+  `party` is every actor authored `user_controlled` (the actors a player may seat); an actor authored `ai_controlled` (any role, hazards too) may also be seated, commanded and ordered by an AI through the same tools and is listed under `aiControlled`. Both lists give each actor a short label
   (`D1`, `D2`), position, motivations and status; `inSight` is every other actor and trap the seated actor sees now,
+>>>>>>> Stashed changes
   with labels and motivations (the stack that explains how each acts on its own).
 - `--actor <id|label>` seats a party member before anything is played; a companion or warden answers `not_playable`
   in `results`. `--commands` is a JSON array of `{ kind, params?, actorId? }` (the play commands `move`, `wait`,

@@ -1759,12 +1759,12 @@ function defaultCognitionGoal(kinds, nearestHostile) {
  * #308 — a thinking actor's turn with no order and no strategy. `goal_oriented` adopts a
  * goal once and follows it to the end (a planned route, not one-step ranking);
  * `strategy_focused` re-plans every turn, so it changes goal when the situation changes.
- * A `user_controlled` actor is the player's, so it adopts nothing. Returns null when no
+ * A `user_controlled` or `ai_controlled` actor is its driver's, so it adopts nothing. Returns null when no
  * goal applies; the turn then goes to the actor's motivations.
  */
 function resolveCognitionTurn({ entry, payload, observationView, actorId, ...rest }) {
   const kinds = resolveActorMotivationKinds(observationView, actorId, payload);
-  if (kinds.includes("user_controlled")) return null;
+  if (kinds.includes("user_controlled") || kinds.includes("ai_controlled")) return null;
   const depth = strategyDepth(kinds);
   if (depth === STRATEGY_DEPTH.NONE) return null;
   const replans = depth === STRATEGY_DEPTH.FULL;
@@ -2016,7 +2016,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       // so does any actor with a motivation of its own that finds nothing it can do (boxed in,
       // say): it says it waits rather than nothing. Objects and the player's actor stay silent.
       if (derivedProposals.length === 0 && (strategyTurn || resolveActorMotivationKinds(observationView, strategyActorId, payload)
-        .some((kind) => kind !== "user_controlled"))) derivedProposals = [{ kind: "wait" }];
+        .some((kind) => kind !== "user_controlled" && kind !== "ai_controlled"))) derivedProposals = [{ kind: "wait" }];
       // #457 — a move refused last turn (the actor still stands where it proposed it from)
       // may yield this turn: in a crowd the cells it wants are taken first, turn after turn.
       // A seeded coin, not always, so two actors yielding to each other don't fall in step.

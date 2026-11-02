@@ -34,6 +34,7 @@ export const ACTOR_MEDALLION_COMPONENT_IDS = Object.freeze({
         "goal_oriented",
         "strategy_focused",
         "user_controlled",
+        "ai_controlled",
     ].reduce((acc, kind) => {
         acc[kind] = `component.actor-medallion.motivation.${kind}`;
         return acc;

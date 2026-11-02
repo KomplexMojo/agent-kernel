@@ -20,9 +20,11 @@ export function createOllamaModelAdapter({ fetchFn, config = {}, clock = () => n
       return failureFromError(PROVIDER_ID, error, { modelId: request.modelId, startedAt, endedAt: clock() });
     }
   }
-  async function generateRawOllama({ modelId, model, prompt, options = {}, stream = false, format } = {}) {
+  async function generateRawOllama({ modelId, model, prompt, options = {}, stream = false, format, think } = {}) {
     const payload = { model: modelId ?? model, prompt, options, stream };
     if (format) payload.format = format;
+    // false asks a reasoning model to answer directly instead of spending its budget on a thinking channel.
+    if (think !== undefined) payload.think = think;
     return postJson(fetchFn, `${baseUrl}/api/generate`, payload, { "content-type": "application/json" }, {
       errorPrefix: "LLM request failed",
     });

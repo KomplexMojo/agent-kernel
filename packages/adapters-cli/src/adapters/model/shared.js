@@ -12,7 +12,10 @@ export async function postJson(fetchFn, url, body, headers, { errorPrefix = "Mod
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const error = new Error(`${errorPrefix}: ${response.status} ${response.statusText}`);
+    // The server's own reason (Ollama sends { "error": "..." }) is what tells a failed model load from a bad request.
+    let detail = "";
+    try { detail = String(await response.text?.() ?? "").trim().slice(0, 300); } catch { /* the status line alone is enough */ }
+    const error = new Error(`${errorPrefix}: ${response.status} ${response.statusText}${detail ? ` - ${detail}` : ""}`);
     error.status = response.status;
     throw error;
   }
