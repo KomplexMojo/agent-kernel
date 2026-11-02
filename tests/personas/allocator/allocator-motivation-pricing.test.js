@@ -17,7 +17,7 @@ async function load() {
   return { ...policy, priceMap: normalizePriceItems(buildDefaultPriceList()) };
 }
 
-test("families and price ids cover all 13 kinds; family resolution intact", async () => {
+test("families and price ids cover all 14 kinds; family resolution intact", async () => {
   const { MOTIVATION_PRICE_IDS, resolveMotivationFamily } = await load();
   // MOTIVATION_FAMILIES comes from contracts/domain-constants.js (P5.1 D2). The
   // Allocator used to hand-maintain its own byte-identical copy; the G2 single-origin
@@ -32,7 +32,7 @@ test("families and price ids cover all 13 kinds; family resolution intact", asyn
     ...MOTIVATION_FAMILIES.cognition,
     ...MOTIVATION_FAMILIES.control,
   ];
-  assert.equal(allKinds.length, 13);
+  assert.equal(allKinds.length, 14);
   for (const kind of allKinds) {
     assert.ok(MOTIVATION_PRICE_IDS[kind], `${kind} has a price id`);
   }

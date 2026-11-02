@@ -25,8 +25,8 @@ import {
 // instance isolation) moved onto the evaluation accumulator below.
 
 describe("core-ts motivation codebook", () => {
-  test("getMotivationKindCount returns 13", () => {
-    expect(getMotivationKindCount()).toBe(13);
+  test("getMotivationKindCount returns 14", () => {
+    expect(getMotivationKindCount()).toBe(14);
   });
 
   test("family lookups match expected families", () => {
@@ -56,7 +56,10 @@ describe("core-ts motivation codebook", () => {
       MotivationFamily.Mobility,
     );
     expect(getMotivationFamily(0)).toBe(-1);
-    expect(getMotivationFamily(14)).toBe(-1);
+    expect(getMotivationFamily(MotivationKind.AiControlled)).toBe(
+      MotivationFamily.Control,
+    );
+    expect(getMotivationFamily(15)).toBe(-1);
   });
 
   test("exclusive group and conflict detection", () => {
@@ -253,11 +256,11 @@ describe("core-ts motivation permutations", () => {
     expect(motivationKindsConflict(MotivationKind.UserControlled, MotivationKind.Random)).toBe(false);
   });
 
-  test("evaluation accumulator rejects invalid kinds (0 and 14)", () => {
+  test("evaluation accumulator rejects invalid kinds (0 and 15)", () => {
     const core = createCore();
     call(core.resetMotivationEvaluation);
     call(core.addMotivationEvaluationEntry, 0, 0, 0);
-    call(core.addMotivationEvaluationEntry, 14, 0, 0);
+    call(core.addMotivationEvaluationEntry, 15, 0, 0);
     expect(call(core.evaluateMotivations)).toBe(0);
   });
 

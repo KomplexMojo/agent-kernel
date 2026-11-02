@@ -80,6 +80,7 @@ const DESCRIPTIONS = {
   "motivation_goal_oriented": "Goal-oriented cognition",
   "motivation_strategy_focused": "Strategy-focused cognition",
   "motivation_user_controlled": "Playable control — the dearest autonomous motivation stack + 1",
+  "motivation_ai_controlled": "AI control — priced as the playable premium: the dearest autonomous motivation stack + 1",
   "actor_spawn": "Spawn one actor (delver or warden)",
   "tile_floor": "One floor tile",
   "tile_hallway": "One hallway/connector tile — walkable area, priced as a floor tile",
@@ -172,6 +173,11 @@ const DEFAULT_ITEMS = [
   {
     ...itemFrom("motivation_user_controlled", playablePremiumFromUnitCosts(BASE_COSTS.motivation),
       DESCRIPTIONS.motivation_user_controlled),
+    kind: "motivation",
+  },
+  {
+    ...itemFrom("motivation_ai_controlled", playablePremiumFromUnitCosts(BASE_COSTS.motivation),
+      DESCRIPTIONS.motivation_ai_controlled),
     kind: "motivation",
   },
 ];

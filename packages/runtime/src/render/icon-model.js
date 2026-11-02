@@ -76,6 +76,7 @@ const MOTIVATION_MARKS = Object.freeze({
   goal_oriented: "◎",
   strategy_focused: "▦",
   user_controlled: "⌘",
+  ai_controlled: "⌬",
 });
 
 /**

@@ -114,7 +114,7 @@ test("the vocabulary lookups moved to contracts and still derive from the famili
 
   // `control` is deliberately NOT an exclusive group: user_controlled coexists with
   // anything, which is what lets delver cards carry it as a synthetic extra tag.
-  assert.deepEqual(MOTIVATION_FAMILIES.control, ["user_controlled"]);
+  assert.deepEqual(MOTIVATION_FAMILIES.control, ["user_controlled", "ai_controlled"]);
   assert.equal(getMotivationExclusiveGroup("user_controlled"), null);
   assert.deepEqual(getConflictingMotivationKinds("user_controlled"), []);
 });

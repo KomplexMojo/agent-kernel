@@ -137,7 +137,7 @@ export const playTools = [
   }),
   createTool({
     name: "ak_play_switch",
-    description: "Seat another party member in a live game (an actor authored user_controlled, by id or label such as D2). Free: no turn passes, and fog follows the new seat. "
+    description: "Seat another party member in a live game (an actor authored user_controlled or ai_controlled, by id or label such as D2). Free: no turn passes, and fog follows the new seat. "
       + "A companion, warden or trap cannot be seated (results say not_playable). " + SESSION_RESULT,
     command: "play-session",
     inputSchema: {

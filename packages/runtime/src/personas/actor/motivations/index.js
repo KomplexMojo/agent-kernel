@@ -18,6 +18,7 @@ import stationary from "./stationary.js";
 import stealthy from "./stealthy.js";
 import strategyFocused from "./strategy-focused.js";
 import userControlled from "./user-controlled.js";
+import aiControlled from "./ai-controlled.js";
 
 const MODULES = Object.freeze([
   attacking,
@@ -33,6 +34,7 @@ const MODULES = Object.freeze([
   stealthy,
   strategyFocused,
   userControlled,
+  aiControlled,
 ]);
 
 export const MOTIVATION_MODULES = Object.freeze(

@@ -38,6 +38,7 @@ export const MOTIVATION_TIER = Object.freeze({
   friendly: "simple",
   reflexive: "simple",
   user_controlled: "control",
+  ai_controlled: "control",
 
   // Advanced motivations (50 tokens)
   stealthy: "advanced",
@@ -63,6 +64,7 @@ export const MOTIVATION_PRICE_IDS = Object.freeze({
   goal_oriented: "motivation_goal_oriented",
   strategy_focused: "motivation_strategy_focused",
   user_controlled: "motivation_user_controlled",
+  ai_controlled: "motivation_ai_controlled",
 });
 
 const MOTIVATION_PRICE_KIND = "motivation";
@@ -70,6 +72,14 @@ const MOTIVATION_PRICE_KIND = "motivation";
 /** The families an autonomous actor stacks, one motivation from each. */
 const AUTONOMOUS_FAMILIES = Object.freeze(["mobility", "posture", "cognition"]);
 const PLAYABLE_KIND = "user_controlled";
+/**
+ * `ai_controlled` (Darren, 2026-11-02): any actor, hazards included, may be driven by an AI
+ * through the same seat as a player. It is priced by the same rule as the playable premium
+ * (the dearest autonomous stack + 1): whoever holds the controls can choose any behaviour the
+ * autonomous motivations offer, so it is worth no less.
+ */
+const AI_CONTROLLED_KIND = "ai_controlled";
+const CONTROL_PREMIUM_KINDS = Object.freeze([PLAYABLE_KIND, AI_CONTROLLED_KIND]);
 
 function listedUnitCost(kind, priceMap) {
   const priceId = MOTIVATION_PRICE_IDS[kind];
@@ -119,7 +129,7 @@ export function playablePremiumFromUnitCosts(motivationUnitCosts) {
  * Resolve the unit cost for a single motivation kind from the price list.
  *
  * FAIL-LOUD (P1.4): there is no fallback. A missing or invalid entry returns
- * null and the caller must surface it as an error. `user_controlled` is derived
+ * null and the caller must surface it as an error. `user_controlled` and `ai_controlled` are derived
  * (see derivePlayablePremium), never read from its own entry.
  *
  * @param {string} kind - The motivation kind (e.g. "reflexive").
@@ -128,7 +138,7 @@ export function playablePremiumFromUnitCosts(motivationUnitCosts) {
  *   price list has no usable entry for this kind.
  */
 export function resolveMotivationUnitCost(kind, priceMap) {
-  if (kind === PLAYABLE_KIND) {
+  if (CONTROL_PREMIUM_KINDS.includes(kind)) {
     return priceMap ? derivePlayablePremium((other) => listedUnitCost(other, priceMap)) : null;
   }
   return listedUnitCost(kind, priceMap);
