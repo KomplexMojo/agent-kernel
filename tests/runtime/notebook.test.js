@@ -150,3 +150,59 @@ test("#593: with no blank cell beside the pie, the pie takes the colour and the 
   // The left of room A is free, the right is the hallway: start takes the left letter only when both fit, so the pie is coloured.
   assert.match(lines[0], /^<exit:◌>[─]+◌$/);
 });
+
+test("room graph: one pie per room, single-line hallways, no invented corridor rectangles", () => {
+  // generate-random seed 4 topology (AK-13): four rooms in a rectangle, doors on scale-compressed
+  // body blocks. Leading A→B and B→A used to paint opposite L-paths into ├┤ corridor boxes.
+  const rows = Array.from({ length: 30 }, () => "#".repeat(30));
+  const put = (x, y, ch) => { const row = [...rows[y]]; row[x] = ch; rows[y] = row.join(""); };
+  for (let y = 2; y < 14; y += 1) for (let x = 5; x < 13; x += 1) put(x, y, "."); // R4
+  for (let y = 3; y < 15; y += 1) for (let x = 19; x < 27; x += 1) put(x, y, "."); // R3
+  for (let y = 16; y < 28; y += 1) for (let x = 5; x < 13; x += 1) put(x, y, "."); // R2
+  for (let y = 16; y < 28; y += 1) for (let x = 15; x < 23; x += 1) put(x, y, "."); // R1
+  put(18, 2, "E");
+  put(4, 22, "S");
+  put(9, 14, ".");
+  put(9, 15, ".");
+  put(23, 15, ".");
+  put(23, 16, ".");
+  put(13, 22, ".");
+  put(14, 22, ".");
+
+  const rooms = [
+    room({ id: "R1", x: 15, y: 16, width: 8, height: 12, seen: 4, done: 4, explored: true }),
+    room({ id: "R2", x: 5, y: 16, width: 8, height: 12, seen: 4, done: 4, explored: true, start: true }),
+    room({ id: "R3", x: 19, y: 3, width: 8, height: 12, seen: 4, done: 4, explored: true, exit: true }),
+    room({ id: "R4", x: 5, y: 2, width: 8, height: 12, seen: 4, done: 4, explored: true }),
+  ];
+  const { lines } = buildNotebook({
+    rows,
+    legend: { ...legend, fog: "?", wallGlyphs: ["│", "─", "┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼"] },
+    rooms,
+    player: { x: 6, y: 22 },
+    scale: 4,
+  });
+  const drawing = lines.join("\n");
+  const pies = drawing.match(/[◌◔◒◕◉@]/g) || [];
+  assert.equal(pies.length, 4, "exactly one pie (or @) per room");
+  assert.doesNotMatch(drawing, /[├┤┬┴┼]/, "no junction glyphs from invented corridor rectangles");
+  assert.match(drawing, /[│─]/, "connected rooms still show single-line hallways");
+  assert.match(drawing, /S/);
+  assert.match(drawing, /E/);
+});
+
+test("side-by-side rooms may abut pies with no hallway between them", () => {
+  // Two rooms whose centres land in neighbouring notebook cells after scale=4.
+  const rows = Array.from({ length: 8 }, () => "#".repeat(12));
+  const put = (x, y, ch) => { const row = [...rows[y]]; row[x] = ch; rows[y] = row.join(""); };
+  for (let y = 2; y < 6; y += 1) for (let x = 2; x < 6; x += 1) put(x, y, ".");
+  for (let y = 2; y < 6; y += 1) for (let x = 6; x < 10; x += 1) put(x, y, ".");
+  const rooms = [
+    room({ id: "A", x: 2, y: 2, width: 4, height: 4, seen: 1, done: 0 }),
+    room({ id: "B", x: 6, y: 2, width: 4, height: 4, seen: 1, done: 1, explored: true }),
+  ];
+  const { lines } = buildNotebook({ rows, legend, rooms, player: null, scale: 4 });
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /◌◉|◉◌/);
+  assert.doesNotMatch(lines[0], /[─│└┘┌┐├┤┬┴┼]/);
+});
