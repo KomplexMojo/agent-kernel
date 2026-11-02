@@ -109,13 +109,13 @@ export const GAME_MOTIVATION_FAMILIES = deepFreeze({
   mobility: ["random", "stationary", "exploring", "patrolling", "escorting"],
   posture: ["attacking", "defending", "stealthy", "friendly"],
   cognition: ["reflexive", "goal_oriented", "strategy_focused"],
-  control: ["user_controlled"],
+  control: ["user_controlled", "ai_controlled"],
 });
 
 // THE ORDER IS CORE'S CODE: kind n here is core-ts `MotivationKind` n + 1, and callers map
 // by index. The first twelve run family by family; a kind added later is APPENDED in the
 // order it was added (#251), never slotted into its family, or every later code shifts.
-const MOTIVATION_KINDS_ADDED_LATER = Object.freeze(["escorting"]);
+const MOTIVATION_KINDS_ADDED_LATER = Object.freeze(["escorting", "ai_controlled"]);
 
 export const GAME_MOTIVATION_KINDS = Object.freeze([
   ...[
@@ -140,6 +140,7 @@ export const GAME_MOTIVATION_DISPLAY_GROUPS = deepFreeze([
   { id: "cognition_reflexive_goal_oriented", kinds: ["reflexive", "goal_oriented"] },
   { id: "cognition_strategy_focused", kinds: ["strategy_focused"] },
   { id: "control_user_controlled", kinds: ["user_controlled"] },
+  { id: "control_ai_controlled", kinds: ["ai_controlled"] },
 ]);
 
 // Derived 2026-09-02 by scripts/design/derive-affinity-palette.mjs (seeded, reproducible)
@@ -256,6 +257,7 @@ export const GAME_COLOR_PALETTE = deepFreeze({
     goal_oriented: "#4e88d4",
     strategy_focused: "#9e7ac9",
     user_controlled: "#cdbb9e",
+    ai_controlled: "#9fb4c7",
   },
   vitals: {
     health: "#ff4455",
@@ -642,6 +644,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         goal_oriented: "🎯",
         strategy_focused: "♟️",
         user_controlled: "🕹️",
+        ai_controlled: "🤖",
       }[kind],
       defaultColor: {
         random: MOTIVATION_COLORS.random,
@@ -657,6 +660,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         goal_oriented: MOTIVATION_COLORS.goal_oriented,
         strategy_focused: MOTIVATION_COLORS.strategy_focused,
         user_controlled: MOTIVATION_COLORS.user_controlled,
+        ai_controlled: MOTIVATION_COLORS.ai_controlled,
       }[kind],
       assetId: `overlay.motivation.${kind}`,
       legacyAssetId: `motivation.${kind}`,

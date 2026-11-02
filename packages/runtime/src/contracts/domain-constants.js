@@ -113,6 +113,8 @@ export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
   Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
   Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
 ]);
+// `control` is deliberately NOT a group: user_controlled and ai_controlled are each allowed
+// beside any autonomous kind. They exclude each other, which `authorMotivations` checks by name.
 
 const MOTIVATION_EXCLUSIVE_GROUP_BY_KIND = Object.freeze(
   MOTIVATION_EXCLUSIVE_GROUPS.reduce((acc, group) => {

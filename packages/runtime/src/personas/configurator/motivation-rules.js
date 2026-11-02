@@ -403,6 +403,13 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       displayGroup: "control",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
     }),
+    Object.freeze({
+      kind: "ai_controlled",
+      profile: Object.freeze({ mobility: "stationary", combat: "none", cognition: "none" }),
+      exclusiveGroup: "control",
+      displayGroup: "control",
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+    }),
   ]),
 });
 

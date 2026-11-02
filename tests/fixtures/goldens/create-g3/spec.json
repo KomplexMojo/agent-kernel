@@ -1850,6 +1850,23 @@
               "prefersCover": false,
               "aggroRangeBoost": false
             }
+          },
+          {
+            "kind": "ai_controlled",
+            "profile": {
+              "mobility": "stationary",
+              "combat": "none",
+              "cognition": "none"
+            },
+            "exclusiveGroup": "control",
+            "displayGroup": "control",
+            "patterns": [],
+            "defaultFlags": {
+              "canMove": true,
+              "prefersStealth": false,
+              "prefersCover": false,
+              "aggroRangeBoost": false
+            }
           }
         ]
       },

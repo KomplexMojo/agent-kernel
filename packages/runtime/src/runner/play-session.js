@@ -36,6 +36,10 @@
  * The view is built by `buildPlayView`, a pure function of one registry snapshot,
  * so `runner/run-viewer.js` draws a recorded run's ticks in the same shape.
  *
+ * **AI control (2026-11-02).** An actor authored `ai_controlled` (any role, hazards too) may be seated,
+ * commanded, ordered and inspect like a party member, so an AI drives it through the same legal list;
+ * it is not the player's party, and its sight is not shared into the seated actor's fog.
+ *
  * **Party control (Phase 2).** The party is every actor authored `user_controlled`
  * (Darren, 2026-10-13), plus the seated actor when a caller names another. One is
  * active: `act` commands it (or the party member `actorId` names), `switchTo` moves
@@ -115,6 +119,8 @@ const HAZARD_CATEGORY = "hazard";
 const BARRIER_CATEGORY = "barrier";
 const RESOURCE_CATEGORY = "resource";
 export const PLAYER_MOTIVATION = "user_controlled";
+/** An actor an AI drives through the same seat (any role, hazards included). */
+export const AI_MOTIVATION = "ai_controlled";
 
 // The level's presentation names what each authored actor is; a barrier raised in play
 // (#413) is not in it, and core marks it by its owner.
@@ -183,6 +189,10 @@ export async function createPlaySession({
   // The party: every playable actor, and the seated one even when it is not (a caller's choice).
   const partyIds = playableActorIds(initialState);
   if (playerId !== undefined && !partyIds.includes(playerId)) partyIds.unshift(playerId);
+  // `ai_controlled` actors take seat, commands, orders and inspection like the party, but are not
+  // the player's party: their sight is not shared into the seated actor's fog.
+  const aiIds = aiControlledActorIds(initialState).filter((id) => !partyIds.includes(id));
+  const controlIds = [...partyIds, ...aiIds];
   // A party member's escorts (its minions) report to it: their events are its to read.
   const escortsOf = (pid) => Object.entries(initialState?.escorts ?? {})
     .filter(([, escort]) => escort?.target === pid).map(([id]) => id);
@@ -402,7 +412,7 @@ export async function createPlaySession({
   function switchTo(ref) {
     const actorId = resolveActorRef(ref);
     if (actorId === undefined) return { ok: false, reason: "unknown_actor", actorId: ref };
-    if (!partyIds.includes(actorId)) return { ok: false, reason: "not_playable", actorId };
+    if (!controlIds.includes(actorId)) return { ok: false, reason: "not_playable", actorId };
     activeId = actorId;
     return { ok: true, actorId, status: status() };
   }
@@ -437,7 +447,7 @@ export async function createPlaySession({
   // Who may be given orders: the party, and every companion: an actor on the seated
   // actor's side that is `friendly` (#311). Same side alone does not make a companion.
   function orderable(actorId) {
-    if (partyIds.includes(actorId)) return true;
+    if (controlIds.includes(actorId)) return true;
     const actors = readSnapshot().actors;
     const actor = actors.find((entry) => entry.id === actorId);
     const alignment = actors.find((entry) => entry.id === activeId)?.alignment;
@@ -580,7 +590,7 @@ export async function createPlaySession({
     const refuse = (reason) => ({ tick: currentTick(), accepted: [], status: status(),
       rejected: [{ actorId: actorId ?? actorRef, tick: currentTick() + 1, kind: "inspect", params: { targetId: command.params?.targetId }, reason }] });
     if (actorId === undefined) return refuse("unknown_actor");
-    if (!partyIds.includes(actorId)) return refuse("not_playable");
+    if (!controlIds.includes(actorId)) return refuse("not_playable");
     const before = statusOf(actorId);
     if (before.exited || before.defeated) return refuse(before.exited ? "exited" : "defeated");
     const actors = readSnapshot().actors;
@@ -661,7 +671,7 @@ export async function createPlaySession({
       return { tick: currentTick(), accepted: [], rejected: [{ ...action, reason }], status: status() };
     };
     if (actorId === undefined) return refuse("unknown_actor");
-    if (!partyIds.includes(actorId)) return refuse("not_playable");
+    if (!controlIds.includes(actorId)) return refuse("not_playable");
     // That actor's game is over once it has left the level or been defeated: no more ticks for it.
     const before = statusOf(actorId);
     if (before.exited || before.defeated) return refuse(before.exited ? "exited" : "defeated");
@@ -680,8 +690,8 @@ export async function createPlaySession({
 
   // The party as the UI lists it: who is seated, where each member stands, and the
   // motivation stack that explains what it does on its own (#310).
-  function partyView(snapshot) {
-    return partyIds.map((id) => {
+  function partyView(snapshot, ids = partyIds) {
+    return ids.map((id) => {
       const actor = snapshot.actors.find((entry) => entry.id === id);
       const memberStatus = statusOf(id);
       return {
@@ -799,6 +809,7 @@ export async function createPlaySession({
     return {
       ...built,
       party: partyView(snapshot),
+      ...(aiIds.length > 0 ? { aiControlled: partyView(snapshot, aiIds) } : {}),
       rooms: notebookRooms(snapshot),
       inspections: inspectionsView(snapshot, fogOn ? readVisible() : null),
       lastSeen: lastSeenView(built.actors, snapshot, fogOn ? readVisible() : null),
@@ -1141,8 +1152,17 @@ export function defaultPlayerActorId(initialState) {
   const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   const categoryOf = (id) => initialState.presentation?.[id]?.category ?? null;
   return (sourceActors.filter((actor) => actor.motivations?.includes?.(PLAYER_MOTIVATION)).sort(byId)[0]
+    ?? sourceActors.filter((actor) => actor.motivations?.includes?.(AI_MOTIVATION)).sort(byId)[0]
     ?? sourceActors.filter((actor) => categoryOf(actor.id) === "delver").sort(byId)[0]
     ?? sourceActors.slice().sort(byId)[0])?.id;
+}
+
+/** Every actor authored `ai_controlled`, by id: the actors an AI may seat and command. */
+export function aiControlledActorIds(initialState) {
+  return (Array.isArray(initialState?.actors) ? initialState.actors : [])
+    .filter((actor) => typeof actor?.id === "string" && actor.id && actor.motivations?.includes?.(AI_MOTIVATION))
+    .map((actor) => actor.id)
+    .sort(compareIds);
 }
 
 /** Every actor authored `user_controlled`, by id: the actors a player may seat. */

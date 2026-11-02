@@ -357,6 +357,13 @@
       "unitCost": 18,
       "formula": "linear",
       "description": "Playable control — the dearest autonomous motivation stack + 1"
+    },
+    {
+      "id": "motivation_ai_controlled",
+      "kind": "motivation",
+      "unitCost": 18,
+      "formula": "linear",
+      "description": "AI control — priced as the playable premium: the dearest autonomous motivation stack + 1"
     }
   ]
 }

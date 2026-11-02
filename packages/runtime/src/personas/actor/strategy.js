@@ -10,7 +10,7 @@
  *   none or reflexive        nothing: the actor plays its motivations as before
  *   goal_oriented            the goals, in order
  *   strategy_focused         the goals and the tactics
- *   user_controlled          the goals and the tactics, on every turn it is not commanded
+ *   user_controlled or ai_controlled  the goals and the tactics, on every turn it is not commanded
  * The parts an actor cannot follow are ignored and reported, never refused.
  *
  * Goals run in order. A goal that finishes hands over to the next; a standing goal
@@ -157,7 +157,7 @@ export function normalizeStrategy(strategy, normalizeCommand) {
 /** How deep this actor's thinking reaches into a strategy, from its motivations. */
 export function strategyDepth(motivationKinds = []) {
   const kinds = new Set(motivationKinds);
-  if (kinds.has("strategy_focused") || kinds.has("user_controlled")) return STRATEGY_DEPTH.FULL;
+  if (kinds.has("strategy_focused") || kinds.has("user_controlled") || kinds.has("ai_controlled")) return STRATEGY_DEPTH.FULL;
   if (kinds.has("goal_oriented")) return STRATEGY_DEPTH.GOALS;
   return STRATEGY_DEPTH.NONE;
 }
