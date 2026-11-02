@@ -28,6 +28,8 @@ const configuratorBuild = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 const {
   generateGridLayoutFromInput,
   buildInteriorBarrierActors,
+  buildResourceEnclosureBarrierActors,
+  planResourceEnclosureCells,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   assembleMovementStamina,
@@ -648,19 +650,40 @@ export async function orchestrateBuild({
 
     resolvedActors = resolvedActors || actorsInput.actors;
     const barrierCellKey = (point) => `${point?.x},${point?.y}`;
+    const rosterBeforeBarriers = [...actorsInput.actors, ...placedActors];
     const occupiedBeforeBarriers = new Set(
-      [...actorsInput.actors, ...placedActors]
+      rosterBeforeBarriers
         .map((actor) => actor?.position)
         .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
         .map(barrierCellKey),
     );
-    // Barriers are planned before tactic seating; drop any that now collide with placed actors.
-    const freeBarrierCells = (layout.interiorBarriers || [])
-      .filter((cell) => !occupiedBeforeBarriers.has(barrierCellKey(cell)));
+    const resourceActorsForEnclosure = rosterBeforeBarriers.filter((actor) => actor?.category === "resource");
+    // Room dividers (tough) plus a king-move cage around every resource (fragile; walls count).
+    const enclosureCells = planResourceEnclosureCells(layout, resourceActorsForEnclosure, {
+      occupied: occupiedBeforeBarriers,
+    });
+    const takeFree = (cells) => {
+      const out = [];
+      const seen = new Set();
+      for (const cell of cells) {
+        const key = barrierCellKey(cell);
+        if (!Number.isInteger(cell?.x) || !Number.isInteger(cell?.y)) continue;
+        if (occupiedBeforeBarriers.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        out.push(cell);
+      }
+      return out;
+    };
+    const freeDividerCells = takeFree(layout.interiorBarriers || []);
+    const dividerKeys = new Set(freeDividerCells.map(barrierCellKey));
+    const freeEnclosureCells = takeFree(enclosureCells).filter((cell) => !dividerKeys.has(barrierCellKey(cell)));
     // Furniture alone does not make an actor-less (room-only) build runnable or "has actors".
     const hasRealActors = actorsInput.actors.length > 0 || placedActors.length > 0;
     const interiorBarrierActors = hasRealActors
-      ? buildInteriorBarrierActors(freeBarrierCells).map(prepareForPricing)
+      ? [
+        ...buildInteriorBarrierActors(freeDividerCells),
+        ...buildResourceEnclosureBarrierActors(freeEnclosureCells),
+      ].map(prepareForPricing)
       : [];
     const normalizedActors = configuratorBuild.placeActors({
       actors: actorsInput.actors,

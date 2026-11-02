@@ -15,6 +15,8 @@ import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 const {
   generateGridLayoutFromInput,
   buildInteriorBarrierActors,
+  buildResourceEnclosureBarrierActors,
+  planResourceEnclosureCells,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   resolveAffinityEffects,
@@ -1741,7 +1743,38 @@ export function createCommandKernel(host = {}) {
     }
 
     const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
-    const interiorBarrierActors = buildInteriorBarrierActors(layout.interiorBarriers || []);
+    const barrierCellKey = (point) => `${point?.x},${point?.y}`;
+    const rosterBeforeBarriers = [...actorsInput.actors, ...placedActors];
+    const occupiedBeforeBarriers = new Set(
+      rosterBeforeBarriers
+        .map((actor) => actor?.position)
+        .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
+        .map(barrierCellKey),
+    );
+    const enclosureCells = planResourceEnclosureCells(
+      layout,
+      rosterBeforeBarriers.filter((actor) => actor?.category === "resource"),
+      { occupied: occupiedBeforeBarriers },
+    );
+    const takeFree = (cells) => {
+      const out = [];
+      const seen = new Set();
+      for (const cell of cells) {
+        const key = barrierCellKey(cell);
+        if (!Number.isInteger(cell?.x) || !Number.isInteger(cell?.y)) continue;
+        if (occupiedBeforeBarriers.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        out.push(cell);
+      }
+      return out;
+    };
+    const freeDividerCells = takeFree(layout.interiorBarriers || []);
+    const dividerKeys = new Set(freeDividerCells.map(barrierCellKey));
+    const freeEnclosureCells = takeFree(enclosureCells).filter((cell) => !dividerKeys.has(barrierCellKey(cell)));
+    const interiorBarrierActors = [
+      ...buildInteriorBarrierActors(freeDividerCells),
+      ...buildResourceEnclosureBarrierActors(freeEnclosureCells),
+    ];
     const existingActorIds = new Set(actorsInput.actors.map((actor) => actor?.id).filter(Boolean));
     const withPlaced = [
       ...actorsInput.actors,

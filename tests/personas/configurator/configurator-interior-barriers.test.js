@@ -89,6 +89,84 @@ test("shape.interiorBarriers false disables planned barriers", async () => {
   assert.deepEqual(result.value.interiorBarriers, []);
 });
 
+test("size=large rooms still sculpt irregular footprints and plan interior barriers", async () => {
+  // Playtest scenarios author size=large (8..12). The old 9×9 area cap skipped both.
+  const { generateGridLayoutFromInput } = await import(
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+  const result = generateGridLayoutFromInput({
+    width: 48,
+    height: 48,
+    seed: 4,
+    shape: { roomCount: 4, roomMinSize: 8, roomMaxSize: 12, corridorWidth: 1 },
+    connectivity: { requirePath: true },
+  });
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  const layout = result.value;
+  assert.ok((layout.interiorBarriers || []).length > 0, "large rooms get interior barriers");
+  const irregular = layout.rooms.filter((room) => {
+    let floor = 0;
+    for (let y = room.y; y < room.y + room.height; y += 1) {
+      for (let x = room.x; x < room.x + room.width; x += 1) {
+        if (layout.terrain[y * layout.width + x] !== "wall") floor += 1;
+      }
+    }
+    return floor < room.width * room.height;
+  });
+  assert.ok(irregular.length > 0, "at least one large room is non-rectangular");
+});
+
+test("planResourceEnclosureCells cages every walkable king-neighbour of a resource", async () => {
+  const { planResourceEnclosureCells } = await import(
+    "../../../packages/runtime/src/personas/configurator/interior-barriers.js"
+  );
+  const width = 7;
+  const height = 7;
+  const terrain = Array.from({ length: width * height }, () => "floor");
+  // Wall on the west of the resource — already casing, so no barrier there.
+  terrain[3 * width + 2] = "wall";
+  const layout = { width, height, terrain };
+  const cells = planResourceEnclosureCells(layout, [{ category: "resource", position: { x: 3, y: 3 } }]);
+  const keys = new Set(cells.map((cell) => `${cell.x},${cell.y}`));
+  assert.equal(keys.has("2,3"), false, "wall neighbour needs no barrier");
+  for (const [dx, dy] of [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]) {
+    const x = 3 + dx;
+    const y = 3 + dy;
+    if (terrain[y * width + x] === "wall") continue;
+    assert.ok(keys.has(`${x},${y}`), `expected barrier at ${x},${y}`);
+  }
+});
+
+test("resource enclosure barriers are fragile enough for a weak push", async () => {
+  const {
+    buildResourceEnclosureBarrierActors,
+    RESOURCE_ENCLOSURE_DURABILITY,
+  } = await import(
+    "../../../packages/runtime/src/personas/configurator/interior-barriers.js"
+  );
+  const actors = buildResourceEnclosureBarrierActors([{ x: 1, y: 1 }]);
+  assert.equal(actors.length, 1);
+  assert.equal(actors[0].vitals.durability.max, RESOURCE_ENCLOSURE_DURABILITY);
+  assert.ok(actors[0].vitals.durability.max <= 2);
+});
+
+test("occupied neighbours are skipped so blockers can finish the cage", async () => {
+  const { planResourceEnclosureCells } = await import(
+    "../../../packages/runtime/src/personas/configurator/interior-barriers.js"
+  );
+  const width = 5;
+  const height = 5;
+  const terrain = Array.from({ length: width * height }, () => "floor");
+  const occupied = new Set(["3,2"]); // warden already seated east of the resource
+  const cells = planResourceEnclosureCells(
+    { width, height, terrain },
+    [{ position: { x: 2, y: 2 } }],
+    { occupied },
+  );
+  assert.equal(cells.some((cell) => cell.x === 3 && cell.y === 2), false);
+  assert.ok(cells.some((cell) => cell.x === 1 && cell.y === 2));
+});
+
 test("buildInteriorBarrierActors emits earth push barriers with positive durability", async () => {
   const { buildInteriorBarrierActors, INTERIOR_BARRIER_INTENSITY } = await import(
     "../../../packages/runtime/src/personas/configurator/interior-barriers.js"
