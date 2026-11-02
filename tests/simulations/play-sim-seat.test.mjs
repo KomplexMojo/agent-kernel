@@ -85,3 +85,14 @@ test("the model picker asks for a direct answer (think:false) and keeps what the
   expect(seen[0].think).toBe(false);
   expect(picker.lastRaw).toMatch(/empty response; the model only produced thinking/);
 });
+
+test("the model sees its recent turns, so it can notice a loop or a tile that hurts", async () => {
+  const { llmSeatPicker } = await import("../../scripts/testing/play-sim-seat.mjs");
+  const prompts = [];
+  const adapter = { generate: async (request) => { prompts.push(request.prompt); return { response: '{"action":"wait"}' }; } };
+  const picker = llmSeatPicker({ adapter, model: "m" });
+  const history = [{ pick: "move:east", refused: false, hud: "HP 20/20 tick 1" }, { pick: "move:west", refused: true, hud: "HP 18/20 tick 2" }];
+  await picker({ result: { screen: "", hud: "HP 18/20", inSight: [] }, actions: [{ id: "wait", label: "wait" }], history });
+  expect(prompts[0]).toMatch(/move:east -> HP 20\/20 tick 1/);
+  expect(prompts[0]).toMatch(/move:west \(refused\) -> HP 18\/20 tick 2/);
+});
