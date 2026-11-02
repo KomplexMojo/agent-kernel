@@ -206,17 +206,6 @@ export function overlayDefeatMarks(rows, marks, floorChar, styles = null, cellSt
 }
 
 /**
- * #479: the arrows (`> < ^ v / \\`) a cast leaves on the board are named while they show:
- * `Cast path: / \\ > < ^ v mark where the last cast went (a push points away from the caster, a pull back).`
- */
-export function castPathLine(casts) {
-  const glyphs = new Set();
-  for (const cast of Array.isArray(casts) ? casts : []) for (const cell of cast.path || []) if (cell.glyph) glyphs.add(cell.glyph);
-  if (glyphs.size === 0) return null;
-  return `Cast path: ${[...glyphs].join(" ")} mark where the last cast went (a push points away from the caster, a pull back).`;
-}
-
-/**
  * #485: `Field here: restores DU` while the player stands in someone else's restoring field,
  * even at full vitals, so a field that is working but has nothing to mend is not read as broken.
  * The player's own emit never acts on them, so it is not named. Read from the view's field cells.
@@ -612,7 +601,8 @@ export function renderScreen({
   painted.forEach((row) => lines.push(`  ${row}`));
   lines.push("");
   if (parts) {
-    const info = [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)].filter(Boolean);
+    // Combat/observation only in the phone #msg band (AK-19): no cast-path tutorial — glyphs stay on the board; help names them.
+    const info = [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view)].filter(Boolean);
     return {
       title,
       board: painted,
@@ -631,7 +621,7 @@ export function renderScreen({
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
   if (moveCostLine(view.player)) lines.push(moveCostLine(view.player));
-  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
+  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0, trapGlyph: view.legend?.glyphs?.hazard, immediate: goalLadder(view).immediate }));
   lines.push(...battleLogLines(view));

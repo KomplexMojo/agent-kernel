@@ -705,9 +705,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       }
       case INTENT.SPRINT:
         sprintArmed = !sprintArmed;
-        message = sprintArmed
-          ? "Sprint on: moves take two tiles until you turn it off."
-          : "Sprint off.";
+// AK-19: status/battle-log band is combat observation, not a how-to; sprint cost lives in Keys/help.
+        message = sprintArmed ? "Sprint armed." : "Sprint off.";
         break;
       case INTENT.AFFINITIES:
         openAffinities();

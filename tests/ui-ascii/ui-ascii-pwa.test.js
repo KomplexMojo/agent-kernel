@@ -68,6 +68,19 @@ test("the play screen blocks phone text-selection Search / Look Up callouts", ()
   assert.match(css, /#game\s*\{[^}]*-webkit-touch-callout:\s*none/s);
 });
 
+// AK-19: #msg / battle-log band is combat observation (hits, sight, annotator log) — not how-to copy.
+test("phone battle log keeps cast-path and sprint how-to out of the message band", () => {
+  const browser = readFileSync(join(SRC, "browser.js"), "utf8");
+  const screen = readFileSync(join(SRC, "screen.js"), "utf8");
+  const game = readFileSync(join(SRC, "game.js"), "utf8");
+  assert.doesNotMatch(screen, /function castPathLine/);
+  assert.doesNotMatch(screen, /mark where the last cast went/);
+  assert.doesNotMatch(game, /your next move takes two tiles, for more stamina/);
+  assert.match(game, /Sprint armed\./);
+  // Legend lives in Keys/help, not in #msg composition.
+  assert.match(browser, /cast path on the floor \(push points away from the caster, pull back\)/);
+});
+
 test("p opens the playtest report (and More lists it)", () => {
   const browser = readFileSync(join(SRC, "browser.js"), "utf8");
   assert.match(browser, /key === "p".*openReport\(\)/s);
