@@ -60,6 +60,14 @@ test("phone status bar stays one line; affinity hint is gone; battle log is tall
   assert.doesNotMatch(browser, /tap a slot to aim it, or an empty one to equip/);
 });
 
+test("the play screen blocks phone text-selection Search / Look Up callouts", () => {
+  // Board glyphs live in a <pre>; a mis-tap must not open the OS search callout while playing.
+  const css = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/style.css"), "utf8");
+  assert.match(css, /#game\s*\{[^}]*-webkit-user-select:\s*none/s);
+  assert.match(css, /#game\s*\{[^}]*user-select:\s*none/s);
+  assert.match(css, /#game\s*\{[^}]*-webkit-touch-callout:\s*none/s);
+});
+
 test("p opens the playtest report (and More lists it)", () => {
   const browser = readFileSync(join(SRC, "browser.js"), "utf8");
   assert.match(browser, /key === "p".*openReport\(\)/s);
