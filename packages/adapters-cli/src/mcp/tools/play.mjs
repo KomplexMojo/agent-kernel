@@ -129,7 +129,7 @@ export const playTools = [
     name: "ak_play_legal",
     description: "List the commands the seated actor can try right now in a live game, without playing anything: `legal` is [{ id, label, command }] ordered by id "
       + "(wait, move:<dir>, sprint:<dir>, cast:<affinity>@<target>, take:...). Pass a listed `command` to ak_play_act. Read from what the seat can see (fog respected) and a candidate list: "
-      + "obvious refusals (walls, barriers, occupied tiles, unaffordable stamina or mana) are left out, but core still decides and a listed command can be refused. A step into a cell you cannot see right now (typically a diagonal past a corner, where a barrier can stand unseen) is listed with `unseen: true` and a label saying so; it may be refused with ActorCollision. "
+      + "obvious refusals (walls, barriers, occupied tiles, unaffordable stamina or mana) are left out, but core still decides and a listed command can be refused. A step into a cell you cannot see right now (typically a diagonal past a corner, where a barrier can stand unseen) is listed with `unseen: true` and a label saying so; it may be refused with ActorCollision. When too little stamina is why no step is listed, `legalNote` says what a step costs (soak included) and what you have. "
       + SESSION_RESULT,
     command: "play-session",
     inputSchema: { properties: { session: sessionProperty } },

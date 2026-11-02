@@ -57,3 +57,19 @@ export function listLegalPlayCommands(view) {
   }
   return actions.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
+
+/**
+ * Why the list offers no step, when the cause is stamina (#671): a seat that sees only `wait` should
+ * be told it cannot afford a step, what a step costs (a soaked actor pays one more), what it has
+ * and what waiting gives back. Null when a step is on offer or the cause is something else.
+ */
+export function legalMovementNote(view) {
+  const player = view?.player;
+  const cost = player?.moveStamina?.step;
+  if (!player || view.status?.exited || view.status?.defeated || !Number.isInteger(cost)) return null;
+  const stamina = (player.vitals || []).find((vital) => vital.key === "stamina");
+  if (!stamina || stamina.current >= cost) return null;
+  const soaked = Number.isInteger(player.soaked) && player.soaked > 0;
+  return `No step is offered: a step costs ${cost} stamina${soaked ? ` (soaked: one more than dry)` : ""} and you have ${stamina.current}.`
+    + (stamina.regen > 0 ? ` Waiting gives back ${stamina.regen} a turn, before anything that hits it.` : "");
+}

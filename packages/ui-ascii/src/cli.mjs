@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createGame } from "./game.js";
-import { listLegalPlayCommands } from "../../runtime/src/runner/legal-commands.js";
+import { legalMovementNote, listLegalPlayCommands } from "../../runtime/src/runner/legal-commands.js";
 import { HELP_LINES, WATCH_HELP_LINES, intentForKey, splitKeys, watchIntentForKey } from "./keymap.js";
 import {
   listBundledLevels,
@@ -403,6 +403,7 @@ async function session(options) {
   console.log(JSON.stringify({
     ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party,
     ...(orders.length ? { orders } : {}), inSight, legal: listLegalPlayCommands(view),
+    ...(legalMovementNote(view) ? { legalNote: legalMovementNote(view) } : {}),
     battleLog: battleLogLines(view, 20),
     ...(results.length ? { results } : {}), ...(message ? { message } : {}), hud: hudLine(view, { turns }), screen,
     ...(warnings.length ? { warnings } : {}),

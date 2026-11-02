@@ -102,3 +102,17 @@ test("a step into a cell the seat cannot see is marked unseen; seen steps are no
   const refused = await session.act(step("southwest").command);
   expect(refused.rejected[0]?.reason).toBe("ActorCollision"); // core is right; the label warned of it
 });
+
+// #671: out of stamina (and soaked) only `wait` is left; the seat is told why instead of guessing.
+test("with too little stamina to step, the seat is told what a step costs and what it has", async () => {
+  const { legalMovementNote } = await import("../../packages/runtime/src/runner/legal-commands.js");
+  const dry = await createPlaySession({ ...buildUnifiedLevel({ id: "tired", tiles: ["######", "#....E", "######"], actors: [
+    { category: "delver", id: "hero", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals({ stamina: 6 }) },
+  ] }), fog: false });
+  expect(legalMovementNote(dry.view())).toBeNull(); // a step is on offer
+  const view = dry.view();
+  const tired = { ...view, player: { ...view.player, soaked: 2, moveStamina: { ...view.player.moveStamina, step: 2 },
+    vitals: view.player.vitals.map((vital) => (vital.key === "stamina" ? { ...vital, current: 0, regen: 2 } : vital)) } };
+  expect(listLegalPlayCommands(tired).map((action) => action.id)).toEqual(["wait"]);
+  expect(legalMovementNote(tired)).toBe("No step is offered: a step costs 2 stamina (soaked: one more than dry) and you have 0. Waiting gives back 2 a turn, before anything that hits it.");
+});
