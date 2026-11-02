@@ -346,9 +346,9 @@ ak play-session end --session g                                     # final boar
 ak play-session start --session g2 --load artifacts/games/g.json    # reopen a copy
 ```
 
-- Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, results?, hud, screen, saved?, ended? }`.
+- Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, legal, battleLog, results?, hud, screen, saved?, ended? }`.
   `party` is every actor authored `user_controlled` (the actors a player may seat), each with a short label
-  (`D1`, `D2`), position, motivations and status; `inSight` is every other actor and trap the seated actor sees now,
+  (`D1`, `D2`), position, motivations and status; `legal` is the commands the seat can try now (#653), `battleLog` the last 20 lines of the Annotator's battle log for the seat, newest last; `inSight` is every other actor and trap the seated actor sees now,
   with labels and motivations (the stack that explains how each acts on its own).
 - `--actor <id|label>` seats a party member before anything is played; a companion or warden answers `not_playable`
   in `results`. `--commands` is a JSON array of `{ kind, params?, actorId? }` (the play commands `move`, `wait`,

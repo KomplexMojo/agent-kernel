@@ -20,6 +20,7 @@ const actingSpec = [
 const SESSION_RESULT = "Returns { screen, status, turns, active, party, orders?, inSight, hud, results? }: show `screen` verbatim in a code block. "
   + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position, motivations and status; "
   + "`orders` lists every actor following a strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (active, searching: target out of sight, stalled: with a reason, done, ignored: its thinking motivation does not reach the strategy); "
+  + "`battleLog` is the last 20 lines of the Annotator's battle log for the seated actor, newest last (what hit whom, field effects, defeats); "
   + "`legal` lists the commands the seat can try now (see ak_play_legal); "
   + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id, and its motivations (the stack that explains how it acts). "
   + "Fog of war is on: report only what the screen and inSight show.";
