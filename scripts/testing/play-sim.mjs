@@ -102,7 +102,7 @@ export async function playArm(dir, { strategy = "dash", maxTicks = DEFAULT_MAX_T
     try {
       const log = await runSeat({ transport: own, levelDir: dir, picker: seatPicker, maxTurns: maxTicks, retries });
       return { outcome: log.outcome, ticks: log.ticks, seat: log.seat, finalVitals: log.finalVitals, minVitals: log.minVitals,
-        seatLog: { turns: log.turns, illegal: log.illegal, refusedByCore: log.refusedByCore, ...(log.error ? { error: log.error } : {}), transcript: log.transcript } };
+        seatLog: { turns: log.turns, illegal: log.illegal, rejectedAnswers: log.rejectedAnswers, refusedByCore: log.refusedByCore, ...(log.error ? { error: log.error } : {}), transcript: log.transcript } };
     } finally {
       if (!transport) own.cleanup();
     }

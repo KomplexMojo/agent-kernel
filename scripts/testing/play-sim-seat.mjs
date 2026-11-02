@@ -54,7 +54,7 @@ export function createCliTransport({ sessionsDir, name = "seat" } = {}) {
 
 /** A picker backed by a model: it must answer `{ "action": "<id>" }` with an id from the list. */
 export function llmSeatPicker({ adapter, model }) {
-  return async ({ result, actions, problem }) => {
+  const picker = async ({ result, actions, problem }) => {
     const prompt = [
       "You play a character in a small dungeon game. Choose ONE action from the list. Answer JSON only: {\"action\": \"<id>\"}.",
       "Goal: reach the exit (E). ? is unexplored, @ is you, other letters are other actors.",
@@ -64,10 +64,13 @@ export function llmSeatPicker({ adapter, model }) {
       "Actions:", ...actions.map((action) => `  ${action.id}: ${action.label}`),
       ...(problem ? [`Your last answer was refused: ${problem}`] : []),
     ].join("\n");
-    const answer = await adapter.generate({ model, prompt, format: "json", options: { temperature: 0.2 } });
+    // think:false keeps a reasoning model from spending its budget on a thinking channel and returning an empty answer.
+    const answer = await adapter.generate({ model, prompt, format: "json", think: false, options: { temperature: 0.2 } });
     const text = String(answer?.response ?? answer?.text ?? answer).trim().replace(/^```(?:json)?|```$/g, "");
+    picker.lastRaw = text || `(empty response${answer?.thinking ? "; the model only produced thinking" : ""})`;
     try { return JSON.parse(text).action; } catch { return null; }
   };
+  return picker;
 }
 
 /**
@@ -75,7 +78,7 @@ export function llmSeatPicker({ adapter, model }) {
  * a transcript: one entry per turn with the pick, whether core refused it, and the HUD after.
  */
 export async function runSeat({ transport, levelDir, picker, maxTurns = DEFAULT_MAX_TURNS, retries = DEFAULT_RETRIES }) {
-  const log = { outcome: "timeout", turns: 0, ticks: 0, picks: 0, illegal: 0, refusedByCore: 0, seat: null, finalVitals: {}, minVitals: {}, transcript: [] };
+  const log = { outcome: "timeout", turns: 0, ticks: 0, picks: 0, illegal: 0, rejectedAnswers: [], refusedByCore: 0, seat: null, finalVitals: {}, minVitals: {}, transcript: [] };
   let result = transport.start({ dir: levelDir });
   if (!result.ok) return { ...log, outcome: "start_failed", error: result.error };
   log.seat = result.active ?? null;
@@ -96,7 +99,12 @@ export async function runSeat({ transport, levelDir, picker, maxTurns = DEFAULT_
     for (let attempt = 0; attempt <= retries && !chosen; attempt += 1) {
       const id = await picker({ result, actions, problem });
       chosen = actions.find((action) => action.id === id) ?? null;
-      if (!chosen) { log.illegal += 1; problem = `"${id}" is not in the list`; }
+      if (!chosen) {
+        log.illegal += 1;
+        problem = `"${id}" is not in the list`;
+        // What the model actually said, so an empty or malformed answer is visible in the record.
+        if (log.rejectedAnswers.length < 6) log.rejectedAnswers.push(String(picker.lastRaw ?? id).slice(0, 200));
+      }
     }
     if (!chosen) { log.outcome = "illegal"; break; }
     const next = transport.act(chosen.command);

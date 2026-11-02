@@ -52,6 +52,7 @@ test("a picker that never names a listed id ends the run as illegal", async () =
     expect(log.outcome).toBe("illegal");
     expect(log.illegal).toBe(2);
     expect(log.picks).toBe(0);
+    expect(log.rejectedAnswers).toEqual(["nope", "nope"]);
   } finally {
     transport.cleanup();
     rmSync(work, { recursive: true, force: true });
@@ -73,3 +74,14 @@ test("play-sim --driver seat writes a record with the seat log, ready for the an
     rmSync(outDir, { recursive: true, force: true });
   }
 }, 120000);
+
+test("the model picker asks for a direct answer (think:false) and keeps what the model said", async () => {
+  const { llmSeatPicker } = await import("../../scripts/testing/play-sim-seat.mjs");
+  const seen = [];
+  const adapter = { generate: async (request) => { seen.push(request); return { response: "", thinking: "hmm" }; } };
+  const picker = llmSeatPicker({ adapter, model: "m" });
+  const id = await picker({ result: { screen: "", hud: "", inSight: [] }, actions: [{ id: "wait", label: "wait" }] });
+  expect(id).toBeNull();
+  expect(seen[0].think).toBe(false);
+  expect(picker.lastRaw).toMatch(/empty response; the model only produced thinking/);
+});
