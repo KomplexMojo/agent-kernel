@@ -67,7 +67,7 @@ test("the session exposes the log as words, from the Annotator's entries", async
   const lines = session.view().battleLog;
   assert.ok(lines.length >= 2, "casts and the defeat are logged");
   // #692: the caster's side also reads how the hit landed, in words.
-  assert.match(lines[0].text, /^You cast decay push and struck .*warden_1: (a (glancing|solid|crushing) hit; )?it looks (unhurt|hurt|bloodied|near defeat)\.$/);
+  assert.match(lines[0].text, /^You cast decay push and struck .*warden_1: (a (glancing|solid|crushing) hit; )?(its \w+ looks [a-z ]+; )?it looks (unhurt|hurt|bloodied|near defeat)\.$/);
   assert.match(lines.at(-1).text, /warden_1 was defeated by your decay push\.$/);
   assert.ok(lines.every((line) => Number.isInteger(line.tick)));
   assert.ok(!lines.some((line) => /\d+\/\d+|[−-]\d/.test(line.text.replace(/warden_1|delver_1/g, ""))), "no vitals in the words");

@@ -334,7 +334,8 @@ export async function createPlaySession({
     const known = conditions.get(id);
     if (!known) return null;
     const age = Math.max(0, tick - known.tick);
-    return age > ACTOR_CONDITION_FADE_TICKS ? { band: "unknown", age } : { band: known.band, age };
+    if (age > ACTOR_CONDITION_FADE_TICKS) return { band: "unknown", age };
+    return { band: known.band, age, ...(known.struckVital ? { struckVital: known.struckVital, struckBand: known.struckBand } : {}) };
   }
   const withCondition = (actor, tick) => {
     const condition = partyIds.includes(actor.id) ? null : conditionOf(actor.id, tick);
@@ -365,7 +366,8 @@ export async function createPlaySession({
       // #692: a cast from our side that struck someone outside it tells us how hurt it looks (words only).
       const ours = side.has(entry.sourceId) && !side.has(entry.targetId);
       if (entry.event === "cast" && entry.struck && ours && entry.condition) {
-        conditions.set(entry.targetId, { band: entry.condition, tick: entry.tick });
+        conditions.set(entry.targetId, { band: entry.condition, tick: entry.tick,
+          ...(entry.struckVital && entry.struckCondition ? { struckVital: entry.struckVital, struckBand: entry.struckCondition } : {}) });
       }
       battleLog.push({ entry, readers, ally, ...(ours ? { ours: true } : {}),
         ...(change ? { effect: { vital: change.vital, hit: change.hit, regen: change.regen } } : {}) });

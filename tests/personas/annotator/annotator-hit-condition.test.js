@@ -33,6 +33,33 @@ test("a struck cast carries a band, a hit word and the reception, and no numbers
   assert.doesNotMatch(JSON.stringify(entry), /current|max|delta|"vitals"/);
 });
 
+test("a hit that lands hardest on armour bands that vital too (Darren, 2026-11-02)", async () => {
+  const [entry] = await entriesFor({
+    tick: 2,
+    casts: [{ sourceId: "a", targetId: "b", kind: "fire", expression: "push",
+      changes: [{ actorId: "b", vital: "durability", delta: -6 }] }],
+    lifecycles: { a: "alive", b: "alive" },
+    struck: { b: { defeatVital: "health", vitals: { health: { current: 20, max: 20 }, durability: { current: 4, max: 20 } } } },
+  });
+  assert.equal(entry.condition, "unhurt");
+  assert.equal(entry.struckVital, "durability");
+  assert.equal(entry.struckCondition, "near_defeat");
+  const { battleLogLine, conditionNote } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
+  assert.equal(battleLogLine(entry, { seatId: "a", showCondition: true }),
+    "You cast fire push and struck b: a crushing hit; its durability looks nearly gone; it looks unhurt.");
+  assert.equal(battleLogLine(entry, { seatId: "z" }), "A cast fire push and struck b.");
+  assert.equal(conditionNote({ band: "unhurt", age: 2, struckVital: "durability", struckBand: "hurt" }), "looks unhurt, durability worn, 2 ticks ago");
+
+  // A hit on the defeat vital itself names no second vital.
+  const [direct] = await entriesFor({
+    tick: 2,
+    casts: [{ sourceId: "a", targetId: "b", kind: "decay", expression: "push", changes: [{ actorId: "b", vital: "health", delta: -6 }] }],
+    lifecycles: { a: "alive", b: "alive" },
+    struck: { b: { defeatVital: "health", vitals: { health: { current: 14, max: 20 } } } },
+  });
+  assert.equal(direct.struckVital, undefined);
+});
+
 test("a cast at oneself or with no reading carries no band", async () => {
   const entries = await entriesFor({
     tick: 1,

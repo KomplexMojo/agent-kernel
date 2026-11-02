@@ -12,29 +12,41 @@
  * struck vital's max) and whether its slots amplified or resisted it (`reception`).
  */
 
-/** #692: the words for one struck actor, from core's rules; never a number. */
-function struckWords(cast, reading) {
-  const out = {};
-  if (cast.reception) out.reception = cast.reception;
-  if (!reading) return out;
-  const defeat = reading.vitals?.[reading.defeatVital];
-  const band = defeat ? actorConditionBand(defeat.current, defeat.max) : null;
-  if (band) out.condition = band;
-  let strongest = 0;
-  for (const change of cast.changes ?? []) {
-    const max = reading.vitals?.[change.vital]?.max;
-    if (change.actorId === cast.targetId && change.delta < 0 && max > 0) strongest = Math.max(strongest, -change.delta / max);
-  }
-  const hit = strongest > 0 ? actorHitWord(strongest, 1) : null;
-  if (hit) out.hit = hit;
-  return out;
-}
 import { BATTLE_LOG_ENTRY_SCHEMA } from "../../contracts/artifacts.ts";
 import { requireClock } from "../_shared/require-clock.js";
 import { affinityTableRow } from "../../../../core-ts/src/state/affinity-table.ts";
 import { actorConditionBand, actorHitWord } from "../../../../core-ts/src/rules/actor-condition.ts";
 
 const PERSONA = "annotator";
+
+/**
+ * #692: the words for one struck actor, from core's rules; never a number. When the hit landed
+ * hardest on a vital other than the defeat vital (armour before health: Darren, 2026-11-02), that
+ * vital gets its own band too (`struckVital`, `struckCondition`), so wearing armour down shows.
+ */
+function struckWords(cast, reading) {
+  const out = {};
+  if (cast.reception) out.reception = cast.reception;
+  if (!reading) return out;
+  const band = (vital) => {
+    const pool = reading.vitals?.[vital];
+    return pool ? actorConditionBand(pool.current, pool.max) : null;
+  };
+  const condition = band(reading.defeatVital);
+  if (condition) out.condition = condition;
+  let strongest = 0;
+  let struckVital = null;
+  for (const change of cast.changes ?? []) {
+    const max = reading.vitals?.[change.vital]?.max;
+    if (change.actorId !== cast.targetId || change.delta >= 0 || !(max > 0)) continue;
+    if (-change.delta / max > strongest) { strongest = -change.delta / max; struckVital = change.vital; }
+  }
+  const hit = strongest > 0 ? actorHitWord(strongest, 1) : null;
+  if (hit) out.hit = hit;
+  const struckCondition = struckVital && struckVital !== reading.defeatVital ? band(struckVital) : null;
+  if (struckCondition) Object.assign(out, { struckVital, struckCondition });
+  return out;
+}
 
 /** A field that harms what stands in it: any draw (it drains), or an emit of a damaging kind (core's table). */
 function harmfulField(field) {
