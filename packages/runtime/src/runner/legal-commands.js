@@ -51,6 +51,21 @@ export function listLegalPlayCommands(view) {
         command: { kind: "cast_affinity", params: { targetId: target.id, affinityKey: key } } });
     }
   }
+  // Equip and unequip (#670): a held affinity outside the equipped slots is an action too, one turn.
+  // With every slot full, core makes the oldest equipped one give way.
+  const equipped = player.equippedAffinityKeys || [];
+  const slots = player.affinitySlots ?? 1;
+  for (const pair of player.affinities || []) {
+    const key = `${pair.kind}:${pair.expression}`;
+    const name = key.replace(":", " ");
+    if (equipped.includes(key)) {
+      actions.push({ id: `unequip:${key}`, label: `unequip ${name} (a turn)`, command: { kind: "unequip_affinity", params: { affinityKey: key } } });
+    } else {
+      const gives = equipped.length >= slots ? equipped[0] : null;
+      actions.push({ id: `equip:${key}`, label: `equip ${name} (a turn${gives ? `; ${gives.replace(":", " ")} gives way` : ""})`,
+        command: { kind: "equip_affinity", params: { affinityKey: key } } });
+    }
+  }
   for (const item of view.loot || []) {
     actions.push({ id: `take:${item.targetId}:${item.holdingId}`, label: `take from ${item.targetId}`,
       command: { kind: "take", params: { targetId: item.targetId, holdingId: item.holdingId } } });
