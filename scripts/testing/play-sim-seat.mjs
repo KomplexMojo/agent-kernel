@@ -23,6 +23,7 @@ const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 
 export const DEFAULT_MAX_TURNS = 60;
 export const DEFAULT_RETRIES = 2;
+export const HISTORY_TURNS = 8;
 
 const HUD_KEYS = { HP: "health", MP: "mana", ST: "stamina", DU: "durability" };
 
@@ -54,11 +55,12 @@ export function createCliTransport({ sessionsDir, name = "seat" } = {}) {
 
 /** A picker backed by a model: it must answer `{ "action": "<id>" }` with an id from the list. */
 export function llmSeatPicker({ adapter, model }) {
-  const picker = async ({ result, actions, problem }) => {
+  const picker = async ({ result, actions, problem, history = [] }) => {
     const prompt = [
       "You play a character in a small dungeon game. Choose ONE action from the list. Answer JSON only: {\"action\": \"<id>\"}.",
       "Goal: reach the exit (E). ? is unexplored, @ is you, other letters are other actors.",
       result.screen,
+      ...(history.length ? ["Your last turns (oldest first; do not repeat a pattern that goes nowhere, and leave a tile that is hurting you):", ...history.map((turn) => `  ${turn.pick}${turn.refused ? " (refused)" : ""} -> ${turn.hud}`)] : []),
       `Now: ${result.hud ?? ""}`,
       `In sight: ${(result.inSight || []).map((actor) => `${actor.label ?? actor.id} at ${JSON.stringify(actor.position)}`).join("; ") || "nobody"}.`,
       "Actions:", ...actions.map((action) => `  ${action.id}: ${action.label}`),
@@ -97,7 +99,7 @@ export async function runSeat({ transport, levelDir, picker, maxTurns = DEFAULT_
     let chosen = null;
     let problem;
     for (let attempt = 0; attempt <= retries && !chosen; attempt += 1) {
-      const id = await picker({ result, actions, problem });
+      const id = await picker({ result, actions, problem, history: log.transcript.slice(-HISTORY_TURNS) });
       chosen = actions.find((action) => action.id === id) ?? null;
       if (!chosen) {
         log.illegal += 1;
