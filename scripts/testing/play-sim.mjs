@@ -27,7 +27,8 @@
  * `--build-source llm --model <id>` (M3, #614) lets a local Ollama model propose the player's
  * character near each arm's delver allowance; the character sheet (the Allocator's prices) must
  * accept it, with up to 3 attempts, else the arm records `build_refused`. Live use is manual
- * (the model host comes from `--ollama-url`, else OLLAMA_HOST, else localhost:11434; the model from `--model`, else OLLAMA_MODEL); the model id and prompt hash go in each
+ * (`--provider anthropic` swaps Ollama for the Anthropic API: ANTHROPIC_API_KEY from the environment, `--model` required, key never logged;
+ * the Ollama host comes from `--ollama-url`, else OLLAMA_HOST, else localhost:11434; the model from `--model`, else OLLAMA_MODEL); the model id and prompt hash go in each
  * record. It is analysis, never a gate. The default stays the scenario's own character.
  *
  * The treatment scales `--budget-tokens` by 0.9. The delver pool is a fixed share of that total
@@ -48,6 +49,7 @@ import { proposeCharacterSpec } from "./play-sim-llm-build.mjs";
 import { llmPicker, runBurst } from "./play-sim-t1.mjs";
 import { resolveModelEnv } from "./play-sim-model-env.mjs";
 import { createCliTransport, llmSeatPicker, runSeat } from "./play-sim-seat.mjs";
+import { createAnthropicAdapter, resolveProvider } from "./play-sim-anthropic.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -246,6 +248,7 @@ function parseArgs(argv) {
     else if (arg === "--build-source") options.buildSource = argv[++i];
     else if (arg === "--model") options.model = argv[++i];
     else if (arg === "--ollama-url") options.ollamaUrl = argv[++i];
+    else if (arg === "--provider") options.provider = argv[++i];
     else throw new Error(`unknown option ${arg}`);
   }
   if (!options.baseline && !options.treatment) throw new Error("--baseline-only and --treatment-only exclude each other");
@@ -259,7 +262,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const runId = new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
     const outDir = options.outDir ?? join(ROOT, "artifacts/play-sim", runId);
     const { model, baseUrl } = resolveModelEnv(options);
+    const { provider, apiKey } = resolveProvider(options.provider);
     const adapterFor = async () => {
+      if (provider === "anthropic") return createAnthropicAdapter({ apiKey, baseUrl: process.env.ANTHROPIC_BASE_URL || undefined });
       const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
       return createLlmAdapter(baseUrl ? { baseUrl } : {});
     };
@@ -277,7 +282,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       if (!model) throw new Error("--driver seat needs --model (or OLLAMA_MODEL)");
       seatPicker = llmSeatPicker({ adapter: await adapterFor(), model });
     } else if (options.driver && options.driver !== "t0") throw new Error(`unknown --driver ${options.driver} (t0, t1-contact or seat)`);
-    if (llm || picker || seatPicker) console.log(`model ${model} at ${baseUrl ?? "the adapter default (localhost:11434)"}`);
+    if (llm || picker || seatPicker) console.log(provider === "anthropic" ? `model ${model} via the Anthropic API` : `model ${model} at ${baseUrl ?? "the adapter default (localhost:11434)"}`);
     const { summary } = await runPlaySim({ ...options, model, llm, picker, seatPicker, outDir, log: (line) => console.log(line) });
     console.log(`Wrote ${summary.runs.length} run(s) to ${outDir}`);
   } catch (error) {
