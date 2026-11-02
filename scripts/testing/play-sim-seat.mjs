@@ -58,7 +58,9 @@ export function llmSeatPicker({ adapter, model }) {
   const picker = async ({ result, actions, problem, history = [] }) => {
     const prompt = [
       "You play a character in a small dungeon game. Choose ONE action from the list. Answer JSON only: {\"action\": \"<id>\"}.",
-      "Goal: reach the exit (E). ? is unexplored, @ is you, other letters are other actors.",
+      // Only what the actor can observe: no exit position is given. E appears on the screen once it has been seen.
+      "Goal: find a way out of this dungeon and leave it. You do not know where the exit is. Explore: head for tiles marked ? or doors you have not been through, and do not walk back and forth over ground you have already seen. When an exit (E) is on your screen, go to it and stay on it.",
+      "Legend: ? is unexplored, @ is you, other letters are other actors.",
       result.screen,
       ...(history.length ? ["Your last turns (oldest first; do not repeat a pattern that goes nowhere, and leave a tile that is hurting you):", ...history.map((turn) => `  ${turn.pick}${turn.refused ? " (refused)" : ""} -> ${turn.hud}`)] : []),
       ...(result.battleLog?.length ? ["Battle log (the Annotator's record of what happened to you and around you, newest last):", ...result.battleLog.map((line) => `  ${line}`)] : []),
@@ -112,7 +114,7 @@ export async function runSeat({ transport, levelDir, picker, maxTurns = DEFAULT_
       chosen = actions.find((action) => action.id === id) ?? null;
       if (!chosen) {
         log.illegal += 1;
-        problem = `"${id}" is not in the list`;
+        problem = `"${id}" is not in the list. Answer with exactly one of: ${actions.map((action) => action.id).join(", ")}`;
         // What the model actually said, so an empty or malformed answer is visible in the record.
         if (log.rejectedAnswers.length < 6) log.rejectedAnswers.push(String(picker.lastRaw ?? id).slice(0, 200));
       }
