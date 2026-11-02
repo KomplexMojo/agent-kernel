@@ -226,7 +226,7 @@ function usage() {
   node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
   node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
   node ${rel} play-session start [--session id] --load path
-  node ${rel} play-session act|view|switch|end [--session id] [--actor id|label] [--commands json] [--keys keys] [--save path]
+  node ${rel} play-session act|view|legal|switch|end [--session id] [--actor id|label] [--commands json] [--keys keys] [--save path]
   node ${rel} play-session order [--session id] --actor id|label --strategy goals|json|file.json
   node ${rel} play-session advance [--session id] [--ticks n] [--until orders_done|contact]
 
@@ -4734,7 +4734,7 @@ async function resolvePlaySource(args, command = "play") {
 }
 
 export const PLAY_SESSIONS_DIR = "artifacts/play-sessions";
-const PLAY_SESSION_ACTIONS = new Set(["start", "act", "view", "switch", "order", "advance", "end"]);
+const PLAY_SESSION_ACTIONS = new Set(["start", "act", "view", "legal", "switch", "order", "advance", "end"]);
 
 /**
  * `ak play-session`: a game that lasts across calls, for a caller that is not at a
@@ -4744,6 +4744,7 @@ const PLAY_SESSION_ACTIONS = new Set(["start", "act", "view", "switch", "order",
  * program does the playing; this only names the file and the level.
  *   start   a new game on a level          act     commands and/or keys
  *   view    the board, nothing played      switch  seat another party member (free)
+ *   legal   like view; read `legal`, the commands the seat can try now (#653)
  *   order   give --actor a new --strategy (a turn)
  *   advance let the world run --ticks n, or --until orders_done|contact
  *   end     the final board; removes the file
@@ -4776,7 +4777,7 @@ async function playSessionCommand(argv) {
   if (action === "start" && exists) throw new Error(`play-session "${name}" is already running; act on it, or end it first.`);
   if (action !== "start" && !exists) throw new Error(`No play-session "${name}"; start one with play-session start.`);
   if (action !== "start" && levelNamed) throw new Error(`play-session ${action} continues "${name}" on its own level; level options go with start.`);
-  if ((action === "view" || action === "end") && (args.keys !== undefined || args.commands !== undefined || args.actor !== undefined)) {
+  if ((action === "view" || action === "legal" || action === "end") && (args.keys !== undefined || args.commands !== undefined || args.actor !== undefined)) {
     throw new Error(`play-session ${action} plays nothing; use act (or switch) for keys, commands and --actor.`);
   }
   if (action === "switch" && args.actor === undefined) throw new Error("play-session switch needs --actor <id or label>.");

@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createGame } from "./game.js";
+import { listLegalPlayCommands } from "../../runtime/src/runner/legal-commands.js";
 import { HELP_LINES, WATCH_HELP_LINES, intentForKey, splitKeys, watchIntentForKey } from "./keymap.js";
 import {
   listBundledLevels,
@@ -54,7 +55,7 @@ const USAGE = `Usage: ak-maze [options]
   --no-help               start with the key help hidden (? shows it)
   --session <path>        a game kept in a file across calls: replay it if it exists, then
                           --actor, --commands and --keys, then save it back (with --json, the
-                          result adds active, party and inSight). A new session needs a level
+                          result adds active, party, inSight and legal). A new session needs a level
   --actor <id|label>      play this party member (a user_controlled actor) first; free
   --commands <json>       a JSON array of commands to act first, each { kind, params?, actorId? },
                           { kind: "switch", actorId }, { kind: "order", actorId, strategy } (a turn)
@@ -400,7 +401,7 @@ async function session(options) {
     .map((actor) => ({ label: actor.label, id: actor.id, role: actor.role, position: actor.position, motivations: actor.motivations }));
   console.log(JSON.stringify({
     ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party,
-    ...(orders.length ? { orders } : {}), inSight,
+    ...(orders.length ? { orders } : {}), inSight, legal: listLegalPlayCommands(view),
     ...(results.length ? { results } : {}), ...(message ? { message } : {}), hud: hudLine(view, { turns }), screen,
     ...(warnings.length ? { warnings } : {}),
   }));
