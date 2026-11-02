@@ -20,6 +20,7 @@ const actingSpec = [
 const SESSION_RESULT = "Returns { screen, status, turns, active, party, orders?, inSight, hud, results? }: show `screen` verbatim in a code block. "
   + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position, motivations and status; "
   + "`orders` lists every actor following a strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (active, searching: target out of sight, stalled: with a reason, done, ignored: its thinking motivation does not reach the strategy); "
+  + "`legal` lists the commands the seat can try now (see ak_play_legal); "
   + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id, and its motivations (the stack that explains how it acts). "
   + "Fog of war is on: report only what the screen and inSight show.";
 
@@ -122,6 +123,16 @@ export const playTools = [
     command: "play-session",
     inputSchema: { properties: { session: sessionProperty, save: saveProperty } },
     buildArgs: (args) => ["view", ...buildArgv(args, [...sessionSpec, ...saveSpec])],
+  }),
+  createTool({
+    name: "ak_play_legal",
+    description: "List the commands the seated actor can try right now in a live game, without playing anything: `legal` is [{ id, label, command }] ordered by id "
+      + "(wait, move:<dir>, sprint:<dir>, cast:<affinity>@<target>, take:...). Pass a listed `command` to ak_play_act. Read from what the seat can see (fog respected) and a candidate list: "
+      + "obvious refusals (walls, barriers, occupied tiles, unaffordable stamina or mana) are left out, but core still decides and a listed command can be refused. "
+      + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: { properties: { session: sessionProperty } },
+    buildArgs: (args) => ["legal", ...buildArgv(args, sessionSpec)],
   }),
   createTool({
     name: "ak_play_switch",
