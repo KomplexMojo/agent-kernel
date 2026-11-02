@@ -11,7 +11,7 @@
         "Notice earth barriers (▮) inside rooms and around the resource: push or pull one clear if it blocks you.",
         "Read the HUD: each vital shows what hit it and what regen gave back, e.g. HP 18/20 (−2 +1). Does it match what happened?",
         "Sprint: shift + a move (or x, then a move) goes two tiles for 3× the stamina. Worth it?",
-        "Break a cage tile if needed, then take the resource (g): it stays intact, and the vital it raises goes up.",
+        "Break a cage tile if needed, then take the resource (g): it stays intact, and the vital it raises goes up. Pricier loot should sit behind a tougher cage.",
         "Get near the warden: does it notice you, and what does its push do? The in-sight line says what you can see of it.",
         "Reach the exit (or fall): the event line should say who left or was defeated."
       ],
@@ -485,7 +485,7 @@
       "focus": [
         "Rooms should not feel like plain boxes: do the footprints and earth barriers (▮) make the space interesting?",
         "Pull an earth barrier down (f, aim at ▮, Enter with a pull equipped): does it clear so you can pass?",
-        "Resources should sit inside a barrier ring: open a cage tile, then take or break the loot.",
+        "Resources should sit inside a barrier ring: open a cage tile, then take or break the loot. Higher-token resources should need a stronger push (or a pull) to crack.",
         "Play to the exit or to defeat: is the pacing fun, or does it drag?",
         "The Director picked tactics from the seed (the start line names them): did they make it more interesting?",
         "On the phone, tap Generate again for another prebuilt seed from the pool — layout is not invented on-device."

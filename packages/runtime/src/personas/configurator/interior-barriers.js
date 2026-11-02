@@ -11,9 +11,21 @@ import { affinityTableRow } from "../../../../core-ts/src/state/affinity-table.t
 
 export const INTERIOR_BARRIER_INTENSITY = 2;
 export const INTERIOR_BARRIER_STACKS = 2;
-/** Resource cages: one weak push (magnitude 2) clears a tile; pull still one-shots. */
+/** Resource cages: intensity 1 earth push; durability scales with Allocator token value. */
 export const RESOURCE_ENCLOSURE_INTENSITY = 1;
+/** Floor when the resource has no priced total yet (tests / unpriced paths). */
 export const RESOURCE_ENCLOSURE_DURABILITY = 2;
+
+/**
+ * Cage durability from an Allocator token total for that resource.
+ * Higher-priced loot gets a tougher ring; floor keeps a free/unpriced resource openable
+ * by one weak push (magnitude 2). Pull still one-shots any cage.
+ */
+export function enclosureDurabilityForTokenValue(tokenValue) {
+  const tokens = Number(tokenValue);
+  if (!Number.isFinite(tokens) || tokens <= 0) return RESOURCE_ENCLOSURE_DURABILITY;
+  return Math.max(RESOURCE_ENCLOSURE_DURABILITY, Math.ceil(tokens));
+}
 
 /** King-move ring: diagonals are legal steps, so a 4-neighbour cage still leaks. */
 const RESOURCE_ENCLOSURE_DIRS = Object.freeze([
@@ -104,11 +116,60 @@ export function buildInteriorBarrierActors(cells = [], {
   });
 }
 
-/** Fragile earth cages around resources (not the tough room-divider furniture). */
-export function buildResourceEnclosureBarrierActors(cells = []) {
+/** Earth cages at a single durability (uniform / unpriced callers). */
+export function buildResourceEnclosureBarrierActors(cells = [], {
+  durability = RESOURCE_ENCLOSURE_DURABILITY,
+} = {}) {
+  const resolved = Number.isInteger(durability) && durability > 0
+    ? durability
+    : RESOURCE_ENCLOSURE_DURABILITY;
   return buildInteriorBarrierActors(cells, {
     intensity: RESOURCE_ENCLOSURE_INTENSITY,
     stacks: 1,
-    durability: RESOURCE_ENCLOSURE_DURABILITY,
+    durability: resolved,
   });
+}
+
+/**
+ * Per-resource cages whose durability follows Allocator token value.
+ * `tokenValueById` is Map|Record of resource id → spend tokens (from the budget receipt).
+ * Overlapping cage cells keep the max durability of the resources that claim them.
+ *
+ * @param {object} layout
+ * @param {Array} resources
+ * @param {{ occupied?: Set<string>, tokenValueById?: Map<string, number>|Record<string, number>, skipKeys?: Set<string> }} [opts]
+ */
+export function buildResourceEnclosureBarrierActorsForResources(layout, resources = [], {
+  occupied = new Set(),
+  tokenValueById = null,
+  skipKeys = new Set(),
+} = {}) {
+  if (!Array.isArray(resources) || resources.length === 0) return [];
+  const readTokens = (id) => {
+    if (!id) return 0;
+    if (tokenValueById instanceof Map) return tokenValueById.get(id) ?? 0;
+    if (tokenValueById && typeof tokenValueById === "object") return tokenValueById[id] ?? 0;
+    return 0;
+  };
+  const skip = skipKeys instanceof Set ? skipKeys : new Set(skipKeys);
+  const durabilityByCell = new Map();
+  for (const resource of resources) {
+    const cells = planResourceEnclosureCells(layout, [resource], { occupied });
+    const durability = enclosureDurabilityForTokenValue(readTokens(resource?.id));
+    for (const cell of cells) {
+      const key = cellKey(cell.x, cell.y);
+      if (skip.has(key)) continue;
+      durabilityByCell.set(key, Math.max(durabilityByCell.get(key) || 0, durability));
+    }
+  }
+  const actors = [];
+  for (const [key, durability] of durabilityByCell) {
+    const [x, y] = key.split(",").map(Number);
+    actors.push(...buildInteriorBarrierActors([{ x, y }], {
+      intensity: RESOURCE_ENCLOSURE_INTENSITY,
+      stacks: 1,
+      durability,
+    }));
+  }
+  return actors;
 }

@@ -83,6 +83,8 @@ import { generateGridLayoutFromInput } from "./level-layout.js";
 import {
   buildInteriorBarrierActors,
   buildResourceEnclosureBarrierActors,
+  buildResourceEnclosureBarrierActorsForResources,
+  enclosureDurabilityForTokenValue,
   planResourceEnclosureCells,
 } from "./interior-barriers.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "./artifact-builders.js";
@@ -454,6 +456,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
     generateGridLayoutFromInput,
     buildInteriorBarrierActors,
     buildResourceEnclosureBarrierActors,
+    buildResourceEnclosureBarrierActorsForResources,
+    enclosureDurabilityForTokenValue,
     planResourceEnclosureCells,
     buildSimConfigArtifact,
     buildInitialStateArtifact,
