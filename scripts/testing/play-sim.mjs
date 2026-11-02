@@ -27,7 +27,7 @@
  * `--build-source llm --model <id>` (M3, #614) lets a local Ollama model propose the player's
  * character near each arm's delver allowance; the character sheet (the Allocator's prices) must
  * accept it, with up to 3 attempts, else the arm records `build_refused`. Live use is manual
- * (Ollama on localhost:11434, `--ollama-url` to change); the model id and prompt hash go in each
+ * (the model host comes from `--ollama-url`, else OLLAMA_HOST, else localhost:11434; the model from `--model`, else OLLAMA_MODEL); the model id and prompt hash go in each
  * record. It is analysis, never a gate. The default stays the scenario's own character.
  *
  * The treatment scales `--budget-tokens` by 0.9. The delver pool is a fixed share of that total
@@ -46,6 +46,7 @@ import { loadPlaytestScenarios, playerDelverSpec, scenarioArgs } from "../game/p
 import { analyzeRun, checkRules } from "./simulation-lib.mjs";
 import { proposeCharacterSpec } from "./play-sim-llm-build.mjs";
 import { llmPicker, runBurst } from "./play-sim-t1.mjs";
+import { resolveModelEnv } from "./play-sim-model-env.mjs";
 import { createCliTransport, llmSeatPicker, runSeat } from "./play-sim-seat.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -196,7 +197,7 @@ export async function runOne(scenario, seed, armSpec, { workDir, createdAt, stra
   };
 }
 
-export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, llm = null, picker = null, seatPicker = null, transport = null, log = () => {} } = {}) {
+export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, baseline = true, treatment = true, strategy = "dash", maxTicks = DEFAULT_MAX_TICKS, llm = null, picker = null, seatPicker = null, transport = null, model = null, log = () => {} } = {}) {
   const catalog = loadPlaytestScenarios();
   const picked = (scenarios?.length ? scenarios : catalog.scenarios.map((entry) => entry.id)).map((id) => {
     const found = catalog.scenarios.find((entry) => entry.id === id);
@@ -221,7 +222,10 @@ export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, bas
   } finally {
     rmSync(workDir, { recursive: true, force: true });
   }
+  const usedModel = Boolean(llm || picker || seatPicker);
+  // A model run is a probe, like a benchmark --local run: never a qualifying baseline, never a gate.
   const summary = { schema: "agent-kernel/PlaySimRun", version: 1, strategy, seeds, maxTicks,
+    ...(usedModel ? { matrix: "local-unversioned", model } : {}),
     runs: runs.map(({ file, scenario, seed, arm, outcome, ticks, ruleHits: hits }) => ({ file, scenario, seed, arm, outcome, ticks, ruleHits: hits.map((hit) => hit.rule) })) };
   writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
   return { outDir, runs, summary };
@@ -254,24 +258,27 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const options = parseArgs(process.argv.slice(2));
     const runId = new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
     const outDir = options.outDir ?? join(ROOT, "artifacts/play-sim", runId);
-    let llm = null;
-    if (options.buildSource === "llm") {
-      if (!options.model) throw new Error("--build-source llm needs --model");
+    const { model, baseUrl } = resolveModelEnv(options);
+    const adapterFor = async () => {
       const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
-      llm = { model: options.model, adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}) };
-    } else if (options.buildSource && options.buildSource !== "default") throw new Error(`unknown --build-source ${options.buildSource} (default or llm)`);
+      return createLlmAdapter(baseUrl ? { baseUrl } : {});
+    };
+    let llm = null;
     let picker = null;
     let seatPicker = null;
+    if (options.buildSource === "llm") {
+      if (!model) throw new Error("--build-source llm needs --model (or OLLAMA_MODEL)");
+      llm = { model, adapter: await adapterFor() };
+    } else if (options.buildSource && options.buildSource !== "default") throw new Error(`unknown --build-source ${options.buildSource} (default or llm)`);
     if (options.driver === "t1-contact") {
-      if (!options.model) throw new Error("--driver t1-contact needs --model");
-      const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
-      picker = llmPicker({ adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}), model: options.model });
+      if (!model) throw new Error("--driver t1-contact needs --model (or OLLAMA_MODEL)");
+      picker = llmPicker({ adapter: await adapterFor(), model });
     } else if (options.driver === "seat") {
-      if (!options.model) throw new Error("--driver seat needs --model");
-      const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
-      seatPicker = llmSeatPicker({ adapter: createLlmAdapter(options.ollamaUrl ? { baseUrl: options.ollamaUrl } : {}), model: options.model });
+      if (!model) throw new Error("--driver seat needs --model (or OLLAMA_MODEL)");
+      seatPicker = llmSeatPicker({ adapter: await adapterFor(), model });
     } else if (options.driver && options.driver !== "t0") throw new Error(`unknown --driver ${options.driver} (t0, t1-contact or seat)`);
-    const { summary } = await runPlaySim({ ...options, llm, picker, seatPicker, outDir, log: (line) => console.log(line) });
+    if (llm || picker || seatPicker) console.log(`model ${model} at ${baseUrl ?? "the adapter default (localhost:11434)"}`);
+    const { summary } = await runPlaySim({ ...options, model, llm, picker, seatPicker, outDir, log: (line) => console.log(line) });
     console.log(`Wrote ${summary.runs.length} run(s) to ${outDir}`);
   } catch (error) {
     console.error(error.message);

@@ -39,3 +39,22 @@ learn, return to play.
   nothing armed, selected or half-open (a spent cast leaves no slot highlighted).
 - **Evidence.** A human check on the phone or terminal for the changed path, plus a headless oracle where
   one can exist (sweep rule or metric, play-sim run). Balance numbers are metrics, not gates.
+
+## Running the LLM-driven simulations (play-sim)
+
+Model-driven runs use the same path as the benchmarks (AGENTS.md, Benchmark strategy): the Mac keeps the repo and results, the darren-llm box does the inference, and `remote-ollama-mac run-local` opens the tunnel and exports `OLLAMA_HOST` and `OLLAMA_MODEL` to the command it wraps. The play-sim scripts read those two variables; `--model` and `--ollama-url` override them. A model run is a probe: its `summary.json` records `matrix: "local-unversioned"` and the model, and it never gates anything.
+
+```bash
+bash scripts/benchmark-preflight.sh --remote          # first: empty model store, empty ssh-agent and stale pins fail silently
+cd tools/remote-ollama-control
+./bin/remote-ollama-mac run-local --route auto --profile dual --model <model> -- \
+  node ../../scripts/testing/play-sim.mjs --driver seat --scenarios first-look --seeds 0   # a model plays the whole level
+./bin/remote-ollama-mac run-local --route auto --profile dual --model <model> -- \
+  node ../../scripts/testing/play-sim.mjs --driver t1-contact --scenarios duel --seeds 0   # a model plays contact bursts
+./bin/remote-ollama-mac run-local --route auto --profile dual --model <model> -- \
+  node ../../scripts/testing/play-sim.mjs --build-source llm --scenarios first-look --seeds 0   # a model builds the character
+./bin/remote-ollama-mac run-local --route auto --profile dual --model <model> -- \
+  node ../../scripts/testing/play-sim-advisor.mjs --in ../../artifacts/play-sim/<run-id>        # advice over a run's cards
+```
+
+On the Mac's own Ollama, put `--local` after `run-local` and drop `--route` and `--profile`. Results land in `artifacts/play-sim/<run-id>` (gitignored).

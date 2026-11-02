@@ -8,13 +8,14 @@
  *   node scripts/testing/play-sim-advisor.mjs --in artifacts/play-sim/<run-id> [--prompt-only] [--max-chars 12000]
  *
  * `--prompt-only` (the default) writes <in>/advisor-prompt.md and stops. With PLAY_SIM_ADVISOR_MODEL
- * set (and optionally PLAY_SIM_ADVISOR_URL, default Ollama on localhost) and without --prompt-only,
- * the model is called, its answer validated against the schema below and written to
+ * set (or OLLAMA_MODEL), with the host from PLAY_SIM_ADVISOR_URL, else OLLAMA_HOST, else localhost,
+ * and without --prompt-only, the model is called, its answer validated against the schema below and written to
  * <in>/advisor-output.json.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeHost } from "./play-sim-model-env.mjs";
 
 export const DEFAULT_MAX_CHARS = 12000;
 export const CONFIDENCE = Object.freeze(["low", "medium", "high"]);
@@ -103,13 +104,14 @@ async function main(argv) {
   const prompt = buildAdvisorPrompt(evidence, maxAt >= 0 ? { maxChars: Number(argv[maxAt + 1]) } : {});
   writeFileSync(join(dir, "advisor-prompt.md"), prompt);
   console.log(`Wrote ${join(dir, "advisor-prompt.md")} (${prompt.length} chars, ${evidence.cards.length} card(s)).`);
-  const model = process.env.PLAY_SIM_ADVISOR_MODEL;
+  const model = process.env.PLAY_SIM_ADVISOR_MODEL || process.env.OLLAMA_MODEL;
   if (argv.includes("--prompt-only") || !model) {
-    if (!argv.includes("--prompt-only")) console.log("PLAY_SIM_ADVISOR_MODEL is not set: prompt only.");
+    if (!argv.includes("--prompt-only")) console.log("PLAY_SIM_ADVISOR_MODEL (or OLLAMA_MODEL) is not set: prompt only.");
     return;
   }
+  const baseUrl = normalizeHost(process.env.PLAY_SIM_ADVISOR_URL || process.env.OLLAMA_HOST);
   const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
-  const answer = await createLlmAdapter(process.env.PLAY_SIM_ADVISOR_URL ? { baseUrl: process.env.PLAY_SIM_ADVISOR_URL } : {}).generate({ model, prompt, format: "json", options: { temperature: 0.2 } });
+  const answer = await createLlmAdapter(baseUrl ? { baseUrl } : {}).generate({ model, prompt, format: "json", options: { temperature: 0.2 } });
   let advice;
   try { advice = JSON.parse(String(answer?.response ?? "").trim()); } catch { throw new Error("the model's answer was not JSON"); }
   const problems = validateAdvice(advice, { knownRefs: evidence.cards.map((entry) => entry.ref) });
