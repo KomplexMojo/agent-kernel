@@ -97,6 +97,19 @@ test("the model sees its recent turns, so it can notice a loop or a tile that hu
   expect(prompts[0]).toMatch(/move:west \(refused\) -> HP 18\/20 tick 2/);
 });
 
+test("the goal states only what the actor can observe: leave, explore, no exit position", async () => {
+  const { llmSeatPicker } = await import("../../scripts/testing/play-sim-seat.mjs");
+  const prompts = [];
+  const adapter = { generate: async (request) => { prompts.push(request.prompt); return { response: '{"action":"nope"}' }; } };
+  const picker = llmSeatPicker({ adapter, model: "m" });
+  await picker({ result: { screen: "", hud: "", inSight: [] }, actions: [{ id: "wait", label: "wait" }] });
+  expect(prompts[0]).toMatch(/find a way out/i);
+  expect(prompts[0]).toMatch(/do not know where the exit is/i);
+  expect(prompts[0]).not.toMatch(/reach the exit \(E\)/);
+  await picker({ result: { screen: "", hud: "", inSight: [] }, actions: [{ id: "wait", label: "wait" }], problem: 'x is not in the list. Answer with exactly one of: wait' });
+  expect(prompts[1]).toMatch(/exactly one of: wait/);
+});
+
 test("the model is shown the Annotator's battle log, and every session result carries it", async () => {
   const { llmSeatPicker } = await import("../../scripts/testing/play-sim-seat.mjs");
   const prompts = [];
