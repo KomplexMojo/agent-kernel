@@ -350,7 +350,7 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
 <<<<<<< Updated upstream
 - Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, legal, battleLog, results?, hud, screen, saved?, ended? }`.
   `party` is every actor authored `user_controlled` (the actors a player may seat), each with a short label
-  (`D1`, `D2`), position, motivations and status; `legal` is the commands the seat can try now (#653), `battleLog` the last 20 lines of the Annotator's battle log for the seat, newest last; `inSight` is every other actor and trap the seated actor sees now,
+  (`D1`, `D2`), position, motivations and status; `legal` is the commands the seat can try now (#653; a step into a cell out of sight carries `unseen: true`, since a barrier can stand there unseen and core refuses it with ActorCollision, #672), `battleLog` the last 20 lines of the Annotator's battle log for the seat, newest last; `inSight` is every other actor and trap the seated actor sees now,
 =======
 - Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, results?, hud, screen, saved?, ended? }`.
   `party` is every actor authored `user_controlled` (the actors a player may seat); an actor authored `ai_controlled` (any role, hazards too) may also be seated, commanded and ordered by an AI through the same tools and is listed under `aiControlled`. Both lists give each actor a short label

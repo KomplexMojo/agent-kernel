@@ -76,3 +76,29 @@ test("play-sim with a T1 picker records the driver and the burst counts", async 
     rmSync(outDir, { recursive: true, force: true });
   }
 }, 120000);
+
+// #672: with fog, a diagonal step past a corner lands in a cell sight never reaches, where a
+// barrier can stand unseen. The list keeps the step (core allows corner cutting) but marks it.
+test("a step into a cell the seat cannot see is marked unseen; seen steps are not", async () => {
+  const hidden = buildUnifiedLevel({
+    id: "corner", tiles: ["#######", "#S....#", "##....#", "#.....E", "#######"],
+    actors: [
+      { category: "delver", id: "hero", position: { x: 2, y: 3 }, motivations: ["user_controlled"], vitals: viableVitals() },
+      { category: "barrier", id: "block", position: { x: 1, y: 3 }, motivations: [], vitals: viableVitals() },
+    ],
+  });
+  const session = await createPlaySession({ ...hidden, fog: true });
+  expect(session.view().rows[3][1]).toBe("\u25ae"); // seen beside the hero: a barrier
+  await session.act({ kind: "move", params: { direction: "north" } });
+  const view = session.view();
+  expect(view.rows[3][1]).toBe("."); // out of sight, remembered as floor: the barrier is not drawn
+  expect([...view.sight[3]][1]).not.toBe("v"); // the corner hides (1,3)
+  const actions = listLegalPlayCommands(view);
+  const step = (direction) => actions.find((action) => action.id === `move:${direction}`);
+  expect(step("southwest")).toMatchObject({ unseen: true });
+  expect(step("southwest").label).toMatch(/not in sight/);
+  expect(step("east").unseen).toBeUndefined();
+  expect(step("east").label).toBe("step east");
+  const refused = await session.act(step("southwest").command);
+  expect(refused.rejected[0]?.reason).toBe("ActorCollision"); // core is right; the label warned of it
+});
