@@ -123,26 +123,20 @@ function struckReadings(turn, snapshot) {
   }]));
 }
 
-// Playtest 2026-10-30: who a field hurt this tick, so the battle log can say an emit or draw is
-// doing damage. Facts only: an actor whose field-phase change (core's `hit` less what casts did)
-// was a loss, with every other actor's field on its cell; the Annotator decides which harm.
-function fieldHitReadings(turn, snapshot, readFields) {
-  const byCast = new Map();
-  for (const cast of turn?.casts ?? []) for (const change of cast.changes ?? []) {
-    const key = `${change.actorId}|${change.vital}`;
-    byCast.set(key, (byCast.get(key) ?? 0) + change.delta);
+// Playtest 2026-10-30 / AK-12: who a lasting field actually hurt this tick. Facts only from
+// core's fieldContacts (a vital loss attributed to that source/kind/expression). Co-located
+// idle restoring draws (#537) are not listed — the Annotator only decides wording, not blame.
+function fieldHitReadings(turn) {
+  const byTarget = new Map();
+  for (const contact of turn?.fieldContacts ?? []) {
+    const fields = byTarget.get(contact.targetId) ?? [];
+    const key = `${contact.sourceId}:${contact.kind}:${contact.expression}`;
+    if (!fields.some((field) => `${field.sourceId}:${field.kind}:${field.expression}` === key)) {
+      fields.push({ sourceId: contact.sourceId, kind: contact.kind, expression: contact.expression });
+    }
+    byTarget.set(contact.targetId, fields);
   }
-  const harmed = new Set((turn?.vitalChanges ?? [])
-    .filter((change) => change.hit - (byCast.get(`${change.actorId}|${change.vital}`) ?? 0) < 0)
-    .map((change) => change.actorId));
-  if (harmed.size === 0) return [];
-  const fields = readFields();
-  return snapshot.actors.filter((actor) => harmed.has(actor.id) && actor.position).map((actor) => ({
-    targetId: actor.id,
-    fields: fields.filter((field) => field.sourceId !== actor.id && field.falloff > 0
-      && field.position.x === actor.position.x && field.position.y === actor.position.y)
-      .map((field) => ({ sourceId: field.sourceId, kind: field.kind, expression: field.expression })),
-  })).filter((reading) => reading.fields.length > 0);
+  return [...byTarget].map(([targetId, fields]) => ({ targetId, fields }));
 }
 
 // What a take gave (playtest 2026-10-29): the holding as core has it, so the log can name it.
@@ -1555,9 +1549,8 @@ export function createFsmRuntime({
             exitedActorIds: applied.exitedActorIds ?? [],
             defeated: defeatedReadings(applied.actorSnapshot,
               () => (actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [])),
-            struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
-            fieldHits: fieldHitReadings(applied.actorTurn, applied.actorSnapshot,
-              () => (actorRegistry ? readActorRegistryObservation(actorRegistry, tick).affinityFields : [])),
+struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
+            fieldHits: fieldHitReadings(applied.actorTurn),
           },
         } : {}),
       });

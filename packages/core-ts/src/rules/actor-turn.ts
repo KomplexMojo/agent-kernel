@@ -2,6 +2,7 @@ import { readActorFieldSoaks, readActorOverwhelms, resolveActorFields, type Acto
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey, ActorPosition, ActorVitalKind, AffinityExpression, AffinityKind } from '../state/actor-types.ts';
 import type { ActorVitalChange } from './actor-affinity.ts';
+import type { ActorExposureContact } from './actor-exposure.ts';
 import { affinitySpreads, creepSpreadEmbers } from './actor-spread.ts';
 import { affinityIntensity, affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
@@ -20,6 +21,12 @@ export interface ActorTurnSnapshot {
   casts?: ActorTurnCast[];
   /** #410: per actor and vital, what hit it this turn (fields and others' casts) and what it regenerated. Absent when none. */
   vitalChanges?: ActorTurnVitalChange[];
+  /**
+   * AK-12: lasting-field contacts that actually took a vital this turn (source, target, kind,
+   * expression). Idle restoring draws (#537) are absent. Used by the battle log so a co-located
+   * emit cannot make an idle draw look like it hurt.
+   */
+  fieldContacts?: ActorExposureContact[];
   closed: boolean;
   fieldsResolved: boolean;
   regenerated: boolean;
@@ -127,7 +134,8 @@ export function createActorTurn(
     || state.soakedActorIds !== undefined && (!Array.isArray(state.soakedActorIds)
       || state.soakedActorIds.some(id => typeof id !== 'string'))
     || state.casts !== undefined && !Array.isArray(state.casts)
-    || state.vitalChanges !== undefined && !Array.isArray(state.vitalChanges)) {
+    || state.vitalChanges !== undefined && !Array.isArray(state.vitalChanges)
+    || state.fieldContacts !== undefined && !Array.isArray(state.fieldContacts)) {
     throw new Error('invalid turn snapshot');
   }
   // #354 retired suppression: a snapshot saved before then may still carry the field.
@@ -272,6 +280,10 @@ export function createActorTurn(
       for (const { actorId, turns } of readActorFieldSoaks(registry, result.fields)) {
         if (registry.soakActor(actorId, turns)) (state.soakedActorIds ??= []).push(actorId);
       }
+      if (result.contacts.length > 0) state.fieldContacts = result.contacts.map(contact => ({
+        sourceId: contact.sourceId, targetId: contact.targetId, kind: contact.kind,
+        expression: contact.expression, changes: contact.changes.map(change => ({ ...change })),
+      }));
       state.fieldsResolved = true;
       return result;
     },

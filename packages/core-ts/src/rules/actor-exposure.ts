@@ -1,5 +1,5 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAffinityKey } from '../state/actor-types.ts';
+import type { ActorAffinityKey, AffinityExpression, AffinityKind } from '../state/actor-types.ts';
 import { activeActorAffinity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 import { receiverAbsorbsAffinity } from './actor-receiver.ts';
@@ -12,9 +12,22 @@ export interface ActorExposureSource {
   budget: number;
   targets: { targetId: string; amount: number }[];
 }
+/**
+ * One field contact that actually took a vital from its target this pass (AK-12):
+ * restoring draws that top-up nothing (#537) are absent, so a co-located emit cannot
+ * make an idle draw look like it hurt.
+ */
+export interface ActorExposureContact {
+  sourceId: string;
+  targetId: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  changes: ActorVitalChange[];
+}
 export interface ActorExposureResult {
   changes: ActorVitalChange[];
   absorptions: { sourceId: string; receiverId: string; amount: number; mana: number }[];
+  contacts: ActorExposureContact[];
 }
 
 /**
@@ -42,7 +55,7 @@ export function resolveActorExposures(
     }
     remaining.set(slotOf(source), source.budget);
   }
-  const result: ActorExposureResult = { changes: [], absorptions: [] };
+  const result: ActorExposureResult = { changes: [], absorptions: [], contacts: [] };
   function absorb(sourceId: string, receiverId: string, amount: number): void {
     const mana = registry.changeVital(receiverId, 'mana', amount);
     result.absorptions.push({ sourceId, receiverId, amount, mana });
@@ -69,8 +82,16 @@ export function resolveActorExposures(
       if (receiverAbsorbsAffinity(receiver, pair) && source.sourceId !== target.targetId) {
         absorb(source.sourceId, target.targetId, amount);
       } else {
-        result.changes.push(...resolveActorAffinity(registry, source.sourceId, target.targetId,
-          pair.kind, pair.expression, amount).changes);
+        const changes = resolveActorAffinity(registry, source.sourceId, target.targetId,
+          pair.kind, pair.expression, amount).changes;
+        result.changes.push(...changes);
+        const harm = changes.filter(change => change.actorId === target.targetId && change.delta < 0);
+        if (harm.length > 0) {
+          result.contacts.push({
+            sourceId: source.sourceId, targetId: target.targetId,
+            kind: pair.kind, expression: pair.expression, changes: harm,
+          });
+        }
       }
     }
     if (delivered > 0) remaining.set(own, Math.max(0, remaining.get(own)! - delivered));

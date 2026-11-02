@@ -66,11 +66,12 @@ observation's `struck` readings hold the numbers and never reach an entry. `play
 only to the caster's side and ages the band, reading `unknown` after `ACTOR_CONDITION_FADE_TICKS`. The words live in `render/battle-log-lines.js`; `play-session` keeps the entries, filters
 them to what the seat may read, and `ui-ascii` and the phone app only render. The Annotator remembers
 the last roster lifecycles in its context to spot a defeat; observation only, never fed back. A lasting
-field hurting someone is a `field` entry (playtest 2026-10-30): the observation's `fieldHits` lists who
-lost vitals in the field phase and the other actors' fields on its cell; the Annotator keeps the harmful
-ones (any draw, an emit of a damaging kind in core's table) and logs each contact once, when it starts
-(last tick's contacts are in its context as `fieldHits`), so `Your wind emit is hurting W1 guard-1.`
-appears once, not every tick.
+field hurting someone is a `field` entry (playtest 2026-10-30 / AK-12): the observation's `fieldHits`
+lists contacts core already attributed (a lasting field that actually took a vital from that target —
+idle restoring draws that top-up nothing are absent); the Annotator keeps the harmful ones (any draw,
+an emit of a damaging kind in core's table) and logs each contact once, when it starts (last tick's
+contacts are in its context as `fieldHits`), so `Your wind emit is hurting W1 guard-1.` appears once,
+not every tick.
 
 **Build-scope `telemetry.json` is deliberately absent from this table.** It is glue-owned by charter
 rule 3 (the plane boundary): `build`/`llm-plan` run no tick, and the Annotator subscribes only to the
