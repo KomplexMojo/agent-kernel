@@ -28,7 +28,7 @@ test("the legal list holds wait, open steps, and casts at targets in reach, with
   expect(ids).not.toContain("move:north"); // a wall
   expect(ids).not.toContain("move:west");
   expect(ids).toContain("cast:water:push@guard");
-  for (const action of actions) expect(action.command.kind).toMatch(/wait|move|cast_affinity|take/);
+  for (const action of actions) expect(action.command.kind).toMatch(/wait|move|cast_affinity|take|equip_affinity|unequip_affinity/);
 });
 
 test("a cast the seat cannot pay for is not listed", async () => {
@@ -115,4 +115,24 @@ test("with too little stamina to step, the seat is told what a step costs and wh
     vitals: view.player.vitals.map((vital) => (vital.key === "stamina" ? { ...vital, current: 0, regen: 2 } : vital)) } };
   expect(listLegalPlayCommands(tired).map((action) => action.id)).toEqual(["wait"]);
   expect(legalMovementNote(tired)).toBe("No step is offered: a step costs 2 stamina (soaked: one more than dry) and you have 0. Waiting gives back 2 a turn, before anything that hits it.");
+});
+
+// #670: a held affinity outside the slots (the first-look hero's push sits in the pack) is an
+// action the list offers; without it a seat is told "no attack" while holding one.
+test("a held, unequipped affinity is offered as equip, and an equipped one as unequip", async () => {
+  const session = await createPlaySession({ ...buildUnifiedLevel({ id: "pack", tiles: ["######", "#....E", "######"], actors: [
+    { category: "delver", id: "hero", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals(),
+      affinities: [{ kind: "fire", expression: "emit", stacks: 2, intensity: 1 }, { kind: "fire", expression: "push", stacks: 3, intensity: 1 }] },
+  ] }), fog: false });
+  await session.act({ kind: "equip_affinity", params: { affinityKey: "fire:emit" } });
+  const before = listLegalPlayCommands(session.view());
+  const byId = (list, id) => list.find((action) => action.id === id);
+  expect(byId(before, "equip:fire:push")?.command).toEqual({ kind: "equip_affinity", params: { affinityKey: "fire:push" } });
+  expect(byId(before, "equip:fire:push").label).toMatch(/^equip fire push \(a turn/);
+  expect(session.view().player.equippedAffinityKeys).toEqual(["fire:emit"]);
+  expect(byId(before, "unequip:fire:emit")).toBeDefined();
+  const result = await session.act(byId(before, "equip:fire:push").command);
+  expect(result.rejected).toEqual([]);
+  const after = listLegalPlayCommands(session.view());
+  expect(byId(after, "unequip:fire:push")).toBeDefined();
 });
