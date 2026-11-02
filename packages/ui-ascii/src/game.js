@@ -295,6 +295,16 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     return result;
   }
 
+  /** One tick commanding several `ai_controlled` actors (#680); refused entries come back in `rejected`. */
+  async function tickAll(actorCommands) {
+    panel = null;
+    const before = session.status();
+    const result = await session.actTick(actorCommands);
+    if (result.tick !== before.tick) turns += 1;
+    message = "";
+    return result;
+  }
+
   /** Seat another party member (an id or a label). Free: no turn passes. */
   function switchTo(ref) {
     panel = null;
@@ -346,7 +356,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   /**
    * A structured command, for a caller that is not pressing keys (`--commands`):
    * `{ kind: "switch", actorId }`, `{ kind: "order", actorId, strategy }`,
-   * `{ kind: "advance", ticks?, until? }`, or any play command with an optional `actorId`.
+   * `{ kind: "advance", ticks?, until? }`, `{ kind: "tick", actorCommands: { actorId: command } }`
+   * (one tick for several `ai_controlled` actors, #680), or any play command with an optional `actorId`.
    * Targets and actors may be given by label. Returns what the session reported.
    */
   async function command(entry) {
@@ -355,6 +366,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     if (entry.kind === "switch") return switchTo(entry.actorId);
     if (entry.kind === "order") return order(entry.actorId, entry.strategy);
     if (entry.kind === "advance") return advance({ ticks: entry.ticks ?? 1, until: entry.until });
+    if (entry.kind === "tick") return tickAll(entry.actorCommands);
     const { actorId, ...rest } = entry;
     const result = await act(rest, () => "", { actorId });
     return result ?? { accepted: [], rejected: [{ kind: rest.kind, reason: session.status().defeated ? "defeated" : "exited" }] };

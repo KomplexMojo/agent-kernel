@@ -59,7 +59,8 @@ const USAGE = `Usage: ak-maze [options]
   --actor <id|label>      play this party member (a user_controlled actor) first; free
   --commands <json>       a JSON array of commands to act first, each { kind, params?, actorId? },
                           { kind: "switch", actorId }, { kind: "order", actorId, strategy } (a turn)
-                          or { kind: "advance", ticks?, until? } (until: orders_done | contact);
+                          { kind: "advance", ticks?, until? } (until: orders_done | contact)
+                          or { kind: "tick", actorCommands: { actorId: command } } (one tick, ai_controlled actors);
                           actors and targets may be labels (D1, W2)
   -h, --help              show this help
 

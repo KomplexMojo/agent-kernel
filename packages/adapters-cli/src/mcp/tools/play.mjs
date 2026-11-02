@@ -197,6 +197,27 @@ export const playTools = [
     buildArgs: (args) => ["advance", ...buildArgv(args, [...sessionSpec, { key: "ticks" }, { key: "until" }])],
   }),
   createTool({
+    name: "ak_play_tick",
+    description: "Run ONE tick in a live game commanding several ai_controlled actors at once (wardens, hazards, any actor authored ai_controlled), instead of commanding one, switching, and advancing the world once per actor. "
+      + "actorCommands maps an actor's id or label (W1, H2) to a command as in ak_play_act. Actors left out play their own motivations. "
+      + "Refused entries are named in results[].rejected and the others still run: not_playable (not ai_controlled; the player's party is commanded with ak_play_act), unknown_actor, exited, defeated, "
+      + "single_actor_only (inspect, watch, switch, order and advance need a tick of their own). No valid entry means no tick. " + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: {
+      properties: {
+        session: sessionProperty,
+        actorCommands: {
+          type: "object",
+          description: "{ \"W1\": { kind, params? }, \"H2\": { kind, params? } }: one command per ai_controlled actor, ids or labels.",
+          additionalProperties: { type: "object", additionalProperties: true },
+        },
+        save: saveProperty,
+      },
+      required: ["actorCommands"],
+    },
+    buildArgs: (args) => ["tick", ...buildArgv(args, [...sessionSpec, { key: "actorCommands", flag: "actor-commands", format: (value) => JSON.stringify(value) }, ...saveSpec])],
+  }),
+  createTool({
     name: "ak_play_end",
     description: "End a live game: returns its final board and removes its live file. Pass save to keep a copy first. "
       + SESSION_RESULT,

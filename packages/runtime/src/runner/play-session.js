@@ -688,6 +688,51 @@ export async function createPlaySession({
     return { tick: currentTick(), accepted, rejected, status: status() };
   }
 
+  // Kinds that run a tick of their own or change the seat: they cannot ride in a shared tick.
+  const SINGLE_ACTOR_KINDS = new Set(["inspect", "watch", "switch", "order", "advance"]);
+
+  /**
+   * One tick commanding several `ai_controlled` actors at once (#680): `byActor` maps an id or
+   * label to its command. The engine already takes one command per actor in a tick, so an AI that
+   * drives a whole dungeon side (wardens, hazards) does not advance the world once per actor.
+   * Actors left out play their own motivations. An entry for anyone who is not `ai_controlled`
+   * (the player's party included), an unknown or finished actor, or a command that needs a tick of
+   * its own, is refused and named in `rejected`; the rest still run. No valid entry, no tick.
+   */
+  async function actTick(byActor) {
+    if (!byActor || typeof byActor !== "object" || Array.isArray(byActor) || Object.keys(byActor).length === 0) {
+      throw new Error("actTick: needs an object of { actorId: command } with at least one entry");
+    }
+    const accepted = [];
+    const rejected = [];
+    const actorCommands = {};
+    const refuse = (who, command, reason) => rejected.push({ actorId: who, tick: currentTick() + 1, kind: command?.kind, params: { ...(command?.params ?? {}) }, reason });
+    for (const [ref, command] of Object.entries(byActor)) {
+      const actorId = resolveActorRef(ref);
+      if (actorId === undefined) { refuse(ref, command, "unknown_actor"); continue; }
+      if (!aiIds.includes(actorId)) { refuse(actorId, command, "not_playable"); continue; }
+      const state = statusOf(actorId);
+      if (state.exited || state.defeated) { refuse(actorId, command, state.exited ? "exited" : "defeated"); continue; }
+      if (SINGLE_ACTOR_KINDS.has(command?.kind)) { refuse(actorId, command, "single_actor_only"); continue; }
+      actorCommands[actorId] = withTargetResolved(normalizePlayCommand(command));
+    }
+    const ids = Object.keys(actorCommands);
+    if (ids.length === 0) return { tick: currentTick(), accepted, rejected, status: status() };
+    // The seated actor, if it has no strategy of its own, waits as it does under `advance`.
+    const seat = statusOf(activeId);
+    if (!actorCommands[activeId] && !seat.exited && !seat.defeated
+      && !(strategies()[activeId] || initialState.strategies?.[activeId])) actorCommands[activeId] = { kind: "wait" };
+    departures = [];
+    await stepWorld({ actorCommands });
+    commandLog.push({ tick: currentTick(), actorCommands: structuredClone(Object.fromEntries(ids.map((id) => [id, actorCommands[id]]))) });
+    const applyFrame = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
+    accepted.push(...(applyFrame.acceptedActions || [])
+      .filter((action) => ids.includes(action?.actorId) && isGameplayAction(action)).map(toPlayAction));
+    rejected.push(...(applyFrame.preCoreRejections || [])
+      .filter((entry) => ids.includes(entry?.action?.actorId) && isGameplayAction(entry.action)).map(toPlayRejection));
+    return { tick: currentTick(), accepted, rejected, status: status() };
+  }
+
   // The party as the UI lists it: who is seated, where each member stands, and the
   // motivation stack that explains what it does on its own (#310).
   function partyView(snapshot, ids = partyIds) {
@@ -860,6 +905,7 @@ export async function createPlaySession({
 
   return {
     act,
+    actTick,
     order,
     advance,
     autoTick,
@@ -1222,6 +1268,8 @@ export async function replayPlaySession({ simConfig, initialState, capturedInput
     } else if (entry.auto) {
       session.switchTo(entry.actorId);
       result = await session.autoTick(entry.actorId);
+    } else if (entry.actorCommands !== undefined) {
+      result = await session.actTick(entry.actorCommands);
     }
     else result = await session.act(entry.command, { actorId: entry.actorId ?? playerActorId });
     if (result.tick !== entry.tick) {
