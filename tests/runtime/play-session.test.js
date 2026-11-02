@@ -289,11 +289,17 @@ test("with fog, traps out of sight are not reported", async () => {
 
 test("with fog, a light-emitting trap lights its cells, which the player sees from afar", async () => {
   // Player at (2,1), unlit, so its own sight is one tile. The lamp at (3,3) is two
-  // tiles away in line of sight; its light makes it, and the cells it reaches, visible.
+  // tiles away in line of sight; its light makes the lamp cell visible from afar.
+  // Field occlusion (AK-10): light does not pass the wall at (2,3), so (1,3) stays dark;
+  // open-floor cells east of the lamp still receive the field.
   const lamp = (kind) => mazeLevel([trap("lamp", kind, { x: 3, y: 3 }, { stacks: 2 })]);
-  const lit = (await createPlaySession({ ...lamp("light"), fog: true })).view();
+  const session = await createPlaySession({ ...lamp("light"), fog: true });
+  const lit = session.view();
   assert.equal(lit.sight[3][3], PLAY_SIGHT.VISIBLE, "the lamp's own cell");
-  assert.equal(lit.sight[3][1], PLAY_SIGHT.VISIBLE, "a cell the lamp lights, in line of sight");
+  assert.equal(lit.sight[3][1], PLAY_SIGHT.UNKNOWN, "through-wall cells stay unlit");
+  const raw = session.debugView().field[3];
+  assert.ok(raw[5].some((entry) => entry.kind === "light"), "open floor east of the lamp is lit");
+  assert.equal(raw[1].length, 0, "floor west of the wall is not lit");
   assert.deepEqual(lit.hazards.map((h) => h.id), ["lamp"]);
 
   // #416: a kind lights its cells only when its table row illuminates (light and fire).

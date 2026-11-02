@@ -73,8 +73,8 @@ export const AFFINITY_FORMULAS = Object.freeze({
   }),
   range_tiles: Object.freeze({
     quantity: 'field reach and cast range',
-    formula: 'range tiles (Chebyshev)',
-    source: 'rules/actor-cast.ts actorCastRange; rules/actor-fields.ts',
+    formula: 'casts Chebyshev ≤ stacks; fields Manhattan ≤ stacks, occluded by walls/sight-blockers',
+    source: 'rules/actor-cast.ts actorCastRange; rules/actor-fields.ts projectedFalloff',
   }),
   cast_base_times_triangular_range: Object.freeze({
     quantity: 'cast mana (push, pull)',

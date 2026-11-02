@@ -10,6 +10,7 @@ import { resolveActorExposures, type ActorExposureSource } from './actor-exposur
 import { receiverAffinityAmount } from './actor-receiver.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
 import { soakTurns } from './actor-cast.ts';
+import { lineOfSightSteps } from '../state/visibility.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
 const EXPRESSION_CODES = Object.fromEntries(Object.entries(AFFINITY_EXPRESSION_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -72,10 +73,48 @@ export function previewActorFieldChanges(receiver: ActorRecord, localCells: read
   return changes;
 }
 
-function projectedFalloff(actor: ActorRecord, pair: ActorAffinityEntry, position: ActorPosition): number {
+type FieldOpaque = (cell: ActorPosition) => boolean;
+
+/**
+ * Whether an emit/draw reaches `target` from `origin`: same supercover ray as sight and
+ * casts. Opaque targets (walls) get no field; cells behind a wall or sight-blocking
+ * actor get none either (AK-10: light must not paint through a wall).
+ */
+function fieldHasLineOfSight(origin: ActorPosition, target: ActorPosition, opaque: FieldOpaque): boolean {
+  if (origin.x === target.x && origin.y === target.y) return true;
+  if (opaque(target)) return false;
+  return lineOfSightSteps(origin, target).every(({ cell, corner }) => {
+    if (corner && (opaque(corner[0]) || opaque(corner[1]))) return false;
+    if (cell.x === target.x && cell.y === target.y) return true;
+    return !opaque(cell);
+  });
+}
+
+/** Walls and living sight-blockers on a registry snapshot: the field's occlusion map. */
+function snapshotFieldOpaque(snapshot: ActorRegistrySnapshot): FieldOpaque {
+  const { width, height } = snapshot.dimensions;
+  const blockers = new Set(
+    snapshot.actors
+      .filter((actor) => actor.lifecycle === 'alive' && actor.capabilities.blocksSight)
+      .map((actor) => `${actor.position.x},${actor.position.y}`),
+  );
+  return (cell) => {
+    if (cell.x < 0 || cell.y < 0 || cell.x >= width || cell.y >= height) return true;
+    if (snapshot.terrain[cell.y * width + cell.x] === 'wall') return true;
+    return blockers.has(`${cell.x},${cell.y}`);
+  };
+}
+
+function projectedFalloff(
+  actor: ActorRecord,
+  pair: ActorAffinityEntry,
+  position: ActorPosition,
+  opaque?: FieldOpaque,
+): number {
   const distance = Math.abs(actor.position.x - position.x) + Math.abs(actor.position.y - position.y);
   const expression = EXPRESSION_CODES[pair.expression];
   if (distance > computeAffinityRadius(expression, pair.stacks)) return 0;
+  if (opaque && !fieldHasLineOfSight(actor.position, position, opaque)) return 0;
   return distance === 0 ? 1 : computeAffinityFalloff(distance, pair.stacks, expression);
 }
 
@@ -87,20 +126,29 @@ function activeFieldSources(actors: readonly ActorRecord[]): FieldSource[] {
 
 /** Project a cell from the supplied actors, including hypothetical active equipment.
  * Reads only those actors; it cannot infer unobserved sources or apply a field pulse.
+ * Without terrain, occlusion is not applied (open-floor forecast).
  */
 export function projectActorFieldsAt(actors: readonly ActorRecord[], position: ActorPosition): ActorFieldCell[] {
   return projectSourcesAt(activeFieldSources(actors), position);
 }
 
-function sourceContributionsAt(sources: readonly FieldSource[], position: ActorPosition): ActorFieldCell[] {
+function sourceContributionsAt(
+  sources: readonly FieldSource[],
+  position: ActorPosition,
+  opaque?: FieldOpaque,
+): ActorFieldCell[] {
   return sources.flatMap(({ actor, pair }) => {
-    const falloff = projectedFalloff(actor, pair, position);
+    const falloff = projectedFalloff(actor, pair, position, opaque);
     return falloff > 0 ? [{ ...pair, sourceId: actor.id, position: { ...position }, intensity: affinityIntensity(pair), falloff }] : [];
   });
 }
 
-function projectSourcesAt(sources: readonly FieldSource[], position: ActorPosition): ActorFieldCell[] {
-  return resolveFieldOverlap(sourceContributionsAt(sources, position));
+function projectSourcesAt(
+  sources: readonly FieldSource[],
+  position: ActorPosition,
+  opaque?: FieldOpaque,
+): ActorFieldCell[] {
+  return resolveFieldOverlap(sourceContributionsAt(sources, position, opaque));
 }
 
 /** Replace only this actor's contribution; other sources need not be visible actors. */
@@ -159,11 +207,14 @@ function trailContributions(snapshot: ActorRegistrySnapshot, actors: readonly Ac
   }));
 }
 
-/** Current-position projection. No equipment, vitality, or historical field mutation. */
+/** Current-position projection. No equipment, vitality, or historical field mutation.
+ * Walls and sight-blocking actors occlude reach (same supercover ray as sight/casts).
+ */
 export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fields: ActorFieldCell[]; contributions: ActorFieldCell[]; sources: ActorExposureSource[] } {
   const snapshot = registry.snapshot();
   const actors = snapshot.actors.filter(actor => actor.lifecycle === 'alive');
   const sources = activeFieldSources(actors);
+  const opaque = snapshotFieldOpaque(snapshot);
   const trails = trailContributions(snapshot, actors);
   const exposures = new Map(sources.map(({ actor, pair }) => [fieldSlotKey(actor.id, pair), {
     sourceId: actor.id, affinityKey: affinityKey(pair), budget: actorAffinityMagnitude(pair.expression, affinityIntensity(pair)), targets: [],
@@ -178,7 +229,7 @@ export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fiel
   for (let y = 0; y < snapshot.dimensions.height; y++) {
     for (let x = 0; x < snapshot.dimensions.width; x++) {
       const position = { x, y };
-      const local = [...sourceContributionsAt(sources, position),
+      const local = [...sourceContributionsAt(sources, position, opaque),
         ...trails.filter(cell => cell.position.x === x && cell.position.y === y)];
       contributions.push(...local);
       const cells = resolveFieldOverlap(local);
@@ -242,11 +293,13 @@ export interface ActorOverwhelm { actorId: string; kind: string; vital: string; 
  * cancellation (#290). An actor's own emission never overwhelms it. Read-only.
  */
 export function readActorOverwhelms(registry: Pick<Registry, 'snapshot'>): ActorOverwhelm[] {
-  const actors = registry.snapshot().actors.filter(actor => actor.lifecycle === 'alive');
+  const snapshot = registry.snapshot();
+  const actors = snapshot.actors.filter(actor => actor.lifecycle === 'alive');
   const sources = activeFieldSources(actors).filter(({ pair }) => pair.expression === 'emit');
+  const opaque = snapshotFieldOpaque(snapshot);
   const out: ActorOverwhelm[] = [];
   for (const actor of actors) {
-    const local = sourceContributionsAt(sources, actor.position);
+    const local = sourceContributionsAt(sources, actor.position, opaque);
     const strongest = (kind: string, includeSelf: boolean) => Math.max(0, ...local
       .filter(cell => cell.kind === kind && (includeSelf || cell.sourceId !== actor.id)).map(cell => cell.intensity));
     for (const kind of new Set(local.map(cell => cell.kind))) {
