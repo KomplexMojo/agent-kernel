@@ -49,7 +49,10 @@ export interface ActorCastResult {
   displaced?: ActorDisplacement[];
   /** Why the cast was refused, as a ValidationError name; absent when accepted. */
   rejection?: string;
+  /** #692: the receiver amplified it (an opposite slot, a breach) or resisted it (immune, absorbed); absent when neither. */
+  reception?: ActorCastReception;
 }
+export type ActorCastReception = 'amplified' | 'resisted';
 
 /** Only push and pull are cast; emit and draw work on their own while equipped. */
 export function isCastableExpression(expression: string): boolean {
@@ -169,9 +172,12 @@ export function castFocusedActorAffinity(
   if (sourceId !== targetId && receiverAbsorbsAffinity(target, pair)) {
     pay();
     const mana = registry.changeVital(targetId, 'mana', amount);
-    return { accepted: true, changes: mana !== 0 ? [...changes, { actorId: targetId, vital: 'mana', delta: mana }] : changes };
+    return { accepted: true, changes: mana !== 0 ? [...changes, { actorId: targetId, vital: 'mana', delta: mana }] : changes,
+      reception: 'resisted' as const };
   }
   const received = sourceId === targetId ? amount : receiverAffinityAmount(target, pair, amount);
+  // #692: how the receiver took it, in words a surface may show the attacker (no amounts).
+  const reception: ActorCastReception | undefined = sourceId === targetId || received === amount ? undefined : received > amount ? 'amplified' : 'resisted';
   // #369: every use costs mana. The price is taken after the effect, so mana the cast brings
   // back to the caster (a mana steal, a mana restore on itself) cannot refund it.
   const effects = resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, received).changes;
@@ -184,7 +190,8 @@ export function castFocusedActorAffinity(
   const displaced = lands && registry.moveActor
     ? displaceTarget(registry as DisplaceRegistry, sourceId, targetId, pair) : [];
   return { accepted: true, changes: [...changes, ...effects,
-    ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])], displaced, soaked };
+    ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])], displaced, soaked,
+    ...(reception ? { reception } : {}) };
 }
 
 /** A barrier: it stands in the way and never moves (the `barrier` preset, authored or raised). */

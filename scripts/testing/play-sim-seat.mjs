@@ -17,6 +17,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { conditionNote } from "../../packages/runtime/src/render/battle-log-lines.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -53,6 +54,9 @@ export function createCliTransport({ sessionsDir, name = "seat" } = {}) {
   };
 }
 
+/** #692: ` (looks bloodied, 2 ticks ago)` for an actor our hits have read, worded as every UI words it. */
+const conditionText = (condition) => (conditionNote(condition) ? ` (${conditionNote(condition)})` : "");
+
 /** A picker backed by a model: it must answer `{ "action": "<id>" }` with an id from the list. */
 export function llmSeatPicker({ adapter, model }) {
   const picker = async ({ result, actions, problem, history = [] }) => {
@@ -65,7 +69,8 @@ export function llmSeatPicker({ adapter, model }) {
       ...(history.length ? ["Your last turns (oldest first; do not repeat a pattern that goes nowhere, and leave a tile that is hurting you):", ...history.map((turn) => `  ${turn.pick}${turn.refused ? " (refused)" : ""} -> ${turn.hud}`)] : []),
       ...(result.battleLog?.length ? ["Battle log (the Annotator's record of what happened to you and around you, newest last):", ...result.battleLog.map((line) => `  ${line}`)] : []),
       `Now: ${result.hud ?? ""}`,
-      `In sight: ${(result.inSight || []).map((actor) => `${actor.label ?? actor.id} at ${JSON.stringify(actor.position)}`).join("; ") || "nobody"}.`,
+      // #692: how hurt an actor looked when you last hit it, and how long ago; never its vitals.
+      `In sight: ${(result.inSight || []).map((actor) => `${actor.label ?? actor.id} at ${JSON.stringify(actor.position)}${conditionText(actor.condition)}`).join("; ") || "nobody"}.`,
       ...(result.legalNote ? [`Note: ${result.legalNote}`] : []),
       "Actions:", ...actions.map((action) => `  ${action.id}: ${action.label}`),
       ...(problem ? [`Your last answer was refused: ${problem}`] : []),

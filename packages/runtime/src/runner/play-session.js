@@ -81,6 +81,7 @@ import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.t
 import { computeActorMoveStaminaCost } from "../../../core-ts/src/rules/move.ts";
 import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
 import { revealedValue } from "../../../core-ts/src/rules/actor-observation.ts";
+import { ACTOR_CONDITION_FADE_TICKS } from "../../../core-ts/src/rules/actor-condition.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
@@ -326,6 +327,19 @@ export async function createPlaySession({
   // session only keeps and filters what the Annotator derived (it words and derives nothing).
   const battleLog = [];
   let battleLogTick = -1;
+  // #692: the last band our side's hits read on each other actor, `{ band, tick }`. Shared by the party,
+  // like the battle log it comes from; it ages and reads as unknown after ACTOR_CONDITION_FADE_TICKS.
+  const conditions = new Map();
+  function conditionOf(id, tick) {
+    const known = conditions.get(id);
+    if (!known) return null;
+    const age = Math.max(0, tick - known.tick);
+    return age > ACTOR_CONDITION_FADE_TICKS ? { band: "unknown", age } : { band: known.band, age };
+  }
+  const withCondition = (actor, tick) => {
+    const condition = partyIds.includes(actor.id) ? null : conditionOf(actor.id, tick);
+    return condition ? { ...actor, condition } : actor;
+  };
   function recordBattleLog() {
     const emit = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "emit").at(-1);
     const entries = [emit?.telemetry].flat().filter(Boolean).flatMap((telemetry) => telemetry.battleLog ?? [])
@@ -348,7 +362,13 @@ export async function createPlaySession({
       const row = entry.event === "field" ? AFFINITY_TABLE.find((candidate) => candidate.kind === entry.kind) : null;
       const change = row && (side.has(entry.targetId))
         ? vitalChanges.find((candidate) => candidate.actorId === entry.targetId && candidate.vital === row.primaryVital) : null;
-      battleLog.push({ entry, readers, ally, ...(change ? { effect: { vital: change.vital, hit: change.hit, regen: change.regen } } : {}) });
+      // #692: a cast from our side that struck someone outside it tells us how hurt it looks (words only).
+      const ours = side.has(entry.sourceId) && !side.has(entry.targetId);
+      if (entry.event === "cast" && entry.struck && ours && entry.condition) {
+        conditions.set(entry.targetId, { band: entry.condition, tick: entry.tick });
+      }
+      battleLog.push({ entry, readers, ally, ...(ours ? { ours: true } : {}),
+        ...(change ? { effect: { vital: change.vital, hit: change.hit, regen: change.regen } } : {}) });
     }
     if (battleLog.length > 500) battleLog.splice(0, battleLog.length - 500);
   }
@@ -356,11 +376,11 @@ export async function createPlaySession({
   /** The last `limit` battle-log lines the seat may read, oldest first: `{ tick, event, text }`. */
   function battleLogView(limit = 30) {
     return battleLog.filter(({ readers }) => readers.includes(activeId)).slice(-limit)
-      .map(({ entry, ally, effect }) => ({ tick: entry.tick, event: entry.event, ...(ally ? { ally: true, targetId: entry.targetId } : {}),
+      .map(({ entry, ally, effect, ours }) => ({ tick: entry.tick, event: entry.event, ...(ally ? { ally: true, targetId: entry.targetId } : {}),
         // #618: the seat's own defeat, as the Annotator logged it, with the vital that ran out (what the player can read on their HUD).
         ...(entry.event === "defeat" && entry.targetId === activeId ? { seatDefeat: true, ...(entry.defeatVital ? { defeatVital: entry.defeatVital } : {}) } : {}),
         ...(effect ? { detailed: true } : {}),
-        text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null, effect }) }));
+        text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null, effect, showCondition: Boolean(ours) }) }));
   }
 
   // #479: a mobile actor the seat has seen stays known at its last position until the seat
@@ -851,13 +871,17 @@ export async function createPlaySession({
         castPrices,
         movementStamina: simConfig.actionCosts?.movementStamina,
     });
+    const tickNow = currentTick();
     return {
       ...built,
+      // #692: what our side's hits read of each actor in sight (a band and its age), never its vitals.
+      ...(Array.isArray(built.actors) ? { actors: built.actors.map((actor) => withCondition(actor, tickNow)) } : {}),
+      ...(Array.isArray(built.hazards) ? { hazards: built.hazards.map((actor) => withCondition(actor, tickNow)) } : {}),
       party: partyView(snapshot),
       ...(aiIds.length > 0 ? { aiControlled: partyView(snapshot, aiIds) } : {}),
       rooms: notebookRooms(snapshot),
       inspections: inspectionsView(snapshot, fogOn ? readVisible() : null),
-      lastSeen: lastSeenView(built.actors, snapshot, fogOn ? readVisible() : null),
+      lastSeen: lastSeenView(built.actors, snapshot, fogOn ? readVisible() : null).map((actor) => withCondition(actor, tickNow)),
       casts: castsView(snapshot, fogOn ? readVisible() : null),
       vitalChanges: vitalChangesView(snapshot, fogOn ? readVisible() : null),
       departures: departures.map((entry) => ({ ...entry })),
