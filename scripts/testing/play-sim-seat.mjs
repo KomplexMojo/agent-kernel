@@ -125,7 +125,9 @@ export async function runSeat({ transport, levelDir, picker, maxTurns = DEFAULT_
     const refused = (next.results || []).some((entry) => (entry.rejected || []).length);
     if (refused) log.refusedByCore += 1;
     log.picks += 1;
-    log.transcript.push({ turn: turn + 1, pick: chosen.id, refused, hud: next.hud });
+    // What the model was shown and could do this turn (the state before its pick), so a record can say
+    // whether a counter was on offer. The prompt's history reads only pick/refused/hud.
+    log.transcript.push({ turn: turn + 1, pick: chosen.id, refused, hud: next.hud, legal: actions.map((action) => action.id), screen: result.screen, ...(result.legalNote ? { legalNote: result.legalNote } : {}) });
     result = next;
     track();
   }
