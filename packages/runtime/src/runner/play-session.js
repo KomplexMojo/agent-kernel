@@ -855,6 +855,8 @@ export async function createPlaySession({
   function view() {
     const fogOn = fog && !runtime.hasActorExited(activeId);
     const snapshot = readSnapshot();
+    // One visibility grid for the whole view — recomputing LOS per sub-panel dominated vast redraws.
+    const visible = fogOn ? readVisible() : null;
     const built = buildPlayView({
         snapshot,
       presentation,
@@ -863,7 +865,7 @@ export async function createPlaySession({
       glyphSet,
       tick: currentTick(),
       status: status(),
-      visible: fogOn ? readVisible() : null,
+      visible,
       explored: fogOn ? explored.get(activeId) ?? null : null,
       // #416: with fog, others show what light reveals of them; your own party, everything.
       reveal: fogOn && typeof runtime.readRevealLevels === "function"
@@ -884,12 +886,12 @@ export async function createPlaySession({
       party: partyView(snapshot),
       ...(aiIds.length > 0 ? { aiControlled: partyView(snapshot, aiIds) } : {}),
       rooms: notebookRooms(snapshot),
-      inspections: inspectionsView(snapshot, fogOn ? readVisible() : null),
-      lastSeen: lastSeenView(built.actors, snapshot, fogOn ? readVisible() : null).map((actor) => withCondition(actor, tickNow)),
-      casts: castsView(snapshot, fogOn ? readVisible() : null),
-      vitalChanges: vitalChangesView(snapshot, fogOn ? readVisible() : null),
+      inspections: inspectionsView(snapshot, visible),
+      lastSeen: lastSeenView(built.actors, snapshot, visible).map((actor) => withCondition(actor, tickNow)),
+      casts: castsView(snapshot, visible),
+      vitalChanges: vitalChangesView(snapshot, visible),
       departures: departures.map((entry) => ({ ...entry })),
-      defeatMarks: defeatMarks.filter((mark) => !fogOn || readVisible()?.[mark.y]?.[mark.x]).map((mark) => ({ ...mark })),
+      defeatMarks: defeatMarks.filter((mark) => !fogOn || visible?.[mark.y]?.[mark.x]).map((mark) => ({ ...mark })),
       orders: ordersView(),
       orderable: orderableView(snapshot),
       battleLog: battleLogView(),

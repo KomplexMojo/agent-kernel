@@ -207,11 +207,15 @@ function trailContributions(snapshot: ActorRegistrySnapshot, actors: readonly Ac
   }));
 }
 
-/** Current-position projection. No equipment, vitality, or historical field mutation.
- * Walls and sight-blocking actors occlude reach (same supercover ray as sight/casts).
+/**
+ * Project lasting fields from an already-detached registry snapshot.
+ * Iterates each source's Manhattan diamond (and cast trails), not the whole board —
+ * O(sources · r²) instead of O(width · height · sources). Occlusion unchanged (AK-10).
  */
-export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fields: ActorFieldCell[]; contributions: ActorFieldCell[]; sources: ActorExposureSource[] } {
-  const snapshot = registry.snapshot();
+export function projectActorFieldsFromSnapshot(snapshot: ActorRegistrySnapshot): {
+  fields: ActorFieldCell[]; contributions: ActorFieldCell[]; sources: ActorExposureSource[];
+} {
+  const { width, height } = snapshot.dimensions;
   const actors = snapshot.actors.filter(actor => actor.lifecycle === 'alive');
   const sources = activeFieldSources(actors);
   const opaque = snapshotFieldOpaque(snapshot);
@@ -224,17 +228,57 @@ export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fiel
     if (!exposures.has(slot)) exposures.set(slot, { sourceId: trail.sourceId, affinityKey: affinityKey(trail),
       budget: actorAffinityMagnitude(trail.expression, trail.intensity), targets: [] });
   }
+
+  const actorsByCell = new Map<string, ActorRecord[]>();
+  for (const actor of actors) {
+    const key = `${actor.position.x},${actor.position.y}`;
+    const at = actorsByCell.get(key);
+    if (at) at.push(actor);
+    else actorsByCell.set(key, [actor]);
+  }
+
+  const contribByCell = new Map<string, ActorFieldCell[]>();
+  const addContribution = (cell: ActorFieldCell) => {
+    const key = `${cell.position.x},${cell.position.y}`;
+    const at = contribByCell.get(key);
+    if (at) at.push(cell);
+    else contribByCell.set(key, [cell]);
+  };
+
+  for (const { actor, pair } of sources) {
+    const expression = EXPRESSION_CODES[pair.expression];
+    const radius = computeAffinityRadius(expression, pair.stacks);
+    const ox = actor.position.x;
+    const oy = actor.position.y;
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (Math.abs(dx) + Math.abs(dy) > radius) continue;
+        const x = ox + dx;
+        const y = oy + dy;
+        if (x < 0 || y < 0 || x >= width || y >= height) continue;
+        const position = { x, y };
+        const falloff = projectedFalloff(actor, pair, position, opaque);
+        if (falloff > 0) {
+          addContribution({
+            ...pair, sourceId: actor.id, position, intensity: affinityIntensity(pair), falloff,
+          });
+        }
+      }
+    }
+  }
+  for (const trail of trails) addContribution(trail);
+
   const fields: ActorFieldCell[] = [];
   const contributions: ActorFieldCell[] = [];
-  for (let y = 0; y < snapshot.dimensions.height; y++) {
-    for (let x = 0; x < snapshot.dimensions.width; x++) {
-      const position = { x, y };
-      const local = [...sourceContributionsAt(sources, position, opaque),
-        ...trails.filter(cell => cell.position.x === x && cell.position.y === y)];
+  // Board order (y-major, then x) keeps contribution/field order deterministic for tests.
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const local = contribByCell.get(`${x},${y}`);
+      if (!local || local.length === 0) continue;
       contributions.push(...local);
       const cells = resolveFieldOverlap(local);
       fields.push(...cells);
-      for (const receiver of actors.filter(actor => actor.position.x === x && actor.position.y === y)) {
+      for (const receiver of actorsByCell.get(`${x},${y}`) ?? []) {
         for (const cell of cells) {
           const amount = actorFieldExposureAmount(receiver, cell, cells);
           if (amount > 0) exposures.get(fieldSlotKey(cell.sourceId, cell))!.targets.push({ targetId: receiver.id, amount });
@@ -243,6 +287,15 @@ export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fiel
     }
   }
   return { fields, contributions, sources: [...exposures.values()] };
+}
+
+/** Current-position projection. No equipment, vitality, or historical field mutation.
+ * Walls and sight-blocking actors occlude reach (same supercover ray as sight/casts).
+ */
+export function projectActorFields(registry: Pick<Registry, 'snapshot'>): {
+  fields: ActorFieldCell[]; contributions: ActorFieldCell[]; sources: ActorExposureSource[];
+} {
+  return projectActorFieldsFromSnapshot(registry.snapshot());
 }
 
 /**

@@ -658,6 +658,42 @@ export function createFsmRuntime({
   const runtimeBudgetOutcomes = [];
   // Last tick's actor intentions: the Moderator orders this tick's DECIDE pass from them (#164).
   let previousTickIntentions = [];
+  // Observation + registry-snapshot cache: play-session view()/fog helpers each re-read
+  // observation and getActorSnapshot independently. Rebuilding projects fields and
+  // deep-copies every actor — dominant cost on vast boards. Invalidate on registry mutate.
+  let observationCache = null;
+  let actorSnapshotCache = null;
+  let observationCacheGeneration = 0;
+
+  function invalidateObservationCache() {
+    observationCache = null;
+    actorSnapshotCache = null;
+    observationCacheGeneration += 1;
+  }
+
+  function readCachedObservation() {
+    if (!actorRegistry) return null;
+    if (observationCache
+      && observationCache.tick === tick
+      && observationCache.generation === observationCacheGeneration) {
+      return observationCache.value;
+    }
+    const value = readActorRegistryObservation(actorRegistry, tick);
+    observationCache = { tick, generation: observationCacheGeneration, value };
+    return value;
+  }
+
+  function readCachedActorSnapshot() {
+    if (!actorRegistry) return null;
+    if (actorSnapshotCache
+      && actorSnapshotCache.tick === tick
+      && actorSnapshotCache.generation === observationCacheGeneration) {
+      return actorSnapshotCache.value;
+    }
+    const value = actorRegistry.snapshot();
+    actorSnapshotCache = { tick, generation: observationCacheGeneration, value };
+    return value;
+  }
 
   function nextFrameMeta() {
     frameCounter += 1;
@@ -779,7 +815,7 @@ export function createFsmRuntime({
   // session state.
   function readVisibleCellsForActor(actorId) {
     if (!actorRegistry) return [];
-    return readActorRegistryVisibleCells(readActorRegistryObservation(actorRegistry, tick), actorId);
+    return readActorRegistryVisibleCells(readCachedObservation(), actorId);
   }
 
   // Core owns the exit rule; this only reads the actor's lifecycle verdict.
@@ -1210,6 +1246,8 @@ export function createFsmRuntime({
       exitedActorIds = actorTurn.resolveExits() || [];
       actorTurnSnapshot = actorTurn.snapshot();
       actorSnapshot = actorRegistry.snapshot();
+      // Registry mutated (actions, fields, regen, exits) — drop cached observation.
+      invalidateObservationCache();
     }
     return { acceptedActions, preCoreRejections, outcomes,
       actorFields, exitedActorIds, actorTurn: actorTurnSnapshot, actorSnapshot };
@@ -1247,6 +1285,7 @@ export function createFsmRuntime({
       actorCosts = null;
       actorPresentation = null;
       baseTiles = null;
+      invalidateObservationCache();
 
       core.init(seed);
       if (initialState && !simConfig) {
@@ -1332,7 +1371,8 @@ export function createFsmRuntime({
           && !hasExited(id) && (!actorRegistry || actorRegistry.getActor(id)?.lifecycle === "alive"))
         : [];
       // A run with no artifacts has no actor registry, so no actors and nothing to observe.
-      const observation = actorRegistry ? readActorRegistryObservation(actorRegistry, tick) : null;
+      // Use the cache helper so a mid-tick UI read shares this snapshot until apply mutates.
+      const observation = readCachedObservation();
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,
@@ -1548,8 +1588,11 @@ export function createFsmRuntime({
             lifecycles: Object.fromEntries(applied.actorSnapshot.actors.map((actor) => [actor.id, actor.lifecycle])),
             exitedActorIds: applied.exitedActorIds ?? [],
             defeated: defeatedReadings(applied.actorSnapshot,
-              () => (actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [])),
-struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
+              () => {
+                const obs = readCachedObservation();
+                return obs ? readActorRegistryFieldCells(obs) : [];
+              }),
+            struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
             fieldHits: fieldHitReadings(applied.actorTurn),
           },
         } : {}),
@@ -1623,7 +1666,7 @@ struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
     },
 
     getActorSnapshot() {
-      return actorRegistry ? actorRegistry.snapshot() : null;
+      return readCachedActorSnapshot();
     },
 
     getActorPresentation() {
@@ -1644,7 +1687,7 @@ struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
      * the tick uses, so a UI never re-derives core's id-to-index mapping.
      */
     readObservation() {
-      return actorRegistry ? readActorRegistryObservation(actorRegistry, tick) : null;
+      return readCachedObservation();
     },
 
     /**
@@ -1660,7 +1703,8 @@ struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
      * reveal level by actor id (`readActorRegistryRevealLevels`); `{}` without the registry.
      */
     readRevealLevels(actorId) {
-      return actorRegistry ? readActorRegistryRevealLevels(readActorRegistryObservation(actorRegistry, tick), actorId) : {};
+      const observation = readCachedObservation();
+      return observation ? readActorRegistryRevealLevels(observation, actorId) : {};
     },
 
     /**
@@ -1669,7 +1713,8 @@ struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
      * that actor's own dark is left out: it never erases the actor's own memory.
      */
     readDarkCells(actorId) {
-      return actorRegistry ? readActorRegistryDarkCells(readActorRegistryObservation(actorRegistry, tick), actorId) : [];
+      const observation = readCachedObservation();
+      return observation ? readActorRegistryDarkCells(observation, actorId) : [];
     },
 
     /**
@@ -1678,7 +1723,8 @@ struck: struckReadings(applied.actorTurn, applied.actorSnapshot),
      * (`readActorRegistryFieldCells`); `[]` without the actor registry.
      */
     readFieldCells() {
-      return actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [];
+      const observation = readCachedObservation();
+      return observation ? readActorRegistryFieldCells(observation) : [];
     },
 
     /** The lasting-affinity upkeep table core charges from, indexed by range + intensity² (#454, 2026-10-29). */
