@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-03T20-24-03-024Z-fb302a2b0523-2596356aba28",
-    "key": "2596356aba28555d5656c1d30b8d42c1e4aeb0f18b5347059be15834e1fc931c",
+    "id": "2026-11-03T20-58-11-161Z-39264dc467d8-06a67263eaf6",
+    "key": "06a67263eaf61f5fcdb331e92888c7f482b25bc9d19d645a80b0db285de0aed8",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-03T20:24:03.024Z",
-    "completedAt": "2026-11-03T20:24:29.058Z",
-    "durationMs": 26034,
+    "startedAt": "2026-11-03T20:58:11.161Z",
+    "completedAt": "2026-11-03T20:58:37.233Z",
+    "durationMs": 26072,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "fb302a2b0523923e31fbdb65d07db515f8a468ab",
-    "tree": "4a0b60319f81ba747a595d3de8f29bbe4ff4f952"
+    "commit": "39264dc467d8f5f9c7e70518b4b2a6af0b08d518",
+    "tree": "51492cd046bd4560830bac15668b60527cae7e64"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -179,6 +179,7 @@
       "packages/runtime/src/render/actor-medallion-composer.ts",
       "packages/runtime/src/render/affinity-aura.js",
       "packages/runtime/src/render/affinity-palette.js",
+      "packages/runtime/src/render/affinity-role.js",
       "packages/runtime/src/render/affinity-spatial-formulas.js",
       "packages/runtime/src/render/affinity-tile-mask.js",
       "packages/runtime/src/render/ascii-cell-style.js",
@@ -278,7 +279,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/2596356aba28555d5656c1d30b8d42c1e4aeb0f18b5347059be15834e1fc931c"
+    "retentionId": "preflights/06a67263eaf61f5fcdb331e92888c7f482b25bc9d19d645a80b0db285de0aed8"
   },
   "qualifies": false
 }
