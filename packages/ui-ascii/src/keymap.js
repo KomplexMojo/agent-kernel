@@ -130,6 +130,7 @@ export const HELP_LINES = Object.freeze([
   "Aim at a tile: a move key while casting; the cast hits the first actor or wall   Raise a barrier: z, aim, Enter",
   "Cast path on the floor: > < ^ v / \\ (a push points away from the caster, a pull back)",
   "Walls: ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼  (short stubs ╴ ╶ ╵ ╷, alone ■) — stubs are wall ends, not cast path",
+  "Barrier ▮: only while in sight (unlit: adjacent); remembered tiles show floor — not a permanent wall",
   "Notebook: m shows what you remember (rooms, hallways, how much is cleared); m or Esc closes",
   "Party: Tab (outside a list) plays your next user_controlled actor",
   "Order: o, then a number for who and a number for what (follow, guard, ...); costs a turn",

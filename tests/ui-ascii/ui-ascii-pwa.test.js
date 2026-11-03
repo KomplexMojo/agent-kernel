@@ -96,6 +96,9 @@ test("phone battle log keeps cast-path and sprint how-to out of the message band
   // read as cast-path leftovers (fields seed-4 playtest / AK-26).
   assert.match(browser, /short stubs are wall ends/);
   assert.match(browser, /title: "Board"/);
+  // Barriers are actors under fog — Keys/help must say ▮ is not permanent wall furniture
+  // (earthworks seed-1 playtest: barriers only drawn while adjacent / in sight).
+  assert.match(browser, /barrier — only while in sight/);
 });
 
 test("p opens the playtest report (and More lists it)", () => {

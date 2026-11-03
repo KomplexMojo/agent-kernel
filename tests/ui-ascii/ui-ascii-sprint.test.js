@@ -24,6 +24,8 @@ test("shift with a move key sprints; x toggles sticky sprint; the help line says
   assert.deepEqual(splitKeys("l\u001b[1;2Cq"), ["l", "\u001b[1;2C", "q"]);
   assert.match(HELP_LINES.join("\n"), /Sprint 2 tiles: shift\+move, or toggle x \(stays on\)/);
   assert.match(HELP_LINES.join("\n"), /short stubs ╴ ╶ ╵ ╷.*not cast path/);
+  // Barriers are actors: fog shows them only while in sight (earthworks playtest / AK barrier visibility).
+  assert.match(HELP_LINES.join("\n"), /Barrier ▮: only while in sight.*not a permanent wall/);
 });
 
 test("a sprint moves two tiles in one turn and costs more stamina than regen returns", async () => {
