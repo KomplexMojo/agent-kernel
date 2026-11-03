@@ -188,10 +188,14 @@ const HELP_BLOCKS = [
     { keys: ["Tab", "+", "-", "]", "["], text: "in the list: pick a row; change range or intensity" },
     { keys: ["g"], text: "take loot next to you" },
   ] },
+  { title: "Board", items: [
+    { keys: ["─ │ ┌…", "╴ ╶ ╵ ╷", "■"], text: "walls (short stubs are wall ends — not cast path)" },
+    { keys: [":"], text: "affinity field on the floor" },
+    { keys: ["> < ^ v / \\"], text: "cast path on the floor (push points away from the caster, pull back)" },
+  ] },
   { title: "Combat", items: [
     { keys: ["f", "1-9"], text: "cast (or a slot's number), then Tab / Enter / Esc" },
     { keys: ["move while casting"], text: "aim at a tile; hits the first actor or wall" },
-    { keys: ["> < ^ v / \\"], text: "cast path on the floor (push points away from the caster, pull back)" },
     { keys: ["z"], text: "raise a barrier: aim, then Enter" },
     { keys: ["v"], text: "inspect: Tab, Enter (reading stays on screen)" },
     { keys: ["e"], text: "watch a target (1 mana a turn while in sight); again to stop" },
