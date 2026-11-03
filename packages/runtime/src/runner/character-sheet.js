@@ -17,6 +17,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
+import { affinityRole, hasAttackOption } from "../../../core-ts/src/state/affinity-table.ts";
 import { affinityUpkeepIndex, isLastingAffinityExpression } from "../../../core-ts/src/rules/actor-upkeep.ts";
 
 export const SHEET_INTENT = Object.freeze({
@@ -246,6 +247,8 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
             { name: "range", value: slot.range, ...(held(slot) ? { limit: tapLimit(row.index, "range") } : {}) },
             { name: "intensity", value: slot.intensity, ...(held(slot) ? { limit: tapLimit(row.index, "intensity") } : {}) },
           ],
+          // attack / defence / support, from the affinity table; null for an empty slot.
+          role: held(slot) ? affinityRole(slot.kind, slot.expression) : null,
           // A guide, not a price: the mana the slot spends, per tick while on or per cast.
           mana: held(slot) ? withReach(manaCost(slot)) : null,
           price: held(slot) ? cost.slot(row.index) : 0,
@@ -282,6 +285,8 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
       allowance,
       remaining: allowance - total,
       problems: found.concat(cost.quote.errors ?? []),
+      // Not a block (restoring-only characters are allowed): a heads-up that nothing held can harm.
+      warnings: hasAttackOption(choices.slots.filter(held)) ? [] : ["No attack option: nothing held can harm a target."],
       ok: found.length === 0 && !cost.quote.errors,
       slotCount: slotsBought(),
       equipSlots: MAX_AFFINITY_SLOTS,

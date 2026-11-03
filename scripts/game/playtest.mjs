@@ -19,7 +19,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../../packages/runtime/src/contracts/domain-constants.js";
-import { AFFINITY_TABLE } from "../../packages/core-ts/src/state/affinity-table.ts";
+import { AFFINITY_TABLE, affinityRole } from "../../packages/core-ts/src/state/affinity-table.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -77,9 +77,32 @@ function playerDelverIndex(scenario) {
   return at;
 }
 
+/**
+ * Darren, 2026-11-03: a default player never has a loadout with no offence. When the seed's {A}
+ * cannot harm (a restoring kind), its opposite's push is held and equipped beside it, so the
+ * player always has one attack option. The table decides, never a kind name; a spec without
+ * `equip=` or `affinities=` (a configured character) is left as written.
+ */
+function armPlayerSpec(text, picks) {
+  if (affinityRole(picks.A, "push") === "attack" || affinityRole(picks.B, "push") !== "attack") return text;
+  // The restoring push becomes the opposite's push at the same range and intensity (the same
+  // price: pricing is affinity-agnostic); a spec without one gains it beside what it holds.
+  const own = `${picks.A}:push`;
+  const key = `${picks.B}:push`;
+  const edit = (field, entry) => (spec) => spec.replace(new RegExp(`(${field}=)([^;]*)`), (whole, head, list) => {
+    const items = list.split(",");
+    if (items.some((item) => item.startsWith(key))) return whole;
+    const at = items.findIndex((item) => item.startsWith(own));
+    if (at >= 0) items[at] = items[at].replace(own, key);
+    else items.push(entry);
+    return `${head}${items.join(",")}`;
+  });
+  return edit("equip", key)(edit("affinities", `${key}:3:1`)(text));
+}
+
 export function playerDelverSpec(scenario, seed) {
   const picks = affinitiesForSeed(seed);
-  return scenario.args[playerDelverIndex(scenario)].replace(PLACEHOLDER, (_, key) => picks[key]);
+  return armPlayerSpec(scenario.args[playerDelverIndex(scenario)].replace(PLACEHOLDER, (_, key) => picks[key]), picks);
 }
 
 /**
@@ -89,7 +112,9 @@ export function playerDelverSpec(scenario, seed) {
 export function scenarioArgs(scenario, seed, grade, character) {
   const picks = affinitiesForSeed(seed);
   const ownAt = character ? playerDelverIndex(scenario) : -1;
-  const fill = (text, index) => (index === ownAt ? character : text.replace(PLACEHOLDER, (_, key) => picks[key]));
+  const playerAt = playerDelverIndex(scenario);
+  const fill = (text, index) => (index === ownAt ? character : index === playerAt
+    ? armPlayerSpec(text.replace(PLACEHOLDER, (_, key) => picks[key]), picks) : text.replace(PLACEHOLDER, (_, key) => picks[key]));
   const budget = grade ? ["--grade", grade] : ["--budget-tokens", String(scenario.budgetTokens)];
   // A tactic with no --seed draws one, so a scenario with tactics pins the build to its seed.
   const tacticSeed = scenario.args.includes("--tactic") ? ["--seed", String(seed)] : [];

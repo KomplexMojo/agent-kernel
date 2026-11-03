@@ -156,3 +156,23 @@ export function affinityTableRow(kind: AffinityKind): AffinityTableRow | undefin
 export function isOutwardAffinityExpression(expression: AffinityExpression): boolean {
   return expression === 'push' || expression === 'emit';
 }
+
+/**
+ * The role of one kind+expression, read from its row (Darren, 2026-11-03): `attack` harms its
+ * target (a harmful kind's push, emit, pull or draw), `support` heals whoever it reaches (a restoring
+ * kind's push or emit), `defence` sustains the caster (a restoring kind's pull or draw tops up its
+ * own vital). Barriers any kind raises are not an expression and sit outside this label.
+ */
+export type AffinityRole = 'attack' | 'defence' | 'support';
+
+export function affinityRole(kind: AffinityKind, expression: AffinityExpression): AffinityRole | undefined {
+  const entry = BY_KIND.get(kind);
+  if (!entry) return undefined;
+  if (entry.outward === 'damage') return 'attack';
+  return isOutwardAffinityExpression(expression) ? 'support' : 'defence';
+}
+
+/** Whether any of these pairs harms a target: a loadout without one cannot attack. */
+export function hasAttackOption(pairs: ReadonlyArray<{ kind: AffinityKind; expression: AffinityExpression }>): boolean {
+  return pairs.some(pair => affinityRole(pair.kind, pair.expression) === 'attack');
+}
