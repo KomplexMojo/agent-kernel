@@ -126,6 +126,18 @@ tick's intent class (highest first), ties on actor id; tick 1 has no intentions 
 order. Resolution order uses the same signal from the current tick. Pinned by
 `tests/personas/moderator/moderator-decide-order.test.js`.
 
+**Hibernation (vast boards).** Before decide-order, `filterAwakeActorIds` in
+`actor-hibernation.js` keeps only actors within a **Chebyshev** radius of the current
+controlled actor (default **50** tiles — same metric as sight/cast “N tiles in each
+direction”). Off-screen actors inside that radius still decide: the level stays alive;
+hibernation is **not** fog or camera. Beyond the radius they skip propose only — registry,
+lasting fields, regen, and exits still run. Explicit commands always wake the commanded
+actor. Override via `createRuntime` / `createPlaySession` `hibernationRadius`, step
+`hibernationRadius`, or `simConfig.execution.actorHibernationRadius` (`false` disables).
+Pinned by `tests/personas/moderator/moderator-actor-hibernation.test.js` and
+`tests/runtime/actor-hibernation.test.js`. Nearby immobile barriers still enter decide
+today; dropping prop spam is #700, orthogonal to distance hibernation.
+
 In short:
 - The Moderator decides **when and in what order** actions are applied, and in what order actors propose them.
 

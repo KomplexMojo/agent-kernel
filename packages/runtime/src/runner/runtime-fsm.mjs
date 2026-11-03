@@ -14,6 +14,8 @@ import {
   FulfillmentDispositions,
   orderActorsByIntention,
   orderActorsForDecision,
+  filterAwakeActorIds,
+  resolveActorHibernationRadius,
 } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
@@ -606,12 +608,15 @@ export function createFsmRuntime({
   personas,
   solverAdapter,
   solverPort,
+  hibernationRadius,
 } = {}) {
   if (!core) {
     throw new Error("Runtime requires a core instance.");
   }
 
   let tick = 0;
+  // Moderator hibernation radius (Chebyshev). Step options and simConfig can override per tick/run.
+  let configuredHibernationRadius = hibernationRadius;
   // The run's seed: core's creeping fields (#421) pick their way by it.
   let runSeed = 0;
   let moderator = null;
@@ -1358,14 +1363,10 @@ export function createFsmRuntime({
       const actorCommands = normalizeActorCommands(stepOptions.actorCommands, (id) => actorIdMap.has(id));
       const actorStrategies = normalizeActorStrategies(stepOptions.actorStrategies, (id) => actorIdMap.has(id));
       const currentPhase = orchestrator.view().phase;
-      // Deterministic decide-phase iteration order: initialState.actors array
-      // order (filtered to actors the core actually tracks). Every tracked actor
-      // must get a chance to propose an
-      // action each tick — see tests/runtime/multi-actor-orchestration.test.js.
-      // An actor that has LEFT THE LEVEL is not asked to decide (maintainer ruling,
-      // 2026-09-05). Core owns the rule — two ticks ended on the exit tile — and the
-      // runner only reads the verdict; recomputing "has it exited?" here would be a
-      // second authority on a core state transition.
+      // Deterministic decide-phase iteration: alive tracked actors, then Moderator hibernation
+      // (Chebyshev radius around the controlled actor — not fog/camera). Hibernating actors skip
+      // propose only; fields/regen still run. See moderator/actor-hibernation.js.
+      // Exited actors are not asked to decide (maintainer ruling, 2026-09-05).
       const decideActorIds = Array.isArray(initialState?.actors)
         ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id)
           && !hasExited(id) && (!actorRegistry || actorRegistry.getActor(id)?.lifecycle === "alive"))
@@ -1373,6 +1374,21 @@ export function createFsmRuntime({
       // A run with no artifacts has no actor registry, so no actors and nothing to observe.
       // Use the cache helper so a mid-tick UI read shares this snapshot until apply mutates.
       const observation = readCachedObservation();
+      const focusActorId = (typeof stepOptions.focusActorId === "string" && stepOptions.focusActorId)
+        || Object.keys(actorCommands)[0]
+        || primaryActorId;
+      const hibernationRadiusForTick = resolveActorHibernationRadius(
+        stepOptions.hibernationRadius
+          ?? configuredHibernationRadius
+          ?? simConfig?.execution?.actorHibernationRadius,
+      );
+      const awakeActorIds = filterAwakeActorIds({
+        actorIds: decideActorIds,
+        actors: observation?.actors ?? [],
+        focusActorId,
+        radius: hibernationRadiusForTick,
+        alwaysAwakeIds: Object.keys(actorCommands),
+      });
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,
@@ -1422,8 +1438,8 @@ export function createFsmRuntime({
       // The MODERATOR rules who proposes first, from last tick's intentions (#164): an
       // earlier decider claims contested tiles through `reservedTargets`, so this order is
       // load-bearing. Tick 1 has no intentions and falls back to id order.
-      const decideActorIterationIds = decideActorIds.length > 0
-        ? orderActorsForDecision({ actorIds: decideActorIds, previousIntentions: previousTickIntentions })
+      const decideActorIterationIds = awakeActorIds.length > 0
+        ? orderActorsForDecision({ actorIds: awakeActorIds, previousIntentions: previousTickIntentions })
         : [primaryActorId];
       const actions = [];
       // ACCUMULATED ACROSS THE LOOP, not read off `decideRecord`. The loop advances the Actor

@@ -155,6 +155,7 @@ export async function createPlaySession({
   fog = false,
   costing = null,
   glyphSet = "unicode",
+  hibernationRadius,
 } = {}) {
   if (!simConfig || !initialState) {
     throw new Error("createPlaySession: simConfig and initialState are required");
@@ -167,7 +168,11 @@ export async function createPlaySession({
     throw new Error(`createPlaySession: playerActorId "${playerId}" is not an actor in this level`);
   }
 
-  const runtime = createPlaybackRuntime({ core, adapters, clock, ...(personas ? { personas } : {}) });
+  const runtime = createPlaybackRuntime({
+    core, adapters, clock,
+    ...(personas ? { personas } : {}),
+    ...(hibernationRadius !== undefined ? { hibernationRadius } : {}),
+  });
   try {
     await runtime.init({ seed: simConfig.seed ?? 0, simConfig, initialState });
   } catch (error) {
@@ -279,7 +284,8 @@ export async function createPlaySession({
     const stocked = readSnapshot().actors.filter((actor) => watched.includes(actor.id) && categoryOf(actor, presentation) === RESOURCE_CATEGORY
       && hasLoot(actor)).map((actor) => actor.id);
     const before = readSnapshot().actors.map((actor) => [actor.id, actor.lifecycle, runtime.hasActorExited(actor.id)]);
-    await runtime.step(args);
+    // Hibernation focuses on the seated/controlled actor — not fog or camera (AK-21 follow-up).
+    await runtime.step({ focusActorId: activeId, ...args });
     recordEvents(before);
     rememberParty();
     recordBattleLog();
