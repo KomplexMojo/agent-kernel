@@ -359,9 +359,11 @@ export async function createPlaySession({
       // #573: a party member's (or its minion's) field or cast that hurts one of its own side.
       const side = new Set([...partyIds, ...partyIds.flatMap(escortsOf)]);
       const ally = entry.sourceId !== entry.targetId && side.has(entry.sourceId) && side.has(entry.targetId);
-      // #582: the amount and the net after regen, for a target whose vitals the party may read.
+      // #582 / AK-12: amount and net after regen when the party may read the target (own side),
+      // or when the field is the party's own (so an enemy field hit names the vital it took —
+      // light draw steals MP, not HP; a bare "hurting" looked like a no-op).
       const row = entry.event === "field" ? AFFINITY_TABLE.find((candidate) => candidate.kind === entry.kind) : null;
-      const change = row && (side.has(entry.targetId))
+      const change = row && (side.has(entry.targetId) || side.has(entry.sourceId))
         ? vitalChanges.find((candidate) => candidate.actorId === entry.targetId && candidate.vital === row.primaryVital) : null;
       // #692: a cast from our side that struck someone outside it tells us how hurt it looks (words only).
       const ours = side.has(entry.sourceId) && !side.has(entry.targetId);

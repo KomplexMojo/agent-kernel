@@ -92,5 +92,28 @@ test('draw cannot harvest a source incapable of producing exposure', () => {
     { actorId: 'source', vital: 'health', delta: -2 }]);
 });
 
+// AK-12: contacts name only fields that actually took a vital; an idle restoring draw next to a
+// damaging emit is not listed, so the battle log cannot blame the draw for the emit's hit.
+test('contacts omit a full-source growth draw that sits with a fire emit', () => {
+  const hero = actor('hero', { kind: 'growth', expression: 'draw', stacks: 2 });
+  hero.affinities.push({ kind: 'fire', expression: 'emit', stacks: 1 });
+  hero.affinitySlots = 2;
+  hero.equippedAffinityKeys = ['fire:emit', 'growth:draw'];
+  hero.activeAffinityKey = 'fire:emit';
+  hero.vitals.health!.current = 10;
+  const target = actor('target');
+  const state = registry([hero, target]);
+  const result = resolveActorExposures(state, [
+    { sourceId: 'hero', affinityKey: 'growth:draw', budget: 4, targets: [{ targetId: 'target', amount: 4 }] },
+    { sourceId: 'hero', affinityKey: 'fire:emit', budget: 4, targets: [{ targetId: 'target', amount: 4 }] },
+  ]);
+  expect(result.contacts.map(c => `${c.kind}:${c.expression}`)).toEqual(['fire:emit']);
+  expect(result.contacts[0].changes.some(change => change.delta < 0)).toBe(true);
+  // Fire took durability (and maybe health spill); growth at full HP transferred nothing.
+  expect(state.getActor('hero')!.vitals.health!.current).toBe(10);
+});
+
 // ## TODO: Test Permutations
 // - Projection/tick integration must exercise opposition, occlusion and equipment changing before one field pass.
+// - light draw with room in the source's mana produces a mana contact; full mana produces none
+

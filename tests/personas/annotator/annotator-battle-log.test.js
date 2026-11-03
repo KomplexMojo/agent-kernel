@@ -106,8 +106,13 @@ for (const kind of DAMAGING) {
     const session = await createPlaySession(level);
     await session.act(equip(`${kind}:emit`));
     for (let i = 0; i < 3; i += 1) await session.act({ kind: "wait" });
-    const lines = session.view().battleLog.map((line) => line.text).filter((text) => /is hurting/.test(text));
-    assert.deepEqual(lines.map((text) => text.replace(/W\d+ /, "")), [`Your ${kind} emit is hurting warden_1.`]);
+    const lines = session.view().battleLog.map((line) => line.text)
+      .filter((text) => new RegExp(`Your ${kind} emit`).test(text));
+    // AK-12: the seat's own field on an enemy names the vital and amount (was a bare claim).
+    // Regen may cancel the hit ("hits, but regen cancels") or leave a net ("is hurting").
+    assert.equal(lines.length, 1, lines.join(" | "));
+    assert.match(lines[0].replace(/W\d+ /, ""),
+      new RegExp(`^Your ${kind} emit (is hurting|hits, but regen cancels it on) warden_1: `));
   });
 }
 
