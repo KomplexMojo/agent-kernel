@@ -9,6 +9,12 @@ import { planEffectFulfillment, FulfillmentDispositions } from "./effect-fulfill
 // controllers only).
 export { FulfillmentDispositions };
 export { describeActorOrdering, orderActorsByIntention, orderActorsForDecision } from "./actor-ordering.js";
+export {
+  DEFAULT_ACTOR_HIBERNATION_RADIUS,
+  chebyshevTileDistance,
+  filterAwakeActorIds,
+  resolveActorHibernationRadius,
+} from "./actor-hibernation.js";
 
 /**
  * CR.7 / WP-5 — affinity TARGET resolution, published for the Configurator.
