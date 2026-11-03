@@ -1532,7 +1532,8 @@ export interface InitialStateArtifactV1 {
   /**
    * #251: who an `escorting` actor keeps near, keyed by actor ID. Optional and additive,
    * kept beside the roster like `strategies`. A missing target is the playable delver; a
-   * missing distance is the Actor's default (2 tiles).
+   * missing distance is the Actor's default (2 tiles). The Configurator also stamps
+   * `escortOf` onto those actors so core can refuse exit dwell while the leader lives (AK-6).
    */
   escorts?: Record<string, ActorEscortV1>;
 }

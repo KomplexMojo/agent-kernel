@@ -68,6 +68,12 @@ export interface ActorRecordBase {
   /** Consecutive completed ticks on exit terrain; omitted means zero. */
   exitDwell?: number;
   /**
+   * Id of the ally this actor escorts. While that ally is still `alive`, this actor
+   * cannot complete exit dwell (AK-6: minions leaving while the hero stays has no
+   * game value). Omitted means no escort exit gate.
+   */
+  escortOf?: string;
+  /**
    * True while the actor's lasting affinity (emit, draw) is off because it could
    * not pay its per-turn mana upkeep; it comes back on when mana is full again.
    * Omitted means false.
