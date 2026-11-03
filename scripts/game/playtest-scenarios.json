@@ -1,16 +1,17 @@
 {
-  "about": "Playtest scenarios for `bash scripts/game/playtest.sh`. Each is `ak create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair; {T1} and {T2} are two kinds whose affinity-table row carries a trait (soak, spread, raise), so every trait comes up across seeds. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do. A scenario with --tactic is built with --seed set to its seed, so the tactic's placement replays too. `shows` is the one-line summary the scenario list prints.",
+  "about": "Playtest scenarios for `bash scripts/game/playtest.sh`. Each is `ak create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. Levels use irregular room footprints and destroyable earth interior barriers by default; every resource is encased in a fragile barrier ring (walls count). {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair; {T1} and {T2} are two kinds whose affinity-table row carries a trait (soak, spread, raise), so every trait comes up across seeds. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do. A scenario with --tactic is built with --seed set to its seed, so the tactic's placement replays too. `shows` is the one-line summary the scenario list prints.",
   "createdAt": "2026-10-18T00:00:00.000Z",
   "scenarios": [
     {
       "id": "first-look",
       "title": "First look",
-      "shows": "fog and sight, the HUD (hits and regen per vital), sprint, loot, the exit/defeat line",
+      "shows": "fog and sight, irregular rooms, earth barriers, HUD, sprint, encased loot, exit/defeat",
       "focus": [
-        "Walk both rooms and find the exit: does fog and sight feel right?",
+        "Walk both rooms and find the exit: do the footprints feel irregular rather than plain boxes, and does fog and sight feel right?",
+        "Notice earth barriers (▮) inside rooms and around the resource: push or pull one clear if it blocks you.",
         "Read the HUD: each vital shows what hit it and what regen gave back, e.g. HP 18/20 (−2 +1). Does it match what happened?",
         "Sprint: shift + a move (or x, then a move) goes two tiles for 3× the stamina. Worth it?",
-        "Take the resource (g): it stays intact, and the vital it raises goes up.",
+        "Break a cage tile if needed, then take the resource (g): it stays intact, and the vital it raises goes up. Pricier loot should sit behind a tougher cage.",
         "Get near the warden: does it notice you, and what does its push do? The in-sight line says what you can see of it.",
         "Reach the exit (or fall): the event line should say who left or was defeated."
       ],
@@ -422,10 +423,11 @@
     {
       "id": "gather",
       "title": "Gather your gear",
-      "shows": "start with two weak pushes and nothing else, break resources and loot wardens until you are equipped",
+      "shows": "weak pushes, irregular rooms, encased resources to crack open, loot wardens until equipped",
       "focus": [
         "You start with two weak pushes ({A} and {B}, range 1, intensity 1) and nothing else. An affinity resource gives its affinity only once it is broken, and a restoring kind cannot break anything, so the opposed pair makes sure one push can.",
-        "The first resource ({C} pull) is within 3 tiles of the start: push it to break it, then take its affinity from what is left (g). It is drawn R until it is empty.",
+        "Rooms should look irregular, with earth barriers (▮) as furniture; each resource sits in a fragile barrier cage — push one cage tile open, then the resource.",
+        "The first resource ({C} pull) is within 3 tiles of the start: open its cage if needed, push it to break it, then take its affinity from what is left (g). It is drawn R until it is empty.",
         "To use what you took: i, then the affinity's number equips it (a turn). You equip at most three; with all three full, the oldest goes back to your pack.",
         "Find the mana well (a permanent mana boost).",
         "Defeat the wardens and take their affinities from their bodies, also drawn R until emptied. An emptied resource shows * for a moment, then is gone.",
@@ -483,6 +485,7 @@
       "focus": [
         "Rooms should not feel like plain boxes: do the footprints and earth barriers (▮) make the space interesting?",
         "Pull an earth barrier down (f, aim at ▮, Enter with a pull equipped): does it clear so you can pass?",
+        "Resources should sit inside a barrier ring: open a cage tile, then take or break the loot. Higher-token resources should need a stronger push (or a pull) to crack.",
         "Play to the exit or to defeat: is the pacing fun, or does it drag?",
         "The Director picked tactics from the seed (the start line names them): did they make it more interesting?",
         "On the phone, tap Generate again for another prebuilt seed from the pool — layout is not invented on-device."

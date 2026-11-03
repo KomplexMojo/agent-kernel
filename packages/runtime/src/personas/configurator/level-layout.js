@@ -15,10 +15,12 @@ const TARGET_ROOM_WALKABLE_SHARE = 0.85;
 // place a room capable of holding this many tiles; see I4 minimum-viable-
 // interior rejection in generateGridLayoutFromInput).
 const MIN_VIABLE_ROOM_INTERIOR_TILES = 3;
-// Sculpt is for playable dungeon rooms (default max 9×9). Feasibility can
-// materialize ~10⁶-tile synthetic rooms; footprint erosion there is useless
-// and its connectivity check is O(area), so skip above this bbox area.
-const MAX_SCULPT_ROOM_AREA = DEFAULT_ROOM_MAX_SIZE * DEFAULT_ROOM_MAX_SIZE;
+// Playable rooms go up to size=large (8..12 on a side → 144 tiles). The old
+// DEFAULT_ROOM_MAX_SIZE² (81) cap skipped sculpt and interior barriers on every
+// large room, so playtest scenarios stayed rectangular boxes with no ▮ furniture.
+// Feasibility still materializes ~10⁶-tile synthetic rooms; skip those here.
+const MAX_PLAYABLE_ROOM_SIDE = 12;
+const MAX_SCULPT_ROOM_AREA = MAX_PLAYABLE_ROOM_SIDE * MAX_PLAYABLE_ROOM_SIDE;
 // Cap destroyable furniture per room so divider planning stays cheap on large
 // authored rooms while still guaranteeing at least one barrier when possible.
 const MAX_INTERIOR_BARRIERS_PER_ROOM = 8;

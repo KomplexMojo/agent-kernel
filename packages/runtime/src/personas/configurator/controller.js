@@ -73,6 +73,10 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // provenance. See the import-block note in configurator-services.js.
     generateGridLayoutFromInput: services.generateGridLayoutFromInput,
     buildInteriorBarrierActors: services.buildInteriorBarrierActors,
+    buildResourceEnclosureBarrierActors: services.buildResourceEnclosureBarrierActors,
+    buildResourceEnclosureBarrierActorsForResources: services.buildResourceEnclosureBarrierActorsForResources,
+    enclosureDurabilityForTokenValue: services.enclosureDurabilityForTokenValue,
+    planResourceEnclosureCells: services.planResourceEnclosureCells,
     buildSimConfigArtifact: services.buildSimConfigArtifact,
     buildInitialStateArtifact: services.buildInitialStateArtifact,
     resolveAffinityEffects: services.resolveAffinityEffects,

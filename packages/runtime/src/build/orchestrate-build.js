@@ -28,6 +28,7 @@ const configuratorBuild = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 const {
   generateGridLayoutFromInput,
   buildInteriorBarrierActors,
+  buildResourceEnclosureBarrierActorsForResources,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   assembleMovementStamina,
@@ -648,19 +649,48 @@ export async function orchestrateBuild({
 
     resolvedActors = resolvedActors || actorsInput.actors;
     const barrierCellKey = (point) => `${point?.x},${point?.y}`;
+    const rosterBeforeBarriers = [...actorsInput.actors, ...placedActors];
     const occupiedBeforeBarriers = new Set(
-      [...actorsInput.actors, ...placedActors]
+      rosterBeforeBarriers
         .map((actor) => actor?.position)
         .filter((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
         .map(barrierCellKey),
     );
-    // Barriers are planned before tactic seating; drop any that now collide with placed actors.
-    const freeBarrierCells = (layout.interiorBarriers || [])
-      .filter((cell) => !occupiedBeforeBarriers.has(barrierCellKey(cell)));
+    const resourceActorsForEnclosure = rosterBeforeBarriers.filter((actor) => actor?.category === "resource");
+    // Allocator token totals per resource (receipt line items); Configurator maps them to cage durability.
+    const resourceTokenValueById = new Map();
+    for (const item of budgetReceipt?.lineItems || []) {
+      if (item?.category !== "resources") continue;
+      const id = item?.subjectRef?.id;
+      if (typeof id !== "string" || !id) continue;
+      const add = Number.isFinite(item.totalCost) ? item.totalCost : 0;
+      resourceTokenValueById.set(id, (resourceTokenValueById.get(id) || 0) + add);
+    }
+    const takeFree = (cells) => {
+      const out = [];
+      const seen = new Set();
+      for (const cell of cells) {
+        const key = barrierCellKey(cell);
+        if (!Number.isInteger(cell?.x) || !Number.isInteger(cell?.y)) continue;
+        if (occupiedBeforeBarriers.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        out.push(cell);
+      }
+      return out;
+    };
+    const freeDividerCells = takeFree(layout.interiorBarriers || []);
+    const dividerKeys = new Set(freeDividerCells.map(barrierCellKey));
     // Furniture alone does not make an actor-less (room-only) build runnable or "has actors".
     const hasRealActors = actorsInput.actors.length > 0 || placedActors.length > 0;
     const interiorBarrierActors = hasRealActors
-      ? buildInteriorBarrierActors(freeBarrierCells).map(prepareForPricing)
+      ? [
+        ...buildInteriorBarrierActors(freeDividerCells),
+        ...buildResourceEnclosureBarrierActorsForResources(layout, resourceActorsForEnclosure, {
+          occupied: occupiedBeforeBarriers,
+          tokenValueById: resourceTokenValueById,
+          skipKeys: dividerKeys,
+        }),
+      ].map(prepareForPricing)
       : [];
     const normalizedActors = configuratorBuild.placeActors({
       actors: actorsInput.actors,

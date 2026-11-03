@@ -80,7 +80,13 @@ import { authorActorEquipment, authorDelverCandidate, authorMotivations } from "
  * refuse the build path that has always called them and issue no decision in exchange.
  */
 import { generateGridLayoutFromInput } from "./level-layout.js";
-import { buildInteriorBarrierActors } from "./interior-barriers.js";
+import {
+  buildInteriorBarrierActors,
+  buildResourceEnclosureBarrierActors,
+  buildResourceEnclosureBarrierActorsForResources,
+  enclosureDurabilityForTokenValue,
+  planResourceEnclosureCells,
+} from "./interior-barriers.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "./artifact-builders.js";
 import { resolveAffinityEffects } from "./affinity-effects.js";
 import { normalizeAffinityRulesArtifact, resolveAffinityRules, resolveAffinityManaCost, resolveActorTurnCosts } from "./affinity-rules.js";
@@ -449,6 +455,10 @@ export function attachConfiguratorServices({ fsm } = {}) {
     // CR.7 / WP-5 — the build-plane helpers; see the import block for why they are ungated.
     generateGridLayoutFromInput,
     buildInteriorBarrierActors,
+    buildResourceEnclosureBarrierActors,
+    buildResourceEnclosureBarrierActorsForResources,
+    enclosureDurabilityForTokenValue,
+    planResourceEnclosureCells,
     buildSimConfigArtifact,
     buildInitialStateArtifact,
     resolveAffinityEffects,

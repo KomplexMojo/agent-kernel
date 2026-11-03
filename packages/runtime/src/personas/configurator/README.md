@@ -312,13 +312,20 @@ field is optional and checked only when present. The one cross-field invariant i
 
 **Room footprints and interior barriers.** Layout placement still uses axis-aligned
 bboxes, then `sculptRoomFootprints` subtracts cells so many rooms are true non-
-rectangles (L-notches / eroded interiors) while staying connected and playable.
-`shape.interiorBarriers` defaults to `true`: divider geometry plans cells that stay
-**floor**, and `buildInteriorBarrierActors` materializes destroyable **earth push**
-barrier actors (durability from earth `raiseScale`, no `raisedBy`). Explicit
+rectangles (L-notches / eroded interiors) while staying connected and playable —
+including `size=large` rooms (up to 12×12). Feasibility megasrooms above that area
+skip sculpt. `shape.interiorBarriers` defaults to `true`: divider geometry plans
+cells that stay **floor**, and `buildInteriorBarrierActors` materializes destroyable
+**earth push** barrier actors (durability from earth `raiseScale`, no `raisedBy`).
+Every resource also gets a king-move ring of barriers on walkable neighbours
+(`planResourceEnclosureCells` / `buildResourceEnclosureBarrierActorsForResources`);
+walls already count as casing. Cage **durability scales with the Allocator token
+total** for that resource (`enclosureDurabilityForTokenValue`: at least 2, else
+`ceil(tokens)`), so expensive loot is harder to crack with push; pull still
+one-shots. Room dividers stay at full earth raise durability. Explicit
 `shape.pattern` overlays still carve permanent wall terrain when opted in; they are
 not the default interior-barrier path. Set `shape.interiorBarriers: false` to disable
-furniture barriers (tests/fixtures).
+divider furniture (resource cages still apply when resources are placed).
 
 The locked snapshot is **not** what `orchestrateBuild` consumes. `orchestrateBuild`
 still writes `affinityRules`, `motivationRules` and `actors` back into
