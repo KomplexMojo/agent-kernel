@@ -39,7 +39,14 @@ function assertJson(value: unknown, ancestors = new Set<object>()): void {
   ancestors.delete(value);
 }
 
-function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
+/**
+ * Detached deep copy. JSON round-trip stays the cheapest portable clone for these
+ * plain records (measured faster than structuredClone on vast actor lists) and
+ * matches the registry's JSON-state contract.
+ */
+function copy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 /** True when `barrier` was raised by `owner`, who walks through it (#413). */
 function ownsBarrier(owner: ActorRecord, barrier: ActorRecord): boolean {
@@ -370,9 +377,20 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     },
     spreadEmbers(): ActorSpreadEmber[] { return copy(spreadEmbers); },
     replaceSpreadEmbers(next: ActorSpreadEmber[]): void { spreadEmbers = copy(next); },
+    /**
+     * Detached view of registry state. Terrain is a shallow copy of the tile array
+     * (entries are immutable strings); actors/trails/embers are deep-copied so callers
+     * cannot mutate owned records. Avoids JSON-round-tripping the whole board on every
+     * read — a hot path on vast levels (playtest full-budget-vast).
+     */
     snapshot(): ActorRegistrySnapshot {
-      return copy({ dimensions: { width, height }, terrain, actors: ordered,
-        ...(castTrails.length ? { castTrails } : {}), ...(spreadEmbers.length ? { spreadEmbers } : {}) });
+      return {
+        dimensions: { width, height },
+        terrain: terrain.slice(),
+        actors: ordered.map((actor) => copy(actor)),
+        ...(castTrails.length ? { castTrails: copy(castTrails) } : {}),
+        ...(spreadEmbers.length ? { spreadEmbers: copy(spreadEmbers) } : {}),
+      };
     },
   };
 }

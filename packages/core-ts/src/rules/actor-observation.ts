@@ -1,5 +1,5 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import { projectActorFields, resolveActorFieldOverlap } from './actor-fields.ts';
+import { projectActorFieldsFromSnapshot, resolveActorFieldOverlap } from './actor-fields.ts';
 import { computeVisibleCells, NET_DARK_OBSCURE_INTENSITY_THRESHOLD, resolveNetLightDark,
   resolveVisibilityRadius, scopeObservation, SIGHT_LIGHT_EXPRESSION } from '../state/visibility.ts';
 import type { ActorRecord, ActorRegistrySnapshot } from '../state/actor-types.ts';
@@ -16,6 +16,7 @@ import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 
 /** Detached facts; reading an observation never applies exposure or advances time. */
 export function readActorRegistryObservation(registry: Pick<ReturnType<typeof createActorRegistry>, 'snapshot'>, tick: number) {
+  // One snapshot: field projection used to call registry.snapshot() again (2× copy cost).
   const snapshot = registry.snapshot();
   const { width, height } = snapshot.dimensions;
   const terrainKinds = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x): number =>
@@ -30,7 +31,7 @@ export function readActorRegistryObservation(registry: Pick<ReturnType<typeof cr
     }
     if (actor.capabilities.blocksSight) sightKinds[actor.position.y][actor.position.x] = 1;
   }
-  const projection = projectActorFields(registry);
+  const projection = projectActorFieldsFromSnapshot(snapshot);
   return { tick, actors: snapshot.actors.map(actor => ({ ...actor })),
     tiles: { kinds: movementKinds }, sightKinds,
     affinityFields: projection.fields.map(field => ({ ...field })),
@@ -63,12 +64,12 @@ function fieldIntensityByCell(fields: readonly { kind: string; expression: strin
 
 /** Net emitted light intensity on each cell of a registry snapshot, from the field (#288). Read-only. */
 export function readActorRegistryLightByCell(snapshot: ActorRegistrySnapshot): Record<string, number> {
-  return fieldIntensityByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'illuminates');
+  return fieldIntensityByCell(projectActorFieldsFromSnapshot(snapshot).fields, 'illuminates');
 }
 
 /** Net emitted dark intensity on each cell of a registry snapshot, from the field (#288). Read-only. */
 export function readActorRegistryDarkByCell(snapshot: ActorRegistrySnapshot): Record<string, number> {
-  return fieldIntensityByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'conceals');
+  return fieldIntensityByCell(projectActorFieldsFromSnapshot(snapshot).fields, 'conceals');
 }
 
 /** The range of the light an actor emits right now: its widest lit light emit slot, 0 if none. */
