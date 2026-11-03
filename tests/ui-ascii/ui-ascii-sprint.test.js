@@ -48,7 +48,7 @@ test("shift+move sprints once; x latches sprint for every move until toggled off
 
   await game.handle(intentForKey("x"));
   assert.equal(game.state().sprintArmed, true);
-  assert.match(game.state().message, /Sprint on/);
+  assert.match(game.state().message, /Sprint armed/);
   await game.handle(intentForKey("l"));
   assert.equal(x(), start + 5);
   await game.handle(intentForKey("l"));

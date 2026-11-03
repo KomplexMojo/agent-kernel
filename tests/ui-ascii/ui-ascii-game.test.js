@@ -674,12 +674,17 @@ test("f aims at the nearest actor in sight and Enter casts at it", async () => {
 });
 
 // #463: show the battle. A cast's floor cells show arrows for its turn; the next turn redraws
-// floor. The message line names what a hit did.
+// floor. The message line names what a hit did. AK-19: no cast-path how-to in the HUD / battle log.
 test("a cast shows its path as arrows for one turn and names its hit", async () => {
   const game = await createGame({ levels: duelLevels({ wardenAt: { x: 4, y: 1 } }), fog: false });
   await press(game, "i1f\r");
   assert.match(game.screen(), /  │@>>▴╵/);
-  assert.match(game.screen(), /Cast path: > mark where the last cast went/, "the arrows are named while they show (#479)");
+  const parts = game.screen({ parts: true });
+  assert.ok(Array.isArray(parts.info));
+  assert.ok(parts.info.every((line) => !/Cast path:|mark where the last cast went/.test(line)),
+    "phone #msg info band must not teach cast-path glyphs (AK-19)");
+  assert.doesNotMatch(game.screen(), /Cast path:/, "cast-path tutorial stays out of the battle log (AK-19)");
+  assert.doesNotMatch(game.screen(), /mark where the last cast went/);
   assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
   assert.equal(game.view().casts[0].path.at(-1).x, 4);
   await press(game, ".");
