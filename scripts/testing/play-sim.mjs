@@ -160,9 +160,10 @@ function delverPool(dir) {
 }
 
 /** One record: scenario, seed, arm, build fingerprint, outcome, metrics, rule hits. */
-export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks, llm = null, picker = null, seatPicker = null, transport = null }) {
+export async function runOne(scenario, seed, armSpec, { workDir, createdAt, strategy, maxTicks, llm = null, picker = null, seatPicker = null, transport = null, character: given = undefined }) {
   const base = { scenario: scenario.id, seed, arm: armSpec.arm, budgetTokens: armSpec.budgetTokens, strategy };
-  let character;
+  // A given character (the power ladder's scaled delver) takes the scenario delver's place, priced as usual.
+  let character = given;
   if (llm) {
     // M3: size the arm's delver allowance from a plain build, then let the model fill it.
     const probe = buildArm(scenario, seed, armSpec, workDir, createdAt);
