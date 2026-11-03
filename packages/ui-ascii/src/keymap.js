@@ -120,7 +120,7 @@ export function splitKeys(chunk) {
 }
 
 export const HELP_LINES = Object.freeze([
-  "Move: arrows / WASD / hjkl   Diagonals: y u b n   Sprint 2 tiles: shift+move, or x then a move",
+  "Move: arrows / WASD / hjkl   Diagonals: y u b n   Sprint 2 tiles: shift+move, or toggle x (stays on)",
   "Wait: . or space   Restart: r   Next level: Enter   Quit: q",
   "Affinities: i, then 1-9 to equip or unequip   Take: g",
   "In the affinity list: Tab picks a row, + / - run it at more or less range, ] / [ at more or less intensity",

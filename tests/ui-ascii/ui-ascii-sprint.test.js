@@ -1,8 +1,8 @@
 /**
  * #437 — sprint: two tiles in one turn for more stamina than regen returns. Shift with a move
- * key (an upper-case letter or shift+arrow) sprints; `x` arms a sprint for the next move, for
- * a keyboard or a phone without shift. The play session takes `{ kind: "move", params:
- * { direction, sprint: true } }` and core prices it; any actor may sprint.
+ * key (an upper-case letter or shift+arrow) sprints once; `x` / Sprint toggles a sticky latch so
+ * every move sprints until toggled off (phone / no-shift). The play session takes
+ * `{ kind: "move", params: { direction, sprint: true } }` and core prices it; any actor may sprint.
  */
 const assert = require("node:assert/strict");
 
@@ -15,14 +15,14 @@ const HALL = ["############", "S..........E", "############"];
 const level = (motivations = ["user_controlled"]) => buildUnifiedLevel({ id: "sprint", tiles: HALL,
   actors: [{ category: "delver", id: "hero", position: { x: 1, y: 1 }, vitals: viableVitals({ stamina: 30 }), motivations }] });
 
-test("shift with a move key sprints; x arms a sprint; the help line says so", () => {
+test("shift with a move key sprints; x toggles sticky sprint; the help line says so", () => {
   assert.deepEqual(intentForKey("L"), { type: INTENT.MOVE, direction: "east", sprint: true });
   assert.deepEqual(intentForKey("D"), { type: INTENT.MOVE, direction: "east", sprint: true });
   assert.deepEqual(intentForKey("\u001b[1;2C"), { type: INTENT.MOVE, direction: "east", sprint: true });
   assert.deepEqual(intentForKey("l"), { type: INTENT.MOVE, direction: "east" });
   assert.deepEqual(intentForKey("x"), { type: INTENT.SPRINT });
   assert.deepEqual(splitKeys("l\u001b[1;2Cq"), ["l", "\u001b[1;2C", "q"]);
-  assert.match(HELP_LINES.join("\n"), /Sprint 2 tiles: shift\+move, or x then a move/);
+  assert.match(HELP_LINES.join("\n"), /Sprint 2 tiles: shift\+move, or toggle x \(stays on\)/);
 });
 
 test("a sprint moves two tiles in one turn and costs more stamina than regen returns", async () => {
@@ -37,17 +37,29 @@ test("a sprint moves two tiles in one turn and costs more stamina than regen ret
   assert.ok(staminaOf(after).current < stamina, "a net drain, after this turn's regen");
 });
 
-test("the game sprints on shift+move and on x then a move, then walks again", async () => {
+test("shift+move sprints once; x latches sprint for every move until toggled off", async () => {
   const game = await createGame({ levels: [{ name: "sprint", ...level() }], createSession: createPlaySession });
   const x = () => game.view().player.position.x;
   const start = x();
   await game.handle(intentForKey("L"));
   assert.equal(x(), start + 2);
+  await game.handle(intentForKey("l"));
+  assert.equal(x(), start + 3, "shift does not latch");
+
   await game.handle(intentForKey("x"));
+  assert.equal(game.state().sprintArmed, true);
+  assert.match(game.state().message, /Sprint on/);
   await game.handle(intentForKey("l"));
-  assert.equal(x(), start + 4);
+  assert.equal(x(), start + 5);
   await game.handle(intentForKey("l"));
-  assert.equal(x(), start + 5, "x arms one move only");
+  assert.equal(x(), start + 7, "sticky sprint keeps applying");
+  assert.equal(game.state().sprintArmed, true);
+
+  await game.handle(intentForKey("x"));
+  assert.equal(game.state().sprintArmed, false);
+  assert.match(game.state().message, /Sprint off/);
+  await game.handle(intentForKey("l"));
+  assert.equal(x(), start + 8, "toggle off returns to step moves");
 });
 
 test("a malformed sprint flag is refused before a tick", async () => {
@@ -56,6 +68,6 @@ test("a malformed sprint flag is refused before a tick", async () => {
 });
 
 // ## TODO: Test Permutations
-// - x pressed twice turns the sprint off
 // - a sprint into a wall one tile away is refused and takes the turn
 // - a companion ordered with a sprint command sprints
+// - starting a new level clears sticky sprint
