@@ -6,6 +6,7 @@
  */
 import { createPlaySession, PLAY_DIRECTION_STEPS, replayPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
+import { affinityRole, ROLE_TAG } from "../../runtime/src/render/affinity-role.js";
 import { renderScreen, paintBoardRow, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 import { AFFINITY_COLOR_HEX } from "../../runtime/src/render/affinity-palette.js";
@@ -752,7 +753,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
           const lowered = ["stacks", "intensity"].some((field) => runningLevel(player, pair, field) < LEVELS[field].held(pair));
           const at = slot >= 0 && lowered
             ? `, running r${runningLevel(player, pair, "stacks")} ×${runningLevel(player, pair, "intensity")}` : "";
-          return `${i === panel.index ? ">" : " "} ${i + 1}) ${affinityLabel(pair)}${slot >= 0 ? `  [slot ${slot + 1}${at}]` : ""}`;
+          return `${i === panel.index ? ">" : " "} ${i + 1}) ${affinityLabel(pair)}${slot >= 0 ? `  [slot ${slot + 1}${at}]` : ""} ${ROLE_TAG[affinityRole(pair.kind, pair.expression)] ?? ""}`;
         })];
     }
     if (panel.type === "map") {
@@ -876,7 +877,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     const entry = (pair) => {
       const key = `${pair.kind}:${pair.expression}`;
       return { key, kind: pair.kind, expression: pair.expression, color: AFFINITY_COLOR_HEX[pair.kind] ?? null,
-        stacks: level(pair, "stacks"), intensity: level(pair, "intensity"), label: affinityLabel(pair) };
+        stacks: level(pair, "stacks"), intensity: level(pair, "intensity"), label: affinityLabel(pair),
+        role: affinityRole(pair.kind, pair.expression) ?? null };
     };
     return {
       slots: Array.from({ length: count }, (_, index) => {

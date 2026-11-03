@@ -6,6 +6,7 @@
  */
 import { GAME_AFFINITY_COLOR_HEX, GAME_COLOR_PALETTE } from "../../runtime/src/contracts/game-elements.js";
 import { SHEET_INTENT } from "../../runtime/src/runner/character-sheet.js";
+import { ROLE_TAG } from "../../runtime/src/render/affinity-role.js";
 import { paint } from "./screen.js";
 
 const KEY_INTENTS = Object.freeze({
@@ -54,7 +55,7 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
   lines.push(`Motivation   ${view.motivation.name} (the playable right)${" ".repeat(34)}${String(view.motivation.price).padStart(5)}`);
   lines.push("");
   lines.push(`Affinities: ${view.equipSlots} equipped, then the pack (equip one in play for a turn; none is not bought)`);
-  lines.push(`    ${pad("", 3)}${pad(" kind", WIDTHS.kind)}${pad(" form", WIDTHS.expression)}${pad(" range", WIDTHS.range)}${pad(" int", WIDTHS.intensity)}${pad(" mana", WIDTHS.mana)}${"price".padStart(8)}`);
+  lines.push(`    ${pad("", 3)}${pad(" kind", WIDTHS.kind)}${pad(" form", WIDTHS.expression)}${pad(" range", WIDTHS.range)}${pad(" int", WIDTHS.intensity)}${pad(" mana", WIDTHS.mana)}${"price".padStart(8)}  role`);
   for (const row of view.rows.filter((entry) => entry.kind === "slot")) {
     if (row.packed && row.label === String(view.equipSlots + 1)) lines.push("    pack (carried, not equipped)");
     const mark = row.active ? ">" : " ";
@@ -65,7 +66,8 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
     }));
     // The slot's mana, a guide: per tick for an emit or draw, per cast for a push or pull.
     const mana = row.mana ? paint(pad(` ${row.mana.amount}/${row.mana.per}`, WIDTHS.mana), row.mana.overMax ? GAME_COLOR_PALETTE.items.hazard : null, row.mana.overMax && color) : pad("", WIDTHS.mana);
-    lines.push(`  ${mark} ${pad(row.label, 3)}${cells.join("")}${mana}${String(row.price).padStart(8)}`);
+    const role = row.role ? `  ${ROLE_TAG[row.role]}` : "";
+    lines.push(`  ${mark} ${pad(row.label, 3)}${cells.join("")}${mana}${String(row.price).padStart(8)}${role}`);
   }
   if (view.manaPerTick > 0) lines.push(`    emits and draws together: ${view.manaPerTick} mana a tick, against mana regen ${view.rows.find((row) => row.id === "vital-mana")?.fields[1].value}`);
   lines.push("");
@@ -85,6 +87,8 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
   lines.push("─".repeat(78));
   if (view.problems.length > 0) view.problems.forEach((problem) => lines.push(paint(`! ${problem}`, GAME_COLOR_PALETTE.items.hazard, color)));
   else lines.push(`Ready: ${view.remaining} tokens left. Every price is the Allocator's.`);
+  (view.warnings ?? []).forEach((warning) => lines.push(paint(`~ ${warning}`, GAME_COLOR_PALETTE.items.hazard, color)));
+  lines.push("ATK harms a target   DEF tops up your own vital   SUP heals whoever it reaches");
   lines.push(...SHEET_HELP_LINES);
   return lines.join("\n");
 }

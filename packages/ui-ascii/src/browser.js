@@ -17,6 +17,7 @@ import { encodeReplay, renderReport } from "./report.js";
 import { reloadForUpdate } from "./update-reload.js";
 import { createCharacterSheet } from "../../runtime/src/runner/character-sheet.js";
 import { windowSizeForViewport } from "../../runtime/src/render/window-size.js";
+import { ROLE_TAG } from "../../runtime/src/render/affinity-role.js";
 import { GAME_AFFINITY_COLOR_HEX } from "../../runtime/src/contracts/game-elements.js";
 
 // The build this page was bundled from (the build script defines it); "dev" when run unbundled.
@@ -219,7 +220,7 @@ function renderSlots(game) {
     if (slot.empty) return `<button class="slot empty" data-slot="${slot.index}" ${picks.length ? "" : "disabled"}>+ empty</button>`;
     const state = slot.castable ? (slot.mana === null ? "cast" : `${slot.mana} mana`) : slot.off ? "drained" : "ON";
     return `<button class="slot${slot.key === current.selected && (!slot.castable || slot.armed) ? " on" : ""}${slot.off ? " off" : ""}" data-slot="${slot.index}" style="--c:${slot.color ?? "#888"}">
-      <b>${esc(slot.kind)}</b><small>${esc(slot.expression)} r${slot.stacks.running} ×${slot.intensity.running}</small><em${slot.castable && slot.overMana ? ' class="bad"' : ""}>${state}</em></button>`;
+      <b>${esc(slot.kind)}</b><i class="role ${slot.role ?? ""}">${ROLE_TAG[slot.role] ?? ""}</i><small>${esc(slot.expression)} r${slot.stacks.running} ×${slot.intensity.running}</small><em${slot.castable && slot.overMana ? ' class="bad"' : ""}>${state}</em></button>`;
   }).join("");
   const held = slots.find((slot) => slot.key === current.selected);
   // Range and power steppers are off the play screen for now (Darren, 2026-10-30: they broke the layout).
@@ -437,7 +438,7 @@ function renderSheet() {
     })).join("");
     // A slot's mana, a guide: per tick for an emit or draw, per cast for a push or pull.
     const mana = row.kind === "slot"
-      ? `<span class="mana${row.mana?.overMax ? " bad" : ""}">${row.mana ? `${row.mana.amount}/${row.mana.per}` : ""}</span>` : "";
+      ? `<span class="mana${row.mana?.overMax ? " bad" : ""}">${row.mana ? `${row.mana.amount}/${row.mana.per}` : ""}</span><i class="role ${row.role ?? ""}">${ROLE_TAG[row.role] ?? ""}</i>` : "";
     // An affinity row has no slot number (Darren, 2026-10-30): the room goes to its fields.
     const head = row.kind === "vital" ? `<span>${esc(row.label)}</span>` : "";
     return `<div class="srow ${row.kind === "vital" ? "vital" : "aff"}${row.empty ? " empty" : ""}">${head}${fields}${mana}<em>${row.price}</em></div>`;
@@ -447,6 +448,8 @@ function renderSheet() {
   // Darren, 2026-10-30: the equipped slots, ready at once, then the pack (swapped in for a turn).
   $("sheet").innerHTML = `<h2>Equipped (${view.equipSlots} slots)</h2>${rows.slice(0, view.equipSlots).join("")}`
     + (view.manaPerTick ? `<p class="dim">Emits and draws: ${view.manaPerTick} mana a tick together. Mana in a slot is per tick (emit, draw) or per cast (push, pull).</p>` : "")
+    + (view.warnings?.length ? `<p class="bad">${esc(view.warnings[0])}</p>` : "")
+    + `<p class="dim">ATK harms a target · DEF tops up your own vital · SUP heals whoever it reaches.</p>`
     + `<h2>Pack</h2>${rows.slice(view.equipSlots, slotCount).join("")}`
     + `<p class="dim">Carried, not equipped: in play, equip one for a turn and it takes the place of your oldest.</p>`
     + `<h2>Vitals</h2>${rows.slice(slotCount, vitalEnd).join("")}`
