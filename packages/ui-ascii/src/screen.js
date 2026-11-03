@@ -267,6 +267,31 @@ export function statusLine(status, message, { traps = false, trapGlyph, immediat
 }
 
 /**
+ * Why a lasting slot is off (#412 / #454). Recovery waits for a *full* mana pool,
+ * not merely enough for one upkeep — so "now 28/30" is the commitment. When another
+ * equipped emit/draw is still on, it keeps draining that pool and the off slot may
+ * never restart until that drain stops (unequip, or that slot goes off too).
+ */
+export function exhaustedAffinityNote(player, key, { offKeys = null } = {}) {
+  const unpayable = (player?.unpayableAffinities || []).find((entry) => entry.key === key);
+  if (unpayable) return `  (off: upkeep ${unpayable.upkeep} > max mana ${unpayable.maxMana})`;
+  const mana = player?.vitals?.mana;
+  const pool = mana && Number.isFinite(mana.current) && Number.isFinite(mana.max)
+    ? ` — now ${mana.current}/${mana.max}` : "";
+  const equipped = player?.equippedAffinityKeys || [];
+  const off = offKeys ?? (Array.isArray(player?.exhaustedAffinityKeys) ? player.exhaustedAffinityKeys
+    : (player?.affinityExhausted ? equipped : []));
+  const known = Array.isArray(player?.affinities) ? player.affinities : [];
+  const otherLastingOn = equipped.some((other) => {
+    if (other === key || off.includes(other)) return false;
+    const pair = known.find((entry) => `${entry.kind}:${entry.expression}` === other);
+    return pair && (pair.expression === "emit" || pair.expression === "draw");
+  });
+  const drain = otherLastingOn ? "; other lasting slot still drains" : "";
+  return `  (off until mana is full${pool}${drain})`;
+}
+
+/**
  * One HUD row per equipped slot, in equip order, then the free ones; a lasting
  * affinity that ran out of mana says it is off. A hint when nothing is equipped.
  */
@@ -286,9 +311,7 @@ export function affinityLines(player, { hints = true } = {}) {
     const key = equipped[i];
     const pair = key && known.find((entry) => `${entry.kind}:${entry.expression}` === key);
     if (!pair) return `Slot ${i + 1}: empty`;
-    const unpayable = (player.unpayableAffinities || []).find((entry) => entry.key === key);
-    const note = !off.includes(key) ? ""
-      : unpayable ? `  (off: upkeep ${unpayable.upkeep} > max mana ${unpayable.maxMana})` : "  (off until mana is full)";
+    const note = off.includes(key) ? exhaustedAffinityNote(player, key, { offKeys: off }) : "";
     const price = player.castableAffinities?.[key]?.mana;
     const cost = price === undefined ? "" : ` · ${price} MP`;
     return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ${slotLevelLabel(player, pair)}${cost}${note}`;
@@ -422,11 +445,17 @@ export function soakedNote(actor) {
 export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
   if (seen.length === 0) return null;
-  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${revealNote(actor)}`
-    + (actor.affinityUnpayable ? ` (off: upkeep ${actor.affinityUnpayable.upkeep} > max mana ${actor.affinityUnpayable.maxMana})`
-      : actor.affinityOff ? " (off until mana is full)" : "")
-    + (soakedNote(actor) ? ` (${soakedNote(actor).trim()})` : "")
-    + (conditionNote(actor.condition) ? ` (${conditionNote(actor.condition)})` : "")).join("  ")}`;
+return `In sight: ${seen.map((actor) => {
+    const mana = actor.vitals?.mana;
+    const pool = mana && Number.isFinite(mana.current) && Number.isFinite(mana.max)
+      ? ` — now ${mana.current}/${mana.max}` : "";
+    const offNote = actor.affinityUnpayable
+      ? ` (off: upkeep ${actor.affinityUnpayable.upkeep} > max mana ${actor.affinityUnpayable.maxMana})`
+      : actor.affinityOff ? ` (off until mana is full${pool})` : "";
+    return `${actor.label} ${actor.id}${revealNote(actor)}${offNote}`
+      + (soakedNote(actor) ? ` (${soakedNote(actor).trim()})` : "")
+      + (conditionNote(actor.condition) ? ` (${conditionNote(actor.condition)})` : "");
+  }).join("  ")}`;
 }
 
 // How each kind of thing leaves (#428): an exit is a departure, never mistaken for a defeat.

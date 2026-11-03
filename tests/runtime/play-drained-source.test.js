@@ -43,7 +43,7 @@ test("a drained source has no field, is dimmed and is named off, for every affin
     assert.deepEqual(asciiActorCellStyle(off), {
       ...asciiRememberedCellStyle(asciiActorCellStyle(lit)), affinity: kind,
     }, `${kind}: drawn dimmed`);
-    assert.match(inSightLine(after), /t \(off until mana is full\)/, kind);
+    assert.match(inSightLine(after), /t \(off until mana is full — now \d+\/\d+\)/, kind);
   }
 });
 

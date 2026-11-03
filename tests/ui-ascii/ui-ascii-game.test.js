@@ -18,7 +18,7 @@ const {
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
 const { battleLines, createGame, vitalChangeLine } = require("../../packages/ui-ascii/src/game.js");
-const { hudLine, overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
+const { affinityLines, exhaustedAffinityNote, hudLine, overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
 const { colorDepth, parseArgs, resolveColor, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
@@ -1030,6 +1030,42 @@ test("e with nothing in sight says so and costs nothing", async () => {
   assert.equal(game.state().turns, turns);
 });
 
+// AK-11: exhausted lasting slots name the full-mana restart gate with current/max,
+// and call out when another emit/draw is still draining that pool.
+test("an exhausted slot's HUD row names now/max mana and a sibling lasting drain", () => {
+  const player = {
+    affinities: [
+      { kind: "light", expression: "draw", stacks: 4, intensity: 4 },
+      { kind: "dark", expression: "emit", stacks: 4, intensity: 4 },
+      { kind: "fire", expression: "push", stacks: 1, intensity: 3 },
+    ],
+    affinitySlots: 3,
+    equippedAffinityKeys: ["light:draw", "dark:emit", "fire:push"],
+    exhaustedAffinityKeys: ["dark:emit"],
+    affinityExhausted: true,
+    vitals: { mana: { current: 28, max: 30, regen: 20 } },
+  };
+  assert.equal(
+    exhaustedAffinityNote(player, "dark:emit"),
+    "  (off until mana is full — now 28/30; other lasting slot still drains)",
+  );
+  const rows = affinityLines(player, { hints: false });
+  assert.match(rows[1], /dark emit r4 ×4 {2}\(off until mana is full — now 28\/30; other lasting slot still drains\)/);
+  assert.equal(rows[0], "Slot 1: light draw r4 ×4");
+});
+
+test("an exhausted slot with no sibling lasting drain only names the mana pool", () => {
+  const player = {
+    affinities: [{ kind: "dark", expression: "emit", stacks: 4, intensity: 4 }],
+    affinitySlots: 1,
+    equippedAffinityKeys: ["dark:emit"],
+    exhaustedAffinityKeys: ["dark:emit"],
+    affinityExhausted: true,
+    vitals: { mana: { current: 12, max: 30, regen: 20 } },
+  };
+  assert.equal(exhaustedAffinityNote(player, "dark:emit"), "  (off until mana is full — now 12/30)");
+});
+
 // ## TODO: Test Permutations
 // - every key in the keymap, upper and lower case
 // - --run with each of the build/create/configurator subdirectories
@@ -1040,7 +1076,6 @@ test("e with nothing in sight says so and costs nothing", async () => {
 // - with two loot items g opens a numbered list
 // - casting an emit says it works while equipped
 // - equipping into full slots names the affinity it replaced
-// - an exhausted slot's HUD row says it is off until mana is full
 // - Tab in the affinity list wraps from the last row to the first
 // - + at full stacks says it already runs at all held stacks
 
