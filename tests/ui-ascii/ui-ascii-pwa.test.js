@@ -68,6 +68,19 @@ test("the play screen blocks phone text-selection Search / Look Up callouts", ()
   assert.match(css, /#game\s*\{[^}]*-webkit-touch-callout:\s*none/s);
 });
 
+test("the play screen blocks iPhone Safari double-tap zoom without locking page zoom", () => {
+  // Slow vast-level moves tempt a second tap; Safari treats that as zoom. #694 fixed selection only.
+  const css = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/style.css"), "utf8");
+  const html = readFileSync(join(__dirname, "../../packages/ui-ascii/pwa/index.html"), "utf8");
+  // Require the declaration (trailing ;) so a comment mentioning the property cannot satisfy this.
+  assert.match(css, /#game\s*\{[^}]*touch-action:\s*manipulation\s*;/s);
+  assert.match(css, /button\s*\{[^}]*touch-action:\s*manipulation\s*;/s);
+  // Keep pinch-zoom available on non-game surfaces: no maximum-scale / user-scalable lock.
+  assert.match(html, /name="viewport"[^>]*content="width=device-width, initial-scale=1, viewport-fit=cover"/);
+  assert.doesNotMatch(html, /maximum-scale\s*=\s*1/);
+  assert.doesNotMatch(html, /user-scalable\s*=\s*no/);
+});
+
 // AK-19: #msg / battle-log band is combat observation (hits, sight, annotator log) — not how-to copy.
 test("phone battle log keeps cast-path and sprint how-to out of the message band", () => {
   const browser = readFileSync(join(SRC, "browser.js"), "utf8");

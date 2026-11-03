@@ -19,7 +19,10 @@ button:active { background: #33333c; }
    sized once from the screen, and every list or panel is shown inside a band that scrolls, never one that grows. */
 #game { --controls: 176px; --side: min(calc(100vw - 16px), calc(100dvh - 330px), 560px); padding: 0 8px; max-width: 600px; height: 100dvh; display: flex; flex-direction: column; gap: 6px;
   /* Mis-taps on the board/controls used to select glyphs and open the phone's Look Up / Search
-     callout (the board is a <pre>). Keep play chrome non-selectable; report textareas stay outside #game. */
+     callout (the board is a <pre>). Keep play chrome non-selectable; report textareas stay outside #game.
+     touch-action: manipulation kills iOS Safari double-tap zoom on retries when a slow move feels
+     unresponsive (#694 covered selection only). Scoped to #game so menu/brief keep pinch-zoom. */
+  touch-action: manipulation;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 body.kbd #game { --controls: 0px; --side: min(calc(100vw - 16px), calc(100dvh - 190px), 560px); }
 #bar { height: 34px; flex: none; margin-top: max(4px, env(safe-area-inset-top)); display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
