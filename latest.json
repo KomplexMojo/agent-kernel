@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-03T17-32-56-754Z-2d6c30080875-864de18a6c41",
-    "key": "864de18a6c414952ac5836d76bb3a9269b23a541014d01da7d82b91bfb6cae7b",
+    "id": "2026-11-03T18-07-00-991Z-77be907ba1bd-8ff7dac5b01a",
+    "key": "8ff7dac5b01aec880bf47c7289e22b56ad70a91bd3488f178ebd051e2bf796af",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-03T17:32:56.754Z",
-    "completedAt": "2026-11-03T17:33:22.858Z",
-    "durationMs": 26104,
+    "startedAt": "2026-11-03T18:07:00.991Z",
+    "completedAt": "2026-11-03T18:07:26.961Z",
+    "durationMs": 25970,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "2d6c3008087589d8713a61e387e9248d732243c4",
-    "tree": "707790bc0456cf0be7585eeaf8b93118c8106fca"
+    "commit": "77be907ba1bd75f3d8f6a5e619418aa82546670e",
+    "tree": "80c181397114d819305e0f48c089fda4534f1341"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -163,6 +163,7 @@
       "packages/runtime/src/personas/director/summary-selections.js",
       "packages/runtime/src/personas/director/tactics.js",
       "packages/runtime/src/personas/moderator/README.md",
+      "packages/runtime/src/personas/moderator/actor-hibernation.js",
       "packages/runtime/src/personas/moderator/actor-ordering.js",
       "packages/runtime/src/personas/moderator/affinity-interactions.js",
       "packages/runtime/src/personas/moderator/affinity-target-effects.js",
@@ -277,7 +278,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/864de18a6c414952ac5836d76bb3a9269b23a541014d01da7d82b91bfb6cae7b"
+    "retentionId": "preflights/8ff7dac5b01aec880bf47c7289e22b56ad70a91bd3488f178ebd051e2bf796af"
   },
   "qualifies": false
 }
