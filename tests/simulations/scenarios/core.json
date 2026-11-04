@@ -281,6 +281,26 @@
         "--seed",
         "4"
       ]
+    },
+    {
+      "id": "dark-stealth",
+      "note": "dark-emitting stealthy delver past three lit stationary wardens on the spawn-to-exit route",
+      "budget": 5000,
+      "ticks": 40,
+      "args": [
+        "--seed",
+        "4",
+        "--room",
+        "size=medium;count=4",
+        "--delver",
+        "count=1;id=sneak;affinity=dark;affinities=dark:emit:3:2;equip=dark:emit;motivation=exploring+stealthy;vitals=health:40:2,mana:80:8,stamina:14:3,durability:15:1",
+        "--warden",
+        "count=3;id=guard;affinity=light;affinities=light:emit:3:2,light:push:2:1;equip=light:emit;motivation=stationary;vitals=health:20:1,mana:40:4,stamina:10:1,durability:10:1",
+        "--place",
+        "warden:*;onRoute;spread",
+        "--place",
+        "warden:*;far=spawn:3"
+      ]
     }
   ]
 }

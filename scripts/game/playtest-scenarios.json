@@ -477,6 +477,31 @@
       ]
     },
     {
+      "id": "dark-stealth",
+      "title": "Dark stealth",
+      "shows": "dark emit hides you from lit wardens beyond one tile; sneak the spawn-to-exit route",
+      "focus": [
+        "You are dark with emit equipped and on. Three light-emitting wardens stand on the spawn-to-exit route; their light would reveal you if you were not cloaked.",
+        "Keep dark emit on (panel i if it dropped): standing in your own dark makes you unseen to wardens more than one tile away. Your own dark never blinds you.",
+        "Slip past each warden without stepping adjacent: adjacent, they can still spot you. Do they stay idle while you stay cloaked?",
+        "If you walk into a guard's face, it will see and fight you — that is the obscure radius, not a stealth failure of the affinity.",
+        "Reach the exit without a fight if you can. Optional: turn emit off near a guard and confirm it notices you once the cloak drops."
+      ],
+      "budgetTokens": 5000,
+      "args": [
+        "--room",
+        "size=medium;count=4",
+        "--delver",
+        "count=1;id=hero;affinity=dark;affinities=dark:emit:3:2,dark:push:2:1;equip=dark:emit;motivation=user_controlled;vitals=health:30:1,mana:60:6,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=3;id=guard;affinity=light;affinities=light:emit:3:2,light:push:2:1;equip=light:emit;motivation=stationary;vitals=health:20:1,mana:40:4,stamina:10:1,durability:10:1",
+        "--place",
+        "warden:*;onRoute;spread",
+        "--place",
+        "warden:*;far=spawn:3"
+      ]
+    },
+    {
       "id": "generate-random",
       "title": "Generate random level",
       "shows": "a surprise dungeon: irregular rooms, destroyable earth barriers, Director tactics from the seed",
