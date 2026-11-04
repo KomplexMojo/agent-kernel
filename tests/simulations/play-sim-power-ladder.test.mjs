@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { attackUse, equipEveryHeld, playProfile, runPowerLadder, scaleDelverSpec } from "../../scripts/testing/play-sim-power-ladder.mjs";
+import { attackUse, equipEveryHeld, playProfile, recipeDelverSpec, runPowerLadder, scaleDelverSpec } from "../../scripts/testing/play-sim-power-ladder.mjs";
 
 const SPEC = "count=1;id=hero;affinity=fire;affinities=fire:emit:2:1,fire:push:3:1;equip=fire:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1";
 
@@ -68,3 +68,29 @@ test("#724: a play that held a castable attack and cast none is flagged, and say
   const support = SPEC.replaceAll("fire:", "growth:").replace("affinity=fire", "affinity=growth");
   expect(attackUse(support, { seatLog: { transcript: [] } })).toMatchObject({ attackHeld: [], attackUnused: false });
 });
+
+test("--recipes: a recipe takes the seat's kit and vitals; the seat's id and motivation stay", () => {
+  expect(recipeDelverSpec(SPEC, "kiter")).toBe("count=1;id=hero;affinity=wind;affinities=wind:push:3:2,water:push:3:1;equip=wind:push,water:push;"
+    + "vitals=health:20:1,mana:40:4,stamina:100:8,durability:10:1;motivation=user_controlled");
+  expect(() => recipeDelverSpec(SPEC, "moonwalker")).toThrow(/moonwalker/);
+});
+
+test("--recipes: one ladder per recipe, named in files, rows and the summary", async () => {
+  const outDir = mkdtempSync(join(tmpdir(), "power-ladder-recipes-"));
+  try {
+    const seatPicker = async ({ actions }) => actions.find((action) => action.id === "wait")?.id;
+    await expect(runPowerLadder({ rungs: [1], recipes: ["moonwalker"], seatPicker, outDir })).rejects.toThrow(/moonwalker/);
+    const { runs, summary } = await runPowerLadder({ rungs: [1, 2], seeds: [0], repeats: 1, maxTicks: 2, recipes: ["kiter", "tank"], seatPicker, outDir });
+    expect(runs.map((run) => `${run.recipe}:${run.rung}`)).toEqual(["kiter:1", "kiter:2", "tank:1", "tank:2"]);
+    expect(summary.lowestWinningRungByRecipe).toEqual({ kiter: null, tank: null });
+    expect(summary.byRung.map((rung) => `${rung.recipe}:${rung.rung}:${rung.plays}`)).toEqual(["kiter:1:1", "kiter:2:1", "tank:1:1", "tank:2:1"]);
+    const kiter = JSON.parse(readFileSync(join(outDir, "kiter-rung-1-s0-r1.json"), "utf8"));
+    expect(kiter.character).toContain("affinities=wind:push:3:2,water:push:3:1");
+    expect(kiter.character).toContain("motivation=user_controlled");
+    const report = readFileSync(join(outDir, "report.md"), "utf8");
+    expect(report).toMatch(/Lowest winning rung per recipe: kiter none, tank none/);
+    expect(report).toMatch(/\| tank \| ×2 \| 0\/1 \|/);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+}, 180000);

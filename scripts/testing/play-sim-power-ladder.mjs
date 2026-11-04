@@ -9,6 +9,12 @@
  *
  *   node scripts/testing/play-sim-power-ladder.mjs --model qwen3.8:27b [--scenario first-look]
  *        [--seeds 0,1] [--rungs 1,1.5,2,3,4] [--repeats 3] [--max-ticks 200] [--provider ollama|anthropic] [--ollama-url URL]
+ *        [--recipes kiter,tank]
+ *
+ * `--recipes` (Darren, 2026-11-04): the ladder is climbed once per configuration recipe, each rung's
+ * delver being that recipe (its affinities, equip and vitals, as `recipe=` expands them) in the
+ * scenario's playable seat, scaled the same way. It answers how strong each archetype must be before
+ * the seat wins with it. Files and rows then carry the recipe's name; without it, nothing changes.
  *
  * v2 (2026-11-04): one play is a sample, not a verdict (×1.5 won and ×2 lost on one seed), so each
  * rung is played `--repeats` times per seed. Each play is labelled from what the seat saw: `fought`
@@ -31,6 +37,7 @@ import { resolveModelEnv } from "./play-sim-model-env.mjs";
 import { llmSeatPicker } from "./play-sim-seat.mjs";
 import { createAnthropicAdapter, resolveProvider } from "./play-sim-anthropic.mjs";
 import { affinityRole } from "../../packages/runtime/src/render/affinity-role.js";
+import { createConfiguratorPersona } from "../../packages/runtime/src/personas/configurator/controller.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const DEFAULT_RUNGS = [1, 1.5, 2, 3, 4];
@@ -75,6 +82,26 @@ export function equipEveryHeld(spec, slots = 3) {
   return fields.some((field) => field.startsWith("equip="))
     ? fields.map((field) => (field.startsWith("equip=") ? equip : field)).join(";")
     : [...fields, equip].join(";");
+}
+
+/**
+ * The scenario's delver spec with configuration recipe `name` in place of its kit: the recipe's
+ * affinities, equip and vitals as the Configurator expands them for a delver; the seat's id, count
+ * and motivation stay the scenario's. Unknown names are the Configurator's to refuse.
+ */
+export function recipeDelverSpec(spec, name) {
+  const configurator = createConfiguratorPersona({ clock: () => "1970-01-01T00:00:00.000Z" });
+  const recipe = configurator.expandConfigurationRecipe({ name, role: "delver", label: `--recipes ${name}` });
+  const kit = {
+    affinity: recipe.affinities[0]?.kind,
+    affinities: recipe.affinities.map((entry) => `${entry.kind}:${entry.expression}:${entry.stacks}:${entry.intensity}`).join(","),
+    equip: recipe.equip.map((entry) => `${entry.kind}:${entry.expression}`).join(","),
+    vitals: Object.entries(recipe.vitals).map(([key, vital]) => `${key}:${vital.max}:${vital.regen}`).join(","),
+  };
+  const kept = spec.split(";").filter((field) => !Object.hasOwn(kit, field.split("=")[0]));
+  const at = Math.max(0, kept.findIndex((field) => field.startsWith("motivation=")));
+  const added = Object.entries(kit).filter(([, value]) => value).map(([key, value]) => `${key}=${value}`);
+  return [...kept.slice(0, at), ...added, ...kept.slice(at)].join(";");
 }
 
 /** Health the seat lost over the play, summed from its HUD line per turn (its own vitals: #497 allows). */
@@ -124,45 +151,57 @@ export function attackUse(character, record) {
 }
 
 /** Play every rung on every seed, `repeats` times; returns `{ outDir, runs, summary }`. */
-export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], rungs = DEFAULT_RUNGS, repeats = DEFAULT_REPEATS, maxTicks = 200, seatPicker, model = null, outDir, log = () => {} }) {
+export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], rungs = DEFAULT_RUNGS, repeats = DEFAULT_REPEATS, maxTicks = 200, recipes = null, seatPicker, model = null, outDir, log = () => {} }) {
   const catalog = loadPlaytestScenarios();
   const scenario = catalog.scenarios.find((entry) => entry.id === scenarioId);
   if (!scenario) throw new Error(`no playtest scenario "${scenarioId}"`);
+  // One ladder per recipe, or the scenario's own delver (recipe null). Checked before any play.
+  const ladders = recipes?.length ? recipes : [null];
+  for (const name of ladders) if (name) recipeDelverSpec(playerDelverSpec(scenario, seeds[0] ?? 0), name);
   mkdirSync(outDir, { recursive: true });
   const workDir = mkdtempSync(join(tmpdir(), "ak-power-ladder-"));
   const runs = [];
   // report.md and summary.json are rewritten after every play, so a run in progress can be read
   // (`watch -n 10 cat .../report.md`); the last write is the final report.
   const writeReports = () => {
-    const byRung = rungs.map((k) => {
-      const plays = runs.filter((run) => run.rung === k);
+    const byRung = ladders.flatMap((recipe) => rungs.map((k) => {
+      const plays = runs.filter((run) => run.rung === k && (run.recipe ?? null) === recipe);
       const wins = plays.filter((run) => run.outcome === "exited").length;
       const tokens = plays.find((run) => Number.isFinite(run.delverTokens))?.delverTokens ?? null;
       const mean = (key) => (plays.length ? Math.round((plays.reduce((sum, run) => sum + (run[key] ?? 0), 0) / plays.length) * 10) / 10 : null);
       const labels = Object.fromEntries(["fought", "avoided", "pinned", "lost", "timeout"].map((label) => [label, plays.filter((run) => run.label === label).length]).filter(([, n]) => n));
-      return { rung: k, plays: plays.length, wins, winRate: plays.length ? wins / plays.length : null, delverTokens: tokens,
+      return { ...(recipe ? { recipe } : {}), rung: k, plays: plays.length, wins, winRate: plays.length ? wins / plays.length : null, delverTokens: tokens,
         tokensPerWin: wins ? Math.round((tokens ?? 0) * plays.length / wins) : null, meanTicks: mean("ticks"), meanCasts: mean("casts"), meanHealthLost: mean("healthLost"), labels,
         attackUnused: plays.filter((run) => run.attackUnused).length };
-    });
-    const winning = byRung.filter((rung) => rung.winRate !== null && rung.winRate >= 0.5).map((rung) => rung.rung);
+    }));
+    const lowest = (rows) => {
+      const winning = rows.filter((rung) => rung.winRate !== null && rung.winRate >= 0.5).map((rung) => rung.rung);
+      return winning.length ? Math.min(...winning) : null;
+    };
+    const byRecipe = recipes?.length ? Object.fromEntries(ladders.map((recipe) => [recipe, lowest(byRung.filter((rung) => rung.recipe === recipe))])) : null;
     const attackUnused = runs.filter((run) => run.attackUnused).length;
     const summary = { schema: "agent-kernel/PowerLadderRun", version: 2, scenario: scenarioId, seeds, rungs, repeats, maxTicks, model,
-      lowestWinningRung: winning.length ? Math.min(...winning) : null, attackUnused, byRung, runs };
+      ...(byRecipe ? { recipes: ladders, lowestWinningRungByRecipe: byRecipe } : {}),
+      lowestWinningRung: lowest(byRung), attackUnused, byRung, runs };
     writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
-    const rows = byRung.map((rung) => `| ×${rung.rung} | ${rung.wins}/${rung.plays} | ${rung.delverTokens ?? "?"} | ${rung.tokensPerWin ?? "–"} | ${rung.meanTicks} | ${rung.meanCasts} | ${rung.meanHealthLost} | ${rung.attackUnused} | ${Object.entries(rung.labels).map(([label, n]) => `${label} ${n}`).join(", ")} |`);
+    const lead = (row) => (byRecipe ? `| ${row.recipe} ` : "");
+    const rows = byRung.map((rung) => `${lead(rung)}| ×${rung.rung} | ${rung.wins}/${rung.plays} | ${rung.delverTokens ?? "?"} | ${rung.tokensPerWin ?? "–"} | ${rung.meanTicks} | ${rung.meanCasts} | ${rung.meanHealthLost} | ${rung.attackUnused} | ${Object.entries(rung.labels).map(([label, n]) => `${label} ${n}`).join(", ")} |`);
     const unused = (run) => (run.attackUnused ? `**yes**${run.attackEquippedAtStart ? "" : " (not equipped)"}` : run.attackHeld?.length ? "no" : "–");
-    const plays = runs.map((run) => `| ×${run.rung} | ${run.seed} | ${run.repeat} | ${run.outcome} | ${run.label} | ${run.ticks} | ${run.casts} | ${run.struck} | ${run.healthLost} | ${run.hostileInSightTurns} | ${unused(run)} | ${run.illegal ?? "?"} |`);
+    const plays = runs.map((run) => `${lead(run)}| ×${run.rung} | ${run.seed} | ${run.repeat} | ${run.outcome} | ${run.label} | ${run.ticks} | ${run.casts} | ${run.struck} | ${run.healthLost} | ${run.hostileInSightTurns} | ${unused(run)} | ${run.illegal ?? "?"} |`);
     const defect = attackUnused > 0 ? [`**Defect:** ${attackUnused} of ${runs.length} play(s) held an attack and never cast it.`, ""] : [];
+    const head = (columns) => `${byRecipe ? "| recipe " : ""}| ${columns.join(" | ")} |`;
+    const rule = (n) => `|${"---|".repeat(n + (byRecipe ? 1 : 0))}`;
+    const perRecipe = byRecipe ? [`Lowest winning rung per recipe: ${ladders.map((recipe) => `${recipe} ${byRecipe[recipe] === null ? "none" : `×${byRecipe[recipe]}`}`).join(", ")}`, ""] : [];
     writeFileSync(join(outDir, "report.md"), [`# Power ladder: ${scenarioId}`, "",
       `Model: ${model ?? "fixture"} · ${repeats} play(s) per rung and seed · lowest rung winning at least half its plays: ${summary.lowestWinningRung === null ? "none" : `×${summary.lowestWinningRung}`}`, "",
-      ...defect,
-      "| rung | wins | delver tokens | tokens per win | mean ticks | mean casts | mean HP lost | attack unused | how |", "|---|---|---|---|---|---|---|---|---|", ...rows, "",
-      "## Plays", "", "| rung | seed | play | outcome | how | ticks | casts | hits landed | HP lost | turns hostile in sight | attack unused | illegal |", "|---|---|---|---|---|---|---|---|---|---|---|---|", ...plays, ""].join("\n"));
+      ...perRecipe, ...defect,
+      head(["rung", "wins", "delver tokens", "tokens per win", "mean ticks", "mean casts", "mean HP lost", "attack unused", "how"]), rule(9), ...rows, "",
+      "## Plays", "", head(["rung", "seed", "play", "outcome", "how", "ticks", "casts", "hits landed", "HP lost", "turns hostile in sight", "attack unused", "illegal"]), rule(12), ...plays, ""].join("\n"));
     return summary;
   };
   try {
-    for (const seed of seeds) {
-      const baseSpec = playerDelverSpec(scenario, seed);
+    for (const recipe of ladders) for (const seed of seeds) {
+      const baseSpec = recipe ? recipeDelverSpec(playerDelverSpec(scenario, seed), recipe) : playerDelverSpec(scenario, seed);
       for (const k of rungs) {
         const character = equipEveryHeld(scaleDelverSpec(baseSpec, k));
         for (let repeat = 1; repeat <= repeats; repeat += 1) {
@@ -175,13 +214,13 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
             budgetTokens *= 2;
           }
           const profile = { ...playProfile(record), ...attackUse(character, record) };
-          const file = `rung-${k}-s${seed}-r${repeat}.json`;
-          writeFileSync(join(outDir, file), `${JSON.stringify({ rung: k, repeat, character, profile, ...record }, null, 2)}\n`);
-          runs.push({ file, rung: k, seed, repeat, outcome: record.outcome, ticks: record.ticks, budgetTokens,
+          const file = `${recipe ? `${recipe}-` : ""}rung-${k}-s${seed}-r${repeat}.json`;
+          writeFileSync(join(outDir, file), `${JSON.stringify({ ...(recipe ? { recipe } : {}), rung: k, repeat, character, profile, ...record }, null, 2)}\n`);
+          runs.push({ file, ...(recipe ? { recipe } : {}), rung: k, seed, repeat, outcome: record.outcome, ticks: record.ticks, budgetTokens,
             delverTokens: record.delverPool?.spentTokens ?? null, minHealth: record.minVitals?.health ?? null,
             illegal: record.seatLog?.illegal ?? null, ...profile });
           writeReports();
-          log(`x${k} s${seed} r${repeat}: ${record.outcome} (${profile.label}) in ${record.ticks} ticks, ${profile.casts} casts, -${profile.healthLost} HP (delver ${record.delverPool?.spentTokens ?? "?"} tokens)`);
+          log(`${recipe ? `${recipe} ` : ""}x${k} s${seed} r${repeat}: ${record.outcome} (${profile.label}) in ${record.ticks} ticks, ${profile.casts} casts, -${profile.healthLost} HP (delver ${record.delverPool?.spentTokens ?? "?"} tokens)`);
         }
       }
     }
@@ -205,6 +244,7 @@ function parseArgs(argv) {
     else if (arg === "--model") options.model = argv[++i];
     else if (arg === "--ollama-url") options.ollamaUrl = argv[++i];
     else if (arg === "--provider") options.provider = argv[++i];
+    else if (arg === "--recipes") options.recipes = argv[++i].split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
     else throw new Error(`unknown argument ${arg}`);
   }
   if (options.rungs?.some((k) => !(k > 0))) throw new Error("--rungs takes positive numbers");
@@ -225,6 +265,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       : (await import("../../packages/adapters-cli/src/adapters/llm/index.js")).createLlmAdapter(baseUrl ? { baseUrl } : {});
     console.log(provider === "anthropic" ? `model ${model} via the Anthropic API` : `model ${model} at ${baseUrl ?? "the adapter default (localhost:11434)"}`);
     const { summary } = await runPowerLadder({ ...options, model, outDir, seatPicker: llmSeatPicker({ adapter, model }), log: (line) => console.log(line) });
+    if (summary.lowestWinningRungByRecipe) console.log(`Lowest winning rung per recipe: ${Object.entries(summary.lowestWinningRungByRecipe).map(([name, k]) => `${name} ${k === null ? "none" : `x${k}`}`).join(", ")}.`);
     console.log(`Lowest winning rung: ${summary.lowestWinningRung === null ? "none" : `x${summary.lowestWinningRung}`}. Wrote ${outDir}`);
   } catch (error) {
     console.error(error.message);
