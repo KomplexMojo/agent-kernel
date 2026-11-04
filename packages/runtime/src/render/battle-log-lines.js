@@ -2,11 +2,88 @@
  * #554 — the words for battle-log entries, so every UI (ASCII, phone app, later Phaser) shows
  * identical lines. Pure: entries in, text out. The Annotator derives the entries; this only words
  * them, and never adds what the entry does not carry (no vitals, #497).
+ *
+ * AK-28: cast hits and lasting-field hurt lines carry a short affinity×mode flavor phrase
+ * (deterministic table below) so "earth emit" reads as a dust storm, not only the dry key.
  */
 
 import { HUD_VITAL_LABELS } from "./actor-hud-model.js";
 
 const signed = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
+
+/**
+ * Short combat-observation phrases by affinity kind + expression. Describes what hit —
+ * not how to play (AK-19). Missing keys fall back to the bare `kind expression` wording.
+ * @type {Readonly<Record<string, Readonly<Record<string, string>>>>}
+ */
+export const AFFINITY_ATTACK_FLAVOR = Object.freeze({
+  earth: Object.freeze({
+    emit: "a dust storm",
+    push: "thrown earth",
+    pull: "a crushing earth yank",
+    draw: "a grinding earth drain",
+  }),
+  fire: Object.freeze({
+    emit: "a sheet of flame",
+    push: "a firebolt",
+    pull: "a searing yank",
+    draw: "a heat siphon",
+  }),
+  water: Object.freeze({
+    emit: "a soaking spray",
+    push: "a water jet",
+    pull: "a tidal yank",
+    draw: "a draining current",
+  }),
+  wind: Object.freeze({
+    emit: "a cutting gale",
+    push: "a gust strike",
+    pull: "a vacuum yank",
+    draw: "a breath steal",
+  }),
+  growth: Object.freeze({
+    emit: "choking vines",
+    push: "a thorn lash",
+    pull: "a root yank",
+    draw: "a life siphon",
+  }),
+  decay: Object.freeze({
+    emit: "a rotting miasma",
+    push: "a decay bolt",
+    pull: "a withering yank",
+    draw: "a rot drain",
+  }),
+  corrode: Object.freeze({
+    emit: "an acid haze",
+    push: "an acid splash",
+    pull: "a corrosive yank",
+    draw: "an acid drain",
+  }),
+  fortify: Object.freeze({
+    emit: "a hardening aura",
+    push: "a stone slam",
+    pull: "a bracing yank",
+    draw: "a tempering draw",
+  }),
+  light: Object.freeze({
+    emit: "a blinding flare",
+    push: "a light lance",
+    pull: "a radiant yank",
+    draw: "a light siphon",
+  }),
+  dark: Object.freeze({
+    emit: "a shadow veil",
+    push: "a shadow bolt",
+    pull: "a void yank",
+    draw: "a shadow drain",
+  }),
+});
+
+/** Lookup `AFFINITY_ATTACK_FLAVOR[kind][expression]`, or null when unknown. */
+export function affinityAttackFlavor(kind, expression) {
+  if (!kind || !expression) return null;
+  return AFFINITY_ATTACK_FLAVOR[kind]?.[expression] ?? null;
+}
 
 /**
  * #582: what a field did to a vital this tick, with regen's share. A hit that regen cancels reads as
@@ -66,6 +143,18 @@ export function conditionNote(condition) {
   return `looks ${CONDITION_WORDS[condition.band] ?? condition.band}${struck ? `, ${struck}` : ""}${age}`;
 }
 
+/** ` — a dust storm —` when the affinity×mode has a flavor phrase; empty otherwise. */
+function flavorAside(kind, expression) {
+  const phrase = affinityAttackFlavor(kind, expression);
+  return phrase ? ` — ${phrase} —` : "";
+}
+
+/** ` with a dust storm` on a struck cast; empty when unknown. */
+function flavorWith(kind, expression) {
+  const phrase = affinityAttackFlavor(kind, expression);
+  return phrase ? ` with ${phrase}` : "";
+}
+
 /**
  * @param {object} entry   an `agent-kernel/BattleLogEntry`
  * @param {object} [who]
@@ -87,7 +176,9 @@ export function battleLogLine(entry, { seatId, labelOf = () => null, effect = nu
   switch (entry.event) {
     case "cast": {
       const source = name(entry.sourceId);
-      if (entry.struck) return `${cap(source)} cast ${attack} and struck ${name(entry.targetId)}${struckNote(entry, showCondition)}.`;
+      if (entry.struck) {
+        return `${cap(source)} cast ${attack} and struck ${name(entry.targetId)}${flavorWith(entry.kind, entry.expression)}${struckNote(entry, showCondition)}.`;
+      }
       return `${cap(source)} cast ${attack}${entry.targetId ? ` at ${name(entry.targetId)}` : ""}.`;
     }
     case "take": {
@@ -100,13 +191,16 @@ export function battleLogLine(entry, { seatId, labelOf = () => null, effect = nu
       const how = entry.defeatVital === "durability" ? "destroyed" : "defeated";
       return `${cap(name(entry.targetId))} ${entry.targetId === seatId ? "were" : "was"} ${how}${by}.`;
     }
-    case "field":
+    case "field": {
       // A lasting field (emit, draw) that started hurting someone this tick.
+      // Flavor aside is cheap, so regen-cancel lines get it too (AK-28).
+      const flavored = `${attack}${flavorAside(entry.kind, entry.expression)}`;
       if (effect) {
         const { hurting, words } = fieldEffectWords(effect);
-        return `${cap(whose(entry.sourceId))} ${attack} ${hurting ? "is hurting" : "hits, but regen cancels it on"} ${name(entry.targetId)}: ${words}.`;
+        return `${cap(whose(entry.sourceId))} ${flavored} ${hurting ? "is hurting" : "hits, but regen cancels it on"} ${name(entry.targetId)}: ${words}.`;
       }
-      return `${cap(whose(entry.sourceId))} ${attack} is hurting ${name(entry.targetId)}.`;
+      return `${cap(whose(entry.sourceId))} ${flavored} is hurting ${name(entry.targetId)}.`;
+    }
     case "exit":
       return `${cap(name(entry.targetId))} left by the exit.`;
     default:

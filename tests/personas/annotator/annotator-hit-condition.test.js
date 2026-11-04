@@ -46,8 +46,8 @@ test("a hit that lands hardest on armour bands that vital too (Darren, 2026-11-0
   assert.equal(entry.struckCondition, "near_defeat");
   const { battleLogLine, conditionNote } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
   assert.equal(battleLogLine(entry, { seatId: "a", showCondition: true }),
-    "You cast fire push and struck b: a crushing hit; its durability looks nearly gone; it looks unhurt.");
-  assert.equal(battleLogLine(entry, { seatId: "z" }), "A cast fire push and struck b.");
+    "You cast fire push and struck b with a firebolt: a crushing hit; its durability looks nearly gone; it looks unhurt.");
+  assert.equal(battleLogLine(entry, { seatId: "z" }), "A cast fire push and struck b with a firebolt.");
   assert.equal(conditionNote({ band: "unhurt", age: 2, struckVital: "durability", struckBand: "hurt" }), "looks unhurt, durability worn, 2 ticks ago");
 
   // A hit on the defeat vital itself names no second vital.
@@ -94,7 +94,7 @@ test("the seat's side sees how hurt its target looks, with an age that fades to 
   assert.equal(first.age, 0);
   assert.doesNotMatch(JSON.stringify(first), /\d{2,}|current|max/);
   const line = session.view().battleLog.filter((entry) => entry.event === "cast").at(-1).text;
-  assert.match(line, /struck .*guard: .*it looks /);
+  assert.match(line, /struck .*guard with .+: .*it looks /);
 
   await session.act({ kind: "wait" });
   assert.equal(guard().condition.age, 1);

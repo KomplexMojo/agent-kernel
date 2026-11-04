@@ -40,7 +40,7 @@ test("playtest kit at full vitals: only fire emit hurts; idle draws are not logg
   const session = await createPlaySession(level(FULL, KIT));
   for (const key of ["light:draw", "growth:draw", "fire:emit"]) await session.act(equip(key));
   const lines = session.view().battleLog.map((line) => line.text);
-  assert.ok(lines.some((text) => /Your fire emit is hurting .*warden_1: DU/.test(text)), lines.join(" | "));
+  assert.ok(lines.some((text) => /Your fire emit(?: — .+ —)? is hurting .*warden_1: DU/.test(text)), lines.join(" | "));
   assert.equal(lines.filter((text) => /light draw|growth draw/.test(text)).length, 0,
     `idle restoring draws must not claim hurt: ${lines.join(" | ")}`);
   const du = session.view().vitalChanges.find((change) => change.actorId === "warden_1" && change.vital === "durability");
@@ -53,7 +53,7 @@ test("light draw that tops up mana is logged with MP amount; growth at full HP i
   await session.act(equip("light:draw"));
   await session.act(equip("growth:draw"));
   const lines = session.view().battleLog.map((line) => line.text);
-  assert.ok(lines.some((text) => /Your light draw is hurting .*warden_1: MP/.test(text)), lines.join(" | "));
+  assert.ok(lines.some((text) => /Your light draw(?: — .+ —)? is hurting .*warden_1: MP/.test(text)), lines.join(" | "));
   assert.equal(lines.filter((text) => /growth draw/.test(text)).length, 0,
     `growth draw at full HP must stay silent: ${lines.join(" | ")}`);
 });
@@ -63,7 +63,7 @@ test("growth draw while the source lacks HP steals health and names it", async (
   const session = await createPlaySession(level(midHp, [{ kind: "growth", expression: "draw", stacks: 2, intensity: 2 }]));
   await session.act(equip("growth:draw"));
   const lines = session.view().battleLog.map((line) => line.text);
-  assert.ok(lines.some((text) => /Your growth draw is hurting .*warden_1: HP/.test(text)), lines.join(" | "));
+  assert.ok(lines.some((text) => /Your growth draw(?: — .+ —)? is hurting .*warden_1: HP/.test(text)), lines.join(" | "));
   const hp = session.view().vitalChanges.find((change) => change.actorId === "warden_1" && change.vital === "health");
   assert.ok(hp && hp.hit < 0);
 });

@@ -67,7 +67,7 @@ test("the session exposes the log as words, from the Annotator's entries", async
   const lines = session.view().battleLog;
   assert.ok(lines.length >= 2, "casts and the defeat are logged");
   // #692: the caster's side also reads how the hit landed, in words.
-  assert.match(lines[0].text, /^You cast decay push and struck .*warden_1: (a (glancing|solid|crushing) hit; )?(its \w+ looks [a-z ]+; )?it looks (unhurt|hurt|bloodied|near defeat)\.$/);
+  assert.match(lines[0].text, /^You cast decay push and struck .*warden_1 with a decay bolt: (a (glancing|solid|crushing) hit; )?(its \w+ looks [a-z ]+; )?it looks (unhurt|hurt|bloodied|near defeat)\.$/);
   assert.match(lines.at(-1).text, /warden_1 was defeated by your decay push\.$/);
   assert.ok(lines.every((line) => Number.isInteger(line.tick)));
   assert.ok(!lines.some((line) => /\d+\/\d+|[−-]\d/.test(line.text.replace(/warden_1|delver_1/g, ""))), "no vitals in the words");
@@ -112,7 +112,7 @@ for (const kind of DAMAGING) {
     // Regen may cancel the hit ("hits, but regen cancels") or leave a net ("is hurting").
     assert.equal(lines.length, 1, lines.join(" | "));
     assert.match(lines[0].replace(/W\d+ /, ""),
-      new RegExp(`^Your ${kind} emit (is hurting|hits, but regen cancels it on) warden_1: `));
+      new RegExp(`^Your ${kind} emit — .+ — (is hurting|hits, but regen cancels it on) warden_1: `));
   });
 }
 
@@ -134,8 +134,45 @@ test("words: a field that starts hurting someone names whose emit or draw it is"
   const { battleLogLine } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
   const field = (extra) => battleLogLine({ event: "field", sourceId: "me", targetId: "w", kind: "wind", expression: "emit", ...extra },
     { seatId: "me", labelOf: (id) => (id === "w" ? "W1" : null) });
-  assert.equal(field({}), "Your wind emit is hurting W1 w.");
-  assert.equal(field({ sourceId: "w", targetId: "me", kind: "dark", expression: "draw" }), "W1 w's dark draw is hurting you.");
+  assert.equal(field({}), "Your wind emit — a cutting gale — is hurting W1 w.");
+  assert.equal(field({ sourceId: "w", targetId: "me", kind: "dark", expression: "draw" }), "W1 w's dark draw — a shadow drain — is hurting you.");
+});
+
+// AK-28 / playtest affinity attack flavor: cast hits and field hurt lines name what struck.
+test("words: affinity×mode flavor on cast hits and field hurt lines", async () => {
+  const { battleLogLine, AFFINITY_ATTACK_FLAVOR, affinityAttackFlavor } =
+    await import("../../../packages/runtime/src/render/battle-log-lines.js");
+  const who = { seatId: "me", labelOf: (id) => (id === "w" ? "W4" : null) };
+  assert.equal(
+    battleLogLine({ event: "cast", sourceId: "me", targetId: "w", kind: "earth", expression: "emit", struck: true }, who),
+    "You cast earth emit and struck W4 w with a dust storm.");
+  assert.equal(
+    battleLogLine({ event: "cast", sourceId: "me", targetId: "w", kind: "earth", expression: "push", struck: true }, who),
+    "You cast earth push and struck W4 w with thrown earth.");
+  assert.equal(
+    battleLogLine({ event: "cast", sourceId: "me", targetId: "w", kind: "earth", expression: "pull", struck: true }, who),
+    "You cast earth pull and struck W4 w with a crushing earth yank.");
+  assert.equal(
+    battleLogLine({ event: "field", sourceId: "me", targetId: "w", kind: "earth", expression: "emit" }, who),
+    "Your earth emit — a dust storm — is hurting W4 w.");
+  // Miss / no-hit casts stay dry (no "with …").
+  assert.equal(
+    battleLogLine({ event: "cast", sourceId: "me", kind: "earth", expression: "pull" }, who),
+    "You cast earth pull.");
+  // Defeat attribution stays the bare affinity key (not every line gets flavor).
+  assert.equal(
+    battleLogLine({ event: "defeat", targetId: "w", sourceId: "me", kind: "earth", expression: "push" }, who),
+    "W4 w was defeated by your earth push.");
+  // Table covers every kind × emit/draw/push/pull with a short non-empty phrase.
+  for (const [kind, modes] of Object.entries(AFFINITY_ATTACK_FLAVOR)) {
+    for (const expression of ["emit", "draw", "push", "pull"]) {
+      const phrase = affinityAttackFlavor(kind, expression);
+      assert.equal(typeof phrase, "string", `${kind}:${expression}`);
+      assert.ok(phrase.length > 0 && phrase.length <= 28, `${kind}:${expression} → ${phrase}`);
+      assert.equal(modes[expression], phrase);
+    }
+  }
+  assert.equal(affinityAttackFlavor("nope", "push"), null);
 });
 
 test("words: a defeat says whose attack, and what lives on durability is destroyed", async () => {
@@ -209,10 +246,10 @@ test("words: a field hit that regen cancels says so; a stronger one says hurting
   const { battleLogLine } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
   const line = (effect) => battleLogLine({ event: "field", sourceId: "h", targetId: "me", kind: "wind", expression: "emit" },
     { seatId: "me", labelOf: (id) => (id === "h" ? "H2" : null), effect });
-  assert.equal(line({ vital: "stamina", hit: -2, regen: 3 }), "H2 h's wind emit hits, but regen cancels it on you: ST \u22122, regen +3 (net 0).");
-  assert.equal(line({ vital: "stamina", hit: -5, regen: 3 }), "H2 h's wind emit is hurting you: ST \u22125, regen +3 (net \u22122).");
-  assert.equal(line({ vital: "durability", hit: -2, regen: 0 }), "H2 h's wind emit is hurting you: DU \u22122.");
-  assert.equal(line(null), "H2 h's wind emit is hurting you.", "no reading, no claim about amounts");
+  assert.equal(line({ vital: "stamina", hit: -2, regen: 3 }), "H2 h's wind emit — a cutting gale — hits, but regen cancels it on you: ST \u22122, regen +3 (net 0).");
+  assert.equal(line({ vital: "stamina", hit: -5, regen: 3 }), "H2 h's wind emit — a cutting gale — is hurting you: ST \u22125, regen +3 (net \u22122).");
+  assert.equal(line({ vital: "durability", hit: -2, regen: 0 }), "H2 h's wind emit — a cutting gale — is hurting you: DU \u22122.");
+  assert.equal(line(null), "H2 h's wind emit — a cutting gale — is hurting you.", "no reading, no claim about amounts");
 });
 
 // #582, through the session: a warden's wind emit on the seat. Regen cancelling the hit reads as cancelled.

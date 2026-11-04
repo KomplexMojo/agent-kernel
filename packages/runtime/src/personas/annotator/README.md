@@ -70,8 +70,10 @@ field hurting someone is a `field` entry (playtest 2026-10-30 / AK-12): the obse
 lists contacts core already attributed (a lasting field that actually took a vital from that target —
 idle restoring draws that top-up nothing are absent); the Annotator keeps the harmful ones (any draw,
 an emit of a damaging kind in core's table) and logs each contact once, when it starts (last tick's
-contacts are in its context as `fieldHits`), so `Your wind emit is hurting W1 guard-1.` appears once,
-not every tick.
+contacts are in its context as `fieldHits`), so `Your wind emit — a cutting gale — is hurting W1 guard-1.` appears once,
+not every tick. Cast hits and field hurt lines carry a short affinity×mode flavor phrase from
+`render/battle-log-lines.js` (`AFFINITY_ATTACK_FLAVOR`; AK-28) — deterministic observation wording,
+not how-to copy.
 
 **Build-scope `telemetry.json` is deliberately absent from this table.** It is glue-owned by charter
 rule 3 (the plane boundary): `build`/`llm-plan` run no tick, and the Annotator subscribes only to the
