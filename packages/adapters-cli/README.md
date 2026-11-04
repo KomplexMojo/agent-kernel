@@ -572,6 +572,13 @@ Inputs/outputs:
   and the wardens and resources the plan claims; no model, a failed call or an invalid reply falls back to the seeded
   pick. The result's `tacticPlan` says which decided (`decidedBy: llm|seeded`, `reasons`, the model's `response`), and
   `tactics` replays the build with no model.
+- `--actors llm` (`actors: "llm"` on `ak_create`; #721) asks a model for the level's delvers and wardens from `--text`.
+  The prompt lists every configuration recipe with its Allocator cost per role and one sentence, and the strategy
+  recipes; the reply is spec strings (or objects of spec fields) such as `recipe=shadowblade;motivation=user_controlled`.
+  They join any typed `--delver`/`--warden` and are parsed the same way, so an unknown recipe is refused. `--fixture`
+  (`actorFixture`) replays a recorded reply; live needs `AK_LLM_LIVE=1`. No model or an unreadable reply is an error,
+  there is no seeded cast to fall back to, and it cannot share a fixture with `--tactic llm`. `actorPlan` in the result
+  holds the specs, so typing them as `--delver`/`--warden` rebuilds the level with no model.
   `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
   it as `seed`, so the same flags plus `--seed` rebuild the level exactly. `--place` also takes `outOfSight=room:<id>`:
   a cell no doorway of that room can see, by core's line of sight.

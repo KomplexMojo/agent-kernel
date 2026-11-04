@@ -25,6 +25,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
 import { actorStrategyRecipe, actorStrategyRecipeNames } from "../personas/actor/persona.js";
+import { createRecipeCatalogue } from "./recipe-catalogue.js";
 
 /** The `ak` argument grammar: `--key value`, `--key=value`, bare `--flag`; repeatable keys collect. */
 export function parseArgs(argv) {
@@ -1514,6 +1515,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       "warden",
       "place",
       "tactic",
+      "actors",
       "fixture",
       "model",
       "base-url",
@@ -1547,7 +1549,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       unknown.push(...args._);
     }
     if (unknown.length > 0) {
-      throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --tactic, --fixture, --model, --base-url, --seed, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --grade, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+      throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --tactic, --actors, --fixture, --model, --base-url, --seed, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --grade, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
     }
   }
 
@@ -1704,7 +1706,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
    * parsed, budgets resolved, the request and summary assembled. Its IO is the host's: reading a
    * budget or price-list file, drawing a seed, an LLM tactic plan, the clock and ids.
    */
-  async function prepareAuthoringBuild(args, { commandName, action, allowDryRun = false } = {}, { readArtifact, drawSeed, planTacticsWithLlm, now }) {
+  async function prepareAuthoringBuild(args, { commandName, action, allowDryRun = false } = {}, { readArtifact, drawSeed, planTacticsWithLlm, planActorsWithLlm, now }) {
     assertAllowedAgentAuthoringArgs(commandName, args, { allowDryRun });
 
     const runId = args["run-id"] || makeId("run");
@@ -1789,6 +1791,22 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       .map((entry) => String(entry || "").trim())
       .filter(Boolean)
       .map((value, index) => ({ prompt: value, value: parseResourceSpec(value, index + 1) }));
+    // #721: `--actors llm` asks the model for the cast, by recipe, from --text. Its specs join the
+    // typed ones and go through the same parser, so a name the catalogue lacks is refused.
+    let actorPlan;
+    if (args.actors !== undefined) {
+      if (args.actors !== "llm") throw new Error(`${commandName}: --actors takes llm, got ${JSON.stringify(args.actors)}.`);
+      if (normalizeList(args.tactic).includes("llm")) {
+        throw new Error(`${commandName}: --actors llm and --tactic llm would share one --fixture; pick one.`);
+      }
+      if (typeof planActorsWithLlm !== "function") throw new Error(`${commandName}: --actors llm needs a host that can call a model.`);
+      const catalogue = createRecipeCatalogue({ configurator });
+      const planned = await planActorsWithLlm({ args, text: authoringText, budgetTokens: resolvedBudgetTokens,
+        recipes: catalogue.list({ kind: "config" }), strategies: catalogue.list({ kind: "strategy" }) });
+      args.delver = [...normalizeList(args.delver), ...planned.delvers];
+      args.warden = [...normalizeList(args.warden), ...planned.wardens];
+      actorPlan = planned.actorPlan;
+    }
     // #722: what the specs leave the actors unable to do; reported, never refused.
     const warnings = [];
     const parsedDelvers = normalizeList(args.delver)
@@ -2158,6 +2176,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       resolvedBudgetTokens,
       warnings,
       tacticPlan,
+      ...(actorPlan ? { actorPlan } : {}),
       requestArtifact,
       hazards: canonicalHazardEntries,
       resources: parsedResources,

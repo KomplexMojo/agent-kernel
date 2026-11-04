@@ -52,7 +52,7 @@ import {
   MOTIVATION_KINDS as ALLOWED_MOTIVATIONS,
 } from "../../../runtime/src/contracts/domain-constants.js";
 // Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
-import { deriveAllowedOptionsFromCatalog, normalizeSummary, buildTacticPlanPrompt, readTacticPlanResponse } from "../../../runtime/src/personas/orchestrator/persona.js";
+import { deriveAllowedOptionsFromCatalog, normalizeSummary, buildActorPlanPrompt, buildTacticPlanPrompt, readActorPlanResponse, readTacticPlanResponse } from "../../../runtime/src/personas/orchestrator/persona.js";
 // CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
@@ -299,6 +299,10 @@ Options:
                   (id, kind, restores, name).
                   llm (alone) asks the model (--fixture, or AK_LLM_LIVE=1; --model, --base-url) for the mix; an invalid reply
                   or no model falls back to auto's seeded pick, and the result's tacticPlan says which decided.
+  --actors llm      #721: the model (--fixture, or AK_LLM_LIVE=1) picks the delvers and wardens from --text and the recipe
+                  catalogue, replying with specs (recipe=shadowblade;motivation=user_controlled). They join any typed
+                  --delver/--warden and are parsed like them, so an unknown recipe is refused; actorPlan records the reply.
+                  No model or an unreadable reply is an error. Not with --tactic llm (one --fixture).
                   auto (alone) lets the Director pick a mix of these, with their sizes, from the seed; the result lists the picks.
                   With a tactic and no --seed, a seed is drawn; the result reports it (seed) so --seed rebuilds the level exactly.
   --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump][;outOfSight=room:<id>]
@@ -2524,6 +2528,7 @@ async function writeBuildOutputs({
   commandName,
   producedBy,
   tacticPlan,
+  actorPlan,
 } = {}) {
   await writeJson(join(outDir, "spec.json"), spec);
 
@@ -2630,6 +2635,7 @@ async function writeBuildOutputs({
       ...(placementReport !== undefined ? { placementReport } : {}),
       ...(Array.isArray(tactics) && tactics.length > 0 ? { tactics } : {}),
       ...(tacticPlan ? { tacticPlan } : {}),
+      ...(actorPlan ? { actorPlan } : {}),
       ...(Number.isSafeInteger(buildSeed) ? { seed: buildSeed } : {}),
       ...(grade ? { grade } : {}),
       // #371: authored vitals a Configurator floor raised, so none changes silently.
@@ -3704,6 +3710,31 @@ async function resolveLlmTacticPlan({ args, seededTactics, levelCounts, rooms })
   return { tactics, tacticPlan: { decidedBy: "llm", model, response: reply.tactics } };
 }
 
+/**
+ * #721: `--actors llm` — the model picks the level's delvers and wardens from --text and the recipe
+ * catalogue. Unlike a tactic plan there is no seeded cast to fall back to, so a missing model or an
+ * unreadable reply is an error; the specs it returns are parsed like typed ones, so an unknown
+ * recipe is refused there. `actorPlan` records the model and its reply.
+ */
+async function resolveLlmActorPlan({ args, text, budgetTokens, recipes, strategies }) {
+  const fixturePath = args.fixture;
+  const baseUrl = args["base-url"] || process.env.AK_LLM_BASE_URL || DEFAULT_LLM_BASE_URL;
+  if (!fixturePath && !isLlmLiveEnabled()) throw new Error("--actors llm needs a model: pass --fixture or set AK_LLM_LIVE=1.");
+  if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
+    throw new Error("--actors llm: a non-local --base-url needs AK_ALLOW_NETWORK=1.");
+  }
+  const model = args.model || process.env.AK_LLM_MODEL || DEFAULT_LLM_MODEL;
+  const prompt = buildActorPlanPrompt({ text, goal: args.goal, budgetTokens, recipes, strategies });
+  const adapter = fixturePath
+    ? createLlmAdapter({ fixture: JSON.parse(await readText(fixturePath)) })
+    : createLlmAdapter({ baseUrl });
+  const payload = await adapter.generate({ model, prompt, stream: false });
+  const reply = readActorPlanResponse(payload);
+  if (reply.errors) throw new Error(`--actors llm: the model's reply could not be read (${reply.errors.join("; ")}).`);
+  return { delvers: reply.delvers, wardens: reply.wardens,
+    actorPlan: { decidedBy: "llm", model, delvers: reply.delvers, wardens: reply.wardens } };
+}
+
 async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = false } = {}) {
   const args = parseArgs(argv);
   if (args.help) {
@@ -3717,6 +3748,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     resolvedBudgetTokens,
     warnings: specWarnings = [],
     tacticPlan,
+    actorPlan,
     requestArtifact,
     hazards: canonicalHazardEntries,
     resources: parsedResources,
@@ -3725,6 +3757,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     readArtifact: (path) => readJson(resolvePath(path)),
     drawSeed: () => randomInt(0, 2 ** 31 - 1),
     planTacticsWithLlm: resolveLlmTacticPlan,
+    planActorsWithLlm: resolveLlmActorPlan,
     now: () => new Date().toISOString(),
   });
   const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir(commandName, runId);
@@ -3760,6 +3793,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     commandName,
     producedBy: `cli-${commandName}`,
     tacticPlan,
+    actorPlan,
   });
 
   await writeHazardArtifactFiles({
