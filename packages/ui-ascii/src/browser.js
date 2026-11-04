@@ -191,6 +191,7 @@ const HELP_BLOCKS = [
   { title: "Board", items: [
     { keys: ["─ │ ┌…", "╴ ╶ ╵ ╷", "■"], text: "walls (short stubs are wall ends — not cast path)" },
     { keys: [":"], text: "affinity field on the floor" },
+    { keys: ["▮"], text: "barrier — only while in sight (unlit: adjacent); remembered map shows floor" },
     { keys: ["> < ^ v / \\"], text: "cast path on the floor (push points away from the caster, pull back)" },
   ] },
   { title: "Combat", items: [
