@@ -95,10 +95,16 @@ function resolveRegistryLightDark(observation: RegistryObservation) {
  * everyone else, never the actor emitting it (#409, "own emit never affects self",
  * #336). Dark from other sources that still survives at its tile by the blinding
  * threshold leaves it its own tile only (#284).
+ *
+ * Dark stealth: an actor standing in its *own* concealing emit stays obscured to
+ * others even when opposing light would cancel net dark on that tile for floor
+ * shading (visibility.ts: own dark "hides the emitter"). Without this, equal-
+ * intensity light that merely reaches the tile strips the cloak and stealth fails.
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
   const ownDark = isOwnDark(self.id);
   const { lightByCell, darkStacksByCell } = resolveLightDarkWithoutOwnDark(observation, self.id);
+  cloakEmittersInOwnDark(observation, self.id, darkStacksByCell);
   const tile = `${self.position.x},${self.position.y}`;
   const ownLight = (lightByCell[tile] ?? 0) > 0 ? litLightRange(self) : 0;
   // Blinding dark (#284): the field at the tile re-resolved without the observer's own dark.
@@ -112,6 +118,29 @@ function resolveRegistrySight(observation: RegistryObservation, self: ActorRecor
 }
 
 const isOwnDark = (selfId: string) => (cell: { sourceId?: string; kind?: string }) => cell.sourceId === selfId && hasColumn(cell.kind, 'conceals');
+
+/**
+ * Keep each living emitter's own concealing field on its tile visible to other
+ * observers for concealment, ignoring light that cancelled net dark there.
+ */
+function cloakEmittersInOwnDark(
+  observation: RegistryObservation,
+  observerId: string,
+  darkStacksByCell: Record<string, number>,
+): void {
+  for (const actor of observation.actors) {
+    if (actor.id === observerId || actor.lifecycle !== 'alive') continue;
+    const key = `${actor.position.x},${actor.position.y}`;
+    const own = isOwnDark(actor.id);
+    const onTile = observation.affinityContributions.filter(cell =>
+      own(cell) && cell.position.x === actor.position.x && cell.position.y === actor.position.y);
+    if (onTile.length === 0) continue;
+    const intensity = fieldIntensityByCell(resolveActorFieldOverlap(onTile), 'conceals')[key] ?? 0;
+    if (intensity >= NET_DARK_OBSCURE_INTENSITY_THRESHOLD) {
+      darkStacksByCell[key] = Math.max(darkStacksByCell[key] ?? 0, intensity);
+    }
+  }
+}
 
 /**
  * The field one actor lives by: without dark of its own the field as it stands; with some, the field

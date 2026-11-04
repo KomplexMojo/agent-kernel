@@ -87,8 +87,9 @@ export const MIN_SIGHT_RADIUS = 1;
  * stay visible in line of sight. Every actor is under the same rule, so strong
  * dark is also a way to slip past a warden.
  *
- * The actor's own dark does not count: it hides the emitter, it does not blind
- * it, or every dark-bearer above intensity 1 would blind itself.
+ * The actor's own dark does not count toward blinding itself: it hides the
+ * emitter from others (`cloakEmittersInOwnDark` in actor-observation), it does
+ * not blind the emitter, or every dark-bearer above intensity 1 would blind itself.
  */
 export const BLINDING_DARK_INTENSITY_THRESHOLD = 2;
 
