@@ -136,3 +136,24 @@ test("a held, unequipped affinity is offered as equip, and an equipped one as un
   const after = listLegalPlayCommands(session.view());
   expect(byId(after, "unequip:fire:push")).toBeDefined();
 });
+
+// #723: every cast and equip names its role, and a held attack outside the slots names who it would
+// reach once equipped, so a seat that holds an attack always sees it as one.
+test("casts and equips say attack, defence or support; an unequipped attack names who it would reach", async () => {
+  const session = await createPlaySession({ ...buildUnifiedLevel({ id: "roles", tiles: ["#######", "#....E#", "#######"], actors: [
+    { category: "delver", id: "hero", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals({ mana: 200 }),
+      affinities: [{ kind: "fire", expression: "emit", stacks: 2, intensity: 1 }, { kind: "fire", expression: "push", stacks: 3, intensity: 1 },
+        { kind: "growth", expression: "pull", stacks: 1, intensity: 1 }] },
+    { category: "warden", id: "guard", position: { x: 3, y: 1 }, motivations: ["stationary"], vitals: viableVitals(), affinities: [] },
+  ] }), fog: false });
+  await session.act({ kind: "equip_affinity", params: { affinityKey: "fire:emit" } });
+  const byId = (list, id) => list.find((action) => action.id === id);
+  const before = listLegalPlayCommands(session.view());
+  const guard = session.view().actors.find((actor) => actor.id.startsWith("guard"));
+  const name = guard.label ?? guard.id;
+  expect(byId(before, "equip:fire:push").label).toBe(`equip fire push (a turn; attack, would reach ${name} next turn)`);
+  expect(byId(before, "equip:growth:pull").label).toBe("equip growth pull (a turn; defence)");
+  await session.act(byId(before, "equip:fire:push").command);
+  const after = listLegalPlayCommands(session.view());
+  expect(byId(after, `cast:fire:push@${guard.id}`).label).toBe(`cast fire push at ${name} (attack)`);
+});
