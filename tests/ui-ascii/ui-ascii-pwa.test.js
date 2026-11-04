@@ -92,6 +92,10 @@ test("phone battle log keeps cast-path and sprint how-to out of the message band
   assert.match(game, /Sprint armed\./);
   // Legend lives in Keys/help, not in #msg composition.
   assert.match(browser, /cast path on the floor \(push points away from the caster, pull back\)/);
+  // Wall stubs (╷ ╵ etc.) are terrain end-caps — Keys/help must name them so they are not
+  // read as cast-path leftovers (fields seed-4 playtest / AK-26).
+  assert.match(browser, /short stubs are wall ends/);
+  assert.match(browser, /title: "Board"/);
 });
 
 test("p opens the playtest report (and More lists it)", () => {
