@@ -93,6 +93,30 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
   mkdirSync(outDir, { recursive: true });
   const workDir = mkdtempSync(join(tmpdir(), "ak-power-ladder-"));
   const runs = [];
+  // report.md and summary.json are rewritten after every play, so a run in progress can be read
+  // (`watch -n 10 cat .../report.md`); the last write is the final report.
+  const writeReports = () => {
+    const byRung = rungs.map((k) => {
+      const plays = runs.filter((run) => run.rung === k);
+      const wins = plays.filter((run) => run.outcome === "exited").length;
+      const tokens = plays.find((run) => Number.isFinite(run.delverTokens))?.delverTokens ?? null;
+      const mean = (key) => (plays.length ? Math.round((plays.reduce((sum, run) => sum + (run[key] ?? 0), 0) / plays.length) * 10) / 10 : null);
+      const labels = Object.fromEntries(["fought", "avoided", "pinned", "lost", "timeout"].map((label) => [label, plays.filter((run) => run.label === label).length]).filter(([, n]) => n));
+      return { rung: k, plays: plays.length, wins, winRate: plays.length ? wins / plays.length : null, delverTokens: tokens,
+        tokensPerWin: wins ? Math.round((tokens ?? 0) * plays.length / wins) : null, meanTicks: mean("ticks"), meanCasts: mean("casts"), meanHealthLost: mean("healthLost"), labels };
+    });
+    const winning = byRung.filter((rung) => rung.winRate !== null && rung.winRate >= 0.5).map((rung) => rung.rung);
+    const summary = { schema: "agent-kernel/PowerLadderRun", version: 2, scenario: scenarioId, seeds, rungs, repeats, maxTicks, model,
+      lowestWinningRung: winning.length ? Math.min(...winning) : null, byRung, runs };
+    writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+    const rows = byRung.map((rung) => `| ×${rung.rung} | ${rung.wins}/${rung.plays} | ${rung.delverTokens ?? "?"} | ${rung.tokensPerWin ?? "–"} | ${rung.meanTicks} | ${rung.meanCasts} | ${rung.meanHealthLost} | ${Object.entries(rung.labels).map(([label, n]) => `${label} ${n}`).join(", ")} |`);
+    const plays = runs.map((run) => `| ×${run.rung} | ${run.seed} | ${run.repeat} | ${run.outcome} | ${run.label} | ${run.ticks} | ${run.casts} | ${run.struck} | ${run.healthLost} | ${run.hostileInSightTurns} | ${run.illegal ?? "?"} |`);
+    writeFileSync(join(outDir, "report.md"), [`# Power ladder: ${scenarioId}`, "",
+      `Model: ${model ?? "fixture"} · ${repeats} play(s) per rung and seed · lowest rung winning at least half its plays: ${summary.lowestWinningRung === null ? "none" : `×${summary.lowestWinningRung}`}`, "",
+      "| rung | wins | delver tokens | tokens per win | mean ticks | mean casts | mean HP lost | how |", "|---|---|---|---|---|---|---|---|", ...rows, "",
+      "## Plays", "", "| rung | seed | play | outcome | how | ticks | casts | hits landed | HP lost | turns hostile in sight | illegal |", "|---|---|---|---|---|---|---|---|---|---|---|", ...plays, ""].join("\n"));
+    return summary;
+  };
   try {
     for (const seed of seeds) {
       const baseSpec = playerDelverSpec(scenario, seed);
@@ -113,6 +137,7 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
           runs.push({ file, rung: k, seed, repeat, outcome: record.outcome, ticks: record.ticks, budgetTokens,
             delverTokens: record.delverPool?.spentTokens ?? null, minHealth: record.minVitals?.health ?? null,
             illegal: record.seatLog?.illegal ?? null, ...profile });
+          writeReports();
           log(`x${k} s${seed} r${repeat}: ${record.outcome} (${profile.label}) in ${record.ticks} ticks, ${profile.casts} casts, -${profile.healthLost} HP (delver ${record.delverPool?.spentTokens ?? "?"} tokens)`);
         }
       }
@@ -120,25 +145,7 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
   } finally {
     rmSync(workDir, { recursive: true, force: true });
   }
-  const byRung = rungs.map((k) => {
-    const plays = runs.filter((run) => run.rung === k);
-    const wins = plays.filter((run) => run.outcome === "exited").length;
-    const tokens = plays.find((run) => Number.isFinite(run.delverTokens))?.delverTokens ?? null;
-    const mean = (key) => (plays.length ? Math.round((plays.reduce((sum, run) => sum + (run[key] ?? 0), 0) / plays.length) * 10) / 10 : null);
-    const labels = Object.fromEntries(["fought", "avoided", "pinned", "lost", "timeout"].map((label) => [label, plays.filter((run) => run.label === label).length]).filter(([, n]) => n));
-    return { rung: k, plays: plays.length, wins, winRate: plays.length ? wins / plays.length : null, delverTokens: tokens,
-      tokensPerWin: wins ? Math.round((tokens ?? 0) * plays.length / wins) : null, meanTicks: mean("ticks"), meanCasts: mean("casts"), meanHealthLost: mean("healthLost"), labels };
-  });
-  const winning = byRung.filter((rung) => rung.winRate !== null && rung.winRate >= 0.5).map((rung) => rung.rung);
-  const summary = { schema: "agent-kernel/PowerLadderRun", version: 2, scenario: scenarioId, seeds, rungs, repeats, maxTicks, model,
-    lowestWinningRung: winning.length ? Math.min(...winning) : null, byRung, runs };
-  writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
-  const rows = byRung.map((rung) => `| ×${rung.rung} | ${rung.wins}/${rung.plays} | ${rung.delverTokens ?? "?"} | ${rung.tokensPerWin ?? "–"} | ${rung.meanTicks} | ${rung.meanCasts} | ${rung.meanHealthLost} | ${Object.entries(rung.labels).map(([label, n]) => `${label} ${n}`).join(", ")} |`);
-  const plays = runs.map((run) => `| ×${run.rung} | ${run.seed} | ${run.repeat} | ${run.outcome} | ${run.label} | ${run.ticks} | ${run.casts} | ${run.struck} | ${run.healthLost} | ${run.hostileInSightTurns} | ${run.illegal ?? "?"} |`);
-  writeFileSync(join(outDir, "report.md"), [`# Power ladder: ${scenarioId}`, "",
-    `Model: ${model ?? "fixture"} · ${repeats} play(s) per rung and seed · lowest rung winning at least half its plays: ${summary.lowestWinningRung === null ? "none" : `×${summary.lowestWinningRung}`}`, "",
-    "| rung | wins | delver tokens | tokens per win | mean ticks | mean casts | mean HP lost | how |", "|---|---|---|---|---|---|---|---|", ...rows, "",
-    "## Plays", "", "| rung | seed | play | outcome | how | ticks | casts | hits landed | HP lost | turns hostile in sight | illegal |", "|---|---|---|---|---|---|---|---|---|---|---|", ...plays, ""].join("\n"));
+  const summary = writeReports();
   return { outDir, runs, summary };
 }
 
