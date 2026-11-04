@@ -132,7 +132,9 @@ export async function runSeat({ transport, levelDir, picker, maxTurns = DEFAULT_
     log.picks += 1;
     // What the model was shown and could do this turn (the state before its pick), so a record can say
     // whether a counter was on offer. The prompt's history reads only pick/refused/hud.
-    log.transcript.push({ turn: turn + 1, pick: chosen.id, refused, hud: next.hud, legal: actions.map((action) => action.id), screen: result.screen, ...(result.legalNote ? { legalNote: result.legalNote } : {}) });
+    log.transcript.push({ turn: turn + 1, pick: chosen.id, refused, hud: next.hud, legal: actions.map((action) => action.id), screen: result.screen, ...(result.legalNote ? { legalNote: result.legalNote } : {}),
+      // What the model actually answered for the accepted pick (power ladder v2), when the picker keeps it.
+      ...(typeof picker.lastRaw === "string" ? { answer: picker.lastRaw.slice(0, 200) } : {}) });
     result = next;
     track();
   }

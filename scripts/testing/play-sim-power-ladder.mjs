@@ -8,11 +8,17 @@
  * afford is rebuilt at a doubled budget, which leaves the map unchanged; its receipt is recorded).
  *
  *   node scripts/testing/play-sim-power-ladder.mjs --model qwen3.8:27b [--scenario first-look]
- *        [--seeds 0,1] [--rungs 1,1.5,2,3,4] [--max-ticks 200] [--provider ollama|anthropic] [--ollama-url URL]
+ *        [--seeds 0,1] [--rungs 1,1.5,2,3,4] [--repeats 3] [--max-ticks 200] [--provider ollama|anthropic] [--ollama-url URL]
+ *
+ * v2 (2026-11-04): one play is a sample, not a verdict (×1.5 won and ×2 lost on one seed), so each
+ * rung is played `--repeats` times per seed. Each play is labelled from what the seat saw: `fought`
+ * (it cast), `pinned` (defeated at 0 stamina), `avoided` (left without casting), `lost` or `timeout`,
+ * with its kit use (equips, casts, landed hits), damage taken (health lost, from its HUD) and turns the
+ * guard was in sight. The summary gives each rung's win rate and tokens per win.
  *
  * Scaling a rung by k: every vital's max and regen × k (rounded up); each push and pull's intensity
  * × √k (rounded, at least 1), since harm and mana both grow with intensity²; emits and ranges stay.
- * Writes artifacts/play-sim/power-ladder-<run-id>/{rung-<k>-s<seed>.json, summary.json, report.md}.
+ * Writes artifacts/play-sim/power-ladder-<run-id>/{rung-<k>-s<seed>-r<n>.json, summary.json, report.md}.
  * A probe, like any model run: never a gate.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -27,6 +33,7 @@ import { createAnthropicAdapter, resolveProvider } from "./play-sim-anthropic.mj
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const DEFAULT_RUNGS = [1, 1.5, 2, 3, 4];
+export const DEFAULT_REPEATS = 3;
 const BUDGET_RETRIES = 3;
 
 /** The delver spec scaled by `k` (see the header); every other field is kept as written. */
@@ -51,8 +58,35 @@ export function scaleDelverSpec(spec, k) {
   }).join(";");
 }
 
-/** Play every rung on every seed; returns `{ outDir, runs, summary }`. */
-export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], rungs = DEFAULT_RUNGS, maxTicks = 200, seatPicker, model = null, outDir, log = () => {} }) {
+/** Health the seat lost over the play, summed from its HUD line per turn (its own vitals: #497 allows). */
+function healthLost(transcript) {
+  let lost = 0;
+  let before = null;
+  for (const turn of transcript) {
+    const now = Number(/HP (\d+)\//.exec(turn.hud ?? "")?.[1]);
+    if (Number.isFinite(now) && before !== null && now < before) lost += before - now;
+    if (Number.isFinite(now)) before = now;
+  }
+  return lost;
+}
+
+/** What one play shows about the seat's play, from the seat's own record (no fog-free reads). */
+export function playProfile(record) {
+  const transcript = record.seatLog?.transcript ?? [];
+  const picks = transcript.map((turn) => turn.pick);
+  const casts = picks.filter((pick) => pick.startsWith("cast")).length;
+  const struck = new Set(transcript.flatMap((turn) => (turn.screen ?? "").split("\n"))
+    .filter((line) => /^\s*T\d+ You cast .* and struck /.test(line)).map((line) => line.trim())).size;
+  const last = transcript.at(-1)?.hud ?? "";
+  const pinned = record.outcome === "defeated" && / ST 0\//.test(last);
+  const label = casts > 0 ? "fought" : pinned ? "pinned" : record.outcome === "exited" ? "avoided"
+    : record.outcome === "defeated" ? "lost" : record.outcome;
+  return { label, equips: picks.filter((pick) => pick.startsWith("equip")).length, casts, struck,
+    healthLost: healthLost(transcript), hostileInSightTurns: transcript.filter((turn) => /In sight: .*\bW\d/.test(turn.screen ?? "")).length };
+}
+
+/** Play every rung on every seed, `repeats` times; returns `{ outDir, runs, summary }`. */
+export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], rungs = DEFAULT_RUNGS, repeats = DEFAULT_REPEATS, maxTicks = 200, seatPicker, model = null, outDir, log = () => {} }) {
   const catalog = loadPlaytestScenarios();
   const scenario = catalog.scenarios.find((entry) => entry.id === scenarioId);
   if (!scenario) throw new Error(`no playtest scenario "${scenarioId}"`);
@@ -64,33 +98,47 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
       const baseSpec = playerDelverSpec(scenario, seed);
       for (const k of rungs) {
         const character = scaleDelverSpec(baseSpec, k);
-        let budgetTokens = Math.ceil(scenario.budgetTokens * Math.max(1, k));
-        let record;
-        for (let attempt = 0; attempt <= BUDGET_RETRIES; attempt += 1) {
-          record = await runOne({ ...scenario, id: `${scenario.id}-x${k}` }, seed, { arm: "baseline", budgetTokens },
-            { workDir, createdAt: catalog.createdAt, strategy: "seat", maxTicks, seatPicker, character });
-          if (record.outcome !== "create_failed") break;
-          budgetTokens *= 2;
+        for (let repeat = 1; repeat <= repeats; repeat += 1) {
+          let budgetTokens = Math.ceil(scenario.budgetTokens * Math.max(1, k));
+          let record;
+          for (let attempt = 0; attempt <= BUDGET_RETRIES; attempt += 1) {
+            record = await runOne({ ...scenario, id: `${scenario.id}-x${k}` }, seed, { arm: "baseline", budgetTokens },
+              { workDir, createdAt: catalog.createdAt, strategy: "seat", maxTicks, seatPicker, character });
+            if (record.outcome !== "create_failed") break;
+            budgetTokens *= 2;
+          }
+          const profile = playProfile(record);
+          const file = `rung-${k}-s${seed}-r${repeat}.json`;
+          writeFileSync(join(outDir, file), `${JSON.stringify({ rung: k, repeat, character, profile, ...record }, null, 2)}\n`);
+          runs.push({ file, rung: k, seed, repeat, outcome: record.outcome, ticks: record.ticks, budgetTokens,
+            delverTokens: record.delverPool?.spentTokens ?? null, minHealth: record.minVitals?.health ?? null,
+            illegal: record.seatLog?.illegal ?? null, ...profile });
+          log(`x${k} s${seed} r${repeat}: ${record.outcome} (${profile.label}) in ${record.ticks} ticks, ${profile.casts} casts, -${profile.healthLost} HP (delver ${record.delverPool?.spentTokens ?? "?"} tokens)`);
         }
-        const entry = { rung: k, character, ...record };
-        const file = `rung-${k}-s${seed}.json`;
-        writeFileSync(join(outDir, file), `${JSON.stringify(entry, null, 2)}\n`);
-        runs.push({ file, rung: k, seed, outcome: record.outcome, ticks: record.ticks, budgetTokens,
-          delverTokens: record.delverPool?.spentTokens ?? null, minHealth: record.minVitals?.health ?? null,
-          illegal: record.seatLog?.illegal ?? null });
-        log(`x${k} s${seed}: ${record.outcome} in ${record.ticks} ticks (delver ${record.delverPool?.spentTokens ?? "?"} tokens)`);
       }
     }
   } finally {
     rmSync(workDir, { recursive: true, force: true });
   }
-  const won = runs.filter((run) => run.outcome === "exited").map((run) => run.rung);
-  const summary = { schema: "agent-kernel/PowerLadderRun", version: 1, scenario: scenarioId, seeds, rungs, maxTicks, model,
-    lowestWinningRung: won.length ? Math.min(...won) : null, runs };
+  const byRung = rungs.map((k) => {
+    const plays = runs.filter((run) => run.rung === k);
+    const wins = plays.filter((run) => run.outcome === "exited").length;
+    const tokens = plays.find((run) => Number.isFinite(run.delverTokens))?.delverTokens ?? null;
+    const mean = (key) => (plays.length ? Math.round((plays.reduce((sum, run) => sum + (run[key] ?? 0), 0) / plays.length) * 10) / 10 : null);
+    const labels = Object.fromEntries(["fought", "avoided", "pinned", "lost", "timeout"].map((label) => [label, plays.filter((run) => run.label === label).length]).filter(([, n]) => n));
+    return { rung: k, plays: plays.length, wins, winRate: plays.length ? wins / plays.length : null, delverTokens: tokens,
+      tokensPerWin: wins ? Math.round((tokens ?? 0) * plays.length / wins) : null, meanTicks: mean("ticks"), meanCasts: mean("casts"), meanHealthLost: mean("healthLost"), labels };
+  });
+  const winning = byRung.filter((rung) => rung.winRate !== null && rung.winRate >= 0.5).map((rung) => rung.rung);
+  const summary = { schema: "agent-kernel/PowerLadderRun", version: 2, scenario: scenarioId, seeds, rungs, repeats, maxTicks, model,
+    lowestWinningRung: winning.length ? Math.min(...winning) : null, byRung, runs };
   writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
-  const rows = runs.map((run) => `| ×${run.rung} | ${run.seed} | ${run.outcome} | ${run.ticks} | ${run.delverTokens ?? "?"} | ${run.budgetTokens} | ${run.minHealth ?? "?"} | ${run.illegal ?? "?"} |`);
-  writeFileSync(join(outDir, "report.md"), [`# Power ladder: ${scenarioId}`, "", `Model: ${model ?? "fixture"} · lowest winning rung: ${summary.lowestWinningRung === null ? "none" : `×${summary.lowestWinningRung}`}`, "",
-    "| rung | seed | outcome | ticks | delver tokens | budget | min HP | illegal |", "|---|---|---|---|---|---|---|---|", ...rows, ""].join("\n"));
+  const rows = byRung.map((rung) => `| ×${rung.rung} | ${rung.wins}/${rung.plays} | ${rung.delverTokens ?? "?"} | ${rung.tokensPerWin ?? "–"} | ${rung.meanTicks} | ${rung.meanCasts} | ${rung.meanHealthLost} | ${Object.entries(rung.labels).map(([label, n]) => `${label} ${n}`).join(", ")} |`);
+  const plays = runs.map((run) => `| ×${run.rung} | ${run.seed} | ${run.repeat} | ${run.outcome} | ${run.label} | ${run.ticks} | ${run.casts} | ${run.struck} | ${run.healthLost} | ${run.hostileInSightTurns} | ${run.illegal ?? "?"} |`);
+  writeFileSync(join(outDir, "report.md"), [`# Power ladder: ${scenarioId}`, "",
+    `Model: ${model ?? "fixture"} · ${repeats} play(s) per rung and seed · lowest rung winning at least half its plays: ${summary.lowestWinningRung === null ? "none" : `×${summary.lowestWinningRung}`}`, "",
+    "| rung | wins | delver tokens | tokens per win | mean ticks | mean casts | mean HP lost | how |", "|---|---|---|---|---|---|---|---|", ...rows, "",
+    "## Plays", "", "| rung | seed | play | outcome | how | ticks | casts | hits landed | HP lost | turns hostile in sight | illegal |", "|---|---|---|---|---|---|---|---|---|---|---|", ...plays, ""].join("\n"));
   return { outDir, runs, summary };
 }
 
@@ -102,6 +150,7 @@ function parseArgs(argv) {
     else if (arg === "--seeds") options.seeds = argv[++i].split(",").filter(Boolean).map(Number);
     else if (arg === "--rungs") options.rungs = argv[++i].split(",").filter(Boolean).map(Number);
     else if (arg === "--max-ticks") options.maxTicks = Number(argv[++i]);
+    else if (arg === "--repeats") options.repeats = Number(argv[++i]);
     else if (arg === "--out-dir") options.outDir = resolve(argv[++i]);
     else if (arg === "--model") options.model = argv[++i];
     else if (arg === "--ollama-url") options.ollamaUrl = argv[++i];
@@ -109,6 +158,7 @@ function parseArgs(argv) {
     else throw new Error(`unknown argument ${arg}`);
   }
   if (options.rungs?.some((k) => !(k > 0))) throw new Error("--rungs takes positive numbers");
+  if (options.repeats !== undefined && !(Number.isInteger(options.repeats) && options.repeats > 0)) throw new Error("--repeats takes a positive integer");
   return options;
 }
 
