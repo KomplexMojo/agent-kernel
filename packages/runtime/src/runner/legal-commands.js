@@ -8,8 +8,12 @@
  * may stand there; core refuses such a step with ActorCollision, as it should (#672).
  */
 import { PLAY_DIRECTION_STEPS, PLAY_SIGHT } from "./play-session.js";
+import { affinityRole } from "../render/affinity-role.js";
 
 const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+// #723: each cast and equip says what the slot is for (the table's attack / defence / support), so a
+// seat sees which choices can strike; an unequipped attack also names who it would reach once equipped.
+const roleOf = (key) => { const [kind, expression] = key.split(":"); return affinityRole(kind, expression); };
 const vitalNow = (player, key) => (player?.vitals || []).find((vital) => vital.key === key)?.current ?? 0;
 
 export function listLegalPlayCommands(view) {
@@ -47,7 +51,8 @@ export function listLegalPlayCommands(view) {
     if (price !== undefined && price > mana) continue;
     for (const target of targets) {
       if (chebyshev(player.position, target.position) > range) continue;
-      actions.push({ id: `cast:${key}@${target.id}`, label: `cast ${key.replace(":", " ")} at ${target.label ?? target.id}`,
+      const role = roleOf(key);
+      actions.push({ id: `cast:${key}@${target.id}`, label: `cast ${key.replace(":", " ")} at ${target.label ?? target.id}${role ? ` (${role})` : ""}`,
         command: { kind: "cast_affinity", params: { targetId: target.id, affinityKey: key } } });
     }
   }
@@ -62,7 +67,12 @@ export function listLegalPlayCommands(view) {
       actions.push({ id: `unequip:${key}`, label: `unequip ${name} (a turn)`, command: { kind: "unequip_affinity", params: { affinityKey: key } } });
     } else {
       const gives = equipped.length >= slots ? equipped[0] : null;
-      actions.push({ id: `equip:${key}`, label: `equip ${name} (a turn${gives ? `; ${gives.replace(":", " ")} gives way` : ""})`,
+      const role = roleOf(key);
+      const castable = pair.expression === "push" || pair.expression === "pull";
+      const reaches = role === "attack" && castable && Number.isInteger(pair.stacks)
+        ? targets.filter((target) => chebyshev(player.position, target.position) <= pair.stacks).map((target) => target.label ?? target.id) : [];
+      const purpose = role ? `; ${role}${reaches.length ? `, would reach ${reaches.join(", ")} next turn` : ""}` : "";
+      actions.push({ id: `equip:${key}`, label: `equip ${name} (a turn${gives ? `; ${gives.replace(":", " ")} gives way` : ""}${purpose})`,
         command: { kind: "equip_affinity", params: { affinityKey: key } } });
     }
   }

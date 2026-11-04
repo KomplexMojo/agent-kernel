@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { playProfile, runPowerLadder, scaleDelverSpec } from "../../scripts/testing/play-sim-power-ladder.mjs";
+import { attackUse, equipEveryHeld, playProfile, runPowerLadder, scaleDelverSpec } from "../../scripts/testing/play-sim-power-ladder.mjs";
 
 const SPEC = "count=1;id=hero;affinity=fire;affinities=fire:emit:2:1,fire:push:3:1;equip=fire:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1";
 
@@ -32,6 +32,10 @@ test("each rung builds the same map with a stronger delver, priced, and is playe
     const report = readFileSync(join(outDir, "report.md"), "utf8");
     expect(report).toMatch(/\| ×2 \| 0\/2 \|/);
     expect(report).toMatch(/\| ×2 \| 0 \| 2 \| timeout \| timeout \|/);
+    // A seat that only waits held its push and never cast it: #724 flags every play.
+    expect(summary.attackUnused).toBe(4);
+    expect(rung2.profile).toMatchObject({ attackHeld: ["fire:push"], attackEquippedAtStart: true, attackUnused: true });
+    expect(report).toMatch(/\*\*Defect:\*\* 4 of 4 play\(s\) held an attack and never cast it\./);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }
@@ -44,4 +48,23 @@ test("a play is labelled from the seat's own record: fought, pinned, avoided", (
   const fought = playProfile({ outcome: "exited", seatLog: { transcript: [turn("equip:fire:push", 20, 10), turn("cast:fire:push@guard-1", 20, 10, "T1 You cast fire push and struck W1 guard-1: a solid hit; it looks hurt.")] } });
   expect(fought).toMatchObject({ label: "fought", equips: 1, casts: 1, struck: 1 });
   expect(playProfile({ outcome: "exited", seatLog: { transcript: [turn("move:north", 20, 9)] } }).label).toBe("avoided");
+});
+
+test("#722: a rung's delver starts with every held affinity equipped, up to three slots", () => {
+  expect(equipEveryHeld(SPEC)).toBe(SPEC.replace("equip=fire:emit", "equip=fire:emit,fire:push"));
+  const noEquip = SPEC.replace(";equip=fire:emit", "");
+  expect(equipEveryHeld(noEquip)).toBe(`${noEquip};equip=fire:emit,fire:push`);
+  const four = SPEC.replace("affinities=fire:emit:2:1,fire:push:3:1", "affinities=fire:emit:2,fire:push:3,dark:emit:1,decay:pull:2");
+  expect(equipEveryHeld(four)).toContain("equip=fire:emit,fire:push,dark:emit;");
+});
+
+test("#724: a play that held a castable attack and cast none is flagged, and says whether it was equipped", () => {
+  const turn = (pick, refused = false) => ({ pick, refused, hud: "", screen: "" });
+  const never = attackUse(SPEC, { seatLog: { transcript: [turn("move:n"), turn("wait")] } });
+  expect(never).toEqual({ attackHeld: ["fire:push"], attackEquippedAtStart: false, attackCasts: 0, attackUnused: true });
+  const used = attackUse(equipEveryHeld(SPEC), { seatLog: { transcript: [turn("cast:fire:push@guard-1"), turn("cast:fire:push@guard-1", true)] } });
+  expect(used).toEqual({ attackHeld: ["fire:push"], attackEquippedAtStart: true, attackCasts: 1, attackUnused: false });
+  // A restoring push is support, not an attack: nothing to flag.
+  const support = SPEC.replaceAll("fire:", "growth:").replace("affinity=fire", "affinity=growth");
+  expect(attackUse(support, { seatLog: { transcript: [] } })).toMatchObject({ attackHeld: [], attackUnused: false });
 });

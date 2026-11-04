@@ -88,3 +88,18 @@ test("playtest.sh --character swaps the scenario's playable delver for the confi
   assert.ok(!args.includes(playerDelverSpec(scenario, 3)));
   assert.deepEqual(scenarioArgs(scenario, 3), scenarioArgs(scenario, 3, undefined, undefined), "no character, no change");
 });
+
+// #717: > and < load a recipe; the screen names it, and says when it has been edited.
+test("> loads the next recipe and the screen names it", async () => {
+  const { renderCharacterScreen, sheetIntentForKey } = await import(SCREEN);
+  const { createCharacterSheet } = await import(SHEET);
+  const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 942 });
+  assert.match(renderCharacterScreen(sheet.view()), /Recipe\s+your own \(press > for one of 20 recipes\)/);
+  sheet.apply(sheetIntentForKey(">"));
+  const text = renderCharacterScreen(sheet.view());
+  assert.match(text, /Recipe\s+Shadowblade: Hides in its own dark/);
+  assert.match(text, /Spent 373 \/ 942/);
+  sheet.apply(sheetIntentForKey("+"));
+  assert.match(renderCharacterScreen(sheet.view()), /Recipe\s+Shadowblade \(edited\)/);
+  assert.equal(sheetIntentForKey("<"), sheetIntentForKey(","));
+});

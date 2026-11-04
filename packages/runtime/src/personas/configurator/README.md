@@ -162,6 +162,10 @@ At a high level, the Configurator:
 > (extra slots are retired, Darren 2026-10-30: affinities past the slots are carried as a pack). Any mix,
 > opposite emits included, is allowed. The preset slot counts are `PRESET_AFFINITY_SLOTS` in contracts.
 >
+> `equipOmissionWarnings` (#722) reads the same request and returns a warning for each held attack
+> (`affinityRole` `attack`) an explicit equip order leaves in the pack while a slot is free. `ak create`
+> prints them and returns them as `warnings`; nothing is refused.
+>
 > Range and intensity (#340, #343): an authored affinity entry may carry `intensity` beside its
 > `stacks` (the range). The Configurator carries it unchanged onto the actor and hazard records
 > (`input-preparation.js` `mapHazards`, `cost-model.js` `normalizeAffinityList`); absent, core reads 1.
@@ -556,6 +560,20 @@ hazards as a minefield's (`composeFieldHazard`: viability floor, mana regen cove
 lists `shrines: [{ id, kind, restores, name }]`; `name` is `healing well` when the table's
 `primaryVital` is health, else `shrine`. The hazard share prices them, and `fitTacticHazards` drops
 shrines and minefield hazards alike from the end of the last such tactic.
+
+### Configuration recipes (#713, tracker #726)
+
+`recipes.js` reads `recipes/configuration-recipes.json`, the one catalogue of named actor
+configurations (`shadowblade`, `tank`, `lantern-bearer`, ...; 20 at launch). A recipe is data: vitals
+with regen, and up to three affinities with range and intensity in importance order, plus a
+description, its weaknesses and the strategy recipes it pairs with. It has no price of its own: the
+Allocator quotes its expansion like any typed spec. `expandConfigurationRecipe({ name, role, kind })`
+returns the fields a delver or warden spec carries, with every affinity equipped; a role with fewer
+slots keeps the first ones and lists the rest as `dropped`. A `{K}` recipe (`spellward`) takes the
+author's kind. The catalogue is validated when it loads (names, kinds, the viability floor, an
+intensity cap of 3), and only `recipes.js` may read the JSON (`tests/architecture/single-origin.test.js`).
+Exposed on the controller as `configurationRecipe`, `configurationRecipeNames`,
+`describeConfigurationRecipes` and `expandConfigurationRecipe`.
 
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.

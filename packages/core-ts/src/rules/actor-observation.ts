@@ -179,6 +179,55 @@ export function scopeActorRegistryObservation(observation: RegistryObservation, 
   return { ...scoped, tiles: own.length ? { kinds } : observation.tiles, affinityContributions: contributions.affinityFields };
 }
 
+/** #718: one hit an actor felt: what struck it and how (a hit reveals its affinity, #497). */
+export interface ActorReceivedHit {
+  tick: number;
+  event: 'cast' | 'field';
+  kind: string;
+  expression: string;
+  /** Present only when the receiver can see the source in its own scoped observation. */
+  sourceId?: string;
+}
+
+interface ReceivedTurn {
+  tick: number;
+  casts?: readonly { sourceId: string; kind: string; expression: string; targetId?: string;
+    changes: readonly { actorId: string; delta: number }[] }[];
+  fieldContacts?: readonly { sourceId: string; targetId: string; kind: string; expression: string;
+    changes: readonly { actorId: string; delta: number }[] }[];
+}
+
+/**
+ * #718: what struck one actor on the last applied turn, as that actor felt it: another's cast
+ * or a lasting field that took one of its vitals. Only the receiver's own hits, never anyone
+ * else's; the kind and expression are what the hit revealed (#497), and the source is named
+ * only when it is in `scoped` (the receiver's own observation, `scopeActorRegistryObservation`).
+ * One entry per source, event, kind and expression, in the turn's order.
+ */
+export function readActorReceivedHits(turn: ReceivedTurn | null | undefined, actorId: string,
+  scoped: { actors: readonly { id: string }[] }): ActorReceivedHit[] {
+  if (!turn) return [];
+  const seen = new Set(scoped.actors.map(actor => actor.id));
+  const tookFrom = (changes: readonly { actorId: string; delta: number }[]) =>
+    changes.some(change => change.actorId === actorId && change.delta < 0);
+  const hits: ActorReceivedHit[] = [];
+  const keys = new Set<string>();
+  const add = (event: 'cast' | 'field', entry: { sourceId: string; kind: string; expression: string }) => {
+    const key = `${entry.sourceId}:${event}:${entry.kind}:${entry.expression}`;
+    if (keys.has(key)) return;
+    keys.add(key);
+    hits.push({ tick: turn.tick, event, kind: entry.kind, expression: entry.expression,
+      ...(seen.has(entry.sourceId) ? { sourceId: entry.sourceId } : {}) });
+  };
+  for (const cast of turn.casts ?? []) {
+    if (cast.sourceId !== actorId && cast.targetId === actorId && tookFrom(cast.changes)) add('cast', cast);
+  }
+  for (const contact of turn.fieldContacts ?? []) {
+    if (contact.sourceId !== actorId && contact.targetId === actorId && tookFrom(contact.changes)) add('field', contact);
+  }
+  return hits;
+}
+
 /**
  * The map half of fog of war for one actor, right now: a grid the map's shape,
  * 1 visible / 0 not, by the same rule as scoping. `[]` when the actor is not on

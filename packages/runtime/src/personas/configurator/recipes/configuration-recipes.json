@@ -1,0 +1,931 @@
+{
+  "_comment": "Configuration recipes (#713, design notes/recipes-2026-11-04.md): named packages of already-priced choices. DATA ONLY: the Configurator validates and expands them (recipes.js), the Allocator prices the expansion (no recipe has a price of its own, Darren 2026-11-04). Affinities are in importance order: a warden (2 slots) keeps the first two. `{K}` is the kind the author picks (`recipe=spellward;kind=water`), defaulting to kindDefault.",
+  "maxIntensity": 3,
+  "recipes": [
+    {
+      "name": "shadowblade",
+      "title": "Shadowblade",
+      "archetype": "rogue",
+      "description": "Hides in its own dark, lights what is next to it, and strikes from range 3.",
+      "vitals": {
+        "health": {
+          "max": 20,
+          "regen": 1
+        },
+        "mana": {
+          "max": 30,
+          "regen": 6
+        },
+        "stamina": {
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "dark",
+          "expression": "emit",
+          "range": 3,
+          "intensity": 1
+        },
+        {
+          "kind": "light",
+          "expression": "emit",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Glass vitals; its light cancels some of its own dark (#290); emits run about 6 turns before mana runs out.",
+      "strategies": [
+        "ambush-from-the-dark",
+        "hit-and-fade",
+        "break-off"
+      ]
+    },
+    {
+      "name": "pyromancer",
+      "title": "Pyromancer",
+      "archetype": "mage",
+      "description": "Burns an area around itself and sets cells burning at range 4.",
+      "vitals": {
+        "health": {
+          "max": 25,
+          "regen": 1
+        },
+        "mana": {
+          "max": 40,
+          "regen": 4
+        },
+        "stamina": {
+          "max": 25,
+          "regen": 3
+        },
+        "durability": {
+          "max": 15,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "range": 4,
+          "intensity": 2
+        },
+        {
+          "kind": "fire",
+          "expression": "emit",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "fortify",
+          "expression": "pull",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "The field hurts allies too; a water carrier takes double from it; a fire emitter is immune to it.",
+      "strategies": [
+        "kite",
+        "hit-and-fade",
+        "mana-discipline"
+      ]
+    },
+    {
+      "name": "glass-cannon",
+      "title": "Glass cannon",
+      "archetype": "sorcerer",
+      "description": "One huge cast at range 3, then a long wait for mana.",
+      "vitals": {
+        "health": {
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "max": 110,
+          "regen": 10
+        },
+        "stamina": {
+          "max": 20,
+          "regen": 2
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "range": 3,
+          "intensity": 3
+        }
+      ],
+      "weaknesses": "No defence; one cast drains most of its mana. Capped at intensity 3 in the catalogue (intensity 5 costs 300 mana a cast).",
+      "strategies": [
+        "hit-and-fade",
+        "break-off"
+      ]
+    },
+    {
+      "name": "archer",
+      "title": "Archer",
+      "archetype": "ranger",
+      "description": "Outranges most wardens at range 5 and shoves melee actors away.",
+      "vitals": {
+        "health": {
+          "max": 20,
+          "regen": 1
+        },
+        "mana": {
+          "max": 40,
+          "regen": 4
+        },
+        "stamina": {
+          "max": 30,
+          "regen": 4
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "push",
+          "range": 5,
+          "intensity": 2
+        },
+        {
+          "kind": "wind",
+          "expression": "push",
+          "range": 3,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "120 mana a shot; hazards and resources have no health, so decay does nothing to them.",
+      "strategies": [
+        "kite",
+        "read-before-engaging",
+        "hit-and-fade"
+      ]
+    },
+    {
+      "name": "leech",
+      "title": "Leech",
+      "archetype": "warlock",
+      "description": "Steals health from what it fights, so fights end with it healthier.",
+      "vitals": {
+        "health": {
+          "max": 40,
+          "regen": 2
+        },
+        "mana": {
+          "max": 30,
+          "regen": 3
+        },
+        "stamina": {
+          "max": 20,
+          "regen": 3
+        },
+        "durability": {
+          "max": 20,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "pull",
+          "range": 2,
+          "intensity": 2
+        },
+        {
+          "kind": "decay",
+          "expression": "draw",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "growth",
+          "expression": "pull",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Fragile on first contact; a growth carrier takes double from its draw.",
+      "strategies": [
+        "leech-loop",
+        "focus-fire",
+        "break-off"
+      ]
+    },
+    {
+      "name": "sapper",
+      "title": "Sapper",
+      "archetype": "engineer",
+      "description": "Breaks barriers, traps and resource nodes fast.",
+      "vitals": {
+        "health": {
+          "max": 25,
+          "regen": 1
+        },
+        "mana": {
+          "max": 50,
+          "regen": 4
+        },
+        "stamina": {
+          "max": 25,
+          "regen": 3
+        },
+        "durability": {
+          "max": 25,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "corrode",
+          "expression": "push",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "fire",
+          "expression": "push",
+          "range": 2,
+          "intensity": 2
+        },
+        {
+          "kind": "corrode",
+          "expression": "emit",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Little single-target damage against high health; fortify carriers take double from its field.",
+      "strategies": [
+        "structure-breaker",
+        "hold-the-chokepoint"
+      ]
+    },
+    {
+      "name": "hexer",
+      "title": "Hexer",
+      "archetype": "witch",
+      "description": "Strips a caster's mana and soaks its steps.",
+      "vitals": {
+        "health": {
+          "max": 20,
+          "regen": 1
+        },
+        "mana": {
+          "max": 50,
+          "regen": 5
+        },
+        "stamina": {
+          "max": 25,
+          "regen": 3
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "push",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "water",
+          "expression": "push",
+          "range": 3,
+          "intensity": 1
+        },
+        {
+          "kind": "light",
+          "expression": "pull",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Does nothing to a target with no mana; low vitals.",
+      "strategies": [
+        "silence-the-caster",
+        "read-before-engaging"
+      ]
+    },
+    {
+      "name": "kiter",
+      "title": "Kiter",
+      "archetype": "skirmisher",
+      "description": "Stamina is its weapon and its escape: shove, soak, never stand adjacent.",
+      "vitals": {
+        "health": {
+          "max": 20,
+          "regen": 1
+        },
+        "mana": {
+          "max": 40,
+          "regen": 4
+        },
+        "stamina": {
+          "max": 100,
+          "regen": 8
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "water",
+          "expression": "push",
+          "range": 3,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Low damage; knockback is mana heavy.",
+      "strategies": [
+        "kite",
+        "hit-and-fade",
+        "break-off"
+      ]
+    },
+    {
+      "name": "duelist",
+      "title": "Duelist",
+      "archetype": "fighter",
+      "description": "Range 1 keeps cast mana low; two damage types hit armour and health.",
+      "vitals": {
+        "health": {
+          "max": 50,
+          "regen": 2
+        },
+        "mana": {
+          "max": 30,
+          "regen": 3
+        },
+        "stamina": {
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "max": 30,
+          "regen": 2
+        }
+      },
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "range": 1,
+          "intensity": 3
+        },
+        {
+          "kind": "decay",
+          "expression": "push",
+          "range": 1,
+          "intensity": 3
+        }
+      ],
+      "weaknesses": "Must close to adjacent, so every enemy gets first contact.",
+      "strategies": [
+        "focus-fire",
+        "leech-loop",
+        "break-off"
+      ]
+    },
+    {
+      "name": "geomancer",
+      "title": "Geomancer",
+      "archetype": "druid",
+      "description": "Builds walls in corridors, knocks enemies into them, repairs them.",
+      "vitals": {
+        "health": {
+          "max": 30,
+          "regen": 1
+        },
+        "mana": {
+          "max": 40,
+          "regen": 4
+        },
+        "stamina": {
+          "max": 20,
+          "regen": 3
+        },
+        "durability": {
+          "max": 30,
+          "regen": 2
+        }
+      },
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "wind",
+          "expression": "push",
+          "range": 3,
+          "intensity": 1
+        },
+        {
+          "kind": "fortify",
+          "expression": "push",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Barriers also block allies' fields and sight; corrode cuts through them at double.",
+      "strategies": [
+        "hold-the-chokepoint",
+        "structure-breaker"
+      ]
+    },
+    {
+      "name": "tank",
+      "title": "Tank",
+      "archetype": "guardian",
+      "description": "High health and armour with regen and good movement; it holds a position, it cannot hurt.",
+      "vitals": {
+        "health": {
+          "max": 60,
+          "regen": 3
+        },
+        "mana": {
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "max": 40,
+          "regen": 4
+        },
+        "durability": {
+          "max": 80,
+          "regen": 3
+        }
+      },
+      "affinities": [
+        {
+          "kind": "fortify",
+          "expression": "pull",
+          "range": 1,
+          "intensity": 2
+        },
+        {
+          "kind": "growth",
+          "expression": "pull",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "No attack and no taunt: it works by standing in a chokepoint or beside a leader.",
+      "strategies": [
+        "hold-the-chokepoint",
+        "guard-the-leader",
+        "break-off"
+      ]
+    },
+    {
+      "name": "paladin",
+      "title": "Paladin",
+      "archetype": "paladin",
+      "description": "A field that repairs everyone's armour, a heal on demand, a small attack.",
+      "vitals": {
+        "health": {
+          "max": 40,
+          "regen": 2
+        },
+        "mana": {
+          "max": 40,
+          "regen": 4
+        },
+        "stamina": {
+          "max": 20,
+          "regen": 3
+        },
+        "durability": {
+          "max": 40,
+          "regen": 2
+        }
+      },
+      "affinities": [
+        {
+          "kind": "growth",
+          "expression": "push",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "fortify",
+          "expression": "emit",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "fire",
+          "expression": "push",
+          "range": 2,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "The repair field also repairs enemy traps; mana regen is one short of the field's upkeep.",
+      "strategies": [
+        "triage-heal",
+        "guard-the-leader"
+      ]
+    },
+    {
+      "name": "cleric",
+      "title": "Cleric",
+      "archetype": "cleric",
+      "description": "The healer: a health field for the party, an emergency heal, a mana refill.",
+      "vitals": {
+        "health": {
+          "max": 30,
+          "regen": 2
+        },
+        "mana": {
+          "max": 50,
+          "regen": 5
+        },
+        "stamina": {
+          "max": 20,
+          "regen": 3
+        },
+        "durability": {
+          "max": 15,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "growth",
+          "expression": "push",
+          "range": 4,
+          "intensity": 2
+        },
+        {
+          "kind": "growth",
+          "expression": "emit",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "light",
+          "expression": "push",
+          "range": 3,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "No attack; it heals enemies standing in its field; a decay carrier takes double from growth.",
+      "strategies": [
+        "triage-heal",
+        "guard-the-leader"
+      ]
+    },
+    {
+      "name": "spellward",
+      "title": "Spellward",
+      "archetype": "abjurer",
+      "description": "Against a dungeon built on one kind: its draw absorbs that kind's fields and its emit makes it immune.",
+      "vitals": {
+        "health": {
+          "max": 30,
+          "regen": 2
+        },
+        "mana": {
+          "max": 50,
+          "regen": 5
+        },
+        "stamina": {
+          "max": 20,
+          "regen": 3
+        },
+        "durability": {
+          "max": 20,
+          "regen": 2
+        }
+      },
+      "affinities": [
+        {
+          "kind": "{K}",
+          "expression": "draw",
+          "range": 2,
+          "intensity": 2
+        },
+        {
+          "kind": "{K}",
+          "expression": "emit",
+          "range": 1,
+          "intensity": 1
+        },
+        {
+          "kind": "{K}",
+          "expression": "push",
+          "range": 2,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Useless against casts of the kind; upkeep 12 against regen 5; it needs to know the enemy's kind.",
+      "strategies": [
+        "attack-alignment",
+        "mana-discipline"
+      ],
+      "kindDefault": "fire"
+    },
+    {
+      "name": "gatekeeper",
+      "title": "Gatekeeper",
+      "archetype": "sentinel",
+      "description": "Seals a door and keeps it sealed.",
+      "vitals": {
+        "health": {
+          "max": 40,
+          "regen": 2
+        },
+        "mana": {
+          "max": 30,
+          "regen": 3
+        },
+        "stamina": {
+          "max": 10,
+          "regen": 2
+        },
+        "durability": {
+          "max": 50,
+          "regen": 3
+        }
+      },
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "range": 2,
+          "intensity": 2
+        },
+        {
+          "kind": "fortify",
+          "expression": "push",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "fortify",
+          "expression": "pull",
+          "range": 1,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Stamina 10 means it cannot reposition; corrode breaches its barrier at double.",
+      "strategies": [
+        "hold-the-chokepoint",
+        "guard-the-leader",
+        "break-off"
+      ]
+    },
+    {
+      "name": "wellspring",
+      "title": "Wellspring",
+      "archetype": "bard",
+      "description": "A pool of mana the party draws on: refills allies' mana at range 3.",
+      "vitals": {
+        "health": {
+          "max": 20,
+          "regen": 1
+        },
+        "mana": {
+          "max": 120,
+          "regen": 10
+        },
+        "stamina": {
+          "max": 20,
+          "regen": 2
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "light",
+          "expression": "push",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "light",
+          "expression": "pull",
+          "range": 3,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Refills enemy mana as well; dark fields hit it at double.",
+      "strategies": [
+        "triage-heal",
+        "guard-the-leader"
+      ]
+    },
+    {
+      "name": "retinue-leader",
+      "title": "Retinue leader",
+      "archetype": "warlord",
+      "description": "Leads escorts and keeps them standing.",
+      "vitals": {
+        "health": {
+          "max": 35,
+          "regen": 2
+        },
+        "mana": {
+          "max": 40,
+          "regen": 4
+        },
+        "stamina": {
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "max": 25,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "growth",
+          "expression": "push",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "fortify",
+          "expression": "push",
+          "range": 2,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Support only, so the escorts must do the fighting; escorts hold at last-seen when it falls. Add minions with the spec's minions= field.",
+      "strategies": [
+        "triage-heal",
+        "guard-the-leader"
+      ]
+    },
+    {
+      "name": "scout",
+      "title": "Scout",
+      "archetype": "scout",
+      "description": "Lights range 4, reveals what stands there, and moves fast.",
+      "vitals": {
+        "health": {
+          "max": 15,
+          "regen": 1
+        },
+        "mana": {
+          "max": 30,
+          "regen": 3
+        },
+        "stamina": {
+          "max": 60,
+          "regen": 8
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "light",
+          "expression": "emit",
+          "range": 4,
+          "intensity": 1
+        },
+        {
+          "kind": "wind",
+          "expression": "push",
+          "range": 3,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Its light shows it too; upkeep 7 against regen 3; a dark emitter hides what it reveals.",
+      "strategies": [
+        "read-before-engaging",
+        "loot-run",
+        "attack-alignment"
+      ]
+    },
+    {
+      "name": "sneak",
+      "title": "Sneak",
+      "archetype": "thief",
+      "description": "The cheapest stealth: its dark hides it and drains anyone passing.",
+      "vitals": {
+        "health": {
+          "max": 15,
+          "regen": 1
+        },
+        "mana": {
+          "max": 25,
+          "regen": 5
+        },
+        "stamina": {
+          "max": 60,
+          "regen": 6
+        },
+        "durability": {
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "emit",
+          "range": 3,
+          "intensity": 2
+        }
+      ],
+      "weaknesses": "Upkeep 9 against regen 5, about 6 turns before it shows; no way to finish a kill.",
+      "strategies": [
+        "ambush-from-the-dark",
+        "break-off"
+      ]
+    },
+    {
+      "name": "lantern-bearer",
+      "title": "Lantern-bearer",
+      "archetype": "seer",
+      "description": "Reveals vitals to its side, tops up its own mana, refuels allies.",
+      "vitals": {
+        "health": {
+          "max": 25,
+          "regen": 1
+        },
+        "mana": {
+          "max": 50,
+          "regen": 5
+        },
+        "stamina": {
+          "max": 30,
+          "regen": 4
+        },
+        "durability": {
+          "max": 15,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "light",
+          "expression": "emit",
+          "range": 3,
+          "intensity": 2
+        },
+        {
+          "kind": "light",
+          "expression": "pull",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "light",
+          "expression": "push",
+          "range": 2,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Dark fields hit it at double; its light refills enemy mana; upkeep 9 against regen 5.",
+      "strategies": [
+        "read-before-engaging",
+        "loot-run",
+        "attack-alignment"
+      ]
+    }
+  ]
+}

@@ -53,18 +53,24 @@ import {
 } from "./proposal-helpers.js";
 import { getMotivationModule } from "./motivations/index.js";
 import {
+  LAST_ATTACKER,
   NEAREST_HOSTILE,
   RETREAT,
+  ROUTE_STRUCTURE,
   STRATEGY_DEPTH,
   STRATEGY_GOAL_KINDS,
+  STRATEGY_CONDITION_INPUTS,
   STRATEGY_STATUS,
   followStrategy,
   ignoredStrategyParts,
   normalizeStrategy,
+  strategyConditionHolds,
   strategyDepth,
 } from "./strategy.js";
 
-export { NEAREST_HOSTILE, RETREAT, STRATEGY_DEPTH, STRATEGY_GOAL_KINDS, STRATEGY_STATUS };
+export { LAST_ATTACKER, NEAREST_HOSTILE, RETREAT, ROUTE_STRUCTURE, STRATEGY_DEPTH, STRATEGY_GOAL_KINDS, STRATEGY_STATUS };
+// #718: the tactic conditions and the observed context each reads (the seat-rule guard's surface).
+export { STRATEGY_CONDITION_INPUTS, strategyConditionHolds as actorStrategyConditionHolds };
 
 /**
  * Stage B — `profileAlignment` split into its two independent signals.
@@ -1728,6 +1734,9 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     tileKinds: resolveTileKinds(observationView, payload),
     baseTiles,
     reservedTargets: payload?.reservedTargets,
+    // #718: what struck this actor last turn, as core scoped it for the actor (its own hits only).
+    received: Array.isArray(payload?.receivedHits) ? payload.receivedHits : [],
+    exitPlace: () => findExitFromTiles(baseTiles) ?? null,
     castAt: (target, distance) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance },
       castManaBase: simConfig?.actionCosts?.castManaBase }),
     exitStep: () => {

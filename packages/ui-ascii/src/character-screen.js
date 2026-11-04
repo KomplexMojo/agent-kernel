@@ -17,6 +17,7 @@ const KEY_INTENTS = Object.freeze({
   "+": SHEET_INTENT.INC, "=": SHEET_INTENT.INC, "-": SHEET_INTENT.DEC, _: SHEET_INTENT.DEC,
   "]": SHEET_INTENT.INC_BIG, "[": SHEET_INTENT.DEC_BIG,
   x: SHEET_INTENT.CLEAR_SLOT, r: SHEET_INTENT.RESET,
+  ">": SHEET_INTENT.NEXT_RECIPE, ".": SHEET_INTENT.NEXT_RECIPE, "<": SHEET_INTENT.PREV_RECIPE, ",": SHEET_INTENT.PREV_RECIPE,
   "\r": SHEET_INTENT.CONFIRM, "\n": SHEET_INTENT.CONFIRM,
   q: SHEET_INTENT.CANCEL, "\u001b": SHEET_INTENT.CANCEL, "\u0003": SHEET_INTENT.CANCEL,
 });
@@ -28,7 +29,7 @@ export function sheetIntentForKey(key) {
 
 export const SHEET_HELP_LINES = Object.freeze([
   "↑↓ (w s j k) row   ←→ (a d h l, Tab) field   + − change (kind, role: none, then each)   ] [ by 5",
-  "x set slot to none   r reset   Enter play   q or Esc back",
+  "> < (. ,) load a recipe   x set slot to none   r reset   Enter play   q or Esc back",
 ]);
 
 const pad = (text, width) => String(text).padEnd(width);
@@ -53,6 +54,9 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
   lines.push(`${title.toUpperCase()}    Spent ${view.total} / ${view.allowance}  ${allowanceBar(view.total, view.allowance, color)}`);
   lines.push("─".repeat(78));
   lines.push(`Motivation   ${view.motivation.name} (the playable right)${" ".repeat(34)}${String(view.motivation.price).padStart(5)}`);
+  // #717: the recipe loaded into the sheet, if any; > and < step through them.
+  if (view.recipe) lines.push(`Recipe       ${view.recipe.title}${view.recipe.edited ? " (edited)" : ""}: ${view.recipe.description}`);
+  else if (view.recipes?.length) lines.push(`Recipe       your own (press > for one of ${view.recipes.length} recipes)`);
   lines.push("");
   lines.push(`Affinities: ${view.equipSlots} equipped, then the pack (equip one in play for a turn; none is not bought)`);
   lines.push(`    ${pad("", 3)}${pad(" kind", WIDTHS.kind)}${pad(" form", WIDTHS.expression)}${pad(" range", WIDTHS.range)}${pad(" int", WIDTHS.intensity)}${pad(" mana", WIDTHS.mana)}${"price".padStart(8)}  role`);

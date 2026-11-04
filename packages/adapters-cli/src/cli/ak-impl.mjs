@@ -131,6 +131,7 @@ import {
   TICK_FRAME_SCHEMA,
 } from "../../../runtime/src/contracts/artifacts.ts";
 import { createAuthoringSpecs, parseArgs } from "../../../runtime/src/commands/authoring-specs.js";
+import { createRecipeCatalogue } from "../../../runtime/src/commands/recipe-catalogue.js";
 
 // The authoring grammar and request assembly are runtime's (#557), shared with the browser.
 const {
@@ -212,6 +213,8 @@ function usage() {
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId | --sim-config path --initial-state path) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
+  node ${rel} recipes [--kind config|strategy] [--role attack|defence|support] [--json]
+  node ${rel} recipe <name> [--role delver|warden] [--kind <kind>] [--json]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--fixture path] [--model model] [--base-url url] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--grade H..S] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
@@ -693,6 +696,8 @@ function defaultLlmPlanOutDir(runId) {
 }
 
 const STRUCTURED_STDOUT_COMMANDS = new Set([
+  "recipes",
+  "recipe",
   "play",
   "play-session",
   "solve",
@@ -3710,6 +3715,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     runId,
     createdAt,
     resolvedBudgetTokens,
+    warnings: specWarnings = [],
     tacticPlan,
     requestArtifact,
     hazards: canonicalHazardEntries,
@@ -3722,6 +3728,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     now: () => new Date().toISOString(),
   });
   const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir(commandName, runId);
+  for (const warning of specWarnings) console.error(`warning: ${warning}`);
 
   // Authoring domain build runs in the kernel (P2.3.2): assemble the BuildSpec
   // through the Director controller, Configurator input prep, orchestrateBuild,
@@ -3770,7 +3777,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     producedBy: `cli-${commandName}`,
   });
 
-  emitJsonStdout(stdoutSummary);
+  emitJsonStdout(specWarnings.length > 0 ? { ...stdoutSummary, warnings: specWarnings } : stdoutSummary);
 }
 
 async function createCommand(argv) {
@@ -4716,6 +4723,43 @@ async function playCommand(argv) {
   }
 }
 
+// #716: the recipe catalogue (Configurator configuration recipes, Actor strategy recipes), each
+// configuration priced by the Allocator. Text by default, `--json` for the structured rows.
+const RECIPE_CATALOGUE_FLAGS = new Set(["_", "kind", "role", "json", "help"]);
+function assertRecipeArgs(args, command) {
+  const unknown = Object.keys(args).filter((key) => !RECIPE_CATALOGUE_FLAGS.has(key));
+  if (unknown.length) throw new Error(`${command} only accepts --kind, --role and --json. Unknown: ${unknown.join(", ")}`);
+}
+
+async function recipesCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) { console.log(usage()); return; }
+  assertRecipeArgs(args, "recipes");
+  const rows = createRecipeCatalogue().list({ kind: args.kind, role: args.role });
+  if (args.json) { emitJsonStdout({ ok: true, command: "recipes", recipes: rows }); return; }
+  for (const row of rows) {
+    if (row.kind === "config") {
+      const roles = Object.entries(row.roles).filter(([, n]) => n > 0).map(([role, n]) => `${role} ${n}`).join(", ") || "none";
+      console.log(`${row.name.padEnd(16)} ${String(row.cost.delver).padStart(4)} t  ${row.archetype.padEnd(11)} ${roles.padEnd(26)} ${row.affinities.join(" ")}`);
+    } else {
+      console.log(`${row.name.padEnd(22)} strategy  ${row.posture ?? ""}  ${row.summary ?? ""}`);
+    }
+  }
+}
+
+async function recipeCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) { console.log(usage()); return; }
+  const name = args._?.[0];
+  if (!name) throw new Error("recipe needs a name: ak recipe <name> (ak recipes lists them).");
+  if (args._.length > 1) throw new Error(`recipe takes one name, got ${args._.join(" ")}.`);
+  const { _: _positional, ...flags } = args;
+  assertRecipeArgs(flags, "recipe");
+  const shown = createRecipeCatalogue().show(String(name).toLowerCase(), { role: args.role, kind: args.kind });
+  if (args.json) { emitJsonStdout({ ok: true, command: "recipe", recipe: shown }); return; }
+  console.log(JSON.stringify(shown, null, 2));
+}
+
 /** The level `play` and `play-session start` name: one of --dir, --from-run, --sim-config/--initial-state, --level. */
 async function resolvePlaySource(args, command = "play") {
   const named = ["dir", "from-run", "level"].filter((key) => args[key] !== undefined);
@@ -5211,6 +5255,8 @@ export const COMMANDS = {
   workflow: workflowCommand,
   play: playCommand,
   "play-session": playSessionCommand,
+  recipes: recipesCommand,
+  recipe: recipeCommand,
 };
 
 /**

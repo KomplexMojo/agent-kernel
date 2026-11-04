@@ -27,6 +27,7 @@ import {
   readActorRegistryObservation,
   readActorRegistryRevealLevels,
   readActorRegistryVisibleCells,
+  readActorReceivedHits,
   scopeActorRegistryObservation,
 } from "../../../core-ts/src/rules/actor-observation.ts";
 import {
@@ -658,6 +659,8 @@ export function createFsmRuntime({
   // issued for. The Allocator's reconciliation reads spend against exactly these.
   let appliedBudgetCaps = [];
   let observationLog = [];
+  // #718: the last turn core applied, so each actor's next decision can say what struck it.
+  let lastActorTurn = null;
   let affinityEffects = null;
   let orchestrator = null;
   const runtimeBudgetOutcomes = [];
@@ -877,10 +880,15 @@ export function createFsmRuntime({
     // keep the full observation below: this is one actor's perception, not a
     // truncation of telemetry or of tick control's view of the board.
     const observingActorId = actorId || primaryActorId;
+    const actorObservation = scopeObservationForActor(observation, observingActorId);
+    // #718: what struck this actor last turn, by core's rule (its own hits only; an unseen source unnamed).
+    const receivedHits = actorRegistry && actorObservation?.actors
+      ? readActorReceivedHits(lastActorTurn, observingActorId, actorObservation) : [];
     const actorPayload = {
       ...base,
       actorId: observingActorId,
-      observation: scopeObservationForActor(observation, observingActorId),
+      observation: actorObservation,
+      ...(receivedHits.length > 0 ? { receivedHits } : {}),
       baseTiles,
       ...(Array.isArray(reservedTargets) && reservedTargets.length > 0 ? { reservedTargets } : {}),
       ...(command !== undefined ? { command } : {}),
@@ -1558,6 +1566,7 @@ export function createFsmRuntime({
       const resolutionOrdered = orderActionsForResolution(actions, tickIntentions, decideActorIterationIds);
       previousTickIntentions = tickIntentions;
       const applied = applyActionsToCore(resolutionOrdered.concat(applyActions));
+      lastActorTurn = applied.actorTurn ?? null;
       runtimeBudgetOutcomes.push(...applied.outcomes);
 
       applyPersonaArtifacts(applyRecord);

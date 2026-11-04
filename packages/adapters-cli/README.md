@@ -490,13 +490,25 @@ Inputs/outputs:
   is the range (how far a cast reaches, or a field's radius) and the optional fourth is the intensity (strength;
   default 1). A hit is the expression's base × intensity² (push/pull 2, emit/draw 1). A hazard takes the same pair as
   `stacks=<range>;intensity=<n>`. Example: `affinities=fire:push:6:2` throws a fireball 6 tiles for 2 × 2² = 8.
+- `--delver` and `--warden` accept `recipe=<name>` (#715): a named configuration from the Configurator's catalogue
+  (`ak recipes` lists them), expanded into `affinity`, `affinities` (range and intensity), `equip` (every affinity) and
+  `vitals` as if typed, then authored and priced like any spec. Fields the spec writes win: `vitals=` entries replace
+  the recipe's vital by vital, `affinities=` replaces its affinities and equip order, `equip=`/`affinity=` replace
+  theirs. `kind=<kind>` sets a `{K}` recipe's kind (`recipe=spellward;kind=water`). A warden keeps the recipe's first
+  two affinities and the result's `warnings` say what was left out. An unknown name is refused, naming the known ones:
+  ```bash
+  ak create --grade F --room "size=medium;count=3" --delver "recipe=shadowblade;motivation=user_controlled" --warden "recipe=lantern-bearer"
+  ```
 - `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
   affinities the actor can equip at once, from 1 to its preset (delver 3, warden 2; core caps any actor at 3). Buying
   slots above the preset is retired (Darren, 2026-10-30): affinities past the slots are held as a pack, and equipping
   one in play takes a turn and puts the oldest equipped one back. `equip` lists its starting equips in equip order; each
   must be an affinity the actor holds (`affinities=`, else its `affinity` at the default expression), and `:<stacks>`
   runs it at fewer stacks than it holds. Any mix may be equipped, opposite emits included. The Configurator validates
-  both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`:
+  both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`.
+  An actor given `equip=` starts with exactly that list equipped, and with none at all when `equip=` is left out. When
+  the list leaves a held attack (a harmful kind's push, pull, emit or draw) in the pack while a slot is still free, `ak
+  create` prints a `warning:` line and adds it to the JSON result's `warnings` (#722); the level is still built:
   ```bash
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
     --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1,fire:pull:1;equip=earth:push:2,growth:emit"
@@ -611,6 +623,24 @@ Inputs/outputs:
 - `--emit-intermediates` additionally persists `request.json`, `intent.json`, `plan.json`,
   and sidecars such as `spend-proposal.json`.
 
+### `recipes` / `recipe`
+
+The recipe catalogue (#716, tracker #726). Configuration recipes are the Configurator's named actor
+configurations; each row carries the Allocator's quote of its expansion as a delver (`user_controlled`)
+and as a warden (`defending`), and its attack/defence/support mix from the affinity table.
+
+```bash
+node packages/adapters-cli/src/cli/ak.mjs recipes                       # name, delver cost, archetype, roles, affinities
+node packages/adapters-cli/src/cli/ak.mjs recipes --role support --json # only recipes with a support slot
+node packages/adapters-cli/src/cli/ak.mjs recipe spellward --role warden --kind water --json
+```
+
+`recipe <name>` prints the expansion for `--role` (default delver): vitals, affinities with range and
+intensity, equip order, what a warden's two slots leave out (`dropped`), and the price line items.
+MCP twins: `ak_recipe_list` (`kind`, `role`) and `ak_recipe_show` (`name`, `role`, `kind`). Use a name as
+`recipe=` in a `--delver`/`--warden` spec (see `create` above). An MCP object spec's `affinities` entries
+now carry `intensity` too.
+
 ### Scenario authoring example
 
 Author scenarios with `create` and play them with `play`. Actor motivations used by the
@@ -699,7 +729,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -734,7 +764,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.
