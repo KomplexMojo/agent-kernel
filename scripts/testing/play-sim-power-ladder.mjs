@@ -58,6 +58,24 @@ export function scaleDelverSpec(spec, k) {
   }).join(";");
 }
 
+/**
+ * #722: the rung's delver starts with every held affinity equipped, up to the three slots. The
+ * scenarios' `equip=` lists only the emit, so the push started in the pack and a seat that never
+ * equipped it never fought (0 equips and casts in every play, 2026-11-04). The ladder measures how
+ * strong a delver must be, so it seats one that can use its kit from the first turn.
+ */
+export function equipEveryHeld(spec, slots = 3) {
+  const fields = spec.split(";");
+  const held = fields.find((field) => field.startsWith("affinities="));
+  if (!held) return spec;
+  const keys = held.slice("affinities=".length).split(",").filter(Boolean)
+    .map((entry) => entry.split(":").slice(0, 2).join(":")).slice(0, slots);
+  const equip = `equip=${keys.join(",")}`;
+  return fields.some((field) => field.startsWith("equip="))
+    ? fields.map((field) => (field.startsWith("equip=") ? equip : field)).join(";")
+    : [...fields, equip].join(";");
+}
+
 /** Health the seat lost over the play, summed from its HUD line per turn (its own vitals: #497 allows). */
 function healthLost(transcript) {
   let lost = 0;
@@ -121,7 +139,7 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
     for (const seed of seeds) {
       const baseSpec = playerDelverSpec(scenario, seed);
       for (const k of rungs) {
-        const character = scaleDelverSpec(baseSpec, k);
+        const character = equipEveryHeld(scaleDelverSpec(baseSpec, k));
         for (let repeat = 1; repeat <= repeats; repeat += 1) {
           let budgetTokens = Math.ceil(scenario.budgetTokens * Math.max(1, k));
           let record;

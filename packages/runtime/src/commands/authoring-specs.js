@@ -544,16 +544,20 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
 
   // `slots=` and `equip=` on a delver or warden spec, authored by the Configurator into the
   // card's slot and equip fields.
-  function readActorEquipment(fields, role, index, card) {
+  // #722: the Configurator's warnings on the equip order are pushed to `warnings`, when given.
+  function readActorEquipment(fields, role, index, card, warnings) {
     const slots = fields.has("slots") ? parsePositiveIntStrict(fields.get("slots"), `${role}[${index}] slots`) : undefined;
-    return configurator.authorActorEquipment({
+    const request = {
       role,
       index,
       slots,
       equip: parseActorEquip(fields.get("equip"), role, index),
       affinity: card.affinity,
       affinities: card.affinities,
-    });
+    };
+    const authored = configurator.authorActorEquipment(request);
+    if (Array.isArray(warnings)) warnings.push(...configurator.equipOmissionWarnings(request));
+    return authored;
   }
 
   function parseActorVitals(value, actorType, actorIndex) {
@@ -1192,7 +1196,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     }));
   }
 
-  function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+  function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY, warnings } = {}) {
     const raw = String(value || "").trim();
     if (!raw) {
       throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
@@ -1263,7 +1267,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       vitals,
     });
 
-    Object.assign(delver, readActorEquipment(fields, "delver", delverIndex, delver));
+    Object.assign(delver, readActorEquipment(fields, "delver", delverIndex, delver, warnings));
     const delverStrategy = parseActorStrategy(fields.get("strategy"), "delver", delverIndex);
     if (delverStrategy !== undefined) delver.strategy = delverStrategy;
     const delverEscort = parseActorEscort(fields.get("escort"), "delver", delverIndex);
@@ -1291,7 +1295,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     return values.map((value, index) => parseDelverSpec(value, index + 1, { defaultAffinity }));
   }
 
-  function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+  function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY, warnings } = {}) {
     const raw = String(value || "").trim();
     if (!raw) {
       throw new Error(`warden[${wardenIndex}] requires a non-empty spec.`);
@@ -1367,7 +1371,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     if (vitals && Object.keys(vitals).length > 0) {
       warden.vitals = vitals;
     }
-    Object.assign(warden, readActorEquipment(fields, "warden", wardenIndex, warden));
+    Object.assign(warden, readActorEquipment(fields, "warden", wardenIndex, warden, warnings));
     const wardenStrategy = parseActorStrategy(fields.get("strategy"), "warden", wardenIndex);
     if (wardenStrategy !== undefined) warden.strategy = wardenStrategy;
     const wardenEscort = parseActorEscort(fields.get("escort"), "warden", wardenIndex);
@@ -1726,14 +1730,16 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       .map((entry) => String(entry || "").trim())
       .filter(Boolean)
       .map((value, index) => ({ prompt: value, value: parseResourceSpec(value, index + 1) }));
+    // #722: what the specs leave the actors unable to do; reported, never refused.
+    const warnings = [];
     const parsedDelvers = normalizeList(args.delver)
       .map((entry) => String(entry || "").trim())
       .filter(Boolean)
-      .map((value, index) => ({ prompt: value, ...parseDelverSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
+      .map((value, index) => ({ prompt: value, ...parseDelverSpec(value, index + 1, { defaultAffinity: dungeonAffinity, warnings }) }));
     const parsedWardens = normalizeList(args.warden)
       .map((entry) => String(entry || "").trim())
       .filter(Boolean)
-      .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
+      .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity, warnings }) }));
     // #301: relational placement constraints, parsed by the Configurator's own grammar.
     const placementConstraints = normalizeList(args.place)
       .map((entry) => String(entry || "").trim())
@@ -2091,6 +2097,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       runId,
       createdAt,
       resolvedBudgetTokens,
+      warnings,
       tacticPlan,
       requestArtifact,
       hazards: canonicalHazardEntries,

@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { playProfile, runPowerLadder, scaleDelverSpec } from "../../scripts/testing/play-sim-power-ladder.mjs";
+import { equipEveryHeld, playProfile, runPowerLadder, scaleDelverSpec } from "../../scripts/testing/play-sim-power-ladder.mjs";
 
 const SPEC = "count=1;id=hero;affinity=fire;affinities=fire:emit:2:1,fire:push:3:1;equip=fire:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1";
 
@@ -44,4 +44,12 @@ test("a play is labelled from the seat's own record: fought, pinned, avoided", (
   const fought = playProfile({ outcome: "exited", seatLog: { transcript: [turn("equip:fire:push", 20, 10), turn("cast:fire:push@guard-1", 20, 10, "T1 You cast fire push and struck W1 guard-1: a solid hit; it looks hurt.")] } });
   expect(fought).toMatchObject({ label: "fought", equips: 1, casts: 1, struck: 1 });
   expect(playProfile({ outcome: "exited", seatLog: { transcript: [turn("move:north", 20, 9)] } }).label).toBe("avoided");
+});
+
+test("#722: a rung's delver starts with every held affinity equipped, up to three slots", () => {
+  expect(equipEveryHeld(SPEC)).toBe(SPEC.replace("equip=fire:emit", "equip=fire:emit,fire:push"));
+  const noEquip = SPEC.replace(";equip=fire:emit", "");
+  expect(equipEveryHeld(noEquip)).toBe(`${noEquip};equip=fire:emit,fire:push`);
+  const four = SPEC.replace("affinities=fire:emit:2:1,fire:push:3:1", "affinities=fire:emit:2,fire:push:3,dark:emit:1,decay:pull:2");
+  expect(equipEveryHeld(four)).toContain("equip=fire:emit,fire:push,dark:emit;");
 });

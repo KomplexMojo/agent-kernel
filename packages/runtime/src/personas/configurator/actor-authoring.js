@@ -24,6 +24,7 @@ import {
   PRESET_AFFINITY_SLOTS,
 } from "../../contracts/domain-constants.js";
 import { MAX_AFFINITY_SLOTS } from "../../../../core-ts/src/state/actor-inventory.ts";
+import { affinityRole } from "../../../../core-ts/src/state/affinity-table.ts";
 
 // What an actor does when its spec names no motivation. Neither is `user_controlled`:
 // an actor is playable only when authored so (Darren, 2026-10-13), never by default.
@@ -189,4 +190,28 @@ export function authorActorEquipment({ role, index, slots, equip, affinity, affi
   if (keys.length > 1) fields.equippedAffinityKeys = keys;
   if (Object.keys(running).length > 0) fields.equippedAffinityStacks = running;
   return fields;
+}
+
+/**
+ * #722: what an explicit equip order leaves an actor unable to do at the start. A spec that names
+ * `equip=` equips exactly that list; a held attack (the table's `attack` role) left out while a slot
+ * is still free starts in the pack, so the actor cannot strike until it spends a turn equipping it.
+ * A seat that never thinks to equip never fights (the power ladder, 2026-11-04). Not a refusal: an
+ * unwise loadout stays legal (not parental); with every slot full, the pack is the author's choice.
+ *
+ * @returns {string[]} one warning per omitted attack, [] when there is nothing to say
+ */
+export function equipOmissionWarnings({ role, index, slots, equip, affinity, affinities } = {}) {
+  if (!Array.isArray(equip) || equip.length === 0 || !Object.hasOwn(PRESET_AFFINITY_SLOTS, role)) return [];
+  const held = Array.isArray(affinities) && affinities.length > 0
+    ? affinities
+    : [{ kind: affinity, expression: DEFAULT_AFFINITY_EXPRESSION }];
+  const capacity = slots ?? PRESET_AFFINITY_SLOTS[role];
+  const free = capacity - equip.length;
+  if (free <= 0) return [];
+  const equipped = new Set(equip.map((entry) => `${entry.kind}:${entry.expression}`));
+  return held
+    .filter((pair) => !equipped.has(`${pair.kind}:${pair.expression}`) && affinityRole(pair.kind, pair.expression) === "attack")
+    .map((pair) => `${role}[${index}] holds ${pair.kind}:${pair.expression} (attack) but equip= leaves it in the pack `
+      + `with ${free} slot${free === 1 ? "" : "s"} free; it cannot strike with it until it spends a turn equipping it.`);
 }

@@ -162,6 +162,10 @@ At a high level, the Configurator:
 > (extra slots are retired, Darren 2026-10-30: affinities past the slots are carried as a pack). Any mix,
 > opposite emits included, is allowed. The preset slot counts are `PRESET_AFFINITY_SLOTS` in contracts.
 >
+> `equipOmissionWarnings` (#722) reads the same request and returns a warning for each held attack
+> (`affinityRole` `attack`) an explicit equip order leaves in the pack while a slot is free. `ak create`
+> prints them and returns them as `warnings`; nothing is refused.
+>
 > Range and intensity (#340, #343): an authored affinity entry may carry `intensity` beside its
 > `stacks` (the range). The Configurator carries it unchanged onto the actor and hazard records
 > (`input-preparation.js` `mapHazards`, `cost-model.js` `normalizeAffinityList`); absent, core reads 1.

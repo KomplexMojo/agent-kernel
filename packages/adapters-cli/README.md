@@ -496,7 +496,10 @@ Inputs/outputs:
   one in play takes a turn and puts the oldest equipped one back. `equip` lists its starting equips in equip order; each
   must be an affinity the actor holds (`affinities=`, else its `affinity` at the default expression), and `:<stacks>`
   runs it at fewer stacks than it holds. Any mix may be equipped, opposite emits included. The Configurator validates
-  both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`:
+  both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`.
+  An actor given `equip=` starts with exactly that list equipped, and with none at all when `equip=` is left out. When
+  the list leaves a held attack (a harmful kind's push, pull, emit or draw) in the pack while a slot is still free, `ak
+  create` prints a `warning:` line and adds it to the JSON result's `warnings` (#722); the level is still built:
   ```bash
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
     --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1,fire:pull:1;equip=earth:push:2,growth:emit"

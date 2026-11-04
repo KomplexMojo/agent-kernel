@@ -3710,6 +3710,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     runId,
     createdAt,
     resolvedBudgetTokens,
+    warnings: specWarnings = [],
     tacticPlan,
     requestArtifact,
     hazards: canonicalHazardEntries,
@@ -3722,6 +3723,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     now: () => new Date().toISOString(),
   });
   const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir(commandName, runId);
+  for (const warning of specWarnings) console.error(`warning: ${warning}`);
 
   // Authoring domain build runs in the kernel (P2.3.2): assemble the BuildSpec
   // through the Director controller, Configurator input prep, orchestrateBuild,
@@ -3770,7 +3772,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     producedBy: `cli-${commandName}`,
   });
 
-  emitJsonStdout(stdoutSummary);
+  emitJsonStdout(specWarnings.length > 0 ? { ...stdoutSummary, warnings: specWarnings } : stdoutSummary);
 }
 
 async function createCommand(argv) {

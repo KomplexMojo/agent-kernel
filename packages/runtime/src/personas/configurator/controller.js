@@ -62,6 +62,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     authorDelverCandidate: services.authorDelverCandidate,
     authorMotivations: services.authorMotivations,
     authorActorEquipment: services.authorActorEquipment,
+    equipOmissionWarnings: services.equipOmissionWarnings,
     normalizeMotivations: services.normalizeMotivations,
     normalizeActorDefinition: services.normalizeActorDefinition,
     normalizeActorRoster: services.normalizeActorRoster,
