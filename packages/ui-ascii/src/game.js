@@ -120,7 +120,7 @@ export function battleLines(view) {
 
 /**
  * #573: the first tick a harmful field of yours (or your party's) hurts one of your own side, and
- * the tick one of them falls to it, says so with the amount: `Your fire emit is hurting D2 pal
+ * the tick one of them falls to it, says so with the amount: `Your fire emit — a sheet of flame — is hurting D2 pal
  * (HP \u22124)`. Friendly fire stays; this only warns. Later ticks ride the vitals line.
  */
 export function allyWarningLines(view) {
