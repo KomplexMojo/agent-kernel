@@ -168,6 +168,40 @@ test("a lit warden cannot spot a dark-emitting delver beyond one tile", async ()
   );
 });
 
+// Adjacent floor of the obscure radius (playtest dark-stealth seed 1): bumping into a
+// cloaked delver still lets the warden perceive — and therefore initiate an attack.
+// cloakEmittersInOwnDark feeds darkStacksByCell; isPerceived only conceals when
+// distance > DARKNESS_OBSCURE_RADIUS (1).
+test("an adjacent lit warden still sees a dark-emitting delver", async () => {
+  const captured = await captureDecideObservations({
+    actors: [
+      {
+        id: "sneak",
+        category: "delver",
+        position: { x: 2, y: 2 },
+        motivations: ["stationary"],
+        vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 40, max: 40, regen: 4 } },
+        affinities: [{ kind: "dark", expression: "emit", stacks: 3, intensity: 2 }],
+        activeAffinityKey: "dark:emit",
+      },
+      {
+        id: "lit_guard",
+        category: "warden",
+        position: { x: 3, y: 2 },
+        motivations: ["stationary"],
+        vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 40, max: 40, regen: 4 } },
+        affinities: [{ kind: "light", expression: "emit", stacks: 4, intensity: 2 }],
+        activeAffinityKey: "light:emit",
+      },
+    ],
+  });
+  const byActor = new Map(captured.map((entry) => [entry.actorId, entry.observation]));
+  assert.ok(
+    byActor.get("lit_guard").actors.map((entry) => entry.id).includes("sneak"),
+    "Chebyshev ≤ 1 must pierce the own-dark cloak so adjacent combat can start",
+  );
+});
+
 test("runtime exposes a perceived canonical field cell", async () => {
   const captured = await captureDecideObservations({
     actors: observerAndTarget({ x: 2, y: 2 }, {
@@ -209,5 +243,4 @@ test("two actors receive different scoped views from the same snapshot", async (
 // - a target under two dark stacks is still visible when adjacent
 // - light/dark cancellation is honored from core's surviving field values
 // - actor order does not change which observer gets which scoped payload
-// - adjacent lit warden still sees a dark-emitting delver (obscure radius floor)
 // - dark emit switched off (mana) restores the lit warden's sight of the delver
