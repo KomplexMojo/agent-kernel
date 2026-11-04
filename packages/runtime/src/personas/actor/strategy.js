@@ -37,6 +37,7 @@ import {
   isPassable,
 } from "./proposal-helpers.js";
 import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
+import { equippedActorAffinities, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { AFFINITY_KINDS } from "../../contracts/domain-constants.js";
 
 export const STRATEGY_GOAL_KINDS = Object.freeze(["reach", "defeat", "guard", "follow", "lead", "take", "hold", "survive"]);
@@ -47,7 +48,9 @@ export const NEAREST_HOSTILE = "nearest_hostile";
 export const LAST_ATTACKER = "attacker";
 /** A tactic's `do` may name this instead of an id: the structure `structureOnRoute` found (#718). */
 export const ROUTE_STRUCTURE = "route_structure";
-const TARGET_SELECTORS = Object.freeze([NEAREST_HOSTILE, LAST_ATTACKER, ROUTE_STRUCTURE]);
+/** A tactic's `do` may name this instead of an id: the nearest ally it can see, for a restoring cast (#719). */
+export const NEAREST_ALLY = "nearest_ally";
+export const TARGET_SELECTORS = Object.freeze([NEAREST_HOSTILE, LAST_ATTACKER, ROUTE_STRUCTURE, NEAREST_ALLY]);
 /** A tactic action beyond the command vocabulary: step away from the nearest hostile. */
 export const RETREAT = "retreat";
 /** How a hit reached the actor (#718): another's cast, or a lasting field it stood in. */
@@ -511,9 +514,34 @@ export function strategyConditionHolds(when, context, goal = null) {
 function selectedTarget(selector, context, goal) {
   if (selector === NEAREST_HOSTILE) return context.nearestHostile ?? null;
   if (selector === ROUTE_STRUCTURE) return structureOnRoute(goal, context);
+  if (selector === NEAREST_ALLY) {
+    const hostile = new Set((Array.isArray(context.hostiles) ? context.hostiles : []).map((other) => other.id));
+    const self = context.self;
+    return (Array.isArray(context.view?.actors) ? context.view.actors : [])
+      .filter((other) => other?.id !== self.id && other?.position && other.lifecycle === "alive" && !hostile.has(other.id)
+        && other.defeatVital !== "durability")
+      .sort((left, right) => chebyshevDistance(self.position, left.position) - chebyshevDistance(self.position, right.position)
+        || (left.id < right.id ? -1 : 1))[0] ?? null;
+  }
   const hits = Array.isArray(context.received) ? context.received : [];
   const struck = hits.find((hit) => hit.event === "cast" && hit.sourceId) ?? hits.find((hit) => hit.sourceId);
   return struck ? visibleActor(context.view, struck.sourceId) : null;
+}
+
+const affinityKeyOf = (entry) => `${String(entry?.kind).trim().toLowerCase()}:${String(entry?.expression).trim().toLowerCase()}`;
+
+/**
+ * #719: a tactic whose action this actor's own kit cannot do is passed over, so the next tactic
+ * gets the turn; a recipe written for every kind names kits the actor may not carry. An equip
+ * needs the affinity held and not yet equipped, an unequip needs it equipped.
+ */
+function kitAllows(action, record) {
+  if (action.kind !== "equip_affinity" && action.kind !== "unequip_affinity") return true;
+  if (!record) return false;
+  const equipped = equippedActorAffinityKeys(record).includes(action.params.affinityKey);
+  if (action.kind === "unequip_affinity") return equipped;
+  const held = (Array.isArray(record.affinities) ? record.affinities : []).some((entry) => affinityKeyOf(entry) === action.params.affinityKey);
+  return held && !equipped;
 }
 
 function tacticProposal(action, context, goal) {
@@ -523,8 +551,15 @@ function tacticProposal(action, context, goal) {
   if (action.kind === "cast_affinity" && TARGET_SELECTORS.includes(action.params.targetId)) {
     const target = selectedTarget(action.params.targetId, context, goal);
     if (!target) return null;
+    const distance = chebyshevDistance(context.self.position, target.position);
+    // #719: a selector cast is proposed only when a slot reaches; unnamed, the Actor picks the
+    // equipped push or pull that reaches and that it can afford (never a restoring one at it).
+    if (!action.params.affinityKey) return context.castAt(target, distance);
+    const slot = context.record ? equippedActorAffinities(context.record).find((entry) => affinityKeyOf(entry) === action.params.affinityKey) : null;
+    if (!slot || distance > (Number.isInteger(slot.stacks) && slot.stacks > 0 ? slot.stacks : 1)) return null;
     return { kind: "cast_affinity", params: { ...action.params, targetId: target.id } };
   }
+  if (!kitAllows(action, context.record)) return null;
   return context.commandProposal(action);
 }
 

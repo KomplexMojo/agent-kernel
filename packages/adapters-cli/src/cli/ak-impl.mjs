@@ -4742,7 +4742,8 @@ async function recipesCommand(argv) {
       const roles = Object.entries(row.roles).filter(([, n]) => n > 0).map(([role, n]) => `${role} ${n}`).join(", ") || "none";
       console.log(`${row.name.padEnd(16)} ${String(row.cost.delver).padStart(4)} t  ${row.archetype.padEnd(11)} ${roles.padEnd(26)} ${row.affinities.join(" ")}`);
     } else {
-      console.log(`${row.name.padEnd(22)} strategy  ${row.posture ?? ""}  ${row.summary ?? ""}`);
+      const tags = [row.postures.join("/"), row.mobility, row.fits === "list" ? null : row.fits].filter(Boolean).join(" · ");
+      console.log(`${row.name.padEnd(22)} strategy  ${tags.padEnd(30)} ${row.title}`);
     }
   }
 }

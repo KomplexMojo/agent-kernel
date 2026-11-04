@@ -499,6 +499,15 @@ Inputs/outputs:
   ```bash
   ak create --grade F --room "size=medium;count=3" --delver "recipe=shadowblade;motivation=user_controlled" --warden "recipe=lantern-bearer"
   ```
+- `--delver` and `--warden` accept `strategy-recipe=<name>` (#719): one of the Actor's strategy recipes (`ak recipes
+  --kind strategy`), written in as the spec's `strategy=` plus the motivations it needs: its posture (aggressive
+  recipes are `attacking`), its mobility when it names one, and `strategy_focused` (none for a `user_controlled` or
+  `ai_controlled` actor, which already follows tactics). An explicit `motivation=` kind in one of those families
+  must fit, or the spec is refused naming both; a role default that does not fit gives way. It cannot sit beside
+  `strategy=`. No new price: the added motivations are priced as usual.
+  ```bash
+  ak create --grade F --room "size=medium;count=3" --delver "recipe=sapper;strategy-recipe=structure-breaker"
+  ```
 - `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
   affinities the actor can equip at once, from 1 to its preset (delver 3, warden 2; core caps any actor at 3). Buying
   slots above the preset is retired (Darren, 2026-10-30): affinities past the slots are held as a pack, and equipping
@@ -641,6 +650,11 @@ MCP twins: `ak_recipe_list` (`kind`, `role`) and `ak_recipe_show` (`name`, `role
 `recipe=` in a `--delver`/`--warden` spec (see `create` above). An MCP object spec's `affinities` entries
 now carry `intensity` too.
 
+Strategy recipes (#719) are the Actor's: `ak recipes --kind strategy` lists each with its postures, mobility
+and whether it is a `z3-candidate`; `ak recipe kite --json` shows its goals and tactics, the kit it expects
+(`requires`) and what the list version leaves out (`limits`). They have no price of their own. Use a name
+as `strategy-recipe=` in a spec.
+
 ### Scenario authoring example
 
 Author scenarios with `create` and play them with `play`. Actor motivations used by the
@@ -729,7 +743,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]][;strategy-recipe=<name>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -764,7 +778,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]][;strategy-recipe=<name>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.

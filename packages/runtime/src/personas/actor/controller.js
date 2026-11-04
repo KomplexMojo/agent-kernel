@@ -54,6 +54,7 @@ import {
 import { getMotivationModule } from "./motivations/index.js";
 import {
   LAST_ATTACKER,
+  NEAREST_ALLY,
   NEAREST_HOSTILE,
   RETREAT,
   ROUTE_STRUCTURE,
@@ -61,16 +62,18 @@ import {
   STRATEGY_GOAL_KINDS,
   STRATEGY_CONDITION_INPUTS,
   STRATEGY_STATUS,
+  TARGET_SELECTORS,
   followStrategy,
   ignoredStrategyParts,
   normalizeStrategy,
   strategyConditionHolds,
   strategyDepth,
 } from "./strategy.js";
+import { createStrategyRecipeCatalogue } from "./strategy-recipes.js";
 
-export { LAST_ATTACKER, NEAREST_HOSTILE, RETREAT, ROUTE_STRUCTURE, STRATEGY_DEPTH, STRATEGY_GOAL_KINDS, STRATEGY_STATUS };
+export { LAST_ATTACKER, NEAREST_ALLY, NEAREST_HOSTILE, RETREAT, ROUTE_STRUCTURE, STRATEGY_DEPTH, STRATEGY_GOAL_KINDS, STRATEGY_STATUS };
 // #718: the tactic conditions and the observed context each reads (the seat-rule guard's surface).
-export { STRATEGY_CONDITION_INPUTS, strategyConditionHolds as actorStrategyConditionHolds };
+export { STRATEGY_CONDITION_INPUTS, TARGET_SELECTORS, strategyConditionHolds as actorStrategyConditionHolds };
 
 /**
  * Stage B — `profileAlignment` split into its two independent signals.
@@ -1695,6 +1698,31 @@ export function normalizeActorStrategy(strategy) {
   return normalizeStrategy(strategy, normalizeActorCommand);
 }
 
+// #719: the strategy recipe catalogue, checked against this persona's own grammar on first use.
+let strategyRecipes = null;
+function strategyRecipeCatalogue() {
+  strategyRecipes ??= createStrategyRecipeCatalogue(normalizeActorStrategy);
+  return strategyRecipes;
+}
+
+/** Every strategy recipe name, in catalogue order (#719). */
+export function actorStrategyRecipeNames() {
+  return strategyRecipeCatalogue().names();
+}
+
+/**
+ * The strategy recipe called `name` (#719): `{ name, title, description, limits?, postures,
+ * mobility, cognition, requires, fits, strategy }` with `strategy` in canonical form, or undefined.
+ */
+export function actorStrategyRecipe(name) {
+  return strategyRecipeCatalogue().get(name);
+}
+
+/** A listing row per strategy recipe (tags and counts, no strategy body). */
+export function describeActorStrategyRecipes() {
+  return strategyRecipeCatalogue().describe();
+}
+
 /** How much of a strategy an actor with these motivations follows: none, goals, or full. */
 export function actorStrategyDepth(motivationKinds) {
   return strategyDepth(motivationKinds);
@@ -1749,7 +1777,7 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     },
     commandProposal: (command) => buildCommandProposals({ command, observationView, observation, actorId })[0] ?? null,
   };
-  return { depth, ...followStrategy({ strategy: canonical, depth, entry: entry ?? {}, context }) };
+  return { depth, tacticsOnly: canonical.goals.length === 0, ...followStrategy({ strategy: canonical, depth, entry: entry ?? {}, context }) };
 }
 
 /**
@@ -1984,7 +2012,10 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       ? view().context.contacts?.[strategyActorId] ?? null
       : null;
     // #251 — with no order and no strategy, an escort keeps to its ally before anything else.
-    const escortTurn = shouldEmitActions && strategyActorId && !commandProposals && !strategyTurn
+    // #719: a strategy of tactics only (a strategy recipe like guard-the-leader) leaves the escort
+    // in place on turns no tactic fires.
+    const escortTurn = shouldEmitActions && strategyActorId && !commandProposals
+      && (!strategyTurn || (followsStrategy && strategyTurn.tacticsOnly && !strategyTurn.proposals))
       && payload.strategyOrder === undefined
       ? resolveEscortTurn({ entry: view().context.escorts?.[strategyActorId], payload, observation,
         observationView, simConfig, actorId: strategyActorId, tick, baseTiles })

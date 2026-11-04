@@ -2,11 +2,20 @@
  * The recipe catalogue as every front end reads it (#716): `ak recipes` / `ak recipe`, the MCP
  * tools, the character sheet and the LLM planner. Glue only: the recipes are the Configurator's
  * (configuration) and the Actor's (strategy), each row's price is the Allocator's quote of the
- * recipe's expansion. Nothing here decides what a recipe holds or costs.
+ * recipe's expansion. Nothing here decides what a recipe holds or costs. Strategy recipes have no
+ * price (decided): the motivations they add are priced where the spec is.
  */
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { actorStrategyRecipe, actorStrategyRecipeNames, describeActorStrategyRecipes } from "../personas/actor/persona.js";
+
+// The Actor's strategy recipes (#719): listed as they are, with no price of their own.
+const ACTOR_STRATEGY_RECIPES = Object.freeze({
+  describe: describeActorStrategyRecipes,
+  show: actorStrategyRecipe,
+  names: actorStrategyRecipeNames,
+});
 
 export const RECIPE_LISTING_KINDS = Object.freeze(["config", "strategy"]);
 export const RECIPE_LISTING_ROLES = Object.freeze(["attack", "defence", "support"]);
@@ -15,7 +24,7 @@ const PRICED_ROLES = Object.freeze(["delver", "warden"]);
 // warden (the spec's default warden motivation). The quote is the Allocator's either way.
 const QUOTE_MOTIVATIONS = Object.freeze({ delver: ["user_controlled"], warden: ["defending"] });
 
-export function createRecipeCatalogue({ configurator, allocator, strategyRecipes = null } = {}) {
+export function createRecipeCatalogue({ configurator, allocator, strategyRecipes = ACTOR_STRATEGY_RECIPES } = {}) {
   const config = configurator ?? createConfiguratorPersona({ clock: UNUSED_CLOCK });
   const pricing = allocator ?? createAllocatorPersona({ clock: UNUSED_CLOCK, normalizeMotivations: config.normalizeMotivations });
 

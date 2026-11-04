@@ -1,0 +1,1202 @@
+{
+  "recipes": [
+    {
+      "name": "attack-alignment",
+      "title": "Attack alignment",
+      "postures": [
+        "attacking",
+        "defending"
+      ],
+      "mobility": null,
+      "fits": "list",
+      "description": "Hit by a field, it equips the same kind's draw (absorbs it into mana) or emit (immune), whichever it carries. Hit by a cast, which no slot resists, it answers the caster.",
+      "limits": "Never equips the opposite kind (it doubles field damage). Against a cast it fights back rather than breaking line of sight.",
+      "requires": [
+        {
+          "expressions": [
+            "draw",
+            "emit"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "hitBy": "fire",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "fire:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "fire",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "fire:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "water",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "water:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "water",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "water:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "earth",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "earth:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "earth",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "earth:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "wind",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "wind:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "wind",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "wind:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "growth",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "growth:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "growth",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "growth:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "decay",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "decay:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "decay",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "decay:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "corrode",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "corrode:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "corrode",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "corrode:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "fortify",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "fortify:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "fortify",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "fortify:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "light",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "light:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "light",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "light:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "dark",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "dark:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitBy": "dark",
+              "by": "field"
+            },
+            "do": {
+              "kind": "equip_affinity",
+              "params": {
+                "affinityKey": "dark:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitByCast": true
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "attacker"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "break-off",
+      "title": "Break off",
+      "postures": [
+        "defending"
+      ],
+      "mobility": null,
+      "fits": "list",
+      "description": "Leaves before it is finished: under a quarter health, or under half stamina (before a water or wind pin), it steps away from the nearest hostile; under a quarter mana it stops and recovers.",
+      "limits": "Steps away one tile a turn; it does not plan a route out of sight.",
+      "requires": [],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "vital": "health",
+              "below": 25
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "vital": "stamina",
+              "below": 50
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 25
+            },
+            "do": {
+              "kind": "wait"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "mana-discipline",
+      "title": "Mana discipline",
+      "postures": [
+        "defending"
+      ],
+      "mobility": null,
+      "fits": "z3-candidate",
+      "description": "Under half mana it switches off a draw, then an emit, one a turn, before upkeep drains the pool and switches everything off; under a quarter it stops and recovers.",
+      "limits": "Drops slots in table order, not costliest first (choosing which upkeep to keep is the z3 candidate, #674). Keeps a light emit: it is the actor's sight.",
+      "requires": [
+        {
+          "expressions": [
+            "emit",
+            "draw"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "vital": "mana",
+              "below": 25
+            },
+            "do": {
+              "kind": "wait"
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "fire:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "water:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "earth:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "wind:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "growth:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "decay:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "corrode:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "fortify:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "light:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "dark:draw"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "fire:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "water:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "earth:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "wind:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "growth:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "decay:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "corrode:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "fortify:emit"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "unequip_affinity",
+              "params": {
+                "affinityKey": "dark:emit"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "focus-fire",
+      "title": "Focus fire",
+      "postures": [
+        "attacking"
+      ],
+      "mobility": null,
+      "fits": "z3-candidate",
+      "description": "Answers whoever struck it with a cast, else casts at the nearest hostile it can reach.",
+      "limits": "Picks by sight and hits, not by last-seen health; assigning several actors to several targets is the z3 candidate.",
+      "requires": [
+        {
+          "role": "attack",
+          "expressions": [
+            "push",
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "hitByCast": true
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "attacker"
+              }
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 9
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "kite",
+      "title": "Kite",
+      "postures": [
+        "attacking"
+      ],
+      "mobility": "exploring",
+      "fits": "list",
+      "description": "Keeps its distance: a hostile beside it, it steps away; further off, it casts at the nearest one it can reach.",
+      "limits": "Steps back one tile rather than to the edge of its own range.",
+      "requires": [
+        {
+          "role": "attack",
+          "expressions": [
+            "push"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "hostileWithin": 1
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 9
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ambush-from-the-dark",
+      "title": "Ambush from the dark",
+      "postures": [
+        "stealthy"
+      ],
+      "mobility": "stationary",
+      "fits": "list",
+      "description": "Waits still under its dark emit (stamina recovers when it does not move) and opens with its strongest reach when a hostile comes in range; under half mana it breaks off.",
+      "requires": [
+        {
+          "kind": "dark",
+          "expressions": [
+            "emit"
+          ]
+        },
+        {
+          "role": "attack",
+          "expressions": [
+            "push",
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 9
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "read-before-engaging",
+      "title": "Read before engaging",
+      "postures": [
+        "attacking"
+      ],
+      "mobility": "exploring",
+      "fits": "list",
+      "description": "Reads a hostile from afar with a light push (its vitals, with an age) and fights it once it is within two tiles.",
+      "limits": "Reads on every far turn; it has no memory of a hostile it already read.",
+      "requires": [
+        {
+          "kind": "light",
+          "expressions": [
+            "push"
+          ]
+        },
+        {
+          "role": "attack",
+          "expressions": [
+            "push",
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "hostileWithin": 2
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 9
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "light:push"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "hold-the-chokepoint",
+      "title": "Hold the chokepoint",
+      "postures": [
+        "defending"
+      ],
+      "mobility": "stationary",
+      "fits": "list",
+      "description": "Never leaves its post; casts at any hostile that comes within four tiles.",
+      "limits": "Does not raise or repair a barrier yet (raise_barrier needs a cell the recipe cannot name).",
+      "requires": [
+        {
+          "role": "attack",
+          "expressions": [
+            "push",
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "hostileWithin": 4
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "guard-the-leader",
+      "title": "Guard the leader",
+      "postures": [
+        "friendly"
+      ],
+      "mobility": "escorting",
+      "fits": "list",
+      "description": "Keeps beside the ally it escorts and casts at a hostile that comes within two tiles.",
+      "requires": [
+        {
+          "role": "attack",
+          "expressions": [
+            "push",
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "hostileWithin": 2
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "triage-heal",
+      "title": "Triage heal",
+      "postures": [
+        "friendly"
+      ],
+      "mobility": null,
+      "fits": "z3-candidate",
+      "description": "During a fight it heals the nearest ally it can reach with a restoring push; under a quarter health it steps away first.",
+      "limits": "Heals the nearest ally, not the most hurt: an ally's vitals are not observable without a read. Spreading mana over several wounded allies is the z3 candidate.",
+      "requires": [
+        {
+          "role": "support",
+          "expressions": [
+            "push"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "vital": "health",
+              "below": 25
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 6
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_ally",
+                "affinityKey": "growth:push"
+              }
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 6
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_ally",
+                "affinityKey": "fortify:push"
+              }
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 6
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_ally",
+                "affinityKey": "light:push"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "loot-run",
+      "title": "Loot run",
+      "postures": [
+        "friendly",
+        "attacking"
+      ],
+      "mobility": "exploring",
+      "fits": "list",
+      "description": "Explores and takes what it finds; any vital under a quarter and it steps away from the nearest hostile.",
+      "limits": "Takes what it passes rather than ranking resources by token value.",
+      "requires": [],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "vital": "health",
+              "below": 25
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "vital": "stamina",
+              "below": 25
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 25
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "hit-and-fade",
+      "title": "Hit and fade",
+      "postures": [
+        "attacking"
+      ],
+      "mobility": null,
+      "fits": "list",
+      "description": "Casts at the nearest hostile it can reach until its mana is under half, then steps away to recover.",
+      "requires": [
+        {
+          "role": "attack",
+          "expressions": [
+            "push",
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 9
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "structure-breaker",
+      "title": "Structure breaker",
+      "postures": [
+        "attacking"
+      ],
+      "mobility": "exploring",
+      "fits": "list",
+      "description": "Heads for the exit; a barrier, hazard or resource on its way, it breaks it from where it stands, then walks on.",
+      "requires": [
+        {
+          "role": "attack",
+          "expressions": [
+            "push",
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "goals": [
+          {
+            "kind": "reach",
+            "place": "exit"
+          }
+        ],
+        "tactics": [
+          {
+            "when": {
+              "structureOnRoute": true
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "route_structure"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "leech-loop",
+      "title": "Leech loop",
+      "postures": [
+        "attacking"
+      ],
+      "mobility": null,
+      "fits": "list",
+      "description": "Under half of a vital, it pulls that vital from the nearest hostile with the harmful pull that steals it (decay for health, dark for mana, water or wind for stamina, fire, earth or corrode for durability); otherwise it casts as usual.",
+      "requires": [
+        {
+          "role": "attack",
+          "expressions": [
+            "pull"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "vital": "health",
+              "below": 50
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "decay:pull"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "mana",
+              "below": 50
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "dark:pull"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "stamina",
+              "below": 50
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "water:pull"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "stamina",
+              "below": 50
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "wind:pull"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "durability",
+              "below": 50
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "fire:pull"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "durability",
+              "below": 50
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "earth:pull"
+              }
+            }
+          },
+          {
+            "when": {
+              "vital": "durability",
+              "below": 50
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile",
+                "affinityKey": "corrode:pull"
+              }
+            }
+          },
+          {
+            "when": {
+              "hostileWithin": 9
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "nearest_hostile"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "silence-the-caster",
+      "title": "Silence the caster",
+      "postures": [
+        "attacking"
+      ],
+      "mobility": null,
+      "fits": "list",
+      "description": "Struck by a cast, it answers the caster with a dark push to drain its mana; without one that reaches, it steps out of range.",
+      "requires": [
+        {
+          "kind": "dark",
+          "expressions": [
+            "push"
+          ]
+        }
+      ],
+      "strategy": {
+        "tactics": [
+          {
+            "when": {
+              "hitByCast": true
+            },
+            "do": {
+              "kind": "cast_affinity",
+              "params": {
+                "targetId": "attacker",
+                "affinityKey": "dark:push"
+              }
+            }
+          },
+          {
+            "when": {
+              "hitByCast": true
+            },
+            "do": {
+              "kind": "retreat"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

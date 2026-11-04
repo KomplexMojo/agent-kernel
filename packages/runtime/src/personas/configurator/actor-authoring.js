@@ -74,6 +74,51 @@ export function authorMotivations({ role, index, raw } = {}) {
   return kinds;
 }
 
+const familyOf = (kind) => Object.entries(MOTIVATION_FAMILIES).find(([, kinds]) => kinds.includes(kind))?.[0];
+
+/**
+ * #719: an actor's motivations once it is given a strategy recipe (the Actor's tags
+ * `{ name, postures, mobility, cognition }`). For each family the recipe sets (posture,
+ * mobility when it names one, cognition), an explicit `motivation=` kind in that family must
+ * fit the recipe, or the spec is refused naming both; a family left unwritten takes the
+ * recipe's (the first of its postures). A role default that does not fit is replaced. A player-
+ * or AI-controlled actor already follows tactics, so the recipe adds no cognition to it, and a
+ * deeper cognition (`strategy_focused` for a goals-only recipe) fits. One per family, as always.
+ */
+export function composeStrategyRecipeMotivations({ role, index, raw, recipe } = {}) {
+  const label = `${role}[${index}]`;
+  const explicit = isNonEmptyString(raw);
+  const kinds = authorMotivations({ role, index, raw });
+  const held = (family) => kinds.find((kind) => familyOf(kind) === family);
+  const set = (family, kind) => {
+    const current = held(family);
+    if (current) kinds.splice(kinds.indexOf(current), 1, kind);
+    else kinds.push(kind);
+  };
+  const clash = (kind, wanted) => new Error(`${label} motivation ${kind} clashes with strategy-recipe ${recipe.name}, `
+    + `which needs ${wanted}; drop one.`);
+  const posture = held("posture");
+  if (!posture || !recipe.postures.includes(posture)) {
+    if (posture && explicit) throw clash(posture, recipe.postures.join(" or "));
+    set("posture", recipe.postures[0]);
+  }
+  if (recipe.mobility) {
+    const mobility = held("mobility");
+    if (mobility !== recipe.mobility) {
+      if (mobility && explicit) throw clash(mobility, recipe.mobility);
+      set("mobility", recipe.mobility);
+    }
+  }
+  const controlled = kinds.some((kind) => familyOf(kind) === "control");
+  const cognition = held("cognition");
+  const deepEnough = cognition === recipe.cognition || (cognition === "strategy_focused" && recipe.cognition === "goal_oriented");
+  if (!deepEnough && !(controlled && !cognition)) {
+    if (cognition && explicit) throw clash(cognition, recipe.cognition);
+    set("cognition", recipe.cognition);
+  }
+  return authorMotivations({ role, index, raw: kinds.join("+") });
+}
+
 /**
  * Authors one delver actor candidate.
  *

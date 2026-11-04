@@ -24,6 +24,7 @@ import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
+import { actorStrategyRecipe, actorStrategyRecipeNames } from "../personas/actor/persona.js";
 
 /** The `ak` argument grammar: `--key value`, `--key=value`, bare `--flag`; repeatable keys collect. */
 export function parseArgs(argv) {
@@ -578,6 +579,24 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     fields.set("vitals", merged.join(","));
     fields.delete("recipe");
     fields.delete("kind");
+  }
+
+  // #719: `strategy-recipe=<name>` on a delver or warden spec. The recipe is the Actor's
+  // (actorStrategyRecipe); the motivations it needs are the Configurator's to compose
+  // (composeStrategyRecipeMotivations: an explicit motivation in a family the recipe sets must fit,
+  // or the spec is refused naming both). Both land as the spec's own `strategy=` and `motivation=`
+  // text, so the rest is parsed, authored and priced as if typed. No new price (decided).
+  function applyStrategyRecipe(fields, role, index) {
+    if (!fields.has("strategy-recipe")) return;
+    const label = `${role}[${index}]`;
+    if (fields.has("strategy")) throw new Error(`${label} gives strategy= and strategy-recipe=; give one.`);
+    const name = fields.get("strategy-recipe").trim().toLowerCase();
+    const recipe = actorStrategyRecipe(name);
+    if (!recipe) throw new Error(`${label}: unknown strategy recipe ${JSON.stringify(name)} (known: ${actorStrategyRecipeNames().join(", ")}).`);
+    const motivations = configurator.composeStrategyRecipeMotivations({ role, index, raw: fields.get("motivation"), recipe });
+    fields.set("motivation", motivations.join("+"));
+    fields.set("strategy", JSON.stringify(recipe.strategy));
+    fields.delete("strategy-recipe");
   }
 
   // #722: the Configurator's warnings on the equip order are pushed to `warnings`, when given.
@@ -1238,7 +1257,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
     }
 
-    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy", "escort", "minions", "recipe", "kind"]);
+    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy", "strategy-recipe", "escort", "minions", "recipe", "kind"]);
     const fields = new Map();
     const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
     if (segments.length === 0) {
@@ -1278,6 +1297,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     });
 
     applyActorRecipe(fields, "delver", delverIndex, warnings);
+    applyStrategyRecipe(fields, "delver", delverIndex);
     // configurator/actors (2026-08-18) — the CLI still tokenizes the `;`-delimited spec
     // (above) and the generic value-format tuples (below); defaulting, enum validation
     // and candidate assembly are the Configurator's, via authorDelverCandidate.
@@ -1338,7 +1358,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       throw new Error(`warden[${wardenIndex}] requires a non-empty spec.`);
     }
 
-    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip", "strategy", "escort", "recipe", "kind"]);
+    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip", "strategy", "strategy-recipe", "escort", "recipe", "kind"]);
     const fields = new Map();
     const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
     if (segments.length === 0) {
@@ -1377,6 +1397,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       fields.set(key, fieldValue);
     });
     applyActorRecipe(fields, "warden", wardenIndex, warnings);
+    applyStrategyRecipe(fields, "warden", wardenIndex);
 
     const rawAffinity = fields.get("affinity") || defaultAffinity;
     const affinity = isNonEmptyString(rawAffinity) ? String(rawAffinity).trim().toLowerCase() : null;
