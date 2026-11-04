@@ -30,6 +30,7 @@ import { runOne } from "./play-sim.mjs";
 import { resolveModelEnv } from "./play-sim-model-env.mjs";
 import { llmSeatPicker } from "./play-sim-seat.mjs";
 import { createAnthropicAdapter, resolveProvider } from "./play-sim-anthropic.mjs";
+import { affinityRole } from "../../packages/runtime/src/render/affinity-role.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const DEFAULT_RUNGS = [1, 1.5, 2, 3, 4];
@@ -103,6 +104,25 @@ export function playProfile(record) {
     healthLost: healthLost(transcript), hostileInSightTurns: transcript.filter((turn) => /In sight: .*\bW\d/.test(turn.screen ?? "")).length };
 }
 
+/**
+ * #724: did the seat use the attack it held? The castable attacks are the delver's held pushes and
+ * pulls the table labels `attack` (emits and draws act on their own, without a cast). A play that held
+ * one and cast none is a defect of the play, whatever its outcome: `attackUnused`. Whether one was
+ * equipped at the start tells "never equipped" apart from "equipped and never chosen".
+ */
+export function attackUse(character, record) {
+  const field = (key) => character.split(";").find((entry) => entry.startsWith(`${key}=`))?.slice(key.length + 1) ?? "";
+  const pairs = (list) => list.split(",").filter(Boolean).map((entry) => entry.split(":").slice(0, 2).join(":"));
+  const castable = (key) => { const [kind, expression] = key.split(":"); return (expression === "push" || expression === "pull") && affinityRole(kind, expression) === "attack"; };
+  const attackHeld = pairs(field("affinities")).filter(castable);
+  const equipped = new Set(pairs(field("equip")));
+  const attackCasts = (record.seatLog?.transcript ?? [])
+    .filter((turn) => !turn.refused && typeof turn.pick === "string" && turn.pick.startsWith("cast:")
+      && attackHeld.includes(turn.pick.slice("cast:".length).split("@")[0])).length;
+  return { attackHeld, attackEquippedAtStart: attackHeld.some((key) => equipped.has(key)), attackCasts,
+    attackUnused: attackHeld.length > 0 && attackCasts === 0 };
+}
+
 /** Play every rung on every seed, `repeats` times; returns `{ outDir, runs, summary }`. */
 export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], rungs = DEFAULT_RUNGS, repeats = DEFAULT_REPEATS, maxTicks = 200, seatPicker, model = null, outDir, log = () => {} }) {
   const catalog = loadPlaytestScenarios();
@@ -121,18 +141,23 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
       const mean = (key) => (plays.length ? Math.round((plays.reduce((sum, run) => sum + (run[key] ?? 0), 0) / plays.length) * 10) / 10 : null);
       const labels = Object.fromEntries(["fought", "avoided", "pinned", "lost", "timeout"].map((label) => [label, plays.filter((run) => run.label === label).length]).filter(([, n]) => n));
       return { rung: k, plays: plays.length, wins, winRate: plays.length ? wins / plays.length : null, delverTokens: tokens,
-        tokensPerWin: wins ? Math.round((tokens ?? 0) * plays.length / wins) : null, meanTicks: mean("ticks"), meanCasts: mean("casts"), meanHealthLost: mean("healthLost"), labels };
+        tokensPerWin: wins ? Math.round((tokens ?? 0) * plays.length / wins) : null, meanTicks: mean("ticks"), meanCasts: mean("casts"), meanHealthLost: mean("healthLost"), labels,
+        attackUnused: plays.filter((run) => run.attackUnused).length };
     });
     const winning = byRung.filter((rung) => rung.winRate !== null && rung.winRate >= 0.5).map((rung) => rung.rung);
+    const attackUnused = runs.filter((run) => run.attackUnused).length;
     const summary = { schema: "agent-kernel/PowerLadderRun", version: 2, scenario: scenarioId, seeds, rungs, repeats, maxTicks, model,
-      lowestWinningRung: winning.length ? Math.min(...winning) : null, byRung, runs };
+      lowestWinningRung: winning.length ? Math.min(...winning) : null, attackUnused, byRung, runs };
     writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
-    const rows = byRung.map((rung) => `| ×${rung.rung} | ${rung.wins}/${rung.plays} | ${rung.delverTokens ?? "?"} | ${rung.tokensPerWin ?? "–"} | ${rung.meanTicks} | ${rung.meanCasts} | ${rung.meanHealthLost} | ${Object.entries(rung.labels).map(([label, n]) => `${label} ${n}`).join(", ")} |`);
-    const plays = runs.map((run) => `| ×${run.rung} | ${run.seed} | ${run.repeat} | ${run.outcome} | ${run.label} | ${run.ticks} | ${run.casts} | ${run.struck} | ${run.healthLost} | ${run.hostileInSightTurns} | ${run.illegal ?? "?"} |`);
+    const rows = byRung.map((rung) => `| ×${rung.rung} | ${rung.wins}/${rung.plays} | ${rung.delverTokens ?? "?"} | ${rung.tokensPerWin ?? "–"} | ${rung.meanTicks} | ${rung.meanCasts} | ${rung.meanHealthLost} | ${rung.attackUnused} | ${Object.entries(rung.labels).map(([label, n]) => `${label} ${n}`).join(", ")} |`);
+    const unused = (run) => (run.attackUnused ? `**yes**${run.attackEquippedAtStart ? "" : " (not equipped)"}` : run.attackHeld?.length ? "no" : "–");
+    const plays = runs.map((run) => `| ×${run.rung} | ${run.seed} | ${run.repeat} | ${run.outcome} | ${run.label} | ${run.ticks} | ${run.casts} | ${run.struck} | ${run.healthLost} | ${run.hostileInSightTurns} | ${unused(run)} | ${run.illegal ?? "?"} |`);
+    const defect = attackUnused > 0 ? [`**Defect:** ${attackUnused} of ${runs.length} play(s) held an attack and never cast it.`, ""] : [];
     writeFileSync(join(outDir, "report.md"), [`# Power ladder: ${scenarioId}`, "",
       `Model: ${model ?? "fixture"} · ${repeats} play(s) per rung and seed · lowest rung winning at least half its plays: ${summary.lowestWinningRung === null ? "none" : `×${summary.lowestWinningRung}`}`, "",
-      "| rung | wins | delver tokens | tokens per win | mean ticks | mean casts | mean HP lost | how |", "|---|---|---|---|---|---|---|---|", ...rows, "",
-      "## Plays", "", "| rung | seed | play | outcome | how | ticks | casts | hits landed | HP lost | turns hostile in sight | illegal |", "|---|---|---|---|---|---|---|---|---|---|---|", ...plays, ""].join("\n"));
+      ...defect,
+      "| rung | wins | delver tokens | tokens per win | mean ticks | mean casts | mean HP lost | attack unused | how |", "|---|---|---|---|---|---|---|---|---|", ...rows, "",
+      "## Plays", "", "| rung | seed | play | outcome | how | ticks | casts | hits landed | HP lost | turns hostile in sight | attack unused | illegal |", "|---|---|---|---|---|---|---|---|---|---|---|---|", ...plays, ""].join("\n"));
     return summary;
   };
   try {
@@ -149,7 +174,7 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
             if (record.outcome !== "create_failed") break;
             budgetTokens *= 2;
           }
-          const profile = playProfile(record);
+          const profile = { ...playProfile(record), ...attackUse(character, record) };
           const file = `rung-${k}-s${seed}-r${repeat}.json`;
           writeFileSync(join(outDir, file), `${JSON.stringify({ rung: k, repeat, character, profile, ...record }, null, 2)}\n`);
           runs.push({ file, rung: k, seed, repeat, outcome: record.outcome, ticks: record.ticks, budgetTokens,
