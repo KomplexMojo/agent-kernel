@@ -451,7 +451,12 @@ function renderSheet() {
   const slotCount = view.rows.filter((row) => row.kind === "slot").length;
   const vitalEnd = slotCount + view.rows.filter((row) => row.kind === "vital").length;
   // Darren, 2026-10-30: the equipped slots, ready at once, then the pack (swapped in for a turn).
-  $("sheet").innerHTML = `<h2>Equipped (${view.equipSlots} slots)</h2>${rows.slice(0, view.equipSlots).join("")}`
+  // #717: a recipe fills the sheet in one tap; it stays editable and priced by the Allocator.
+  const recipe = view.recipe ? `${esc(view.recipe.title)}${view.recipe.edited ? " (edited)" : ""}` : "your own";
+  $("sheet").innerHTML = `<h2>Recipe</h2><div class="srow recipe"><button class="f" data-sheet="prevRecipe">◂</button>`
+    + `<span>${recipe}</span><button class="f" data-sheet="nextRecipe">▸</button></div>`
+    + (view.recipe ? `<p class="dim">${esc(view.recipe.description)}</p>` : "")
+    + `<h2>Equipped (${view.equipSlots} slots)</h2>${rows.slice(0, view.equipSlots).join("")}`
     + (view.manaPerTick ? `<p class="dim">Emits and draws: ${view.manaPerTick} mana a tick together. Mana in a slot is per tick (emit, draw) or per cast (push, pull).</p>` : "")
     + (view.warnings?.length ? `<p class="bad">${esc(view.warnings[0])}</p>` : "")
     + `<p class="dim">ATK harms a target · DEF tops up your own vital · SUP heals whoever it reaches.</p>`

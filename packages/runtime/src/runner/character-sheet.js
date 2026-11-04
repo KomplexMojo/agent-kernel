@@ -24,6 +24,8 @@ export const SHEET_INTENT = Object.freeze({
   UP: "up", DOWN: "down", LEFT: "left", RIGHT: "right",
   INC: "inc", DEC: "dec", INC_BIG: "incBig", DEC_BIG: "decBig",
   CLEAR_SLOT: "clearSlot", RESET: "reset", CONFIRM: "confirm", CANCEL: "cancel",
+  // #717: step through the Configurator's configuration recipes; each loads into the sheet.
+  NEXT_RECIPE: "nextRecipe", PREV_RECIPE: "prevRecipe",
 });
 
 const BIG_STEP = 5;
@@ -106,6 +108,11 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   const initial = { ...parsed, minions: parsed.minions.filter((role) => roleChoices.includes(role) && role !== "none") };
   let choices = clone(initial);
   const cursor = { row: 0, field: 0 };
+  // #717: the recipe last loaded (null: the starting character); `recipeChoices` is what it was
+  // loaded as, so the view can say when the sheet has been edited since.
+  const recipeNames = configurator.configurationRecipeNames();
+  let recipe = null;
+  let recipeChoices = null;
 
   // Darren, 2026-10-30: the first MAX_AFFINITY_SLOTS rows are the equipped slots, ready at once;
   // the rest are the pack, carried and swapped in for a turn in play. A row set to none is not bought.
@@ -292,6 +299,14 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
       equipSlots: MAX_AFFINITY_SLOTS,
       choices: { kind: SLOT_KIND_CHOICES, expression: AFFINITY_EXPRESSIONS, role: roleChoices },
       minions: [...choices.minions],
+      // #717: the recipe loaded (null: none), whether the sheet was changed since, and the choices.
+      recipe: recipe === null ? null : {
+        name: recipe,
+        title: configurator.configurationRecipe(recipe).title,
+        description: configurator.configurationRecipe(recipe).description,
+        edited: JSON.stringify({ slots: choices.slots, vitals: choices.vitals }) !== recipeChoices,
+      },
+      recipes: recipeNames,
     };
   }
 
@@ -343,7 +358,9 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
         if (row.kind === "slot") choices.slots[row.index] = blankSlot();
         break;
       }
-      case SHEET_INTENT.RESET: choices = clone(initial); cursor.row = 0; cursor.field = 0; break;
+      case SHEET_INTENT.RESET: choices = clone(initial); recipe = null; recipeChoices = null; cursor.row = 0; cursor.field = 0; break;
+      case SHEET_INTENT.NEXT_RECIPE: stepRecipe(1); break;
+      case SHEET_INTENT.PREV_RECIPE: stepRecipe(-1); break;
       case SHEET_INTENT.CONFIRM: return view().ok ? { done: "confirm", spec: spec_() } : { done: null, refused: view().problems };
       case SHEET_INTENT.CANCEL: return { done: "cancel" };
       default: break;
@@ -351,6 +368,30 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     const fields = fieldsOf(rows()[cursor.row]);
     if (cursor.field >= fields.length) cursor.field = fields.length - 1;
     return { done: null };
+  }
+
+  /**
+   * #717: load a configuration recipe (the Configurator's, by name) into the sheet: its affinities
+   * fill the equipped slots in order, its vitals replace the sheet's, minions are kept. Everything
+   * stays editable and every price is still the Allocator's quote. Throws for an unknown name.
+   */
+  function loadRecipe(name) {
+    const expanded = configurator.expandConfigurationRecipe({ name, role: "delver", label: "character" });
+    const slots = expanded.affinities.map((entry) => ({ kind: entry.kind, expression: entry.expression, range: entry.stacks, intensity: entry.intensity }));
+    choices = {
+      ...choices,
+      slots: [...slots, ...Array.from({ length: MAX_AFFINITY_SLOTS - slots.length }, () => null)],
+      vitals: Object.fromEntries(GAME_VITAL_KEYS.map((key) => [key, { ...expanded.vitals[key] }])),
+    };
+    recipe = expanded.name;
+    recipeChoices = JSON.stringify({ slots: choices.slots, vitals: choices.vitals });
+    cursor.row = 0;
+    cursor.field = 0;
+  }
+
+  function stepRecipe(step) {
+    const at = recipe === null ? (step > 0 ? -1 : 0) : recipeNames.indexOf(recipe);
+    loadRecipe(recipeNames[(at + step + recipeNames.length) % recipeNames.length]);
   }
 
   /** Put the cursor on one row and field, for a screen that is tapped rather than stepped. */
@@ -408,5 +449,5 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     return parts.join(";");
   }
 
-  return { view, apply, select, tap, choose, spec: spec_, minions: () => [...choices.minions] };
+  return { view, apply, select, tap, choose, loadRecipe, spec: spec_, minions: () => [...choices.minions] };
 }
