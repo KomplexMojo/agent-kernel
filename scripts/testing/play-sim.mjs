@@ -61,6 +61,8 @@ const CHUNK = 5;
 
 /** The T0 order for the seated actor: a strategy `ak_play_order` accepts. */
 export function strategyFor(name) {
+  // #725: a strategy object (a strategy recipe's, say) is ordered as given.
+  if (name && typeof name === "object") return name;
   const goals = [{ kind: "reach", place: "exit" }];
   if (name === "dash") return { goals };
   if (name === "fight") {
