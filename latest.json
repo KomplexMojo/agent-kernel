@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-04T18-41-05-662Z-19caf20f7e14-d1a01bb627a1",
-    "key": "d1a01bb627a14431018f2d1e87484f327293b40e4a326356f7455150482db948",
+    "id": "2026-11-04T19-16-07-698Z-752b96db107d-8a1070bde36e",
+    "key": "8a1070bde36e729e26ac3041072e28991b76bf5241f75e14e9d14ddae89ff244",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-04T18:41:05.662Z",
-    "completedAt": "2026-11-04T18:41:32.686Z",
-    "durationMs": 27024,
+    "startedAt": "2026-11-04T19:16:07.698Z",
+    "completedAt": "2026-11-04T19:16:35.234Z",
+    "durationMs": 27536,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "19caf20f7e1419697a5a2c842bce07e14f65b054",
-    "tree": "bd5468b6b1f962e6bd66e2b479383f3b16cba32e"
+    "commit": "752b96db107dd4889a3b59a96e8d45764a53f637",
+    "tree": "7af169d9a2a5c2a094eeaef5d851b7f3005da9d0"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -76,6 +76,7 @@
       "packages/runtime/src/commands/card-authoring.js",
       "packages/runtime/src/commands/kernel.js",
       "packages/runtime/src/commands/manual-movement.js",
+      "packages/runtime/src/commands/recipe-catalogue.js",
       "packages/runtime/src/commands/run-helpers.js",
       "packages/runtime/src/commands/solver-host.js",
       "packages/runtime/src/contracts/README.md",
@@ -101,6 +102,8 @@
       "packages/runtime/src/personas/actor/motivations/stealthy.js",
       "packages/runtime/src/personas/actor/proposal-helpers.js",
       "packages/runtime/src/personas/actor/state-machine.js",
+      "packages/runtime/src/personas/actor/strategy-recipes.js",
+      "packages/runtime/src/personas/actor/strategy-recipes/strategy-recipes.json",
       "packages/runtime/src/personas/actor/strategy.js",
       "packages/runtime/src/personas/allocator/README.md",
       "packages/runtime/src/personas/allocator/allocator-services.js",
@@ -149,6 +152,8 @@
       "packages/runtime/src/personas/configurator/motivation-rules.js",
       "packages/runtime/src/personas/configurator/object-placement.js",
       "packages/runtime/src/personas/configurator/placement-constraints.js",
+      "packages/runtime/src/personas/configurator/recipes.js",
+      "packages/runtime/src/personas/configurator/recipes/configuration-recipes.json",
       "packages/runtime/src/personas/configurator/retinue.js",
       "packages/runtime/src/personas/configurator/shrine.js",
       "packages/runtime/src/personas/configurator/tactic-report.js",
@@ -169,6 +174,8 @@
       "packages/runtime/src/personas/moderator/affinity-target-effects.js",
       "packages/runtime/src/personas/moderator/controller.js",
       "packages/runtime/src/personas/moderator/tick-close.js",
+      "packages/runtime/src/personas/orchestrator/README.md",
+      "packages/runtime/src/personas/orchestrator/actor-prompt.js",
       "packages/runtime/src/personas/orchestrator/controller.js",
       "packages/runtime/src/personas/orchestrator/llm-session.js",
       "packages/runtime/src/personas/orchestrator/tactic-prompt.js",
@@ -279,7 +286,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/d1a01bb627a14431018f2d1e87484f327293b40e4a326356f7455150482db948"
+    "retentionId": "preflights/8a1070bde36e729e26ac3041072e28991b76bf5241f75e14e9d14ddae89ff244"
   },
   "qualifies": false
 }
