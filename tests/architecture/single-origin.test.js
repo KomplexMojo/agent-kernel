@@ -215,7 +215,22 @@ const BASE_COSTS_ACCESS = new RegExp(
   "gi",
 );
 
+// #713 — the configuration recipe catalogue has one reader, the Configurator's recipes.js. A
+// second reader would be a second recipe model (an adapter or the UI expanding recipes itself);
+// everything else asks the Configurator controller.
+const RECIPE_CATALOGUE_ACCESS = new RegExp(
+  String.raw`(?:from\s*|require\(\s*|readFileSync\(\s*)["'\`][^"'\`]*configuration-recipes\.json`,
+  "gi",
+);
+
 const SINGLE_ORIGIN_GUARDS = [
+  {
+    concept: "configuration recipe data read from configuration-recipes.json",
+    canonicalHome: ["packages/runtime/src/personas/configurator/recipes.js"],
+    forbiddenPattern: RECIPE_CATALOGUE_ACCESS,
+    scope: "packages",
+    keepStringLiterals: true,
+  },
   {
     concept: "price data read from base-costs.json",
     canonicalHome: ["packages/runtime/src/personas/allocator"],

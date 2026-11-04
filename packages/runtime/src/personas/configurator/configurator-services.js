@@ -61,6 +61,7 @@ import { maximizeActorBudget } from "./budget-maximizer.js";
 // configurator/actors (2026-08-18) — defaulting, enum validation and assembly of a
 // build/run request's delver roster entry, moved out of ak-impl.mjs's CLI glue.
 import { authorActorEquipment, authorDelverCandidate, authorMotivations, equipOmissionWarnings } from "./actor-authoring.js";
+import { configurationRecipe, configurationRecipeNames, describeConfigurationRecipes, expandConfigurationRecipe } from "./recipes.js";
 /**
  * CR.7 / WP-5 — the BUILD-PLANE helpers, published so glue stops reaching past the persona.
  *
@@ -437,6 +438,11 @@ export function attachConfiguratorServices({ fsm } = {}) {
     authorMotivations,
     authorActorEquipment,
     equipOmissionWarnings,
+    // #713: named configuration recipes (recipes.js), expanded into the fields a spec writes.
+    configurationRecipe,
+    configurationRecipeNames,
+    describeConfigurationRecipes,
+    expandConfigurationRecipe,
     /**
      * Motivation vocabulary, published so the Allocator stops importing it (CR.9 M3).
      *

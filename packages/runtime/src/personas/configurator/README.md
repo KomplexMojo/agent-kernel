@@ -561,6 +561,20 @@ lists `shrines: [{ id, kind, restores, name }]`; `name` is `healing well` when t
 `primaryVital` is health, else `shrine`. The hazard share prices them, and `fitTacticHazards` drops
 shrines and minefield hazards alike from the end of the last such tactic.
 
+### Configuration recipes (#713, tracker #726)
+
+`recipes.js` reads `recipes/configuration-recipes.json`, the one catalogue of named actor
+configurations (`shadowblade`, `tank`, `lantern-bearer`, ...; 20 at launch). A recipe is data: vitals
+with regen, and up to three affinities with range and intensity in importance order, plus a
+description, its weaknesses and the strategy recipes it pairs with. It has no price of its own: the
+Allocator quotes its expansion like any typed spec. `expandConfigurationRecipe({ name, role, kind })`
+returns the fields a delver or warden spec carries, with every affinity equipped; a role with fewer
+slots keeps the first ones and lists the rest as `dropped`. A `{K}` recipe (`spellward`) takes the
+author's kind. The catalogue is validated when it loads (names, kinds, the viability floor, an
+intensity cap of 3), and only `recipes.js` may read the JSON (`tests/architecture/single-origin.test.js`).
+Exposed on the controller as `configurationRecipe`, `configurationRecipeNames`,
+`describeConfigurationRecipes` and `expandConfigurationRecipe`.
+
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
