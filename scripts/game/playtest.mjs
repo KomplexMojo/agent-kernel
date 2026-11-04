@@ -78,17 +78,27 @@ function playerDelverIndex(scenario) {
 }
 
 /**
- * Darren, 2026-11-03: a default player never has a loadout with no offence. When the seed's {A}
+ * Darren, 2026-11-03: a default actor never has a loadout with no offence. When the seed's {A}
  * cannot harm (a restoring kind), its opposite's push is held and equipped beside it, so the
  * player always has one attack option. The table decides, never a kind name; a spec without
  * `equip=` or `affinities=` (a configured character) is left as written.
  */
-function armPlayerSpec(text, picks) {
-  if (affinityRole(picks.A, "push") === "attack" || affinityRole(picks.B, "push") !== "attack") return text;
+/**
+ * Darren, 2026-11-04: wardens too. Any delver or warden whose kind came from a seed placeholder
+ * is armed the same way, with its own opposite; a kind the scenario names outright is kept.
+ */
+function armActor(raw, filled) {
+  const placeholder = /affinity=\{(A|B|C|D)\}/.exec(raw);
+  const own = /affinity=([^;]*)/.exec(filled)?.[1];
+  return placeholder ? armSpec(filled, own, AFFINITY_OPPOSITES[own]) : filled;
+}
+
+function armSpec(text, ownKind, oppositeKind) {
+  if (!ownKind || affinityRole(ownKind, "push") === "attack" || !oppositeKind || affinityRole(oppositeKind, "push") !== "attack") return text;
   // The restoring push becomes the opposite's push at the same range and intensity (the same
   // price: pricing is affinity-agnostic); a spec without one gains it beside what it holds.
-  const own = `${picks.A}:push`;
-  const key = `${picks.B}:push`;
+  const own = `${ownKind}:push`;
+  const key = `${oppositeKind}:push`;
   const edit = (field, entry) => (spec) => spec.replace(new RegExp(`(${field}=)([^;]*)`), (whole, head, list) => {
     const items = list.split(",");
     if (items.some((item) => item.startsWith(key))) return whole;
@@ -102,7 +112,8 @@ function armPlayerSpec(text, picks) {
 
 export function playerDelverSpec(scenario, seed) {
   const picks = affinitiesForSeed(seed);
-  return armPlayerSpec(scenario.args[playerDelverIndex(scenario)].replace(PLACEHOLDER, (_, key) => picks[key]), picks);
+  const raw = scenario.args[playerDelverIndex(scenario)];
+  return armActor(raw, raw.replace(PLACEHOLDER, (_, key) => picks[key]));
 }
 
 /**
@@ -112,9 +123,9 @@ export function playerDelverSpec(scenario, seed) {
 export function scenarioArgs(scenario, seed, grade, character) {
   const picks = affinitiesForSeed(seed);
   const ownAt = character ? playerDelverIndex(scenario) : -1;
-  const playerAt = playerDelverIndex(scenario);
-  const fill = (text, index) => (index === ownAt ? character : index === playerAt
-    ? armPlayerSpec(text.replace(PLACEHOLDER, (_, key) => picks[key]), picks) : text.replace(PLACEHOLDER, (_, key) => picks[key]));
+  const filled = (text) => text.replace(PLACEHOLDER, (_, key) => picks[key]);
+  const fill = (text, index) => (index === ownAt ? character
+    : ["--delver", "--warden"].includes(scenario.args[index - 1]) ? armActor(text, filled(text)) : filled(text));
   const budget = grade ? ["--grade", grade] : ["--budget-tokens", String(scenario.budgetTokens)];
   // A tactic with no --seed draws one, so a scenario with tactics pins the build to its seed.
   const tacticSeed = scenario.args.includes("--tactic") ? ["--seed", String(seed)] : [];

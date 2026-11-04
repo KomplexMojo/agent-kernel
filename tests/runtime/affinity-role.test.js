@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AFFINITY_TABLE } from "../../packages/core-ts/src/state/affinity-table.ts";
 import { affinityRole, hasAttackOption } from "../../packages/runtime/src/render/affinity-role.js";
-import { affinitiesForSeed, playerDelverSpec, loadPlaytestScenarios } from "../../scripts/game/playtest.mjs";
+import { affinitiesForSeed, playerDelverSpec, loadPlaytestScenarios, scenarioArgs } from "../../scripts/game/playtest.mjs";
 import { createCharacterSheet } from "../../packages/runtime/src/runner/character-sheet.js";
 
 const EXPRESSIONS = ["push", "pull", "emit", "draw"];
@@ -42,5 +42,23 @@ describe("affinity role (attack / defence / support)", () => {
     view = sheet.view();
     expect(view.rows[1].role).toBe("attack");
     expect(view.warnings).toHaveLength(0);
+  });
+});
+
+describe("playtest wardens", () => {
+  it("every seeded delver and warden holds an attack option", () => {
+    const scenarios = loadPlaytestScenarios();
+    const list = scenarios.scenarios ?? scenarios;
+    for (const scenario of list) {
+      for (let seed = 0; seed < 12; seed += 1) {
+        const args = scenarioArgs(scenario, seed);
+        args.forEach((arg, index) => {
+          if (!["--delver", "--warden"].includes(args[index - 1]) || !/affinity=/.test(arg) || /affinity=(growth|fortify|light)/.test(arg) && !scenario.args[index - 1 - (args.length - scenario.args.length)]?.includes("{")) return;
+          const held = arg.match(/affinities=([^;]*)/)?.[1];
+          if (!held) return;
+          expect(hasAttackOption(held.split(",").map((entry) => { const [kind, expression] = entry.split(":"); return { kind, expression }; })), `${scenario.id} s${seed}: ${arg}`).toBe(true);
+        });
+      }
+    }
   });
 });
