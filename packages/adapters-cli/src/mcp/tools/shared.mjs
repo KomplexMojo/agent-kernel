@@ -57,7 +57,8 @@ export function specObjectToString(spec) {
       });
       if (vparts.length) parts.push(`vitals=${vparts.join(",")}`);
     } else if (k === "affinities" && Array.isArray(v)) {
-      const aparts = v.map((a) => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
+      // Intensity travels too (it was dropped, so an MCP object could not set it).
+      const aparts = v.map((a) => (typeof a === "string" ? a : `${a.kind}:${a.expression}:${a.stacks ?? 1}${a.intensity === undefined ? "" : `:${a.intensity}`}`));
       if (aparts.length) parts.push(`affinities=${aparts.join(",")}`);
     } else if (k === "motivation" && Array.isArray(v)) {
       // One motivation per family, e.g. ["exploring", "stealthy"] → motivation=exploring+stealthy.

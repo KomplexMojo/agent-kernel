@@ -623,6 +623,24 @@ Inputs/outputs:
 - `--emit-intermediates` additionally persists `request.json`, `intent.json`, `plan.json`,
   and sidecars such as `spend-proposal.json`.
 
+### `recipes` / `recipe`
+
+The recipe catalogue (#716, tracker #726). Configuration recipes are the Configurator's named actor
+configurations; each row carries the Allocator's quote of its expansion as a delver (`user_controlled`)
+and as a warden (`defending`), and its attack/defence/support mix from the affinity table.
+
+```bash
+node packages/adapters-cli/src/cli/ak.mjs recipes                       # name, delver cost, archetype, roles, affinities
+node packages/adapters-cli/src/cli/ak.mjs recipes --role support --json # only recipes with a support slot
+node packages/adapters-cli/src/cli/ak.mjs recipe spellward --role warden --kind water --json
+```
+
+`recipe <name>` prints the expansion for `--role` (default delver): vitals, affinities with range and
+intensity, equip order, what a warden's two slots leave out (`dropped`), and the price line items.
+MCP twins: `ak_recipe_list` (`kind`, `role`) and `ak_recipe_show` (`name`, `role`, `kind`). Use a name as
+`recipe=` in a `--delver`/`--warden` spec (see `create` above). An MCP object spec's `affinities` entries
+now carry `intensity` too.
+
 ### Scenario authoring example
 
 Author scenarios with `create` and play them with `play`. Actor motivations used by the
