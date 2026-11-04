@@ -490,6 +490,15 @@ Inputs/outputs:
   is the range (how far a cast reaches, or a field's radius) and the optional fourth is the intensity (strength;
   default 1). A hit is the expression's base × intensity² (push/pull 2, emit/draw 1). A hazard takes the same pair as
   `stacks=<range>;intensity=<n>`. Example: `affinities=fire:push:6:2` throws a fireball 6 tiles for 2 × 2² = 8.
+- `--delver` and `--warden` accept `recipe=<name>` (#715): a named configuration from the Configurator's catalogue
+  (`ak recipes` lists them), expanded into `affinity`, `affinities` (range and intensity), `equip` (every affinity) and
+  `vitals` as if typed, then authored and priced like any spec. Fields the spec writes win: `vitals=` entries replace
+  the recipe's vital by vital, `affinities=` replaces its affinities and equip order, `equip=`/`affinity=` replace
+  theirs. `kind=<kind>` sets a `{K}` recipe's kind (`recipe=spellward;kind=water`). A warden keeps the recipe's first
+  two affinities and the result's `warnings` say what was left out. An unknown name is refused, naming the known ones:
+  ```bash
+  ak create --grade F --room "size=medium;count=3" --delver "recipe=shadowblade;motivation=user_controlled" --warden "recipe=lantern-bearer"
+  ```
 - `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
   affinities the actor can equip at once, from 1 to its preset (delver 3, warden 2; core caps any actor at 3). Buying
   slots above the preset is retired (Darren, 2026-10-30): affinities past the slots are held as a pack, and equipping
@@ -702,7 +711,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -737,7 +746,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.
