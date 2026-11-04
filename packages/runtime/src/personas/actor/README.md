@@ -362,8 +362,18 @@ checked by the exported `normalizeActorStrategy`), like the command vocabulary.
 | `survive {distance=3}` | steps away from a hostile that close | never |
 
 Tactics are `{ when, do }`, checked before goals each turn, first match wins. `when` is
-`{vital, below}` (percent), `{hostileWithin}`, `{defeated}` or `{tickAtLeast}`; `do` is a command,
-`{ kind: "retreat" }`, or a cast at `"nearest_hostile"`.
+`{vital, below}` (percent), `{hostileWithin}`, `{defeated}`, `{tickAtLeast}`, or (#718)
+`{hitBy: <kind>, by?: "cast" | "field"}` (a hit it felt last turn revealed that affinity), `{hitByCast: true}`
+(another's cast struck it last turn) or `{structureOnRoute: true}` (a structure it can see, an immobile
+durability actor, stands on its walk to the current goal; when structures close every way, the one in the
+way). `do` is a command, `{ kind: "retreat" }`, or a cast at a selector: `"nearest_hostile"`, `"attacker"`
+(whoever struck it, when it saw them) or `"route_structure"` (what `structureOnRoute` found).
+
+**Seat rule.** A condition reads only what the actor observes: its own record, its scoped view, the
+hits it felt (`payload.receivedHits`, from core's `readActorReceivedHits`: its own hits only, the
+source named only when in sight) and the tick. `STRATEGY_CONDITION_INPUTS` declares each condition's
+inputs, and `tests/personas/actor/actor-strategy-hit-conditions.test.js` fails a condition that
+reads anything else.
 
 **How deep an actor follows is its thinking motivation** (`actorStrategyDepth`): none or
 `reflexive` ignores the strategy, `goal_oriented` follows the goals, `strategy_focused` and

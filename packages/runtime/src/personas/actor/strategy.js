@@ -4,6 +4,13 @@
  * A strategy is data: an ordered list of GOALS and, optionally, conditional TACTICS.
  *   goals    reach · defeat · guard · follow · lead · take · hold · survive
  *   tactics  { when: <condition>, do: <action> }, first match wins, checked before goals
+ *   when     vital/below · hostileWithin · defeated · tickAtLeast
+ *            hitBy (a kind, optionally by cast or field) · hitByCast · structureOnRoute (#718)
+ *
+ * Every condition reads only what the actor can observe (the seat rule): its own record, the
+ * actors and cells in its scoped view, the hits it felt last turn (core's `readActorReceivedHits`:
+ * its own only, an unseen source unnamed) and the tick. `STRATEGY_CONDITION_INPUTS` names the
+ * context each one reads; a guard test fails any condition that reads anything else.
  *
  * How much of it an actor follows is set by its thinking motivation (decision 5,
  * 2026-10-14). The tiers are monotonic:
@@ -30,13 +37,21 @@ import {
   isPassable,
 } from "./proposal-helpers.js";
 import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
+import { AFFINITY_KINDS } from "../../contracts/domain-constants.js";
 
 export const STRATEGY_GOAL_KINDS = Object.freeze(["reach", "defeat", "guard", "follow", "lead", "take", "hold", "survive"]);
 export const STRATEGY_VITALS = Object.freeze(["health", "mana", "stamina", "durability"]);
 /** A tactic's `do` may name this instead of an id: the nearest hostile the actor can see. */
 export const NEAREST_HOSTILE = "nearest_hostile";
+/** A tactic's `do` may name this instead of an id: whoever struck the actor last turn, when it saw them (#718). */
+export const LAST_ATTACKER = "attacker";
+/** A tactic's `do` may name this instead of an id: the structure `structureOnRoute` found (#718). */
+export const ROUTE_STRUCTURE = "route_structure";
+const TARGET_SELECTORS = Object.freeze([NEAREST_HOSTILE, LAST_ATTACKER, ROUTE_STRUCTURE]);
 /** A tactic action beyond the command vocabulary: step away from the nearest hostile. */
 export const RETREAT = "retreat";
+/** How a hit reached the actor (#718): another's cast, or a lasting field it stood in. */
+export const HIT_EVENTS = Object.freeze(["cast", "field"]);
 
 export const STRATEGY_DEPTH = Object.freeze({ NONE: "none", GOALS: "goals", FULL: "full" });
 export const STRATEGY_STATUS = Object.freeze({
@@ -119,7 +134,24 @@ function normalizeCondition(when, label) {
     if (!isNonNegativeInteger(when.tickAtLeast)) fail(`${label} when.tickAtLeast must be a whole tick number.`);
     return { tickAtLeast: when.tickAtLeast };
   }
-  return fail(`${label} when must name vital/below, hostileWithin, defeated or tickAtLeast.`);
+  if (keys.includes("hitBy")) {
+    if (!AFFINITY_KINDS.includes(when.hitBy)) {
+      fail(`${label} when.hitBy must be an affinity kind (${AFFINITY_KINDS.join(", ")}), received ${JSON.stringify(when.hitBy)}.`);
+    }
+    if (when.by !== undefined && !HIT_EVENTS.includes(when.by)) {
+      fail(`${label} when.by must be ${HIT_EVENTS.join(" or ")} (received ${JSON.stringify(when.by)}).`);
+    }
+    return { hitBy: when.hitBy, ...(when.by !== undefined ? { by: when.by } : {}) };
+  }
+  if (keys.includes("hitByCast")) {
+    if (when.hitByCast !== true) fail(`${label} when.hitByCast must be true (received ${JSON.stringify(when.hitByCast)}).`);
+    return { hitByCast: true };
+  }
+  if (keys.includes("structureOnRoute")) {
+    if (when.structureOnRoute !== true) fail(`${label} when.structureOnRoute must be true (received ${JSON.stringify(when.structureOnRoute)}).`);
+    return { structureOnRoute: true };
+  }
+  return fail(`${label} when must name vital/below, hostileWithin, defeated, tickAtLeast, hitBy, hitByCast or structureOnRoute.`);
 }
 
 /**
@@ -145,9 +177,9 @@ export function normalizeStrategy(strategy, normalizeCommand) {
       if (isPlainObject(action) && action.kind === RETREAT) {
         return { when: normalizeCondition(tactic.when, label), do: { kind: RETREAT } };
       }
-      // A nearest-hostile target is resolved each turn; the rest is a plain command.
+      // A target selector (nearest hostile, last attacker, route structure) is resolved each turn; the rest is a plain command.
       const command = normalizeCommand(action);
-      if (command.kind === "cast_affinity" && action.params?.targetId === NEAREST_HOSTILE) command.params.targetId = NEAREST_HOSTILE;
+      if (command.kind === "cast_affinity" && TARGET_SELECTORS.includes(action.params?.targetId)) command.params.targetId = action.params.targetId;
       return { when: normalizeCondition(tactic.when, label), do: command };
     });
   }
@@ -395,23 +427,103 @@ function vitalBelow(record, vital, percent) {
   return (entry.current / entry.max) * 100 < percent;
 }
 
-function conditionHolds(when, context) {
+/**
+ * The structure on the actor's route to `goal`, if it can see one (#718): an immobile actor
+ * whose defeat vital is durability (core's structure: a barrier, a hazard or a resource, #535)
+ * on the walk to the goal's place or visible target. The walk is the one the actor would take;
+ * when structures close every way, it is the walk as if they were floor, so the one in the way
+ * is named. The goal's own target never counts. Null when the goal has nowhere to go or the way is clear.
+ */
+function structureOnRoute(goal, context) {
+  const { self, view, tileKinds, baseTiles } = context;
+  if (!goal || !self?.position) return null;
+  const target = goal.target ? visibleActor(view, goal.target) : null;
+  const place = goal.place === "exit" ? context.exitPlace() : goal.place ?? target?.position ?? null;
+  if (!place) return null;
+  const structures = (Array.isArray(view?.actors) ? view.actors : []).filter((other) => other?.id !== self.id
+    && other?.id !== goal.target && other?.position && other.lifecycle === "alive"
+    && other.defeatVital === "durability" && other.capabilities?.canMove === false);
+  if (structures.length === 0) return null;
+  const walk = (kinds) => {
+    const distanceOf = distancesTo(place, self.position, kinds, baseTiles);
+    let here = self.position;
+    let distance = distanceOf(here);
+    if (distance === undefined) return { route: false };
+    while (distance > 0) {
+      let best = null;
+      for (const delta of DEFAULT_DELTAS) {
+        const cell = { x: here.x + delta.dx, y: here.y + delta.dy };
+        const next = distanceOf(cell);
+        if (next === undefined || next >= distance || !isDiagonalStepAllowed(here, cell, kinds, baseTiles)) continue;
+        if (!best || next < best.next || (next === best.next && squared(cell, place) < squared(best.cell, place))) best = { cell, next };
+      }
+      if (!best) return { route: true, structure: null };
+      const structure = structures.find((other) => samePosition(other.position, best.cell));
+      if (structure) return { route: true, structure };
+      here = best.cell;
+      distance = best.next;
+    }
+    return { route: true, structure: null };
+  };
+  const open = walk(tileKinds);
+  if (open.route || !Array.isArray(tileKinds)) return open.structure ?? null;
+  // Every way is closed: walk as if each structure were floor, and name the first one crossed.
+  const opened = tileKinds.map((row) => (Array.isArray(row) ? [...row] : row));
+  structures.forEach(({ position }) => { if (Array.isArray(opened[position.y])) opened[position.y][position.x] = 0; });
+  return walk(opened).structure ?? null;
+}
+
+/** The hit `when` matches among those the actor felt last turn: hitBy (kind, optionally how) or hitByCast. */
+function receivedHitMatching(when, context) {
+  const hits = Array.isArray(context.received) ? context.received : [];
+  if (when.hitByCast) return hits.find((hit) => hit.event === "cast") ?? null;
+  return hits.find((hit) => hit.kind === when.hitBy && (when.by === undefined || hit.event === when.by)) ?? null;
+}
+
+/**
+ * The context each condition reads, and nothing else (#718's guard): every entry is something
+ * the actor observes (own record, scoped view, own hits, the tick, the goal it was given).
+ */
+export const STRATEGY_CONDITION_INPUTS = Object.freeze({
+  vital: Object.freeze(["record"]),
+  hostileWithin: Object.freeze(["self", "nearestHostile"]),
+  defeated: Object.freeze(["view"]),
+  tickAtLeast: Object.freeze(["tick"]),
+  hitBy: Object.freeze(["received"]),
+  hitByCast: Object.freeze(["received"]),
+  structureOnRoute: Object.freeze(["self", "view", "tileKinds", "baseTiles", "exitPlace"]),
+});
+
+/** Whether `when` holds this turn; `goal` is the goal the actor is on (structureOnRoute reads it). */
+export function strategyConditionHolds(when, context, goal = null) {
   if (when.vital) return vitalBelow(context.record, when.vital, when.below);
   if (when.hostileWithin !== undefined) {
     return Boolean(context.nearestHostile)
       && chebyshevDistance(context.self.position, context.nearestHostile.position) <= when.hostileWithin;
   }
   if (when.defeated) return visibleActor(context.view, when.defeated)?.lifecycle === "defeated";
+  if (when.hitBy || when.hitByCast) return receivedHitMatching(when, context) !== null;
+  if (when.structureOnRoute) return structureOnRoute(goal, context) !== null;
   return context.tick >= when.tickAtLeast;
 }
 
-function tacticProposal(action, context) {
+/** The actor a target selector names this turn, or null when it names nobody the actor can see. */
+function selectedTarget(selector, context, goal) {
+  if (selector === NEAREST_HOSTILE) return context.nearestHostile ?? null;
+  if (selector === ROUTE_STRUCTURE) return structureOnRoute(goal, context);
+  const hits = Array.isArray(context.received) ? context.received : [];
+  const struck = hits.find((hit) => hit.event === "cast" && hit.sourceId) ?? hits.find((hit) => hit.sourceId);
+  return struck ? visibleActor(context.view, struck.sourceId) : null;
+}
+
+function tacticProposal(action, context, goal) {
   if (action.kind === RETREAT) {
     return context.nearestHostile ? stepAway(context.self.position, context.nearestHostile.position, context) : null;
   }
-  if (action.kind === "cast_affinity" && action.params.targetId === NEAREST_HOSTILE) {
-    if (!context.nearestHostile) return null;
-    return { kind: "cast_affinity", params: { ...action.params, targetId: context.nearestHostile.id } };
+  if (action.kind === "cast_affinity" && TARGET_SELECTORS.includes(action.params.targetId)) {
+    const target = selectedTarget(action.params.targetId, context, goal);
+    if (!target) return null;
+    return { kind: "cast_affinity", params: { ...action.params, targetId: target.id } };
   }
   return context.commandProposal(action);
 }
@@ -423,8 +535,8 @@ function tacticProposal(action, context) {
  * @param {string} args.depth      STRATEGY_DEPTH
  * @param {object} args.entry      this actor's progress entry from the Actor context
  * @param {object} args.context    self, record, view, hostiles, nearestHostile, configuredIds,
- *                                 tick, tileKinds, baseTiles, reservedTargets, actorId,
- *                                 castAt(target, distance), exitStep(), onExit(), commandProposal(command)
+ *                                 tick, tileKinds, baseTiles, reservedTargets, actorId, received,
+ *                                 castAt(target, distance), exitStep(), exitPlace(), onExit(), commandProposal(command)
  * @returns {{ proposals: object[] | null, keepNear?: object, entry: object }}
  */
 // What a goal remembers between turns, kept in its progress entry until the goal changes:
@@ -444,12 +556,13 @@ export function followStrategy({ strategy, depth, entry = {}, context }) {
   }
 
   if (depth === STRATEGY_DEPTH.FULL && Array.isArray(strategy.tactics)) {
+    const goal = Number.isInteger(entry.goal) ? entry.goal : 0;
+    const current = strategy.goals[goal] ?? null;
     for (let index = 0; index < strategy.tactics.length; index += 1) {
       const tactic = strategy.tactics[index];
-      if (!conditionHolds(tactic.when, context)) continue;
-      const proposal = tacticProposal(tactic.do, context);
+      if (!strategyConditionHolds(tactic.when, context, current)) continue;
+      const proposal = tacticProposal(tactic.do, context, current);
       if (!proposal) continue;
-      const goal = Number.isInteger(entry.goal) ? entry.goal : 0;
       return {
         proposals: [proposal],
         entry: report({ goal, status: STRATEGY_STATUS.ACTIVE, tactic: index,
