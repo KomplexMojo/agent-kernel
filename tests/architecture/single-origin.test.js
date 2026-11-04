@@ -223,7 +223,21 @@ const RECIPE_CATALOGUE_ACCESS = new RegExp(
   "gi",
 );
 
+// #719 — the strategy recipe catalogue has one reader, the Actor's strategy-recipes.js; everything
+// else asks the Actor controller (a second reader would be a second strategy model).
+const STRATEGY_RECIPE_ACCESS = new RegExp(
+  String.raw`(?:from\s*|require\(\s*|readFileSync\(\s*)["'\`][^"'\`]*strategy-recipes\.json`,
+  "gi",
+);
+
 const SINGLE_ORIGIN_GUARDS = [
+  {
+    concept: "strategy recipe data read from strategy-recipes.json",
+    canonicalHome: ["packages/runtime/src/personas/actor/strategy-recipes.js"],
+    forbiddenPattern: STRATEGY_RECIPE_ACCESS,
+    scope: "packages",
+    keepStringLiterals: true,
+  },
   {
     concept: "configuration recipe data read from configuration-recipes.json",
     canonicalHome: ["packages/runtime/src/personas/configurator/recipes.js"],

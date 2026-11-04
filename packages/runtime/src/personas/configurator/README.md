@@ -575,6 +575,11 @@ intensity cap of 3), and only `recipes.js` may read the JSON (`tests/architectur
 Exposed on the controller as `configurationRecipe`, `configurationRecipeNames`,
 `describeConfigurationRecipes` and `expandConfigurationRecipe`.
 
+A strategy recipe (#719) is the Actor's; what the Configurator owns is the motivations it needs.
+`composeStrategyRecipeMotivations({ role, index, raw, recipe })` adds the recipe's posture, mobility
+and cognition to the spec's motivations, one per family: an explicit kind in one of those families
+must fit or the spec is refused naming both, and a role default that does not fit is replaced.
+
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.

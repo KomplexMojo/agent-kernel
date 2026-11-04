@@ -28,7 +28,7 @@ function refuse(what) {
 /**
  * Build a level from `ak create`'s argv. `argv` must name `--run-id` and `--created-at` (and
  * `--seed` for a tactic), since no clock, id or randomness is read here. Budget and price-list
- * files and `--tactic llm` are refused: they need the host's IO.
+ * files, `--tactic llm` and `--actors llm` are refused: they need the host's IO.
  * @returns {Promise<{ buildResult: object, prepared: object }>}
  */
 export async function authorLevel(argv, { adapter, commandName = "create" } = {}) {
@@ -37,6 +37,7 @@ export async function authorLevel(argv, { adapter, commandName = "create" } = {}
     readArtifact: refuse("reading a budget or price-list file"),
     drawSeed: refuse("drawing a seed"),
     planTacticsWithLlm: refuse("an LLM tactic plan"),
+    planActorsWithLlm: refuse("an LLM actor plan"),
     now: refuse("the clock"),
   });
   const { buildResult } = await runHostedAuthoringBuild(prepared.buildInput, { adapter });

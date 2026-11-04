@@ -369,6 +369,21 @@ durability actor, stands on its walk to the current goal; when structures close 
 way). `do` is a command, `{ kind: "retreat" }`, or a cast at a selector: `"nearest_hostile"`, `"attacker"`
 (whoever struck it, when it saw them) or `"route_structure"` (what `structureOnRoute` found).
 
+A tactic whose action the actor's kit cannot do (equipping what it does not hold or already has on,
+unequipping what is off) is passed over, and a cast at a selector is proposed only when a slot reaches;
+named by `affinityKey`, only that equipped slot. `"nearest_ally"` names the nearest ally in view, for a
+restoring cast. A strategy of tactics alone leaves an `escorting` actor's escort in place on quiet turns.
+
+**Strategy recipes (#719, #720).** `strategy-recipes.js` reads `strategy-recipes/strategy-recipes.json`,
+fifteen named strategies (`attack-alignment`, `kite`, `structure-breaker`, ...) in this persona's
+canonical grammar, each tagged with the postures it fits (aggressive ones `attacking`), its mobility, its
+derived cognition (`strategy_focused` when it has tactics, else `goal_oriented`), the kit it expects,
+`fits: list | z3-candidate` and, where the list version falls short, `limits`. Checked against
+`normalizeActorStrategy` when first read; only `strategy-recipes.js` reads the JSON
+(`tests/architecture/single-origin.test.js`). Exposed as `actorStrategyRecipe`,
+`actorStrategyRecipeNames` and `describeActorStrategyRecipes`; `strategy-recipe=` on a spec uses them.
+No new price.
+
 **Seat rule.** A condition reads only what the actor observes: its own record, its scoped view, the
 hits it felt (`payload.receivedHits`, from core's `readActorReceivedHits`: its own hits only, the
 source named only when in sight) and the tick. `STRATEGY_CONDITION_INPUTS` declares each condition's

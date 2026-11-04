@@ -59,6 +59,7 @@ export {
 
 /** #402 — the prompt contract for an LLM-authored tactic plan; pure, the call is the adapter's. */
 export { buildTacticPlanPrompt, readTacticPlanResponse } from "./tactic-prompt.js";
+export { buildActorPlanPrompt, readActorPlanResponse } from "./actor-prompt.js";
 
 /**
  * P5.5 — post-run coordination of deferred side effects.

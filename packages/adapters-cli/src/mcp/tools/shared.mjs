@@ -68,6 +68,9 @@ export function specObjectToString(spec) {
         typeof e === "string" ? e : [e.kind, e.expression, ...(e.stacks === undefined ? [] : [e.stacks])].join(":")
       );
       if (eparts.length) parts.push(`equip=${eparts.join(",")}`);
+    } else if (k === "strategyRecipe") {
+      // #719: the Actor's strategy recipes by name (camelCase in an object, strategy-recipe= in the spec).
+      parts.push(`strategy-recipe=${v}`);
     } else if (k === "strategy" && typeof v === "object") {
       // A strategy object travels as inline JSON (strategy={...}); a string is compact goals or a .json path.
       parts.push(`strategy=${JSON.stringify(v)}`);

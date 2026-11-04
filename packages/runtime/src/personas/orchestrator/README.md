@@ -220,6 +220,8 @@ The Orchestrator is therefore a **boundary guardian**, responsible for safely in
 | `orchestratorSubscribePhases` | `observe`, `decide`, `emit` |
 | `runLlmBudgetLoop` | the LLM budget loop — a plain function, re-exported from `llm-budget-loop.js` |
 | `buildLlmCaptureArtifact` | the LLM capture-artifact builder, re-exported from `llm-capture.js` |
+| `buildTacticPlanPrompt` / `readTacticPlanResponse` | `--tactic llm`'s prompt and reply reader (#402), from `tactic-prompt.js` |
+| `buildActorPlanPrompt` / `readActorPlanResponse` | `--actors llm`'s prompt (the recipe catalogue with costs) and reply reader into spec strings (#721), from `actor-prompt.js`; the spec parser judges every spec, and no seat prompt ever shows a recipe |
 
 `runLlmBudgetLoop` is **published on the controller surface** (CR.7 / WP-5, 2026-08-12) for the same
 reason as `FulfillmentDispositions` on the Moderator: callers need it and must not import persona
