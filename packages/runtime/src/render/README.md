@@ -18,7 +18,7 @@ so board tints disagreed with every other surface until M2 (2026-09-02).
 | Channel | Encoding | Roles / values |
 |---|---|---|
 | role | silhouette shape | `delver ▲` · `warden ⬢` · `hazard ▼` · `resource ◆` |
-| affinity | flat fill colour | the ten kinds in `GAME_AFFINITY_COLOR_HEX` |
+| affinity | flat fill of the palette primary | entry 0 of `GAME_AFFINITY_PALETTES` (`GAME_AFFINITY_COLOR_HEX`) |
 
 It replaced `actor-medallion-composer.js`, which encoded **eight** dimensions
 (role, affinity, expression, motivation and four vitals) in one 32×32 tile. With
@@ -73,7 +73,7 @@ Under fog of war the play session's `?` takes `tiles.fog`, and
 A cast's path (#463) shows, for its turn, the arrow `asciiCastPathGlyph` picks from
 `ASCII_CAST_PATH_GLYPHS` in `visualization-snapshot.js` (away from the caster for a push,
 back toward it for a pull) on each floor cell, in `asciiCastPathCellStyle`: the cast
-affinity's `GAME_AFFINITY_COLOR_HEX` fill at the strongest field tint.
+affinity's primary (`GAME_AFFINITY_COLOR_HEX`) at the strongest field tint.
 
 ## UI icons
 
@@ -113,8 +113,10 @@ the affinity-contrast gate iterates); `tileBorders` holds strokes, judged agains
 floor rather than against affinities.
 
 There is **one** origin for colour: `GAME_COLOR_PALETTE` and
-`GAME_AFFINITY_COLOR_HEX` in `../contracts/game-elements.js`. `affinity-palette.js`
-re-exports the affinity half and adds stack-intensity rules.
+`GAME_AFFINITY_PALETTES` in `../contracts/game-elements.js`. Each affinity is an
+ordered palette — primary, highlight, shade, deep — and the primary is also
+`GAME_AFFINITY_COLOR_HEX`. Board fills, field tints and cast-path colour use
+that primary. `affinity-palette.js` re-exports it and adds stack-intensity rules.
 
 `tests/runtime/affinity-palette-separation.test.js` enforces the properties that
 make the palette usable, measured rather than frozen, so a better palette still
@@ -137,16 +139,17 @@ Text colours are **not** the fills. A fill answers to the dark board tiles; a
 label answers to the dark UI panel by contrast ratio. Mirroring the fills left
 `earth` at 2.18:1 and `dark` at 1.09:1, so three have overrides.
 
-To change a colour, re-run `scripts/design/derive-affinity-palette.mjs` (seeded
+To change a primary, re-run `scripts/design/derive-affinity-palette.mjs` (seeded
 and reproducible), check `docs/design/affinity-palette-sheet.png`, and let the
-guard confirm it. Do not hand-edit a value.
+guard confirm it. Do not hand-edit a primary. Highlight, shade and deep stay in
+that affinity's palette and move with it; they are not a second identity.
 
 ## Other modules
 
 | Module | Owns |
 |---|---|
 | `resource-bundle.js` | Assembling the versioned `ResourceBundleArtifact`, including inlined asset data URIs. |
-| `affinity-palette.js` | Affinity colour re-export and stack-intensity tiers. |
+| `affinity-palette.js` | Re-export of each affinity's primary, plus stack-intensity tiers. |
 | `affinity-spatial-formulas.js` | Visual alpha of a field tile (how strongly it is drawn). |
 | `visualization-snapshot.js` | ASCII/state snapshot assembly. |
 | `actor-medallion-composer.js` | **Retired for the board.** Still used by `resource-bundle.js` to emit medallion component assets. Do not use it for new surfaces. |

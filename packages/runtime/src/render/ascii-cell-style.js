@@ -19,7 +19,8 @@
  *
  * An actor with an equipped affinity is coloured by it instead, on the board
  * sprite's own two-channel rule (role as shape, affinity as fill): the cell
- * background is the affinity fill (`GAME_AFFINITY_COLOR_HEX`) and the letter
+ * background is the affinity primary (`GAME_AFFINITY_PALETTES` entry 0,
+ * `GAME_AFFINITY_COLOR_HEX`) and the letter
  * takes the sprite's outline for that fill (`outlineForFill`), so it stays
  * legible on `light` and `dark` alike. Affinity is read by the sprite's own
  * `resolveEquippedAffinity`, so the two surfaces cannot disagree.
@@ -150,8 +151,8 @@ export const ASCII_FIELD_TINT_MAX = 0.7;
 
 /**
  * A tile's style under the affinity fields on it (#287), for every affinity alike:
- * the fill moves toward the falloff-weighted mix of each field's affinity colour
- * (`GAME_AFFINITY_COLOR_HEX`), further the stronger the fields are. Opposite pairs
+ * the fill moves toward the falloff-weighted mix of each field's primary
+ * (`GAME_AFFINITY_COLOR_HEX`, entry 0 of `GAME_AFFINITY_PALETTES`), further the stronger the fields are. Opposite pairs
  * have already cancelled in core, so what shows is what acts on the tile; kinds that
  * are not opposed show as their mix. No fields, or none with a colour, leaves the
  * style as it is; the glyph leans toward the outline for the new fill so it stays

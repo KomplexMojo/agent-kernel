@@ -254,7 +254,7 @@ Derivation ran ahead of M0 at the maintainer's request. Tooling and output are c
 
 - `scripts/design/derive-affinity-palette.mjs` — seeded simulated annealing in OKLCH.
 - `scripts/design/render-palette-sheet.mjs` — the review sheet.
-- `docs/design/affinity-palette-2026-09.json` — **the frozen palette**.
+- `docs/design/affinity-palette-2026-09.json` — **the frozen primaries**. Each value is entry 0 of that affinity's palette in `GAME_AFFINITY_PALETTES`. Highlight, shade and deep are not in this file.
 - `docs/design/affinity-palette-sheet.png` — the visual record.
 
 The derivation is **seeded** (`PALETTE_SEED=20260902`) and verified byte-reproducible across runs.

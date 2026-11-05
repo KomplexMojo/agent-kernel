@@ -82,11 +82,18 @@ test("game element palette avoids cross-concept color overlap", async () => {
     }
   });
 
+  const { GAME_AFFINITY_COLOR_HEX, GAME_AFFINITY_PALETTES, GAME_AFFINITY_PALETTE_ROLES } = await import("../../packages/runtime/src/contracts/game-elements.js");
+  assert.deepEqual(Array.from(GAME_AFFINITY_PALETTE_ROLES), ["primary", "highlight", "shade", "deep"]);
   GAME_AFFINITY_KINDS.forEach((affinity) => {
     assert.equal(
       GAME_ELEMENT_VISUALS.affinities[affinity].defaultColor,
       GAME_ELEMENT_VISUALS.actorMedallionComponents[`affinity-${affinity}`].defaultColor,
     );
+    const palette = GAME_AFFINITY_PALETTES[affinity];
+    assert.equal(palette.length, GAME_AFFINITY_PALETTE_ROLES.length, `${affinity} palette`);
+    assert.equal(palette[0], GAME_AFFINITY_COLOR_HEX[affinity], `${affinity} primary`);
+    assert.equal(palette[0], GAME_ELEMENT_VISUALS.affinities[affinity].defaultColor);
+    palette.forEach((hex) => assert.match(hex, /^#[0-9a-f]{6}$/));
   });
 });
 

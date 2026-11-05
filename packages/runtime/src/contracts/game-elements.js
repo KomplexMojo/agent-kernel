@@ -159,8 +159,15 @@ export const GAME_MOTIVATION_DISPLAY_GROUPS = deepFreeze([
 // Every opposed pair measures dE >= 103, so the counterplay relation is the most
 // visible relation on the board.
 //
-// Do not hand-edit a value here. Re-run the derivation, check the sheet at
+// Do not hand-edit a primary. Re-run the derivation, check the sheet at
 // docs/design/affinity-palette-sheet.png, and let the guard confirm it.
+//
+// Each affinity is an ordered palette, not a single colour. Entry 0 is this
+// primary — the identity colour the separation guard measures, and the value
+// `GAME_AFFINITY_COLOR_HEX` publishes for board fills. Highlight, shade and
+// deep follow in `AFFINITY_PALETTE_REST`, same hue, and are not a second
+// identity. A step may sit near another affinity's primary; it never replaces
+// its own.
 const AFFINITY_COLORS = Object.freeze({
   fire:    "#fe4b2c",  // red-orange — opposes water on hue
   water:   "#5e82f1",  // blue — opposes fire on hue
@@ -172,6 +179,21 @@ const AFFINITY_COLORS = Object.freeze({
   fortify: "#708591",  // inert steel — opposes corrode on chroma
   light:   "#fdfed3",  // near-white — opposes dark on lightness
   dark:    "#28174a",  // charcoal violet — near-black was invisible on the board
+});
+
+// Entries after the primary: highlight, shade, deep. Index 0 of the published
+// palette is `AFFINITY_COLORS[kind]`, not a copy stored here.
+const AFFINITY_PALETTE_REST = Object.freeze({
+  fire:    Object.freeze(["#feaf9f", "#be2c12", "#7e1705"]),
+  water:   Object.freeze(["#a1bafb", "#3c58ba", "#1f337e"]),
+  earth:   Object.freeze(["#a07652", "#452502", "#180900"]),
+  wind:    Object.freeze(["#c7fefd", "#30c2c1", "#209291"]),
+  growth:  Object.freeze(["#8bcf93", "#0c752d", "#09481b"]),
+  decay:   Object.freeze(["#eb8fc5", "#92236e", "#5d0243"]),
+  corrode: Object.freeze(["#edfe87", "#a7b629", "#7d891b"]),
+  fortify: Object.freeze(["#a5b5be", "#4a5c67", "#28363e"]),
+  light:   Object.freeze(["#f4f4d6", "#cfcfa9", "#a2a385"]),
+  dark:    Object.freeze(["#4f466d", "#12012c", "#050012"]),
 });
 
 // Text colours are a SEPARATE concern from fills and cannot simply mirror them.
@@ -566,7 +588,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
       legacyAssetId: `affinity.${kind}`,
       iconAssetId: `icon.affinity.${kind}`,
       assetKind: "overlay",
-      description: `${titleLabel(kind)} affinity glyph and color identity.`,
+      description: `${titleLabel(kind)} affinity glyph. Colour identity is the first entry of its palette.`,
     })),
   ),
   affinityStacks: byKey([
@@ -788,6 +810,23 @@ export const GAME_ELEMENT_ICON_KEYS = deepFreeze({
 export const GAME_AFFINITY_COLOR_HEX = deepFreeze(
   Object.fromEntries(
     Object.entries(GAME_ELEMENT_VISUALS.affinities).map(([kind, visual]) => [kind, visual.defaultColor]),
+  ),
+);
+
+/** Role of each slot in `GAME_AFFINITY_PALETTES`. Index 0 is the primary. */
+export const GAME_AFFINITY_PALETTE_ROLES = Object.freeze(["primary", "highlight", "shade", "deep"]);
+
+/**
+ * Assigned palette for each affinity. Entry 0 is `GAME_AFFINITY_COLOR_HEX[kind]`,
+ * the identity colour board fills use. Later entries are that affinity's
+ * highlight, shade and deep.
+ */
+export const GAME_AFFINITY_PALETTES = deepFreeze(
+  Object.fromEntries(
+    Object.entries(GAME_AFFINITY_COLOR_HEX).map(([kind, primary]) => [
+      kind,
+      [primary, ...AFFINITY_PALETTE_REST[kind]],
+    ]),
   ),
 );
 

@@ -1,8 +1,10 @@
 /**
  * Shared affinity visual palette and stack intensity rules.
  *
- * This module owns the canonical color palette for all affinity kinds
- * and the intensity progression rules for affinity stack visualization.
+ * This module re-exports each affinity's primary — entry 0 of
+ * `GAME_AFFINITY_PALETTES` — and the intensity progression rules for
+ * affinity stack visualization. The rest of an affinity's palette
+ * (highlight, shade, deep) stays on the contract.
  *
  * These rules drive:
  * - Resource bundle sprite generation (resource-bundle.js)
@@ -16,7 +18,7 @@ import { AFFINITY_KINDS } from "../contracts/domain-constants.js";
 import { GAME_AFFINITY_COLOR_HEX } from "../contracts/game-elements.js";
 
 /**
- * Canonical hex color for each affinity kind.
+ * Primary hex for each affinity kind: `GAME_AFFINITY_PALETTES[kind][0]`.
  * Used for sprite generation and visual styling.
  */
 export const AFFINITY_COLOR_HEX = GAME_AFFINITY_COLOR_HEX;
