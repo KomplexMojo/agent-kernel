@@ -34,6 +34,7 @@
       "mcp__agent-kernel-cli__ak_play_order",
       "mcp__agent-kernel-cli__ak_play_advance",
       "mcp__agent-kernel-cli__ak_play_end",
+      "mcp__agent-kernel-cli__ak_play_tick",
       "mcp__agent-kernel-cli__ak_create",
       "mcp__agent-kernel-cli__ak_configure",
       "mcp__agent-kernel-cli__ak_run",
