@@ -165,9 +165,11 @@ export const GAME_MOTIVATION_DISPLAY_GROUPS = deepFreeze([
 // Each affinity is an ordered palette, not a single colour. Entry 0 is this
 // primary — the identity colour the separation guard measures, and the value
 // `GAME_AFFINITY_COLOR_HEX` publishes for board fills. Highlight, shade and
-// deep follow in `AFFINITY_PALETTE_REST`, same hue, and are not a second
-// identity. A step may sit near another affinity's primary; it never replaces
-// its own.
+// deep follow in `AFFINITY_PALETTE_REST` and are not a second identity. A step
+// may sit near another affinity's primary; it never replaces its own.
+// Fortify's lower steps stay steel, above black. Dark's highlight is a light
+// violet and its shade and deep are black. The dark primary stays charcoal
+// violet: a black board fill disappears on the wall.
 const AFFINITY_COLORS = Object.freeze({
   fire:    "#fe4b2c",  // red-orange — opposes water on hue
   water:   "#5e82f1",  // blue — opposes fire on hue
@@ -191,9 +193,9 @@ const AFFINITY_PALETTE_REST = Object.freeze({
   growth:  Object.freeze(["#8bcf93", "#0c752d", "#09481b"]),
   decay:   Object.freeze(["#eb8fc5", "#92236e", "#5d0243"]),
   corrode: Object.freeze(["#edfe87", "#a7b629", "#7d891b"]),
-  fortify: Object.freeze(["#a5b5be", "#4a5c67", "#28363e"]),
+  fortify: Object.freeze(["#a5b5be", "#577382", "#405661"]),
   light:   Object.freeze(["#f4f4d6", "#cfcfa9", "#a2a385"]),
-  dark:    Object.freeze(["#4f466d", "#12012c", "#050012"]),
+  dark:    Object.freeze(["#d391fa", "#0c0a10", "#040306"]),
 });
 
 // Text colours are a SEPARATE concern from fills and cannot simply mirror them.
