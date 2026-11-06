@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-06T16-35-35-717Z-76ec7e844381-9e20cd46c671",
-    "key": "9e20cd46c6714d92c519f0ca18faefac0b64ae4c85136622c83b289376c2b429",
+    "id": "2026-11-06T17-12-48-213Z-1215e6801d4d-d4223f4b0a1e",
+    "key": "d4223f4b0a1e31155931f7ef376b0b2fa093038276e3e6eef952201f2182621a",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-06T16:35:35.717Z",
-    "completedAt": "2026-11-06T16:36:02.120Z",
-    "durationMs": 26403,
+    "startedAt": "2026-11-06T17:12:48.213Z",
+    "completedAt": "2026-11-06T17:13:14.689Z",
+    "durationMs": 26476,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "76ec7e844381027408ea85ccd88bc8556141a620",
-    "tree": "3a6d164f909fbbede995cb2eb157507f70ef60f2"
+    "commit": "1215e6801d4dc3395407bf00545842eefe45f8a3",
+    "tree": "5238bd8ef2092bc2d9a46ce787f4ce79ddef19e3"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -197,6 +197,7 @@
       "packages/runtime/src/render/icon-model.js",
       "packages/runtime/src/render/notebook.js",
       "packages/runtime/src/render/resource-bundle.js",
+      "packages/runtime/src/render/sprite-atlas-manifest.js",
       "packages/runtime/src/render/visual-assets/actor-medallions/actor-medallion-generated-assets.json",
       "packages/runtime/src/render/visual-assets/actor-medallions/components/affinity-growth.png",
       "packages/runtime/src/render/visual-assets/actors/delver-growth.png",
@@ -286,7 +287,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/9e20cd46c6714d92c519f0ca18faefac0b64ae4c85136622c83b289376c2b429"
+    "retentionId": "preflights/d4223f4b0a1e31155931f7ef376b0b2fa093038276e3e6eef952201f2182621a"
   },
   "qualifies": false
 }
