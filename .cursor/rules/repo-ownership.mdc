@@ -1,0 +1,21 @@
+---
+description: Cursor does not write to agent-kernel; it owns Primordial's UI/UX and asks for framework changes through issues.
+alwaysApply: true
+---
+
+# agent-kernel is read-only for Cursor (Darren, 2026-11-06)
+
+**Do not edit, create, delete, commit or push anything in this repository.** agent-kernel is the public
+framework, and Claude owns its architecture and design. Cursor owns **Primordial** (`../primordial`): the UI/UX,
+the phone app and graphical clients, skin, art, audio and content.
+
+- Reading this repository is fine: Primordial links it (`link:../agent-kernel/packages/*`), so read code and
+  docs here to understand an API.
+- When the game needs something from the framework (a new export, a rule change, a bug fix), **open an issue
+  in KomplexMojo/agent-kernel labelled `api-request`**. Say what the game needs, why, and which module or
+  `apiSurface` entry it touches. Claude picks it up.
+- Keep this checkout on `main` and pulled. Do not leave a branch checked out here, because Primordial's tests
+  and build read it.
+
+Full rule: `AGENTS.md → Repository ownership`. The other rules in `.cursor/rules/` describe how agent-kernel
+is built. They help you read it, but they never license an edit here.

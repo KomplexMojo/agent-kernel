@@ -4,6 +4,8 @@ Guidance for Claude Code (claude.ai/code) in this repository. **agent-kernel** i
 (packages, `ak`, the MCP server, schema ids). **Primordial** is the game built on it, in a separate private
 repository (`../primordial`); the line between them is charter → "Framework vs Game".
 
+**Ownership (Darren, 2026-11-06): Claude owns agent-kernel's architecture and design, and never writes to Primordial. Cursor owns Primordial's UI/UX, and never writes to agent-kernel.** When the game needs a framework change, Cursor opens an `api-request` issue here. When the framework needs the game to change, Claude opens a `ui-request` issue in KomplexMojo/Primordial. Full rule: `AGENTS.md → Repository ownership`.
+
 Claude is the **orchestration, implementation, and documentation engine**. Codex drives ideation, adversarial verification, and mechanical implementation from complete milestone specs.
 
 **The persona model is enforced** (charter → "Persona Model — ENFORCED"): all domain logic lives in one of the seven personas; everything else is glue; external code imports persona controllers only. The Allocator alone owns pricing.
