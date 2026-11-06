@@ -4,5 +4,14 @@
   "type": "module",
   "dependencies": {
     "z3-solver": "^5.1.0"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./src/adapters/blockchain/index.js": "./src/adapters/blockchain/index.js",
+    "./src/adapters/cli-worker/index.js": "./src/adapters/cli-worker/index.js",
+    "./src/adapters/ipfs/index.js": "./src/adapters/ipfs/index.js",
+    "./src/adapters/llm/index.js": "./src/adapters/llm/index.js",
+    "./src/adapters/solver-recorded/index.js": "./src/adapters/solver-recorded/index.js",
+    "./src/adapters/solver/index.js": "./src/adapters/solver/index.js"
   }
 }
