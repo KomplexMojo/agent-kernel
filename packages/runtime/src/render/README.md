@@ -24,8 +24,10 @@ It replaced `actor-medallion-composer.js`, which encoded **eight** dimensions
 (role, affinity, expression, motivation and four vitals) in one 32×32 tile. With
 the camera zoomed out that is ~64 physical pixels, and eight channels do not fit
 in 64 pixels: the medallion was legible at 64px, muddy at 32px and noise at 16px.
-The retired art, the frozen generator and the measurement are in
-[`docs/design/archive/2026-09-medallion-era/`](../../../../docs/design/archive/2026-09-medallion-era/README.md).
+The medallion was removed from the framework in #741 (resource bundles no longer carry
+its components, and the bundle preview draws entity sprites). The retired art, the frozen
+generator and the measurement are archived in the private game repository, Primordial
+(`art/archive/2026-09-medallion-era/`).
 
 **Do not widen `EntitySpriteState`.** It has fields for `role` and `affinity` and
 nothing else, and `tests/runtime/entity-sprite-composer.test.mts` asserts that
@@ -157,11 +159,10 @@ guard confirm it. Do not hand-edit a value.
 | `affinity-palette.js` | Affinity colour re-export and stack-intensity tiers. |
 | `affinity-spatial-formulas.js` | Visual alpha of a field tile (how strongly it is drawn). |
 | `visualization-snapshot.js` | ASCII/state snapshot assembly. |
-| `actor-medallion-composer.js` | **Retired for the board.** Still used by `resource-bundle.js` to emit medallion component assets. Do not use it for new surfaces. |
 
 ## Assets
 
-`visual-assets/` and `source-assets/` are **source material for an out-of-repo
+`visual-assets/` is **source material for an out-of-repo
 generator**, not runtime inputs. Every image the runtime serves is already
 base64-inlined into `generated/{affinity,game}-sprite-assets.js`; the
 `relativePath` fields beside them are metadata nothing opens.

@@ -72,8 +72,8 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   assert.equal(bundle.mappings.actors.byRoleAndAffinity.delver.fire, "actor.delver.fire");
   assert.equal(bundle.mappings.actors.byRoleAndAffinity.warden.fire, "actor.warden.fire");
   assert.equal(bundle.mappings.actors.byRoleAndAffinity.delver.fire === bundle.mappings.actors.byRoleAndAffinity.warden.fire, false);
-  assert.equal(bundle.mappings.actorMedallions.expressionStyle, "triangles");
-  assert.equal(bundle.mappings.actorMedallions.components.frame, "component.actor-medallion.frame");
+  // The medallion was retired from the framework (#741): v2 bundles no longer map or carry it.
+  assert.equal(bundle.mappings.actorMedallions, undefined);
   assert.equal(bundle.mappings.overlays.expressions.emit, "overlay.expression.emit");
   assert.equal(bundle.mappings.overlays.stackTiers.tier3, "overlay.stack-tier.tier3");
   assert.equal(bundle.mappings.overlays.tileAffinities.floor.fire, "overlay.tile.floor.affinity.fire");
@@ -94,9 +94,6 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   const fogTile = bundle.assets.find((asset) => asset.id === "tile.fog");
   const spawnTile = bundle.assets.find((asset) => asset.id === "tile.spawn");
   const exitTile = bundle.assets.find((asset) => asset.id === "tile.exit");
-  const medallionFrame = bundle.assets.find((asset) => asset.id === "component.actor-medallion.frame");
-  const medallionExpression = bundle.assets.find((asset) => asset.id === "component.actor-medallion.expression.push");
-  const medallionAffinity = bundle.assets.find((asset) => asset.id === "component.actor-medallion.affinity.fire");
   const roleShapeAssetIds = [
     "icon.type.delver",
     "icon.type.warden",
@@ -155,12 +152,7 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     assert.equal(bundleAsset?.variants?.hud?.dataUri, generatedAsset.variants.hud.dataUri);
     assert.equal(bundleAsset?.variants?.large?.dataUri, generatedAsset.variants.large.dataUri);
   });
-  assert.ok(medallionFrame?.dataUri?.startsWith("data:image/png;base64,"));
-  assert.equal(medallionFrame?.relativePath, "visual-assets/actor-medallions/components/frame.png");
-  assert.ok(medallionExpression?.dataUri?.startsWith("data:image/png;base64,"));
-  assert.equal(medallionExpression?.relativePath, "visual-assets/actor-medallions/components/expression-push.png");
-  assert.ok(medallionAffinity?.dataUri?.startsWith("data:image/png;base64,"));
-  assert.equal(medallionAffinity?.relativePath, "visual-assets/actor-medallions/components/affinity-fire.png");
+  assert.equal(bundle.assets.some((asset) => asset.id.startsWith("component.actor-medallion.")), false);
   replacedAffinityAssetIds.forEach((assetId) => {
     const bundleAsset = bundle.assets.find((asset) => asset.id === assetId);
     const generatedAsset = getAffinitySpriteAsset(assetId);
@@ -187,7 +179,7 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   assert.ok(files.some((file) => file.relativePath === "visual-assets/tiles/large/exit.png"));
   assert.ok(files.some((file) => file.relativePath === "visual-assets/tiles/overlays/large/floor-affinity-fire.png"));
   assert.ok(files.some((file) => file.relativePath === "visual-assets/misc/hud/icon-vital-defence.png"));
-  assert.ok(files.some((file) => file.relativePath === "visual-assets/actor-medallions/components/frame.png"));
+  assert.equal(files.some((file) => file.relativePath.startsWith("visual-assets/actor-medallions/")), false);
 });
 
 test("renderBoardWithResourceBundle fallback draws level entrance and exit room-arrow tiles", async () => {
@@ -394,4 +386,27 @@ test("renderBoardWithResourceBundle tints floor tiles for observation-style haza
   }
 
   assert.equal(tileChanged(base, tinted, 1, 0), true, "observation-style hazard should change source floor tile pixels");
+});
+
+test("v2 bundle preview draws actors in the board's sprite language, not the retired medallion (#741)", async () => {
+  const { createDefaultResourceBundleArtifact, renderBoardWithResourceBundle } = await import("../../packages/runtime/src/render/resource-bundle.js");
+  const { composeEntitySprite } = await import("../../packages/runtime/src/render/entity-sprite-composer.js");
+  const bundle = createDefaultResourceBundleArtifact({
+    createMeta: ({ producedBy, runId }) => ({ id: `${producedBy}_${runId}`, runId, createdAt: "1970-01-01T00:00:00.000Z", producedBy }),
+    emitVisualAssets: true,
+  });
+  const actor = { id: "w1", kind: "warden", position: { x: 1, y: 0 }, affinity: "fire" };
+  const rendered = await renderBoardWithResourceBundle({ tiles: ["..."], actors: [actor], resourceBundle: bundle });
+  assert.equal(rendered.ok, true);
+  const size = rendered.tileWidth;
+  const expected = composeEntitySprite({ entity: actor, size });
+  // Every opaque sprite pixel lands verbatim at the actor's tile.
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const s = (y * size + x) * 4;
+      if (expected[s + 3] !== 255) continue;
+      const d = (y * rendered.width + (size + x)) * 4;
+      assert.deepEqual(Array.from(rendered.pixels.slice(d, d + 4)), Array.from(expected.slice(s, s + 4)), `pixel ${x},${y}`);
+    }
+  }
 });

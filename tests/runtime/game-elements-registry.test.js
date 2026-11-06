@@ -52,14 +52,6 @@ test("game element palette avoids cross-concept color overlap", async () => {
     if (entry.group === "tiles") return `tile.${entry.key}`;
     if (entry.group === "ui") return `ui.${entry.key}`;
     if (entry.group === "overlays") return `overlay.${entry.key}`;
-    if (entry.group === "actorMedallionComponents") {
-      if (entry.key.startsWith("actor-")) return entry.key.slice("actor-".length);
-      if (entry.key.startsWith("vital-")) return `vital.${entry.key.slice("vital-".length)}`;
-      if (entry.key.startsWith("expression-")) return `expression.${entry.key.slice("expression-".length)}`;
-      if (entry.key.startsWith("motivation-")) return `motivation.${entry.key.slice("motivation-".length)}`;
-      if (entry.key.startsWith("affinity-")) return `affinity.${entry.key.slice("affinity-".length)}`;
-      return `component.${entry.key}`;
-    }
     return entry.key;
   };
 
@@ -80,13 +72,6 @@ test("game element palette avoids cross-concept color overlap", async () => {
     } else {
       colorRoles.set(color, role);
     }
-  });
-
-  GAME_AFFINITY_KINDS.forEach((affinity) => {
-    assert.equal(
-      GAME_ELEMENT_VISUALS.affinities[affinity].defaultColor,
-      GAME_ELEMENT_VISUALS.actorMedallionComponents[`affinity-${affinity}`].defaultColor,
-    );
   });
 });
 
