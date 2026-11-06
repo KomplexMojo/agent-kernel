@@ -38,7 +38,6 @@ const SCOPES = [
   { name: "runtime (all)", include: ["packages/runtime/src/**/*"] },
   { name: "adapters-cli", include: ["packages/adapters-cli/src/**/*"] },
   { name: "adapters-web", include: ["packages/adapters-web/src/**/*"] },
-  { name: "ui-web", include: ["packages/ui-web/src/**/*"] },
 ];
 
 function measure(include) {

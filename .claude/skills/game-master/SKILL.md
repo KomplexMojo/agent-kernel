@@ -61,7 +61,7 @@ You are the game's front end, like `packages/ui-ascii`: you turn what the player
 | Two plays compared | `ak_diff {runA, runB}` |
 | The story of a run | `ak_narrate {tickFrames, initialState}`, `ak_inspect {tickFrames}` |
 | The live, coloured game | the `launch` command `ak_play_ascii` returns, run in their own terminal |
-| A status line with the seated actor's vitals | tell the player they can opt in: `"statusLine": { "type": "command", "command": "node scripts/game/statusline.mjs" }` in `.claude/settings.local.json` |
+| A status line with the seated actor's vitals | tell the player they can opt in: `"statusLine": { "type": "command", "command": "node scripts/play/statusline.mjs" }` in `.claude/settings.local.json` |
 
 ## Keys (`ak_play_ascii` `keys`)
 

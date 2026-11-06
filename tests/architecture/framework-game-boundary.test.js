@@ -4,8 +4,10 @@
  * agent-kernel is the framework: core-ts, runtime (personas, contracts, ports, runner,
  * render view models), the adapters, `ak`, the MCP server and the reference terminal
  * client (ui-ascii, kept by Darren 2026-11-06, #741). The game (Primordial) is a CONSUMER
- * of it: the phone app, ui-web, the playtest launcher and PWA scripts, brand and design
- * art. A path inside both a framework and a game root is game. Charter → "Framework vs game".
+ * of it, in its own private repository: the phone app, the playtest launcher, the archived
+ * web UI, brand and design art. The game paths still here are the brand, design and demo
+ * scripts until they move (#744). A path inside both a framework and a game root is game.
+ * Charter → "Framework vs game".
  *
  * Three rules, each one-directional and checked against
  * `framework-game-boundary.json`:
@@ -19,8 +21,10 @@
  *      (#742): a game import of an undeclared module is a decision to widen the API,
  *      made in the JSON, not by accident.
  *
- * Every list is exact: a seam or surface entry nothing uses any more fails too, so
- * the file stays the truth about what crosses the line.
+ * The seam and skin lists are exact: an entry nothing uses any more fails too. The API
+ * surface is consumed mostly from Primordial, which this repository cannot see, so here
+ * each entry must exist and the published exports must equal it; Primordial's own boundary
+ * test checks that every agent-kernel import it makes is listed.
  */
 const assert = require("node:assert/strict");
 const { readFileSync, realpathSync, statSync } = require("node:fs");
@@ -109,7 +113,6 @@ test("the framework names game paths only at recorded seams, and every seam is s
 });
 
 test("the game reaches the framework only through the declared API surface, never core-ts", () => {
-  const used = new Set();
   const violations = [];
   for (const file of gameFiles()) {
     for (const specifier of importSpecifiers(readFileSync(file, "utf8"))) {
@@ -123,14 +126,18 @@ test("the game reaches the framework only through the declared API surface, neve
         violations.push(`${toRepoPath(file)} -> ${targetPath} (neither game nor framework: classify it)`);
       } else if (!Object.hasOwn(BOUNDARY.apiSurface, targetPath)) {
         violations.push(`${toRepoPath(file)} -> ${targetPath} (not in apiSurface)`);
-      } else {
-        used.add(targetPath);
       }
     }
   }
-  const stale = Object.keys(BOUNDARY.apiSurface).filter((path) => !used.has(path)).sort();
+  const missing = Object.keys(BOUNDARY.apiSurface).filter((path) => {
+    try {
+      return !statSync(resolve(ROOT, path)).isFile();
+    } catch {
+      return true;
+    }
+  }).sort();
   assert.deepEqual(violations, [], report("game -> framework import(s) outside the API surface:", violations));
-  assert.deepEqual(stale, [], report("apiSurface entries no game code imports (remove them):", stale));
+  assert.deepEqual(missing, [], report("apiSurface entries that are not files (moved or deleted?):", missing));
 });
 
 // The vocabulary (affinity kinds, vitals, motivations) is a framework contract in

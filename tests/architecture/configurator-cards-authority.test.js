@@ -102,7 +102,12 @@ test("every production consumer site sources authorCandidates from a real Config
   }
 });
 
-test("card-authoring.js is reachable from production, not dead code", () => {
+// Its only production caller was packages/ui-web, archived in Primordial (#744). Until #754
+// wires it into `ak` / MCP or deletes it, it is recorded as unwired: the test fails as soon
+// as an importer appears, so the record (and the reachability assertion) is restored then.
+const CARD_AUTHORING_UNWIRED_ISSUE = 754;
+
+test("card-authoring.js is reachable from production, or recorded as unwired (#754)", () => {
   const importers = [];
   for (const file of allSourceFiles()) {
     const rel = relative(ROOT, file).split(sep).join("/");
@@ -110,5 +115,9 @@ test("card-authoring.js is reachable from production, not dead code", () => {
     const source = readFileSync(file, "utf8");
     if (/from\s*["'][^"']*commands\/card-authoring(\.js)?["']/.test(source)) importers.push(rel);
   }
-  assert.ok(importers.length > 0, "card-authoring.js has no importer — this guard would be vacuous otherwise");
+  if (CARD_AUTHORING_UNWIRED_ISSUE) {
+    assert.deepEqual(importers, [], `card-authoring.js has an importer again: drop CARD_AUTHORING_UNWIRED_ISSUE (#${CARD_AUTHORING_UNWIRED_ISSUE}) and require it`);
+  } else {
+    assert.ok(importers.length > 0, "card-authoring.js has no importer — this guard would be vacuous otherwise");
+  }
 });

@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-  UI["ui-web"] --> Runtime["runtime"]
+  UI["ui-ascii"] --> Runtime["runtime"]
   CLI["adapters-cli"] --> Runtime
   Runtime --> Core["core-ts"]
   Runtime <--> Adapters["adapters-web/adapters-test"]
@@ -16,7 +16,6 @@ flowchart LR
 ```bash
 pnpm run test
 pnpm run test:coverage:core-ts
-pnpm run serve:ui
 ```
 
 The core is TypeScript and synchronous. Simulation no longer requires a separate binary build.

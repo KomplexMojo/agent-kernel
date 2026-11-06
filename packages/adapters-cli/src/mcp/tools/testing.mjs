@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import {
   createHandlerTool,
-  integerSchema,
   pathSchema,
   stringArraySchema,
   stringSchema,
@@ -100,52 +99,6 @@ test(${JSON.stringify(args.title)}, () => {
   assert.equal(result.status, 0, result.stderr);
 ${expectedArtifacts.map((artifact) => `  assert.equal(existsSync(join(outDir, ${JSON.stringify(artifact)})), true);`).join("\n")}
 ${forbiddenArtifacts.map((artifact) => `  assert.equal(existsSync(join(outDir, ${JSON.stringify(artifact)})), false);`).join("\n")}
-});
-`;
-}
-
-function scaffoldServeUiRedirect(args) {
-  const title = args.title ?? "serve-ui falls back and stays healthy";
-  const startPort = Number(args.startPort ?? 8010);
-  return `const assert = require("node:assert/strict");
-const { createServer } = require("node:http");
-const { once } = require("node:events");
-
-async function listen(server, port) {
-  server.listen(port, "127.0.0.1");
-  await once(server, "listening");
-}
-
-async function closeServer(server) {
-  server.close();
-  await once(server, "close");
-}
-
-test(${JSON.stringify(title)}, async () => {
-  const { listenWithPortFallback } = await import("../../scripts/serve-ui.mjs");
-
-  const blocker = createServer((_req, res) => {
-    res.statusCode = 200;
-    res.end("blocked");
-  });
-  await listen(blocker, ${startPort});
-
-  const { port, server } = await listenWithPortFallback({
-    startPort: ${startPort},
-    maxAttempts: 3,
-    hostname: "127.0.0.1",
-  });
-
-  try {
-    assert.equal(port, ${startPort + 1});
-    const health = await fetch(\`http://127.0.0.1:\${port}/health\`);
-    assert.equal(health.ok, true);
-    const root = await fetch(\`http://127.0.0.1:\${port}/\`, { redirect: "follow" });
-    assert.match(new URL(root.url).pathname, /\\/packages\\/ui-web\\/index\\.html$/);
-  } finally {
-    await closeServer(server);
-    await closeServer(blocker);
-  }
 });
 `;
 }
@@ -653,11 +606,6 @@ export const testingTools = [
       const runners = new Set();
       const suites = new Set();
       for (const path of paths) {
-        if (path.startsWith("packages/ui-web/") || path.startsWith("tests/ui-web/") || path.includes("serve-ui")) {
-          runners.add("vitest");
-          suites.add("ui-web");
-          continue;
-        }
         runners.add("vitest");
         if (path.startsWith("packages/adapters-cli/")) suites.add("adapters-cli");
         if (path.startsWith("packages/runtime/")) suites.add("runtime");
@@ -732,7 +680,6 @@ export const testingTools = [
         adapterCallJson: stringSchema("Serialized JS object literal adapter call payload for ui_cli_equivalence."),
         equivalenceEnvJson: stringSchema("Serialized JS object literal env overrides for ui_cli_equivalence."),
         expectedOk: stringSchema("Optional boolean-like flag for artifact_schema_roundtrip."),
-        startPort: integerSchema("Start port override for serve_ui_redirect_health.", { minimum: 1 }),
       },
     },
     handler: async (args) => {
@@ -772,9 +719,6 @@ export const testingTools = [
           break;
         case "ui_cli_equivalence":
           content = scaffoldUiCliEquivalence(args);
-          break;
-        case "serve_ui_redirect_health":
-          content = scaffoldServeUiRedirect(args);
           break;
         default:
           throw new Error(`Unsupported scaffold recipe: ${args.recipe}`);
@@ -827,7 +771,6 @@ export const testingTools = [
         adapterCallJson: stringSchema("Serialized JS object literal adapter call payload for ui_cli_equivalence."),
         equivalenceEnvJson: stringSchema("Serialized JS object literal env overrides for ui_cli_equivalence."),
         expectedOk: stringSchema("Optional boolean-like flag for artifact_schema_roundtrip."),
-        startPort: integerSchema("Start port override for serve_ui_redirect_health.", { minimum: 1 }),
       },
     },
     handler: async (args) => {
@@ -867,9 +810,6 @@ export const testingTools = [
           break;
         case "ui_cli_equivalence":
           fragment = scaffoldUiCliEquivalence(args).trim();
-          break;
-        case "serve_ui_redirect_health":
-          fragment = scaffoldServeUiRedirect(args).trim();
           break;
         default:
           throw new Error(`Unsupported insert recipe: ${args.recipe}`);

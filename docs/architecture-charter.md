@@ -428,11 +428,10 @@ Configurator and carries its Director round).
 
 ```text
 adapters-* -> runtime -> core-ts
-ui-web     -> runtime -> core-ts
 ui-ascii   -> runtime -> core-ts
 ```
 
-`ui-ascii` is held to a stricter allowlist than `ui-web`: it may import only its own files, `runtime`, and `node:` built-ins (`tests/architecture/dependency-direction.test.js`). Runtime may import neither UI package.
+`ui-ascii` may import only its own files, `runtime`, and `node:` built-ins (`tests/architecture/dependency-direction.test.js`). Runtime may not import it. Game clients (Primordial) reach the framework through its published API (see "Framework vs Game").
 
 All external IO must be implemented behind adapters via narrow ports. Core APIs remain synchronous and deterministic.
 
@@ -599,16 +598,11 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - A Z3 context is reused across a bounded run of solves and then replaced. One context per solve
   leaks ~10.45 MB unreclaimably; one context forever aborts the process with a WASM out-of-bounds
   once its ast_manager fills. Both bounds are measured, not assumed — see `createGenericZ3Solver`.
-- Z3 adapter code must not move into `runtime` or `core-ts`. The dependency direction remains `adapters-* / ui-web / ui-ascii -> runtime -> core-ts`.
+- Z3 adapter code must not move into `runtime` or `core-ts`. The dependency direction remains `adapters-* / ui-ascii -> runtime -> core-ts`.
 
-## UI Sandbox Playback
+## Browser Playback (archived)
 
-- The M1 sandbox contract is playback over precomputed `tickFrames`, not live tick execution from Step or Run-To-End controls.
-- `packages/ui-web/src/scenario-loader.js` compiles a scenario into a gameplay bundle by running the runtime to completion once, then the UI replays the recorded frames.
-- `globalThis.__ak_loadScenario(scenario, options)` compiles and forwards to `globalThis.__ak_loadGameplayBundle(bundle, options)`.
-- `packages/ui-web/src/views/gameplay-view.js` implements Step and `runToEnd()` by moving the current frame cursor over `tickFrames`; it does not call runtime step during playback.
-- `packages/runtime/src/runner/core-facade.js` is the runtime-owned browser facade for preview/playback helpers that need deterministic core setup, scenario playback compilation, and affinity field records.
-- Tick playback is keyboard-driven with a fixed binding policy: bare keys belong to the game surface, Cmd/Ctrl+arrows step tick playback, Cmd/Ctrl+`[`/`]` navigate screens back/forward, and Ctrl+digit jumps directly to a screen. Cmd+digit is reserved by browsers and never bound. The gameplay stage exposes the cursor as `data-gameplay-current-tick`.
+- The browser UI (`ui-web`: card builder, Phaser gameplay and preview, diagnostics) was archived in the private Primordial repository (Darren, 2026-11-06, #744); graphical clients are game code (#735). The framework keeps the runtime seams it used: `packages/runtime/src/runner/core-facade.js` (deterministic core setup, scenario playback compilation, affinity field records) and the playback contract that a client replays precomputed `tickFrames` rather than stepping the runtime.
 
 ## Terminal UI (ui-ascii)
 
@@ -622,9 +616,8 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Sandbox Bridge (MCP → CLI → UI)
 
-- The `ak_push_to_ui` MCP tool delivers an `agent-kernel/GameplayBundle` to a connected browser UI over the sandbox WebSocket bridge (`packages/adapters-cli/src/mcp/bridge-server.mjs`, default port 38487, override with `AK_SANDBOX_BRIDGE_PORT`).
-- The tool accepts an inline `bundle`, a `bundlePath`, or an `outDir` containing `bundle.json`; the browser side is `packages/ui-web/src/sandbox-bridge-client.js`, which loads the bundle into the gameplay Phaser surface via `window.__ak_loadGameplayBundle`.
-- `openBrowser: true` lets the MCP bootshazard the whole loop: it serves the canonical `index_c.html` via `scripts/serve-ui.mjs` when nothing answers `/health`, opens the default browser, and pre-stages the bundle for the bridge's replay window so the freshly opened UI loads it on connect.
+- The `ak_push_to_ui` MCP tool delivers an `agent-kernel/GameplayBundle` to a connected UI client over the sandbox WebSocket bridge (`packages/adapters-cli/src/mcp/bridge-server.mjs`, default port 38487, override with `AK_SANDBOX_BRIDGE_PORT`).
+- The tool accepts an inline `bundle`, a `bundlePath`, or an `outDir` containing `bundle.json`. The framework ships no browser client since `ui-web` was archived (#744), and no longer serves or opens one (`openBrowser` is gone); the bridge is the port a game client connects to.
 - CLI `run` stitches a post-run `GameplayBundle` (`bundle.json`) only when its inputs came from an authored `create` outDir; fixture-driven runs stay bundle-free so CLI output remains artifact-for-artifact equivalent to the browser host's run output.
 - The bridge is an adapter-layer concern: bundle assembly reuses runtime contracts, and no bridge or WebSocket code lives in `runtime` or `core-ts`.
 
@@ -637,19 +630,15 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - Runtime facades assemble UI-facing tile visuals from core field records and resource bundles.
 - No aura input exists (`observation.auras` was removed in #260); affinity visuals come only from core field records.
 - **Board tiles are flat fills from `GAME_COLOR_PALETTE.tiles`, not bundle art.** The gameplay renderer draws no tile PNGs. `GAME_COLOR_PALETTE.tiles` holds tile FILLS — the backgrounds an entity can stand on, and the exact set the affinity-contrast gate iterates. `GAME_COLOR_PALETTE.tileBorders` holds strokes, which are held to contrast against the floor instead: a border is not a background, and reusing a fill as one dropped room-outline contrast to ΔE 9.7.
-- **`GAME_COLOR_PALETTE` and `GAME_AFFINITY_COLOR_HEX` in `packages/runtime/src/contracts/game-elements.js` are the single origin for colour** — affinities, tile backgrounds, vitals, types. No surface may declare its own copy. `ui-web` derives Phaser tint integers from these at load; it does not restate values. Three separate duplicates existed before 2026-09-02 and one had silently drifted on three of ten affinities, so board tile tints disagreed with every other surface.
+- **`GAME_COLOR_PALETTE` and `GAME_AFFINITY_COLOR_HEX` in `packages/runtime/src/contracts/game-elements.js` are the single origin for colour** — affinities, tile backgrounds, vitals, types. No surface may declare its own copy; a client derives its tints from these at load and does not restate values. Three separate duplicates existed before 2026-09-02 and one had silently drifted on three of ten affinities, so board tile tints disagreed with every other surface.
 - Affinity colour separation is **load-bearing, not stylistic**: a board sprite spends its silhouette on role, so colour is the only channel carrying affinity. `tests/runtime/affinity-palette-separation.test.js` enforces measured floors for pairwise separation, separation against every tile colour, opposed-pair distance, outline-vs-fill contrast, and WCAG AA for labels. Colour changes go through `scripts/design/derive-affinity-palette.mjs`, not by hand.
 - Affinity **text** colours are a separate concern from fills and may diverge from them: a fill is judged against the dark board tiles, a label against the UI panel by contrast ratio.
 
-## Phaser UI Layer
+## Board Sprites and HUD (any graphical client)
 
-- `packages/ui-web/src/card-builder-controller.js` is a headless controller around runtime card-authoring commands. It has no DOM dependency; UI surfaces orchestrate view state only, while card semantics, simulation rules, and artifact contracts remain outside `ui-web`.
-- `packages/ui-web/src/views/phaser-frame-view.js` is the unified Phaser game frame. It hosts the Card Builder surface and the Gameplay surface, including the existing `createGameplayPhaserRenderer` path.
-- `ui-web` renders and emits UI intents only. The current Phaser card-builder intent set is: select chip, apply property to the active card, select card, move card between groups, load bundle, and select tile/entity. Phaser interaction mechanics remain in `ui-web`; card-authoring semantics remain in runtime.
-- `packages/ui-web/src/views/card-builder-phaser-renderer.js` renders card-builder interactions for the Phaser surface without owning card semantics or artifact schemas.
-- `packages/ui-web/src/phaser-surface-ingestion.js` is a UI-side artifact ingestion boundary. It routes existing versioned artifacts to the correct Phaser surface and introduces no new MCP tool schemas.
-- **Board sprite semantics live in `runtime`, not `ui-web`.** `packages/runtime/src/render/entity-sprite-composer.js` composes every board entity — delver, warden, hazard, resource — as pixels; `packages/ui-web/src/views/entity-sprite-textures.js` only performs Phaser texture-cache mechanics. Texture keys depend on `{role, affinity, size}` and nothing else.
-- **A board sprite carries exactly two channels: role as silhouette, affinity as fill.** Vitals, expression and motivation are not encodable on it, and `EntitySpriteState` has no fields for them. This is enforced by a refusal test, not convention. The retired eight-channel medallion was removed from the framework in #741 (bundles no longer carry its components; the bundle preview draws entity sprites); its archive is in the private Primordial repository.
-- Silhouettes are guaranteed distinguishable down to **12px**. `MIN_CAMERA_ZOOM` in the gameplay renderer exists to defend that floor and must not be lowered without a new legibility measurement.
-- **HUD view-model semantics live in `runtime`** (`packages/runtime/src/render/actor-hud-model.js`): vital ordering, labels, colours, fraction derivation, and which vitals a role has. `ui-web` draws the returned data.
-- The selected-entity HUD renders on its **own Phaser camera pinned at zoom 1**. `setScrollFactor(0)` alone is insufficient — Phaser still scales scroll-fixed objects about the camera centre, so a HUD on the main camera is scaled by board zoom.
+The Phaser UI that first held these rules was archived in Primordial (#744); they bind every graphical client.
+
+- **Board sprite semantics live in `runtime`, not in a client.** `packages/runtime/src/render/entity-sprite-composer.js` composes every board entity — delver, warden, hazard, resource — as pixels; a client only performs texture mechanics. Texture keys depend on `{role, affinity, size}` and nothing else. (The composer and its art move to the game with #741; the two-channel rule stays the framework's.)
+- **A board sprite carries exactly two channels: role as silhouette, affinity as fill.** Vitals, expression and motivation are not encodable on it, and `EntitySpriteState` has no fields for them. This is enforced by a refusal test, not convention. The retired eight-channel medallion was removed from the framework in #741 (bundles no longer carry its components); its archive is in the private Primordial repository.
+- Silhouettes are guaranteed distinguishable down to **12px**; a client must not zoom a board below that without a new legibility measurement.
+- **HUD view-model semantics live in `runtime`** (`packages/runtime/src/render/actor-hud-model.js`): vital ordering, labels, colours, fraction derivation, and which vitals a role has. A client draws the returned data.

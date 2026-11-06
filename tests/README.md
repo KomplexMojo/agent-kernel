@@ -33,7 +33,7 @@ The goal is not to invent tests from raw prose. The goal is to:
 - `tests/contracts/`: artifact schema contracts.
 - `tests/adapters-cli/`, `tests/adapters-web/`, `tests/adapters-test/`: adapter-level behavior.
 - `tests/integration/`: cross-package and MCP/CLI/UI flows.
-- `tests/ui-web/`: browser/UI behavior, fixture-backed and headless.
+- `tests/ui-ascii/`: the reference terminal client, headless.
 - `tests/tools/`: repo tool / benchmark-harness helpers under test.
 - `tests/bindings/`, `tests/scripts/`, `tests/perf/`: binding contracts, script unit tests, perf probes.
 - `tests/fixtures/`: shared deterministic input and expected-output artifacts (data; a few self-tests).
@@ -111,7 +111,6 @@ Prefer these recipe families before free-form authoring:
 - `budget_policy_invariant`
 - `runtime_module_contract`
 - `runtime_persona_transition`
-- `serve_ui_redirect_health`
 
 Every cataloged recipe family has scaffold support except `browser_bundle_load_flow`,
 which needs a real browser and lost its generator with the Playwright subsystem.
@@ -261,6 +260,5 @@ When the local model finishes, it should report:
 
 ### Example: browser-native case
 
-- prefer an existing fixture-backed suite under `tests/ui-web/`
-- use the serve-ui helper flow when the page must be live
+- browser clients live in Primordial (#744); write their tests there
 - assert visible behavior, not internal implementation details

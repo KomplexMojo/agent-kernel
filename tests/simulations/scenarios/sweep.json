@@ -480,7 +480,7 @@
     },
     {
       "id": "sweep-big-20k",
-      "note": "scripts/game/big-20k-sim.sh: 109x109, 37 actors, every affinity, no player",
+      "note": "Primordial scripts/game/big-20k-sim.sh: 109x109, 37 actors, every affinity, no player",
       "budget": 20000,
       "ticks": 150,
       "args": [

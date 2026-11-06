@@ -473,17 +473,15 @@ test("mcp ak_test_plan_from_change maps changed paths to runner and suite recomm
   try {
     await harness.initialize();
     const result = await harness.callTool("ak_test_plan_from_change", {
-      paths: ["packages/adapters-cli/src/cli/ak.mjs", "packages/ui-web/src/views/design-view.js"],
+      paths: ["packages/adapters-cli/src/cli/ak.mjs", "tests/ui-ascii/ui-ascii-game.test.js"],
     });
     assert.equal(result.ok, true);
     assert.ok(Array.isArray(result.runners));
-    // Vitest is the only runner since the Playwright subsystem was removed: a ui-web
-    // change is still routed to the ui-web suite, but it runs under Vitest against the
-    // fixture-backed tests/ui-web/ coverage rather than a browser.
+    // Vitest is the only runner since the Playwright subsystem was removed.
     assert.deepEqual(result.runners, ["vitest"], "every change must recommend vitest and nothing else");
     assert.ok(Array.isArray(result.suites));
     assert.ok(result.suites.includes("adapters-cli"));
-    assert.ok(result.suites.includes("ui-web"), "a ui-web change must still route to the ui-web suite");
+    assert.ok(result.suites.includes("ui-ascii"), "a test path routes to its own suite");
   } finally {
     await harness.close();
   }

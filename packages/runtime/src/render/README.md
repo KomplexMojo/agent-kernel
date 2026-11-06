@@ -1,11 +1,11 @@
 # `runtime/src/render` — visual semantics
 
 Everything in this directory decides **what a thing looks like and why**. Nothing
-here does IO, touches a canvas, or knows about Phaser. `ui-web` draws what these
-modules return; it does not decide meaning (charter → *Phaser UI Layer*).
+here does IO, touches a canvas, or knows about Phaser. A client draws what these
+modules return; it does not decide meaning (charter → *Board Sprites and HUD*).
 
 The split matters because it has failed before: colour tables kept drifting into
-`ui-web` copies, and one of them — the affinity palette in
+the web UI's copies (archived in Primordial, #744), and one of them — the affinity palette in
 `views/tile-affinity-visuals.js` — had silently diverged on three of ten values,
 so board tints disagreed with every other surface until M2 (2026-09-02).
 
@@ -89,7 +89,7 @@ affinity's `GAME_AFFINITY_COLOR_HEX` fill at the strongest field tint.
 
 `icon-model.js` decides what a UI chip icon means. It reuses the board's rules —
 role silhouettes and affinity fills — so the left rail and the board speak one
-language, and `ui-web/src/icon-resolver.js` draws the result as inline SVG.
+language, and a client draws the result (the archived web UI drew it as inline SVG).
 
 Three kinds come back, and the split is deliberate:
 

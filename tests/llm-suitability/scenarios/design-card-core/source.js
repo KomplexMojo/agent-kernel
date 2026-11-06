@@ -15,7 +15,7 @@ export function createDesignCard({
   budgetCeiling,
   preserveEmptyAffinities = false,
 } = {}) {
-  // Excerpt from packages/ui-web/src/design-guidance.js.
+  // Excerpt from packages/runtime/src/commands/card-authoring.js.
   // The real function normalizes card type, count, affinity, motivations,
   // affinities, vitals, resource fields, and room fields.
   // Rooms intentionally clear motivations, vitals, affinities, and expressions.
@@ -23,7 +23,7 @@ export function createDesignCard({
 }
 
 export function dropPropertyOnCard(card, property) {
-  // Excerpt from packages/ui-web/src/design-guidance.js.
+  // Excerpt from packages/runtime/src/commands/card-authoring.js.
   // Supports groups: type, affinities, expressions, motivations.
   // Returns { ok, reason, card }.
   // Motivation drops can fail with reason "motivation_conflict".
@@ -36,7 +36,7 @@ export function buildSummaryFromCardSet({
   budgetSplit = {},
   dungeonAffinity = "fire",
 } = {}) {
-  // Excerpt from packages/ui-web/src/design-guidance.js.
+  // Excerpt from packages/runtime/src/commands/card-authoring.js.
   // Returns normalized cards plus a summary with rooms, actors, resources,
   // roomDesign/layout information, and spendLedger categories/totals.
 }

@@ -1,6 +1,6 @@
 ---
 name: architecture-dependency-direction
-description: Use when changing package layering, imports across core-ts / runtime / adapters / ui-web, or fixing dependency-direction and ports-and-adapters boundary violations. Do not use for persona domain behavior (use persona-* skills) or adapter IO implementation details alone (use architecture-adapter-io).
+description: Use when changing package layering, imports across core-ts / runtime / adapters / ui-ascii, or fixing dependency-direction and ports-and-adapters boundary violations. Do not use for persona domain behavior (use persona-* skills) or adapter IO implementation details alone (use architecture-adapter-io).
 ---
 
 # Architecture: Dependency direction
@@ -18,20 +18,20 @@ Scoped change skill for **ports & adapters layering**. Load this when the work i
 - `packages/core-ts/` — pure deterministic rules only
 - `packages/runtime/` — personas, ports, runner, contracts (no adapter package imports)
 - `packages/adapters-cli/`, `packages/adapters-web/`, `packages/adapters-test/` — IO only, may depend on runtime
-- `packages/ui-web/` — presentation; may depend on runtime/adapters, not on inventing sim rules
+- `packages/ui-ascii/` — the reference terminal client; may depend on runtime only, never on inventing sim rules. Game clients live in Primordial and use the published API (`tests/architecture/framework-game-boundary.json`)
 - Guards: `tests/architecture/dependency-direction.test.js`, `tests/architecture/ports-and-adapters-boundary.test.js`, `tests/architecture/core-behavior-wiring.test.js`
 
 ## Forbidden
 
 - IO, `Date`, env, filesystem, network, or non-deterministic randomness in `core-ts`.
-- `runtime` or `core-ts` importing `adapters-*` or `ui-web`.
+- `runtime` or `core-ts` importing `adapters-*` or `ui-ascii`.
 - Domain decisions (pricing, planning, config authoring, action choice) living in adapters or UI.
 - Widening the typecheck gate casually; drive-by cleanup outside the scoped layering fix.
 - Charter/diagram edits without maintainer sign-off.
 
 ## Workflow
 
-1. Name the owning layer: pure rule → `core-ts`; persona decision → runtime persona dir; IO → adapters; presentation → `ui-web`.
+1. Name the owning layer: pure rule → `core-ts`; persona decision → runtime persona dir; IO → adapters; presentation → `ui-ascii` (or the game, in Primordial).
 2. If a persona owns the behavior, switch to that `persona-*` skill and keep this skill only for import/boundary cleanup.
 3. Move or delete the illegal dependency; prefer extracting a port over leaking adapters upward.
 4. Add/adjust the narrow architecture guard if the violation class is new.

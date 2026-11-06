@@ -1,7 +1,8 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) in this repository. **Deepward** is the game and the public name;
-**agent-kernel** is its engine and stays the internal name (packages, `ak`, the MCP server, schema ids).
+Guidance for Claude Code (claude.ai/code) in this repository. **agent-kernel** is the public framework
+(packages, `ak`, the MCP server, schema ids). **Primordial** is the game built on it, in a separate private
+repository (`../primordial`); the line between them is charter → "Framework vs Game".
 
 Claude is the **orchestration, implementation, and documentation engine**. Codex drives ideation, adversarial verification, and mechanical implementation from complete milestone specs.
 
@@ -129,7 +130,6 @@ pnpm run typecheck                                    # Typecheck gate (core-ts 
 pnpm run typecheck:report                             # Cost of widening the gate, per package
 pnpm run typecheck:report -- --check-js               # ...including .js: the all-TypeScript size
 pnpm run mcp:serve                                    # agent-kernel-cli MCP server (ak_* tools)
-pnpm run serve:ui                                     # UI dev server :8001
 pnpm run demo:cli                                     # CLI demo
 ```
 
@@ -143,7 +143,7 @@ pnpm run demo:cli                                     # CLI demo
 
 Pure-TypeScript simulation kernel using **Ports & Adapters** with deterministic persona state machines. `pnpm` monorepo (`packages/*`). No WASM build step — the core runs directly under Node.
 
-**Dependency direction (non-negotiable):** `adapters-* / ui-web` → `runtime` (personas) → `core-ts` (pure logic, no IO). Violations are **blocking** — do not approve.
+**Dependency direction (non-negotiable):** `adapters-* / ui-ascii` → `runtime` (personas) → `core-ts` (pure logic, no IO). Violations are **blocking** — do not approve.
 
 | Package | Role |
 |---|---|
@@ -152,9 +152,9 @@ Pure-TypeScript simulation kernel using **Ports & Adapters** with deterministic 
 | `adapters-web` | Browser IO (fetch, IndexedDB). |
 | `adapters-cli` | CLI commands (`packages/adapters-cli/src/cli/ak.mjs`) and the MCP server. |
 | `adapters-test` | Fixture-based deterministic test doubles. |
-| `ui-web` | Browser UI; imports the synchronous TypeScript core via runtime adapters. |
+| `ui-ascii` | Reference terminal client (`ak play`, run viewer). Game clients live in the private Primordial repo. |
 
-Tests live under `tests/` — `personas/` (persona behavior), `runtime/`, `core-ts/`, `contracts/` (artifact schemas), `architecture/` (the boundary guards), `integration/` (UI↔CLI equivalence, LLM), `simulations/` (levels run headless and checked against rules), `adapters-*`, `ui-web/`, `fixtures/` (shared data; `invalid/` holds negative cases).
+Tests live under `tests/` — `personas/` (persona behavior), `runtime/`, `core-ts/`, `contracts/` (artifact schemas), `architecture/` (the boundary guards), `integration/` (UI↔CLI equivalence, LLM), `simulations/` (levels run headless and checked against rules), `adapters-*`, `ui-ascii/`, `fixtures/` (shared data; `invalid/` holds negative cases).
 
 ## Design Pattern: Ports & Adapters with Persona State Machines
 

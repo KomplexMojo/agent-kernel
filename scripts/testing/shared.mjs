@@ -37,7 +37,7 @@ function currentDefaultIncluded(relativePath) {
 
 // Vitest is the only runner. The Playwright subsystem was removed once Phaser
 // became the sole UI implementation; the browser-facing coverage that survived is
-// fixture-backed and runs under Vitest (tests/ui-web/, tests/scripts/serve-ui.test.js).
+// fixture-backed and runs under Vitest (the web UI's own suite moved with it to Primordial, #744).
 function detectRunner() {
   return "vitest";
 }
@@ -47,14 +47,10 @@ function detectRecipe(relativePath, content) {
     return "ui_cli_equivalence";
   }
   if (
-    relativePath.startsWith("tests/ui-web/")
-    || relativePath.startsWith("tests/integration/ui-")
+    relativePath.startsWith("tests/integration/ui-")
     || relativePath === "tests/ui-startup-readiness.test.js"
   ) {
     return "browser_bundle_load_flow";
-  }
-  if (relativePath.includes("serve-ui")) {
-    return "serve_ui_redirect_health";
   }
   if (relativePath.startsWith("tests/bindings/")) {
     return "runtime_module_contract";

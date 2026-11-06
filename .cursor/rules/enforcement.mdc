@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Enforcement checklist (run on every diff — fix failures, don't just flag them)
 
-**Dependency direction (non-negotiable):** `adapters-* / ui-web` → `runtime` (personas) →
+**Dependency direction (non-negotiable):** `adapters-* / ui-ascii` → `runtime` (personas) →
 `core-ts` (pure logic, no IO). Violations are **blocking**. The guards in `tests/architecture/`
 enforce most of this mechanically; this is what you check before they do.
 

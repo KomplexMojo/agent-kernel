@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 
-// A big level (scripts/game/big-sim.sh) seats every warden around the exit, so the
+// A big level (Primordial scripts/game/big-20k-sim.sh) seats every warden around the exit, so the
 // only route there is plugged by actors. Delvers used to find no path and wait for
 // the whole run. Blocked by actors, not by terrain, an actor walks the terrain
 // route as far as it is free, which brings it into reach of whoever holds the way.

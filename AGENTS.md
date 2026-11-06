@@ -236,7 +236,7 @@ the confident register of a finding is the failure this section exists to stop.
 | Web adapters | `packages/adapters-web/src/adapters/` |
 | CLI adapters, commands, MCP server | `packages/adapters-cli/src/` |
 | Test adapters (fixture doubles) | `packages/adapters-test/src/` |
-| UI code | `packages/ui-web/src/` (`views/` plus panel and controller modules) |
+| UI code | `packages/ui-ascii/src/` (the reference terminal client; game clients live in Primordial) |
 | Tests | `tests/**` — persona behavior in `tests/personas/<persona>/`, boundary guards in `tests/architecture/` |
 | Shared fixtures | `tests/fixtures/**` (negative cases in `tests/fixtures/artifacts/invalid/`) |
 
@@ -249,8 +249,8 @@ the confident register of a finding is the failure this section exists to stop.
 
 ## UI development
 
-- UI code follows ports & adapters and lives in `packages/ui-web/`; UI tests are fixture-based Vitest suites under `tests/ui-web/`. There is no browser-native runner.
-- Start here: `docs/human-interfaces.md` (offline CLI + UI quickstart) and `RUNME.MD` (Ollama prompt → runtime playback). Serve with `pnpm run serve:ui` (:8001).
+- The framework's only client is the reference terminal client, `packages/ui-ascii/` (tests under `tests/ui-ascii/`). The browser UI (`ui-web`) was archived in the private Primordial repository (#744), where the phone app and graphical clients live; they reach the framework through `tests/architecture/framework-game-boundary.json`'s API surface.
+- Start here: `docs/human-interfaces.md` (offline CLI quickstart).
 - ⚠️ The Google Stitch MCP integration is **gone** — its POC files were deleted, the `Design.md` this file used to cite has never existed since, and the root `.env.example` (which held nothing but `STITCH_API_KEY`) was removed 2026-08-21. Nothing in the repo reads a Stitch key any more.
 
 ## Test strategy

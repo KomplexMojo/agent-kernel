@@ -8,7 +8,7 @@ const { readFileSync, readdirSync, statSync } = require("node:fs");
 const { join, relative, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const ROOTS = ["packages/runtime/src", "packages/adapters-cli/src", "packages/adapters-web/src", "packages/ui-web/src", "packages/ui-ascii/src"];
+const ROOTS = ["packages/runtime/src", "packages/adapters-cli/src", "packages/adapters-web/src", "packages/ui-ascii/src"];
 const DEFINITION = "packages/runtime/src/build/orchestrate-build.js";
 
 // path -> reason. Keep empty unless a caller genuinely has no solver host to offer.

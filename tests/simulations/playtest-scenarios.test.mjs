@@ -1,11 +1,8 @@
-// Playtest scenarios (scripts/game/playtest.sh): every scenario must build through `ak create`
-// and run headless for every affinity as the player's, breaking no simulation rule beyond the
-// ones it lists as known. The report a playtest writes must replay to the same game.
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+// Playtest scenarios (adapters-cli/src/cli/playtest-scenarios.json): every scenario must build
+// through `ak create` and run headless for every affinity as the player's, breaking no simulation
+// rule beyond the ones it lists as known. The playtest report tests moved with the launcher to
+// Primordial (#744).
 import { affinitiesForSeed, loadPlaytestScenarios, scenarioArgs, traitKinds } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
-import { decodeReplay, encodeReplay, parseReport, renderReport, runPlay } from "../../scripts/game/playtest.mjs";
 import { RULES, checkRules, compareWithKnown, runScenarios } from "../../scripts/testing/simulation-lib.mjs";
 import { AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../../packages/runtime/src/contracts/domain-constants.js";
 
@@ -71,54 +68,10 @@ test("the catalogue is well formed", () => {
   }
 });
 
-test("a report carries its scenario, seed and replay back out", () => {
-  const commands = [{ tick: 1, actorId: "hero-1", command: { kind: "move", params: { direction: "east" } } }];
-  expect(decodeReplay(encodeReplay(commands))).toEqual(commands);
-  const scenario = catalog.scenarios[0];
-  const report = renderReport({
-    scenario, seed: 7, commit: "abc1234", branch: "main", createdAt: catalog.createdAt, playedAt: "2026-10-18T00:00:00.000Z",
-    picks: affinitiesForSeed(7), final: { turns: 1, status: { exited: false }, screen: "board" },
-    notes: ["turn 1: something odd"], replayCode: encodeReplay(commands), cost: null,
-  });
-  expect(report).toContain("1. turn 1: something odd");
-  expect(parseReport(report)).toEqual({ scenario: scenario.id, seed: 7, commit: "abc1234", createdAt: catalog.createdAt, commands });
-});
-
-// #483: a crash in `ak play` still gets a report, with the exit code and the last stderr lines.
-test("a failing ak play is reported as a crash, not lost", () => {
-  const dir = mkdtempSync(join(tmpdir(), "ak-fake-play-"));
-  try {
-    const fake = join(dir, "fake-ak.mjs");
-    writeFileSync(fake, "process.stderr.write('boom line 1\\nTypeError: no such slot\\n'); process.exit(3);\n");
-    const played = runPlay(["--dir", dir], { akPath: fake });
-    expect(played.status).toBe(3);
-    expect(played.stderrTail).toContain("TypeError: no such slot");
-    const scenario = catalog.scenarios[0];
-    const commands = [{ tick: 1, actorId: "hero-1", command: { kind: "move", params: { direction: "east" } } }];
-    const report = renderReport({
-      scenario, seed: 7, commit: "abc1234", branch: "main", createdAt: catalog.createdAt, playedAt: "2026-10-18T00:00:00.000Z",
-      picks: affinitiesForSeed(7), final: null, notes: [], replayCode: encodeReplay(commands), cost: null, crash: played,
-    });
-    expect(report).toContain("## Crash");
-    expect(report).toContain("exited with code 3");
-    expect(report).toContain("TypeError: no such slot");
-    expect(parseReport(report).commands).toEqual(commands);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("a grade (#422) takes the place of the scenario's budget, and rides in the report", () => {
-  const scenario = catalog.scenarios[0];
-  const graded = scenarioArgs(scenario, 7, "C");
+test("a grade (#422) takes the place of the scenario's budget", () => {
+  const graded = scenarioArgs(catalog.scenarios[0], 7, "C");
   expect(graded.slice(0, 2)).toEqual(["--grade", "C"]);
   expect(graded).not.toContain("--budget-tokens");
-  const report = renderReport({
-    scenario, seed: 7, grade: "C", commit: "abc1234", branch: "main", createdAt: catalog.createdAt, playedAt: "2026-10-18T00:00:00.000Z",
-    picks: affinitiesForSeed(7), final: null, notes: [], replayCode: encodeReplay([]), cost: null,
-  });
-  expect(report).toContain("- Grade: C");
-  expect(parseReport(report).grade).toBe("C");
 });
 
 describe.each(runs.map((run, index) => [run.id, index]))("%s", (_id, index) => {

@@ -22,7 +22,7 @@ Dependency Inversion · Effect Routing · Persona FSM Violation · Schema Mismat
 
 ## Ground truth
 
-- Layers: `core-ts` ← `runtime` ← `adapters-cli`/`adapters-web`/`adapters-test`/`ui-web` (see CLAUDE.md → Architecture).
+- Layers: `core-ts` ← `runtime` ← `adapters-cli`/`adapters-web`/`adapters-test`/`ui-ascii` (see CLAUDE.md → Architecture).
 - Personas (7): Orchestrator, Director, Configurator, Actor, Allocator, Annotator, Moderator.
 - Runner: Vitest only (`scripts/testing/run-vitest.mjs`) — and now the repo's only runner at all.
 - Narrow re-run: `pnpm run test:vitest -- tests/<path>/<name>.test.js`.
