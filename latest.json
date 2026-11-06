@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-06T19-03-34-661Z-bea390048736-5c4c9349e66a",
-    "key": "5c4c9349e66a4a307487f034efd41e14fdba10365e798cc1e97024cf81034eb3",
+    "id": "2026-11-06T19-40-39-728Z-a3fcfc5711a6-5c51460c707e",
+    "key": "5c51460c707e2b365f12e9fe2620fe8c4602b0b3a7136a381e560f4d71b9a894",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-06T19:03:34.661Z",
-    "completedAt": "2026-11-06T19:04:00.834Z",
-    "durationMs": 26173,
+    "startedAt": "2026-11-06T19:40:39.728Z",
+    "completedAt": "2026-11-06T19:41:06.143Z",
+    "durationMs": 26415,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "bea39004873664ef6248469be00cc35f72b0dd88",
-    "tree": "63913fe519b3ae98418b955721570490797f3a48"
+    "commit": "a3fcfc5711a63b92ff208a0debbdef12ad80950a",
+    "tree": "88e52aa03c5a761fcd3b42b6b60c46377814f38b"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -85,6 +85,7 @@
       "packages/runtime/src/contracts/build-spec.js",
       "packages/runtime/src/contracts/domain-constants.js",
       "packages/runtime/src/contracts/game-elements.js",
+      "packages/runtime/src/contracts/game-vocabulary.js",
       "packages/runtime/src/contracts/persona-stamps.js",
       "packages/runtime/src/contracts/schema-catalog.js",
       "packages/runtime/src/index.js",
@@ -287,7 +288,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/5c4c9349e66a4a307487f034efd41e14fdba10365e798cc1e97024cf81034eb3"
+    "retentionId": "preflights/5c51460c707e2b365f12e9fe2620fe8c4602b0b3a7136a381e560f4d71b9a894"
   },
   "qualifies": false
 }
