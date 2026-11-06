@@ -45,6 +45,14 @@ further — below that `warden`, `hazard` and `resource` collapse to the same bl
 `scripts/design/render-sprite-sheet.mjs` renders the evidence, including an 8px
 column showing what the floor prevents.
 
+## Sprite atlas manifest
+
+`sprite-atlas-manifest.js` maps tiles, delvers, wardens, hazards and resources (vital vs
+affinity yield) to frames of one spritesheet PNG + Aseprite JSON. Each key has a status
+(`final` / `recoloured` / `placeholder`); placeholders and frames missing from the loaded
+sheet resolve to `placeholder/<category>`. `spriteAtlasCoverage(json)` lists what art is
+still missing. Swapping art is an edit here, never in the UI.
+
 ## The HUD
 
 `actor-hud-model.js` builds the view-model for the selected-entity HUD: the
