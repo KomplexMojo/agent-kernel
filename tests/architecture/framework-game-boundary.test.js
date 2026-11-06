@@ -147,3 +147,26 @@ test("only recorded skin consumers in the framework import the skin module", () 
   assert.deepEqual(unrecorded, [], report("framework file imports the skin; use contracts/game-vocabulary.js or record it:", unrecorded));
   assert.deepEqual(stale, [], report("recorded skin consumer(s) no longer import the skin (remove them):", stale));
 });
+
+// The published packages (#742) export exactly the declared API surface, so a game that
+// consumes them cannot even resolve an undeclared module: Node refuses it at import time.
+test("framework package exports equal the declared API surface", () => {
+  const problems = [];
+  for (const pkg of ["runtime", "adapters-web"]) {
+    const prefix = `packages/${pkg}/`;
+    const manifest = JSON.parse(readFileSync(resolve(ROOT, prefix, "package.json"), "utf8"));
+    const exported = Object.keys(manifest.exports || {}).filter((key) => key !== "./package.json").sort();
+    const declared = Object.keys(BOUNDARY.apiSurface)
+      .filter((path) => path.startsWith(prefix))
+      .map((path) => `./${path.slice(prefix.length)}`)
+      .sort();
+    for (const key of exported) {
+      if (manifest.exports[key] !== key) problems.push(`${prefix}package.json exports ${key} -> ${manifest.exports[key]} (must map to itself)`);
+    }
+    const missing = declared.filter((key) => !exported.includes(key));
+    const extra = exported.filter((key) => !declared.includes(key));
+    if (missing.length) problems.push(`${prefix}package.json is missing exports: ${missing.join(", ")}`);
+    if (extra.length) problems.push(`${prefix}package.json exports undeclared modules: ${extra.join(", ")}`);
+  }
+  assert.deepEqual(problems, [], report("package exports drifted from apiSurface:", problems));
+});
