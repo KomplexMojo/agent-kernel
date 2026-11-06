@@ -1,5 +1,5 @@
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
-import { readActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
+import { readActorRegistryObservation } from "../../../runtime/src/runner/core-facade.js";
 import { collectBuildSpecCardSet } from "../build-spec-ui.js";
 import {
   createCanvasPreviewRenderer,

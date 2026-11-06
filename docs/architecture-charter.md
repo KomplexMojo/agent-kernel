@@ -436,6 +436,22 @@ ui-ascii   -> runtime -> core-ts
 
 All external IO must be implemented behind adapters via narrow ports. Core APIs remain synchronous and deterministic.
 
+## Framework vs Game (adopted 2026-11-06, #739, tracker #747)
+
+agent-kernel is the **framework**: `core-ts`, `runtime` (personas, contracts, ports, runner, render view models), the adapters, `ak` and the MCP server. The game (**Primordial**, a separate private repository once the split lands) is a **consumer** of it: the playable clients (`ui-ascii`, `ui-web`), the playtest and PWA scripts, levels, scenarios, lore, brand and art.
+
+```text
+game (Primordial: clients, scenarios, art) -> framework API (runtime / adapters / ak / MCP) -> core-ts
+```
+
+- **The framework never imports the game.** No framework module may import a game module, and framework source names a game path only at a recorded seam (a process or URL boundary such as `ak play` spawning the terminal client), each carrying the issue that removes it.
+- **The game reaches the framework only through the declared API surface.** Every framework module a game file imports is listed, with what it provides. That list is exactly what the split publishes as packages (#742). Importing an undeclared module is a decision to widen the API, made in the list, not by accident.
+- **The game never imports `core-ts`.** This extends "UI never imports core-ts" to all game code, scripts included: a missing runtime export is added to runtime, not bypassed.
+- **The game adds content, never a parallel path.** Levels still come from `ak create` and are priced by the Allocator. Game-specific rules and data (affinity table content, palette, glyphs, catalogues, key bindings) enter as configuration the personas consume (#740), never as a second rules engine in the game. Art and the sprite atlas belong to the game; the framework keeps only the manifest contract (#741).
+- **Purchased or licensed art never enters the framework repository**, which is public. It lives only in the private game repository.
+
+Enforced by `tests/architecture/framework-game-boundary.test.js` against `tests/architecture/framework-game-boundary.json` (roots, API surface, path seams; every list exact). Game content still inside the framework is marked there with the issue that relocates it.
+
 ## Core Responsibilities
 
 - Canonical simulation state and legal state transitions.

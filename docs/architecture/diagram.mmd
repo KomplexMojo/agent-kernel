@@ -1,5 +1,11 @@
 %% Architecture overview (Ports & Adapters)
 flowchart LR
+  subgraph Game["Game: Primordial (consumer; private repo after #747)"]
+    GameClients["clients, playtest + PWA scripts,\nscenarios, levels, lore, art"]
+  end
+  GameClients -->|"declared API surface only\n(framework-game-boundary.json); never core-ts"| Interfaces
+  GameClients -->|"declared API surface only"| Runtime
+
   subgraph Interfaces["Interfaces"]
     UIWeb["ui-web (browser)"]
     UIAscii["ui-ascii (terminal game + run viewer)\nkeys -> intents; no core imports"]

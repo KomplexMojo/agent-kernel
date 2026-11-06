@@ -10,6 +10,9 @@ import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import { createRuntime } from "./runtime.js";
 import { readActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
 
+// The browser UI reads a registry observation through this facade, never from core-ts (#739).
+export { readActorRegistryObservation };
+
 export function createRuntimeCore() {
   return createCore();
 }
