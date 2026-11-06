@@ -19,7 +19,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../../packages/runtime/src/contracts/domain-constants.js";
-import { AFFINITY_TABLE, affinityRole } from "../../packages/core-ts/src/state/affinity-table.ts";
+import { affinityRole, affinityTraitKinds } from "../../packages/runtime/src/render/affinity-role.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -42,7 +42,7 @@ function opposedPairs() {
 
 /** The kinds whose table row carries a trait (#419-#421), with the trait: the table decides, never a kind name. */
 export function traitKinds() {
-  return AFFINITY_TABLE.filter((row) => row.trait).map((row) => ({ kind: row.kind, trait: row.trait }));
+  return affinityTraitKinds();
 }
 
 /**
