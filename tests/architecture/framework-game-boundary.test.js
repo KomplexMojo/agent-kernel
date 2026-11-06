@@ -2,9 +2,10 @@
  * Framework vs game — the boundary the Primordial split cuts along (#739, tracker #747).
  *
  * agent-kernel is the framework: core-ts, runtime (personas, contracts, ports, runner,
- * render view models), the adapters, `ak` and the MCP server. The game (Primordial)
- * is a CONSUMER of it: the playable clients (ui-ascii, ui-web), the playtest and PWA
- * scripts, brand and design art. Charter → "Framework vs game".
+ * render view models), the adapters, `ak`, the MCP server and the reference terminal
+ * client (ui-ascii, kept by Darren 2026-11-06, #741). The game (Primordial) is a CONSUMER
+ * of it: the phone app, ui-web, the playtest launcher and PWA scripts, brand and design
+ * art. A path inside both a framework and a game root is game. Charter → "Framework vs game".
  *
  * Three rules, each one-directional and checked against
  * `framework-game-boundary.json`:
@@ -22,7 +23,7 @@
  * the file stays the truth about what crosses the line.
  */
 const assert = require("node:assert/strict");
-const { readFileSync, realpathSync } = require("node:fs");
+const { readFileSync, realpathSync, statSync } = require("node:fs");
 const { resolve } = require("node:path");
 const {
   ROOT,
@@ -39,17 +40,24 @@ const FRAMEWORK_ROOTS = BOUNDARY.frameworkRoots.map((path) => resolve(ROOT, path
 const GAME_ROOTS = BOUNDARY.gameRoots.map((path) => resolve(ROOT, path));
 const CORE_ROOT = resolve(ROOT, "packages/core-ts");
 
-// A game path written in framework source: a package or script directory followed by `/`.
-const GAME_PATH_PATTERN = /(?<![\w-])(ui-ascii\/|ui-web\/|scripts\/(?:game|pwa|brand|design|demo|ui-ascii)\/)/g;
-
-function filesUnder(roots) {
-  return roots.flatMap((root) => collectSourceFiles(root)).sort();
-}
+// A game path written in framework source: a game directory followed by `/`.
+const GAME_PATH_PATTERN = /(?<![\w-])(ui-ascii\/pwa\/|ui-web\/|scripts\/(?:game|pwa|brand|design|demo)\/)/g;
 
 function within(path, roots) {
   const real = realpathSync(path);
   return roots.some((root) => isInside(real, realpathSync(root)));
 }
+
+const isGame = (path) => within(path, GAME_ROOTS);
+const isFramework = (path) => within(path, FRAMEWORK_ROOTS) && !isGame(path);
+
+/** Source files under the roots (a root may be a single file), keeping those `keep` accepts. */
+function filesUnder(roots, keep) {
+  const files = roots.flatMap((root) => (statSync(root).isFile() ? [root] : collectSourceFiles(root)));
+  return [...new Set(files)].filter(keep).sort();
+}
+const frameworkFiles = () => filesUnder(FRAMEWORK_ROOTS, isFramework);
+const gameFiles = () => filesUnder(GAME_ROOTS, isGame);
 
 function report(heading, lines) {
   return `${heading}\n${lines.map((line) => `  ${line}`).join("\n")}`;
@@ -76,11 +84,11 @@ test("the boundary file names existing roots and its entries are well formed", (
 
 test("the framework never imports game code", () => {
   const violations = [];
-  for (const file of filesUnder(FRAMEWORK_ROOTS)) {
+  for (const file of frameworkFiles()) {
     for (const specifier of importSpecifiers(readFileSync(file, "utf8"))) {
       if (!specifier.startsWith(".")) continue;
       const target = resolveImportTarget(file, specifier);
-      if (target && within(target, GAME_ROOTS)) violations.push(`${toRepoPath(file)} -> ${specifier}`);
+      if (target && isGame(target)) violations.push(`${toRepoPath(file)} -> ${specifier}`);
     }
   }
   assert.deepEqual(violations, [], report("framework -> game import(s):", violations));
@@ -88,7 +96,7 @@ test("the framework never imports game code", () => {
 
 test("the framework names game paths only at recorded seams, and every seam is still live", () => {
   const found = new Set();
-  for (const file of filesUnder(FRAMEWORK_ROOTS)) {
+  for (const file of frameworkFiles()) {
     // Comments may describe the game; only code and literals are a dependency.
     const code = maskSource(readFileSync(file, "utf8"), { strings: false });
     for (const match of code.matchAll(GAME_PATH_PATTERN)) found.add(`${toRepoPath(file)} :: ${match[1]}`);
@@ -103,15 +111,15 @@ test("the framework names game paths only at recorded seams, and every seam is s
 test("the game reaches the framework only through the declared API surface, never core-ts", () => {
   const used = new Set();
   const violations = [];
-  for (const file of filesUnder(GAME_ROOTS)) {
+  for (const file of gameFiles()) {
     for (const specifier of importSpecifiers(readFileSync(file, "utf8"))) {
       if (!specifier.startsWith(".")) continue;
       const target = resolveImportTarget(file, specifier);
-      if (!target || within(target, GAME_ROOTS)) continue;
+      if (!target || isGame(target)) continue;
       const targetPath = toRepoPath(realpathSync(target));
       if (within(target, [CORE_ROOT])) {
         violations.push(`${toRepoPath(file)} -> ${targetPath} (core-ts: go through runtime)`);
-      } else if (!within(target, FRAMEWORK_ROOTS)) {
+      } else if (!isFramework(target)) {
         violations.push(`${toRepoPath(file)} -> ${targetPath} (neither game nor framework: classify it)`);
       } else if (!Object.hasOwn(BOUNDARY.apiSurface, targetPath)) {
         violations.push(`${toRepoPath(file)} -> ${targetPath} (not in apiSurface)`);
@@ -133,7 +141,7 @@ test("the game reaches the framework only through the declared API surface, neve
 test("only recorded skin consumers in the framework import the skin module", () => {
   const skin = realpathSync(resolve(ROOT, "packages/runtime/src/contracts/game-elements.js"));
   const found = new Set();
-  for (const file of filesUnder(FRAMEWORK_ROOTS)) {
+  for (const file of frameworkFiles()) {
     if (realpathSync(file) === skin) continue;
     for (const specifier of importSpecifiers(readFileSync(file, "utf8"))) {
       if (!specifier.startsWith(".")) continue;
@@ -152,7 +160,7 @@ test("only recorded skin consumers in the framework import the skin module", () 
 // consumes them cannot even resolve an undeclared module: Node refuses it at import time.
 test("framework package exports equal the declared API surface", () => {
   const problems = [];
-  for (const pkg of ["runtime", "adapters-web"]) {
+  for (const pkg of ["runtime", "adapters-web", "adapters-cli", "ui-ascii"]) {
     const prefix = `packages/${pkg}/`;
     const manifest = JSON.parse(readFileSync(resolve(ROOT, prefix, "package.json"), "utf8"));
     const exported = Object.keys(manifest.exports || {}).filter((key) => key !== "./package.json").sort();

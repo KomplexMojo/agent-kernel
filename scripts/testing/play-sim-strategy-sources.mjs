@@ -28,7 +28,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPlaytestScenarios, scenarioArgs } from "../game/playtest.mjs";
+import { loadPlaytestScenarios, scenarioArgs } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 import { DEFAULT_MAX_TICKS, DEFAULT_SEEDS, playArm } from "./play-sim.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");

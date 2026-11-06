@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AFFINITY_TABLE } from "../../packages/core-ts/src/state/affinity-table.ts";
 import { affinityRole, hasAttackOption } from "../../packages/runtime/src/render/affinity-role.js";
-import { affinitiesForSeed, playerDelverSpec, loadPlaytestScenarios, scenarioArgs } from "../../scripts/game/playtest.mjs";
+import { affinitiesForSeed, playerDelverSpec, loadPlaytestScenarios, scenarioArgs } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 import { createCharacterSheet } from "../../packages/runtime/src/runner/character-sheet.js";
 
 const EXPRESSIONS = ["push", "pull", "emit", "draw"];

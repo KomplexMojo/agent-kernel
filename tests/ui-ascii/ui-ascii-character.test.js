@@ -81,7 +81,7 @@ test("going back writes no spec and exits 3", () => {
 });
 
 test("playtest.sh --character swaps the scenario's playable delver for the configured one", async () => {
-  const { loadPlaytestScenarios, scenarioArgs, playerDelverSpec } = await import("../../scripts/game/playtest.mjs");
+  const { loadPlaytestScenarios, scenarioArgs, playerDelverSpec } = await import("../../packages/adapters-cli/src/cli/playtest-scenarios.mjs");
   const scenario = loadPlaytestScenarios().scenarios[0];
   const args = scenarioArgs(scenario, 3, undefined, "count=1;id=hero;motivation=user_controlled;vitals=health:11:1");
   assert.ok(args.includes("count=1;id=hero;motivation=user_controlled;vitals=health:11:1"));

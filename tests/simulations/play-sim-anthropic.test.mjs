@@ -7,7 +7,7 @@ import { expect, test } from "vitest";
 import { createAnthropicAdapter, redact, resolveProvider } from "../../scripts/testing/play-sim-anthropic.mjs";
 import { buildArm } from "../../scripts/testing/play-sim.mjs";
 import { createCliTransport, llmSeatPicker, replayPicker, runSeat } from "../../scripts/testing/play-sim-seat.mjs";
-import { loadPlaytestScenarios } from "../../scripts/game/playtest.mjs";
+import { loadPlaytestScenarios } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 
 const KEY = "sk-ant-test-secret-123";
 const reply = (text) => ({ ok: true, status: 200, json: async () => ({ content: [{ type: "text", text }] }) });

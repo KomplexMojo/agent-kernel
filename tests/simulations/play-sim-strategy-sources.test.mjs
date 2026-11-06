@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import { compare, hasOwnTactic, renderReport, runStrategySources, sourceArgs, summarize } from "../../scripts/testing/play-sim-strategy-sources.mjs";
-import { loadPlaytestScenarios } from "../../scripts/game/playtest.mjs";
+import { loadPlaytestScenarios } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 
 const FIXTURE = resolve(__dirname, "../fixtures/llm/tactic-plan-valid.json");
 const run = (scenario, seed, source, extra) => ({ scenario, seed, source, outcome: "exited", ticks: 20, tactics: ["retinue"], decidedBy: source === "llm" ? "llm" : "seeded", ...extra });

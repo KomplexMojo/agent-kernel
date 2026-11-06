@@ -180,7 +180,7 @@ function withoutTactics(args) {
 }
 
 test("tactic-seated emitters keep their fields off resources and hazards (#473)", async () => {
-  const { loadPlaytestScenarios, scenarioArgs } = await import("../../scripts/game/playtest.mjs");
+  const { loadPlaytestScenarios, scenarioArgs } = await import("../../packages/adapters-cli/src/cli/playtest-scenarios.mjs");
   const scenario = loadPlaytestScenarios().scenarios.find((entry) => entry.id === "long-haul");
   for (const seed of [1, 6]) {
     const outDir = mkdtempSync(join(tmpdir(), "ak-tactic-reach-"));

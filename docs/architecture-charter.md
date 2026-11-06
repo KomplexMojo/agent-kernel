@@ -438,7 +438,7 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 
 ## Framework vs Game (adopted 2026-11-06, #739, tracker #747)
 
-agent-kernel is the **framework**: `core-ts`, `runtime` (personas, contracts, ports, runner, render view models), the adapters, `ak` and the MCP server. The game (**Primordial**, a separate private repository once the split lands) is a **consumer** of it: the playable clients (`ui-ascii`, `ui-web`), the playtest and PWA scripts, levels, scenarios, lore, brand and art.
+agent-kernel is the **framework**: `core-ts`, `runtime` (personas, contracts, ports, runner, render view models), the adapters, `ak`, the MCP server and the reference terminal client (`ui-ascii`). The game (**Primordial**, a separate private repository) is a **consumer** of it: the phone app, `ui-web`, the playtest launcher and PWA scripts, lore, brand and art.
 
 ```text
 game (Primordial: clients, scenarios, art) -> framework API (runtime / adapters / ak / MCP) -> core-ts
@@ -449,6 +449,7 @@ game (Primordial: clients, scenarios, art) -> framework API (runtime / adapters 
 - **The game never imports `core-ts`.** This extends "UI never imports core-ts" to all game code, scripts included: a missing runtime export is added to runtime, not bypassed.
 - **The game adds content, never a parallel path.** Levels still come from `ak create` and are priced by the Allocator. Game-specific rules and data (affinity table content, palette, glyphs, catalogues, key bindings) enter as configuration the personas consume (#740), never as a second rules engine in the game. Art and the sprite atlas belong to the game; the framework keeps only the manifest contract (#741).
 - **Rules stay in the framework; skin and content move** (Darren, 2026-11-06, #740). The element vocabulary (affinity kinds, expressions, vitals, motivations) is a framework contract in `runtime/src/contracts/game-vocabulary.js`. `contracts/game-elements.js` is the **skin** built on it (palette, element visuals, asset and icon ids). It re-exports the vocabulary, but only recorded skin consumers (render view models) may import it, so persona logic never depends on a colour or an asset id.
+- **The reference client and the scenario catalogue stay** (Darren, 2026-11-06, #741, #744). `ui-ascii`'s terminal client keeps `ak play` and the sims a client the framework tests, and the playtest scenarios (`adapters-cli/src/cli/playtest-scenarios.*`) stay the levels the sims play. The game builds on both through the API (the phone app runs the client's game controller in the page), so a person and a sim play the same level.
 - **Purchased or licensed art never enters the framework repository**, which is public. It lives only in the private game repository.
 
 Enforced by `tests/architecture/framework-game-boundary.test.js` against `tests/architecture/framework-game-boundary.json` (roots, API surface, path seams, skin consumers; every list exact). Game content still inside the framework is marked there with the issue that relocates it.

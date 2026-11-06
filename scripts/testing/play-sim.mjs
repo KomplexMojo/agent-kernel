@@ -43,7 +43,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPlaySession } from "../../packages/runtime/src/runner/play-session.js";
-import { loadPlaytestScenarios, playerDelverSpec, scenarioArgs } from "../game/playtest.mjs";
+import { loadPlaytestScenarios, playerDelverSpec, scenarioArgs } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 import { analyzeRun, checkRules } from "./simulation-lib.mjs";
 import { proposeCharacterSpec } from "./play-sim-llm-build.mjs";
 import { llmPicker, runBurst } from "./play-sim-t1.mjs";

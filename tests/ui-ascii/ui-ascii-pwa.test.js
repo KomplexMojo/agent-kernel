@@ -11,7 +11,8 @@ const { join } = require("node:path");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
 const { ansiToHtml } = require("../../packages/ui-ascii/src/html.js");
 const { encodeReplay, renderReport } = require("../../packages/ui-ascii/src/report.js");
-const { decodeReplay, parseReport, loadPlaytestScenarios, affinitiesForSeed } = require("../../scripts/game/playtest.mjs");
+const { decodeReplay, parseReport } = require("../../scripts/game/playtest.mjs");
+const { loadPlaytestScenarios, affinitiesForSeed } = require("../../packages/adapters-cli/src/cli/playtest-scenarios.mjs");
 const { buildPwa, catalogFor, seedEntry } = require("../../scripts/pwa/build-pwa.mjs");
 
 const SRC = join(__dirname, "../../packages/ui-ascii/src");

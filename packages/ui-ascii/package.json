@@ -1,7 +1,14 @@
 {
-  "name": "ui-ascii",
+  "name": "@agent-kernel/ui-ascii",
   "private": true,
   "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    "./src/game.js": "./src/game.js",
+    "./src/html.js": "./src/html.js",
+    "./src/keymap.js": "./src/keymap.js",
+    "./src/screen.js": "./src/screen.js"
+  },
   "bin": {
     "ak-maze": "src/cli.mjs"
   }

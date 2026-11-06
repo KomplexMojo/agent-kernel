@@ -22,20 +22,13 @@
     "./src/render/actor-hud-model.js": "./src/render/actor-hud-model.js",
     "./src/render/affinity-palette.js": "./src/render/affinity-palette.js",
     "./src/render/affinity-role.js": "./src/render/affinity-role.js",
-    "./src/render/ascii-cell-style.js": "./src/render/ascii-cell-style.js",
-    "./src/render/battle-log-lines.js": "./src/render/battle-log-lines.js",
     "./src/render/entity-sprite-composer.js": "./src/render/entity-sprite-composer.js",
     "./src/render/icon-model.js": "./src/render/icon-model.js",
     "./src/render/inventory-summary-model.js": "./src/render/inventory-summary-model.js",
-    "./src/render/notebook.js": "./src/render/notebook.js",
     "./src/render/resource-bundle.js": "./src/render/resource-bundle.js",
-    "./src/render/visualization-snapshot.js": "./src/render/visualization-snapshot.js",
     "./src/render/window-size.js": "./src/render/window-size.js",
     "./src/runner/character-sheet.js": "./src/runner/character-sheet.js",
     "./src/runner/core-facade.js": "./src/runner/core-facade.js",
-    "./src/runner/core-setup.mjs": "./src/runner/core-setup.mjs",
-    "./src/runner/legal-commands.js": "./src/runner/legal-commands.js",
-    "./src/runner/play-session.js": "./src/runner/play-session.js",
-    "./src/runner/run-viewer.js": "./src/runner/run-viewer.js"
+    "./src/runner/core-setup.mjs": "./src/runner/core-setup.mjs"
   }
 }
