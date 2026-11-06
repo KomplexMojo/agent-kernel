@@ -54,15 +54,6 @@ test("runtime card authoring builds summaries from authored cards", () => {
   assert.ok(spendLedger);
 });
 
-test("ui design-guidance facade re-exports runtime authoring functions", async () => {
-  const runtime = await import("../../packages/runtime/src/commands/card-authoring.js");
-  const ui = await import("../../packages/ui-web/src/design-guidance.js");
-
-  assert.equal(ui.createDesignCard, runtime.createDesignCard);
-  assert.equal(ui.dropPropertyOnCard, runtime.dropPropertyOnCard);
-  assert.equal(ui.buildSummaryFromCardSet, runtime.buildSummaryFromCardSet);
-});
-
 test("resource card property updates preserve budget ceilings and permanent multipliers", () => {
   const resource = createDesignCard({
     id: "resource_authoring",
@@ -86,9 +77,8 @@ test("resource card property updates preserve budget ceilings and permanent mult
   assert.ok(afterValue.lineItems.some((item) => item.id === "resource_permanent"), JSON.stringify(afterValue.lineItems));
 });
 
-test("hazard cards keep mana and durability normalization stable through facade imports", async () => {
-  const ui = await import("../../packages/ui-web/src/design-guidance.js");
-  const hazard = ui.createDesignCard({
+test("hazard cards keep mana and durability normalization stable through a second normalization", () => {
+  const hazard = createDesignCard({
     id: "hazard_authoring",
     type: "hazard",
     affinity: "fire",

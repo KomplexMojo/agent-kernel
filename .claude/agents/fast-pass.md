@@ -29,7 +29,7 @@ You run the agent-kernel test suite and report failures as structured data. You 
 
 | Category | Signals |
 |---|---|
-| Dependency Inversion | forbidden/upward import; core-ts importing runtime/adapters; runtime importing adapters-*/ui-web |
+| Dependency Inversion | forbidden/upward import; core-ts importing runtime/adapters; runtime importing adapters-*/ui-ascii |
 | Effect Routing | IO in runtime/core-ts; effect executed inline; `ports/effects`; adapter boundary |
 | Persona FSM Violation | `advance(`/`view()` contract; missing state handler; label-only state; clock read in persona; `tests/personas/` |
 | Schema Mismatch | `schema`/`schemaVersion`/`meta` validation; `contracts/artifacts`; `tests/contracts/` |

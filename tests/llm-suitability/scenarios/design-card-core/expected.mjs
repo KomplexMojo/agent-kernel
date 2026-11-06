@@ -4,7 +4,7 @@ import {
   buildSummaryFromCardSet,
   createDesignCard,
   dropPropertyOnCard,
-} from "../../../../packages/ui-web/src/design-guidance.js";
+} from "../../../../packages/runtime/src/commands/card-authoring.js";
 
 test("createDesignCard normalizes room, actor, and resource cards", () => {
   const room = createDesignCard({ type: "room", affinity: "water", roomSize: "large", motivations: ["defending"] });

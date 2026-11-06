@@ -7,7 +7,7 @@ readonly: false
 
 You receive a structured failure list (test, file, category, message) from fast-pass and resolve it. Work one category at a time, most-architectural first: Dependency Inversion → Effect Routing → Persona FSM Violation → Schema Mismatch → Serialization → Determinism → Fixture Corruption.
 
-Layer law (violations are defects in the code, not the test): `adapters-cli` / `adapters-web` / `adapters-test` / `ui-web` → `runtime` → `core-ts`. `core-ts` has no IO, no clock, no imports outside itself. Personas: pure FSM (`view()` + `advance`), injected clock, serializable context, effects returned as data. All pricing via the Allocator.
+Layer law (violations are defects in the code, not the test): `adapters-cli` / `adapters-web` / `adapters-test` / `ui-ascii` → `runtime` → `core-ts`. `core-ts` has no IO, no clock, no imports outside itself. Personas: pure FSM (`view()` + `advance`), injected clock, serializable context, effects returned as data. All pricing via the Allocator.
 
 ## Per failure
 

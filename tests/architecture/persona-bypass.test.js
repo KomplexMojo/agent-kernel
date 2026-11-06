@@ -20,7 +20,7 @@ const ALLOWLIST = JSON.parse(readFileSync(resolve(__dirname, "persona-bypass-all
 const GLUE_ROOTS = [
   "packages/adapters-cli/src", "packages/adapters-web/src", "packages/adapters-test/src",
   "packages/runtime/src/build", "packages/runtime/src/commands", "packages/runtime/src/runner",
-  "packages/ui-ascii/src", "packages/ui-web/src",
+  "packages/ui-ascii/src",
 ];
 const BUDGET_GATE = /(if \(|\? |&& )[^;]*\b(budget|priceList|budgetTokens|budgetArtifact|priceListArtifact|resolvedPriceList|budgetLoopEnabled)\b/;
 

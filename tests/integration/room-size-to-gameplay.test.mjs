@@ -3,7 +3,7 @@ import { test } from "vitest";
 import {
   buildSummaryFromCardSet,
   createDesignCard,
-} from "../../packages/ui-web/src/design-guidance.js";
+} from "../../packages/runtime/src/commands/card-authoring.js";
 import { buildBuildSpecFromSummary } from "../../packages/runtime/src/personas/director/buildspec-assembler.js";
 import { orchestrateBuild } from "../../packages/runtime/src/build/orchestrate-build.js";
 import { createConfiguratorPersona } from "../../packages/runtime/src/personas/configurator/persona.js";

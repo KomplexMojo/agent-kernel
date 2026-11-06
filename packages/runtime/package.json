@@ -8,27 +8,11 @@
   "exports": {
     "./package.json": "./package.json",
     "./src/commands/author-level.js": "./src/commands/author-level.js",
-    "./src/commands/card-authoring.js": "./src/commands/card-authoring.js",
-    "./src/commands/director-round.js": "./src/commands/director-round.js",
-    "./src/commands/llm-host.js": "./src/commands/llm-host.js",
-    "./src/commands/ui-flow.js": "./src/commands/ui-flow.js",
-    "./src/contracts/artifacts.ts": "./src/contracts/artifacts.ts",
-    "./src/contracts/build-spec.js": "./src/contracts/build-spec.js",
     "./src/contracts/domain-constants.js": "./src/contracts/domain-constants.js",
     "./src/contracts/game-elements.js": "./src/contracts/game-elements.js",
-    "./src/personas/allocator/persona.js": "./src/personas/allocator/persona.js",
-    "./src/personas/annotator/persona.js": "./src/personas/annotator/persona.js",
-    "./src/personas/orchestrator/persona.js": "./src/personas/orchestrator/persona.js",
-    "./src/render/actor-hud-model.js": "./src/render/actor-hud-model.js",
-    "./src/render/affinity-palette.js": "./src/render/affinity-palette.js",
     "./src/render/affinity-role.js": "./src/render/affinity-role.js",
     "./src/render/entity-sprite-composer.js": "./src/render/entity-sprite-composer.js",
-    "./src/render/icon-model.js": "./src/render/icon-model.js",
-    "./src/render/inventory-summary-model.js": "./src/render/inventory-summary-model.js",
-    "./src/render/resource-bundle.js": "./src/render/resource-bundle.js",
     "./src/render/window-size.js": "./src/render/window-size.js",
-    "./src/runner/character-sheet.js": "./src/runner/character-sheet.js",
-    "./src/runner/core-facade.js": "./src/runner/core-facade.js",
-    "./src/runner/core-setup.mjs": "./src/runner/core-setup.mjs"
+    "./src/runner/character-sheet.js": "./src/runner/character-sheet.js"
   }
 }

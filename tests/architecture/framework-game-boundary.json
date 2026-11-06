@@ -1,5 +1,5 @@
 {
-  "about": "Framework vs game boundary (#739, tracker #747; charter -> 'Framework vs game'). Read by tests/architecture/framework-game-boundary.test.js. apiSurface is every framework module game code imports: exactly what the split must publish (#742). An entry with `seam` is game content still living in the framework, relocated by that issue. pathSeams are framework source that names a game path (process or URL boundaries, not imports); each carries the issue that removes it. skinConsumers are the framework files allowed to import the skin module contracts/game-elements.js (#740); everything else imports the vocabulary from contracts/game-vocabulary.js. A path inside both a framework and a game root is game: the reference terminal client (`packages/ui-ascii`, kept by Darren 2026-11-06, #741) is framework, its phone-app files are game until they move (#744). Every list is exact: unused entries fail.",
+  "about": "Framework vs game boundary (#739, tracker #747; charter -> 'Framework vs game'). Read by tests/architecture/framework-game-boundary.test.js here and by Primordial's tests/framework-boundary.test.mjs. apiSurface is every framework module game code imports, in Primordial or in the game roots still here: exactly what the split publishes (#742); each package's exports map equals its entries. A Primordial import of an unlisted module fails Primordial's test: widen the API here first. pathSeams are framework source that names a game path (process or URL boundaries, not imports); each carries the issue that removes it. skinConsumers are the framework files allowed to import the skin module contracts/game-elements.js (#740); everything else imports the vocabulary from contracts/game-vocabulary.js. A path inside both a framework and a game root is game. pathSeams and skinConsumers are exact: unused entries fail.",
   "frameworkRoots": [
     "packages/core-ts/src",
     "packages/runtime/src",
@@ -9,13 +9,6 @@
     "packages/ui-ascii"
   ],
   "gameRoots": [
-    "packages/ui-ascii/pwa",
-    "packages/ui-ascii/src/browser.js",
-    "packages/ui-ascii/src/report.js",
-    "packages/ui-ascii/src/update-reload.js",
-    "packages/ui-web",
-    "scripts/game",
-    "scripts/pwa",
     "scripts/brand",
     "scripts/design",
     "scripts/demo"
@@ -24,18 +17,6 @@
     "packages/runtime/src/runner/character-sheet.js": {
       "provides": "character configuration screen model and pipeline"
     },
-    "packages/runtime/src/runner/core-facade.js": {
-      "provides": "browser playback/preview facade over core (runtime-owned)"
-    },
-    "packages/runtime/src/runner/core-setup.mjs": {
-      "provides": "initialize core from simConfig + initialState artifacts"
-    },
-    "packages/runtime/src/contracts/artifacts.ts": {
-      "provides": "versioned artifact schemas"
-    },
-    "packages/runtime/src/contracts/build-spec.js": {
-      "provides": "BuildSpec helpers"
-    },
     "packages/runtime/src/contracts/domain-constants.js": {
       "provides": "affinity/expression/motivation vocabularies"
     },
@@ -43,32 +24,8 @@
       "provides": "skin: GAME_COLOR_PALETTE, element visuals, asset and icon ids (re-exports the vocabulary)",
       "seam": 741
     },
-    "packages/runtime/src/commands/card-authoring.js": {
-      "provides": "card authoring commands"
-    },
-    "packages/runtime/src/commands/ui-flow.js": {
-      "provides": "UI build-flow commands"
-    },
-    "packages/runtime/src/commands/director-round.js": {
-      "provides": "one Director planning round"
-    },
-    "packages/runtime/src/commands/llm-host.js": {
-      "provides": "LLM host command seam"
-    },
     "packages/runtime/src/commands/author-level.js": {
       "provides": "author a level through the personas"
-    },
-    "packages/runtime/src/personas/orchestrator/persona.js": {
-      "provides": "Orchestrator public barrel (LLM budget loop)"
-    },
-    "packages/runtime/src/personas/allocator/persona.js": {
-      "provides": "Allocator public barrel (price list)"
-    },
-    "packages/runtime/src/personas/annotator/persona.js": {
-      "provides": "Annotator public barrel (LLM capture artifacts)"
-    },
-    "packages/runtime/src/render/actor-hud-model.js": {
-      "provides": "HUD view model: vital order, labels, colours"
     },
     "packages/runtime/src/render/affinity-role.js": {
       "provides": "attack/defence/support labels, trait kinds"
@@ -76,42 +33,12 @@
     "packages/runtime/src/render/window-size.js": {
       "provides": "observed window size"
     },
-    "packages/runtime/src/render/inventory-summary-model.js": {
-      "provides": "inventory summary view model"
-    },
-    "packages/runtime/src/render/affinity-palette.js": {
-      "provides": "affinity palette",
-      "seam": 741
-    },
     "packages/runtime/src/render/entity-sprite-composer.js": {
       "provides": "board sprite pixels",
       "seam": 741
     },
-    "packages/runtime/src/render/icon-model.js": {
-      "provides": "icon composition",
-      "seam": 741
-    },
-    "packages/runtime/src/render/resource-bundle.js": {
-      "provides": "resource bundle (art) loading",
-      "seam": 741
-    },
-    "packages/adapters-web/src/adapters/cli-worker/index.js": {
-      "provides": "run the CLI pipeline in a browser worker"
-    },
-    "packages/adapters-web/src/adapters/llm/index.js": {
-      "provides": "browser LLM adapter"
-    },
-    "packages/adapters-web/src/adapters/solver/index.js": {
-      "provides": "browser solver adapter"
-    },
     "packages/adapters-web/src/adapters/solver-recorded/index.js": {
       "provides": "recorded-solver replay adapter"
-    },
-    "packages/adapters-web/src/adapters/ipfs/index.js": {
-      "provides": "browser IPFS adapter"
-    },
-    "packages/adapters-web/src/adapters/blockchain/index.js": {
-      "provides": "browser blockchain adapter"
     },
     "packages/ui-ascii/src/game.js": {
       "provides": "the reference terminal client's game controller over the play session (the phone app runs it in the page)"
@@ -129,20 +56,7 @@
       "provides": "the playtest scenario catalogue and its `ak create` arguments per seed (#744: framework content, shared with the sims)"
     }
   },
-  "pathSeams": [
-    {
-      "file": "packages/adapters-cli/src/mcp/tools/sandbox.mjs",
-      "path": "ui-web/",
-      "issue": 741,
-      "why": "ak_push_to_ui opens the browser UI at its served path."
-    },
-    {
-      "file": "packages/adapters-cli/src/mcp/tools/testing.mjs",
-      "path": "ui-web/",
-      "issue": 744,
-      "why": "test-suite selection maps ui-web paths to the ui-web suite; goes with the move."
-    }
-  ],
+  "pathSeams": [],
   "skinConsumers": {
     "packages/runtime/src/render/actor-hud-model.js": {
       "why": "HUD colours"

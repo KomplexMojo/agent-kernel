@@ -127,11 +127,12 @@ and run it for noncommercial use, but not modify or redistribute it. It is sourc
 ```bash
 pnpm install
 pnpm run test
-pnpm run serve:ui
+pnpm run play:ascii
 pnpm run mcp:serve
 ```
 
-UI: `http://localhost:8001/packages/ui-web/index.html`
+`play:ascii` is the reference terminal client. The game's own clients (phone app, graphical UI) live in
+the private Primordial repository.
 
 ```bash
 node packages/adapters-cli/src/cli/ak.mjs create \
@@ -147,7 +148,7 @@ Artifacts default to `artifacts/runs/<runId>/<command>/`.
 Ports & Adapters. Dependency direction is fixed:
 
 ```text
-adapters / ui-web  →  runtime (personas)  →  core-ts
+adapters / ui-ascii  →  runtime (personas)  →  core-ts
 ```
 
 | Package | Role |
@@ -155,7 +156,7 @@ adapters / ui-web  →  runtime (personas)  →  core-ts
 | `packages/core-ts` | Deterministic simulation. No IO, no clock, no imports outside itself. |
 | `packages/runtime` | Persona FSMs, tick orchestration, artifact contracts, effect routing. |
 | `packages/adapters-*` | CLI, browser, fixture, and external IO. |
-| `packages/ui-web` | Browser preview and playback. |
+| `packages/ui-ascii` | Reference terminal client (`ak play`, run viewer). |
 
 Boundary data uses versioned schemas in `packages/runtime/src/contracts/artifacts.ts`.
 
@@ -181,7 +182,6 @@ Effects leave personas as data and execute only through adapter ports.
 pnpm run test
 pnpm run typecheck
 pnpm run test:coverage:core-ts
-pnpm run serve:ui
 pnpm run mcp:serve
 pnpm run demo:cli
 ```

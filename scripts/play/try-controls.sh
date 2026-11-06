@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Try the game controls the Claude Code harness drives, straight through `ak`.
 # Each step prints the board and what changed; the same steps are what /game-play
-# does through the ak_play_* MCP tools. Usage: bash scripts/game/try-controls.sh
+# does through the ak_play_* MCP tools. Usage: bash scripts/play/try-controls.sh
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 

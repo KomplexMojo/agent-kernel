@@ -40,23 +40,18 @@ Key facts:
 - TickFrames are emitted per phase and include actions/effects plus persona views/telemetry for deterministic replay.
 - Runtime inputs are documented in `docs/runtime-inputs.md`.
 - The motivation-sandbox executable specs are `tests/core-ts/combat-actions.test.mts`, `tests/personas/actor/actor-motivation-combat.test.js`, `tests/runtime/runtime-combat-application.test.js`, `tests/adapters-test/z3-solver-adapter.test.js`, and `tests/personas/actor/actor-complex-motivation-z3.test.js`.
-- The UI sandbox exposes Step and Run-To-End playback over precomputed `tickFrames`; tests and tooling can load scenarios through `window.__ak_loadScenario(scenario, options)` or bundles through `window.__ak_loadGameplayBundle(bundle, options)`.
-- UI preview/playback helpers that need deterministic core setup go through `packages/runtime/src/runner/core-facade.js`; `ui-web` must not import `core-ts` directly.
+- Preview/playback helpers that need deterministic core setup go through `packages/runtime/src/runner/core-facade.js`; no client imports `core-ts` directly. The browser UI that used them was archived in Primordial (#744).
 - Interactive turn-by-turn play, where the player commands one actor and every other actor takes its Actor-persona turn, goes through `packages/runtime/src/runner/play-session.js` (`runtime.step({ actorCommands })` underneath).
 - Watching a recorded run in the same terminal UI goes through `packages/runtime/src/runner/run-viewer.js`, which draws each tick from the registry snapshot the run recorded.
 - Core affinity field records are the canonical tile visualization input. Runtime `observation.auras` is no longer produced: its only source was the old core world's observation, removed in #227.
 - Hazards are the canonical affinity dangers; room affinity labels describe their contained hazards and do not add affinity to the room itself.
-- The Phaser UI shell is centered on `packages/ui-web/src/views/phaser-frame-view.js`, a unified game frame for Card Builder and Gameplay surfaces.
-- Card-authoring semantics live in `packages/runtime/src/commands/card-authoring.js`; `packages/ui-web/src/card-builder-controller.js` is the headless controller used by DOM and Phaser renderers.
-- `packages/ui-web/src/views/card-builder-phaser-renderer.js` renders the Card Builder surface inside the Phaser frame.
-- `packages/ui-web/src/phaser-surface-ingestion.js` routes existing versioned artifacts to the correct UI surface.
+- Card-authoring semantics live in `packages/runtime/src/commands/card-authoring.js`.
 
 ## Common Commands
 
 ```bash
 pnpm run test
 pnpm run test:coverage:core-ts
-pnpm run serve:ui
 ```
 
 The TypeScript core is synchronous and does not require a separate binary build step.

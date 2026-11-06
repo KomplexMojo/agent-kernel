@@ -3,7 +3,7 @@
   "title": "Design Card Core Helpers",
   "minimumTests": 3,
   "requiredImports": [
-    "../../packages/ui-web/src/design-guidance.js",
+    "../../packages/runtime/src/commands/card-authoring.js",
     "node:assert/strict",
     "vitest"
   ],

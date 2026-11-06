@@ -370,7 +370,7 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
 - `start` refuses a name that is running; the others refuse a name that is not, and take no level options.
   `view` and `end` play nothing.
 - Every call also writes `artifacts/play-sessions/hud.txt`, one line about the seated actor, which
-  `scripts/game/statusline.mjs` prints as a Claude Code status line (opt in from your own settings).
+  `scripts/play/statusline.mjs` prints as a Claude Code status line (opt in from your own settings).
 
 **Watching a run.** `--watch` shows a run `ak run` recorded instead of playing a level, in the same UI, tick by tick:
 
@@ -418,8 +418,8 @@ Inputs/outputs:
   ones. The grade is stamped on the level (`meta.cost.grade` on the sim-config and the other build artifacts, and
   on the budget receipt), shown in the play header (`Deepward — <level> (grade C)`) and echoed in the result as
   `grade: { grade, budgetTokens, dungeonPercent, delverPercent }`. An explicit `--budget-tokens` still wins and is
-  reported as `grade.budgetOverride`. `bash scripts/game/playtest.sh <scenario> --grade C` builds a playtest at
-  that grade and records it in the report.
+  reported as `grade.budgetOverride`. Primordial's `bash scripts/game/playtest.sh <scenario> --grade C` builds a
+  playtest at that grade and records it in the report.
 - `--floor-tile` format: `count=<n>[;id=<id>]`
 - Positioned `--hazard` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
   Hazard `x`/`y` are room-relative offsets into the first declared room's interior.
@@ -1260,13 +1260,9 @@ without manual file handoff.
   containing `bundle.json` (the shape written by `run`'s post-run stitching or by
   `create` pre-run).
 - `targetTab`: `"design"` or `"gameplay"` (default `"gameplay"`).
-- `requireClient` (default `true`): fail if no browser UI is connected; the browser side
-  is `packages/ui-web/src/sandbox-bridge-client.js`.
-- `openBrowser` (default `false`): serve the canonical `index_c.html` via
-  `scripts/serve-ui.mjs` (only when nothing answers `/health`), open the default browser,
-  and pre-stage the bundle so the UI loads it on connect. Implies `requireClient: false`.
-  UI host/port come from `AK_UI_HOST` / `AK_UI_PORT` (default `127.0.0.1:8001`);
-  `AK_DISABLE_UI_LAUNCH=1` skips the side effects.
+- `requireClient` (default `true`): fail if no UI client is connected. agent-kernel ships no
+  browser client since the web UI was archived in Primordial (#744), and `openBrowser` is gone:
+  the bridge is the port a game client connects to.
 - Bridge port: `38487` by default, overridable with `AK_SANDBOX_BRIDGE_PORT`.
 - Failure results are structured: missing bundle sources, invalid bundle shape, bridge
   start failure (`SANDBOX_BRIDGE_START_FAILED`), and no-connected-client cases each

@@ -1,21 +1,13 @@
 %% Architecture overview (Ports & Adapters)
 flowchart LR
   subgraph Game["Game: Primordial (consumer; private repo after #747)"]
-    GameClients["phone app, ui-web, playtest launcher,\nPWA scripts, lore, art"]
+    GameClients["phone app, playtest launcher,\narchived web UI, lore, art"]
   end
   GameClients -->|"declared API surface only\n(framework-game-boundary.json); never core-ts"| Interfaces
   GameClients -->|"declared API surface only"| Runtime
 
   subgraph Interfaces["Interfaces"]
-    UIWeb["ui-web (browser)"]
     UIAscii["ui-ascii (reference terminal client + run viewer)\nkeys -> intents; no core imports"]
-    PhaserFrame["phaser-frame-view"]
-    CardBuilderRenderer["card-builder-phaser-renderer"]
-    CardBuilderController["card-builder-controller"]
-    GameplaySurface["gameplay surface\ncreateGameplayPhaserRenderer"]
-    PhaserIngestion["phaser-surface-ingestion"]
-    ScenarioLoader["scenario-loader + preview-view"]
-    BridgeClient["sandbox-bridge-client"]
     CLI["CLI (ak.mjs)"]
     MCP["MCP server (ak_* tools)"]
   end
@@ -73,17 +65,6 @@ flowchart LR
     Storage["Persistence"]
   end
 
-  UIWeb --> RuntimePorts
-  UIWeb --> AWeb
-  UIWeb --> PhaserIngestion
-  PhaserIngestion --> PhaserFrame
-  PhaserFrame --> CardBuilderRenderer
-  CardBuilderRenderer --> CardBuilderController
-  CardBuilderController --> CardAuthoring
-  PhaserFrame --> GameplaySurface
-  GameplaySurface --> RuntimePorts
-  ScenarioLoader --> CoreFacade
-  UIWeb --> ScenarioLoader
   UIAscii --> PlaySession
   UIAscii --> RunViewer
   PlaySession --> CoreFacade
@@ -92,8 +73,7 @@ flowchart LR
   MCP --> ACli
   ACli -- "ak workflow / ak_workflow_*\nmodel + store + exec ports" --> AdaptiveRunner
   MCP -- "ak_push_to_ui\nGameplayBundle" --> BridgeServer
-  BridgeServer -- "WebSocket" --> BridgeClient
-  BridgeClient -- "__ak_loadGameplayBundle" --> GameplaySurface
+  BridgeServer -- "WebSocket (a game client connects)" --> GameClients
   AWeb --> CommandKernel
   ACli --> CommandKernel
   CommandKernel --> CardAuthoring

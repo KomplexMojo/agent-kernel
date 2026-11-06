@@ -11,12 +11,7 @@
     "packages/runtime/src/commands/kernel.js": { "max": 9, "issues": [] },
     "packages/runtime/src/commands/ui-flow.js": { "max": 1, "issues": [] },
     "packages/runtime/src/commands/card-authoring.js": { "max": 5, "issues": [281] },
-    "packages/runtime/src/runner/runtime-fsm.mjs": { "max": 1, "issues": [] },
-    "packages/ui-web/src/build-spec-ui.js": { "max": 1, "issues": [] },
-    "packages/ui-web/src/views/design-view.js": { "max": 2, "issues": [] },
-    "packages/ui-web/src/design-guidance.js": { "max": 5, "issues": [] },
-    "packages/ui-web/src/main.js": { "max": 2, "issues": [] },
-    "packages/ui-web/src/card-builder-controller.js": { "max": 1, "issues": [] }
+    "packages/runtime/src/runner/runtime-fsm.mjs": { "max": 1, "issues": [] }
   },
   "unpricedEntrypoints": {}
 }

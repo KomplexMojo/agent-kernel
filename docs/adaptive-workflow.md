@@ -7,7 +7,7 @@ command kernel, but is **not** a persona: the Orchestrator persona remains the
 tick/persona boundary guardian, while `AdaptiveWorkflowAgent` coordinates work
 from the application layer.
 
-> Dependency direction is unchanged: `adapters-* / ui-web → runtime → core-ts`.
+> Dependency direction is unchanged: `adapters-* / ui-ascii → runtime → core-ts`.
 > All model, hardware, persistence, CLI, and MCP IO lives behind injected ports
 > fulfilled by adapters. The runtime layer imports no adapter, MCP, or Node IO.
 

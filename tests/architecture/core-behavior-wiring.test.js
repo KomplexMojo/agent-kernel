@@ -63,7 +63,6 @@ const PRODUCTION_ROOTS = [
   "packages/adapters-cli/src",
   "packages/adapters-web/src",
   "packages/adapters-test/src",
-  "packages/ui-web/src",
 ];
 
 /** A behavior mutates state or decides an outcome. A query answers a question. */

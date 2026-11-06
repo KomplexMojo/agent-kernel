@@ -111,7 +111,6 @@ test("ak_sandbox_push_ui tool compiles and pre-stages bundle when requireClient:
 });
 
 test.skip("ak_sandbox_push_ui reports SANDBOX_BRIDGE_START_FAILED when bridge startup port is occupied", () => {});
-test.skip("serve-ui forwards AK_SANDBOX_BRIDGE_PORT into browser HTML", () => {});
 test.skip("ak_sandbox_push_ui sends exact artifacts array to a connected browser client", () => {});
 test.skip("ak_sandbox_push_ui targetTab design calls loadGameplayBundle with design target", () => {});
 test.skip("ak_sandbox_push_ui targetTab gameplay calls loadGameplayBundle with gameplay target", () => {});

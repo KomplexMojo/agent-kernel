@@ -6,7 +6,6 @@ const ROOT = resolve(__dirname, "../..");
 const TARGET_FILE = resolve(ROOT, "packages/runtime/src/contracts/domain-constants.js");
 const SEARCH_DIRS = [
   resolve(ROOT, "packages/runtime/src"),
-  resolve(ROOT, "packages/ui-web/src"),
   resolve(ROOT, "packages/adapters-cli/src"),
 ];
 

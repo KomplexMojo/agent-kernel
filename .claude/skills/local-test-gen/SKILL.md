@@ -50,7 +50,7 @@ same local network as the host, use `--route internal` and drop
 ./tools/remote-ollama-control/bin/remote-ollama-mac run-local \
   --profile dual --model <ollama-model> --route external --external-host <wan-hostname-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs \
-     --model <ollama-model> --file tests/ui-web/tile-affinity-visuals.test.mjs \
+     --model <ollama-model> --file tests/ui-ascii/ui-ascii-controller.test.js \
      --runner auto --max-iterations 5 --num-ctx 65536 --num-predict 8192 \
      --reasoning-mode plan-code --source-context auto --source-char-budget 16000 \
      --eval-run --eval-output tools/remote-ollama-control/results/test-gen-eval.json

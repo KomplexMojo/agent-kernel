@@ -28,11 +28,9 @@
     "logic-sweep:dry-run": "node scripts/testing/run-logic-sweep.mjs --dry-run",
     "sim:sweep": "node scripts/testing/run-simulation-sweep.mjs",
     "config-sweep:dry-run": "node scripts/testing/run-configuration-permutation-sweep.mjs --dry-run",
-    "serve:ui": "node scripts/serve-ui.mjs --entry index_c.html",
     "demo:cli": "bash scripts/demo-cli.sh",
     "play:ascii": "node packages/ui-ascii/src/cli.mjs",
     "play:web": "node packages/ui-ascii/src/cli.mjs --web",
-    "build:pwa": "node scripts/pwa/build-pwa.mjs",
     "levels:ascii": "node scripts/ui-ascii/generate-levels.mjs",
     "mcp:serve": "node packages/adapters-cli/src/mcp/server.mjs",
     "docs:pdf": "mmdc -i WORKFLOW.md -o WORKFLOW-print.md --outputFormat svg && md-to-pdf WORKFLOW-print.md && rm -f WORKFLOW-print.md mermaid-*.svg"
@@ -50,11 +48,8 @@
   "devDependencies": {
     "@mermaid-js/mermaid-cli": "^11.12.0",
     "@types/node": "^25.0.3",
-    "@types/pngjs": "^6.0.5",
     "@vitest/coverage-v8": "^3.2.4",
-    "esbuild": "^0.28.2",
     "md-to-pdf": "^5.2.5",
-    "pngjs": "^7.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
