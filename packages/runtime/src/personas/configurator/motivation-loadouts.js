@@ -16,7 +16,7 @@
  * `.value` and discarded `ok`/`errors`/`warnings`, so ingesting loose input was never
  * a Configurator decision. "Is this configuration valid?" still is.
  */
-import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
+import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-vocabulary.js";
 import {
   MOTIVATION_FAMILIES,
   MOTIVATION_KINDS,

@@ -62,7 +62,7 @@ import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePri
 // UNUSED_CLOCK is kept for the `rg UNUSED_CLOCK` census: still no wall-clock read here.
 import { buildDefaultPriceList } from "./default-price-list.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
-import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
+import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-vocabulary.js";
 import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
 // M8 relocated the two subject types this module names four times between them —
 // `LayoutArtifact` and `ActorArtifact`, which are not artifacts anything writes but the

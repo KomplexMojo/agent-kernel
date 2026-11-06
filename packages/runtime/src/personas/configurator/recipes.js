@@ -21,7 +21,7 @@ import {
   ACTOR_VIABILITY_FLOOR,
   PRESET_AFFINITY_SLOTS,
 } from "../../contracts/domain-constants.js";
-import { GAME_VITAL_KEYS } from "../../contracts/game-elements.js";
+import { GAME_VITAL_KEYS } from "../../contracts/game-vocabulary.js";
 import { MAX_AFFINITY_SLOTS } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { affinityRole } from "../../../../core-ts/src/state/affinity-table.ts";
 

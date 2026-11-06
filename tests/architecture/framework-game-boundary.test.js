@@ -124,3 +124,26 @@ test("the game reaches the framework only through the declared API surface, neve
   assert.deepEqual(violations, [], report("game -> framework import(s) outside the API surface:", violations));
   assert.deepEqual(stale, [], report("apiSurface entries no game code imports (remove them):", stale));
 });
+
+// The vocabulary (affinity kinds, vitals, motivations) is a framework contract in
+// contracts/game-vocabulary.js; contracts/game-elements.js is the SKIN the game restyles
+// (#740, Darren 2026-11-06: rules stay, skin and content move). Only the recorded skin
+// consumers (render view models, plus one Configurator preview awaiting #741) may import it,
+// so persona logic can never come to depend on a colour or an asset id.
+test("only recorded skin consumers in the framework import the skin module", () => {
+  const skin = realpathSync(resolve(ROOT, "packages/runtime/src/contracts/game-elements.js"));
+  const found = new Set();
+  for (const file of filesUnder(FRAMEWORK_ROOTS)) {
+    if (realpathSync(file) === skin) continue;
+    for (const specifier of importSpecifiers(readFileSync(file, "utf8"))) {
+      if (!specifier.startsWith(".")) continue;
+      const target = resolveImportTarget(file, specifier);
+      if (target && realpathSync(target) === skin) found.add(toRepoPath(file));
+    }
+  }
+  const recorded = new Set(Object.keys(BOUNDARY.skinConsumers));
+  const unrecorded = [...found].filter((path) => !recorded.has(path)).sort();
+  const stale = [...recorded].filter((path) => !found.has(path)).sort();
+  assert.deepEqual(unrecorded, [], report("framework file imports the skin; use contracts/game-vocabulary.js or record it:", unrecorded));
+  assert.deepEqual(stale, [], report("recorded skin consumer(s) no longer import the skin (remove them):", stale));
+});

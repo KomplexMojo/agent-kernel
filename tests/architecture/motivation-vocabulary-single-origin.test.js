@@ -5,7 +5,7 @@
  * name motivation kinds as string literals, and FIVE of them enumerate all twelve:
  *
  *   core-ts/src/motivation-readers.ts                  the code→name authority
- *   runtime/src/contracts/game-elements.js             the name authority
+ *   runtime/src/contracts/game-vocabulary.js           the name authority (re-exported by game-elements.js)
  *   runtime/src/personas/configurator/motivation-rules.js
  *   runtime/src/render/actor-medallion-composer.ts
  *   runtime/src/render/actor-medallion-composer.js     (a second copy of the same file)
@@ -55,7 +55,7 @@ const repoPath = (p) => relative(ROOT, p).split(sep).join("/");
 
 async function authorities() {
   const core = await import("../../packages/core-ts/src/index.ts");
-  const contracts = await import("../../packages/runtime/src/contracts/game-elements.js");
+  const contracts = await import("../../packages/runtime/src/contracts/game-vocabulary.js");
   const fromCore = Object.entries(core.MOTIVATION_KIND_BY_CODE)
     .filter(([code]) => Number(code) > 0)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
@@ -111,7 +111,7 @@ test("a file that carries most of the vocabulary carries all of it", async () =>
     [],
     "these files hold most of the motivation vocabulary but not all of it. Either they are "
       + "codebooks that fell behind, or they should derive the list from "
-      + `contracts/game-elements.js instead of restating it:\n  ${incomplete.join("\n  ")}`,
+      + `contracts/game-vocabulary.js instead of restating it:\n  ${incomplete.join("\n  ")}`,
   );
 });
 

@@ -12,7 +12,7 @@
  * resources can add theirs.
  */
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS, ACTOR_VIABILITY_FLOOR, PRESET_AFFINITY_SLOTS } from "../contracts/domain-constants.js";
-import { GAME_VITAL_KEYS } from "../contracts/game-elements.js";
+import { GAME_VITAL_KEYS } from "../contracts/game-vocabulary.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
