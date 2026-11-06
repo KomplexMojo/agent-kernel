@@ -13,11 +13,7 @@ import {
   getResourceBundleAssetSpecs,
   relativePathForGameAssetId,
 } from "../contracts/game-elements.js";
-import {
-  ACTOR_MEDALLION_COMPONENT_IDS,
-  buildActorMedallionComponentSprite,
-  composeActorMedallion,
-} from "./actor-medallion-composer.js";
+import { composeEntitySprite } from "./entity-sprite-composer.js";
 import { computeTileAlpha } from "./affinity-spatial-formulas.js";
 import { getAffinitySpriteAsset } from "./generated/affinity-sprite-assets.js";
 import { getGameSpriteAsset } from "./generated/game-sprite-assets.js";
@@ -94,10 +90,6 @@ function createVisualMappings() {
         delver: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `actor.delver.${kind}`])),
         warden: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `actor.warden.${kind}`])),
       },
-    },
-    actorMedallions: {
-      expressionStyle: "triangles",
-      components: ACTOR_MEDALLION_COMPONENT_IDS,
     },
     items: { ...DEFAULT_ITEM_ASSET_IDS },
     cards: { ...DEFAULT_CARD_ASSET_IDS },
@@ -301,7 +293,6 @@ export function validateResourceBundleArtifact(bundle) {
     if (!bundle.mappings?.tiles?.fog) errors.push("mappings.tiles.fog is required");
     if (!bundle.mappings?.actors?.byRoleAndAffinity?.delver) errors.push("mappings.actors.byRoleAndAffinity.delver is required");
     if (!bundle.mappings?.actors?.byRoleAndAffinity?.warden) errors.push("mappings.actors.byRoleAndAffinity.warden is required");
-    if (!bundle.mappings?.actorMedallions?.components?.frame) errors.push("mappings.actorMedallions.components.frame is required");
     if (!bundle.mappings?.overlays?.affinities) errors.push("mappings.overlays.affinities is required");
     if (!bundle.mappings?.overlays?.expressions) errors.push("mappings.overlays.expressions is required");
     if (!bundle.mappings?.overlays?.stackTiers?.tier1) errors.push("mappings.overlays.stackTiers.tier1 is required");
@@ -559,9 +550,6 @@ function inferMotivation(actor = {}) {
 
 function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
   const pixels = createPixelBuffer(size, size);
-  if (assetId.startsWith("component.actor-medallion.")) {
-    return buildActorMedallionComponentSprite(assetId, size);
-  }
   if (assetId.startsWith("tile.floor")) {
     checker(pixels, size, size, PALETTE.floorA, PALETTE.floorB, 4);
     drawBorder(pixels, size, 0, 0, size, PALETTE.border);
@@ -1162,7 +1150,9 @@ export async function renderBoardWithResourceBundle({
     const y = Number(actor?.position?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     if (Number(bundle?.schemaVersion) >= RESOURCE_BUNDLE_VERSION_V2) {
-      const sprite = composeActorMedallion({ actor, size: tileWidth });
+      // The board's sprite language: role as silhouette, affinity as fill (charter ->
+      // Phaser UI Layer). The eight-channel medallion was retired (#741).
+      const sprite = composeEntitySprite({ entity: actor, size: tileWidth });
       blitSprite(pixels, width, height, sprite, tileWidth, x * tileWidth, y * tileHeight);
       continue;
     }

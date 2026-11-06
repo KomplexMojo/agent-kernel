@@ -7,8 +7,7 @@
  *   core-ts/src/motivation-readers.ts                  the code→name authority
  *   runtime/src/contracts/game-vocabulary.js           the name authority (re-exported by game-elements.js)
  *   runtime/src/personas/configurator/motivation-rules.js
- *   runtime/src/render/actor-medallion-composer.ts
- *   runtime/src/render/actor-medallion-composer.js     (a second copy of the same file)
+ *   runtime/src/render/actor-medallion-composer.{ts,js} (removed with the medallion, #741)
  *
  * TWO THINGS WERE UNGUARDED, and both are the repo's recurring defect rather than new
  * mistakes.
