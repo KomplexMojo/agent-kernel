@@ -1,7 +1,11 @@
 {
-  "name": "adapters-cli",
+  "name": "@agent-kernel/adapters-cli",
   "private": true,
   "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    "./src/cli/playtest-scenarios.mjs": "./src/cli/playtest-scenarios.mjs"
+  },
   "bin": {
     "ak-mcp": "src/mcp/server.mjs",
     "ak-persona": "src/cli/ak-persona.mjs"

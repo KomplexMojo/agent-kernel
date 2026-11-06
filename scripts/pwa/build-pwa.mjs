@@ -19,7 +19,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import { PNG } from "pngjs";
-import { affinitiesForSeed, createArgs, fillFocus, loadPlaytestScenarios, playerDelverSpec, traitsInPlay } from "../game/playtest.mjs";
+import { affinitiesForSeed, createArgs, fillFocus, loadPlaytestScenarios, playerDelverSpec, traitsInPlay } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");

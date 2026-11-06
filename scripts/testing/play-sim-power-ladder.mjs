@@ -31,7 +31,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPlaytestScenarios, playerDelverSpec } from "../game/playtest.mjs";
+import { loadPlaytestScenarios, playerDelverSpec } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 import { runOne } from "./play-sim.mjs";
 import { resolveModelEnv } from "./play-sim-model-env.mjs";
 import { llmSeatPicker } from "./play-sim-seat.mjs";

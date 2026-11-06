@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { expect, test } from "vitest";
 import { buildArm } from "../../scripts/testing/play-sim.mjs";
 import { createCliTransport, runSeat, vitalsFromHud } from "../../scripts/testing/play-sim-seat.mjs";
-import { loadPlaytestScenarios } from "../../scripts/game/playtest.mjs";
+import { loadPlaytestScenarios } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
 
 const built = () => {
   const catalog = loadPlaytestScenarios();

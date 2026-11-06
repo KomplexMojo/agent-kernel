@@ -18,7 +18,7 @@ const CREATED_AT = "2026-10-18T00:00:00.000Z";
 const asWritten = (artifact) => JSON.parse(JSON.stringify(artifact));
 
 async function load() {
-  const playtest = await import("../../scripts/game/playtest.mjs");
+  const playtest = await import("../../packages/adapters-cli/src/cli/playtest-scenarios.mjs");
   const { authorLevel } = await import("../../packages/runtime/src/commands/author-level.js");
   const { createRecordedSolverAdapter } = await import("../../packages/adapters-web/src/adapters/solver-recorded/index.js");
   return { ...playtest, authorLevel, createRecordedSolverAdapter };

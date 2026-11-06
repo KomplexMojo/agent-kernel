@@ -1,32 +1,26 @@
 {
-  "about": "Framework vs game boundary (#739, tracker #747; charter -> 'Framework vs game'). Read by tests/architecture/framework-game-boundary.test.js. apiSurface is every framework module game code imports: exactly what the split must publish (#742). An entry with `seam` is game content still living in the framework, relocated by that issue. pathSeams are framework source that names a game path (process or URL boundaries, not imports); each carries the issue that removes it. skinConsumers are the framework files allowed to import the skin module contracts/game-elements.js (#740); everything else imports the vocabulary from contracts/game-vocabulary.js. Every list is exact: unused entries fail.",
+  "about": "Framework vs game boundary (#739, tracker #747; charter -> 'Framework vs game'). Read by tests/architecture/framework-game-boundary.test.js. apiSurface is every framework module game code imports: exactly what the split must publish (#742). An entry with `seam` is game content still living in the framework, relocated by that issue. pathSeams are framework source that names a game path (process or URL boundaries, not imports); each carries the issue that removes it. skinConsumers are the framework files allowed to import the skin module contracts/game-elements.js (#740); everything else imports the vocabulary from contracts/game-vocabulary.js. A path inside both a framework and a game root is game: the reference terminal client (`packages/ui-ascii`, kept by Darren 2026-11-06, #741) is framework, its phone-app files are game until they move (#744). Every list is exact: unused entries fail.",
   "frameworkRoots": [
     "packages/core-ts/src",
     "packages/runtime/src",
     "packages/adapters-cli/src",
     "packages/adapters-web/src",
-    "packages/adapters-test/src"
+    "packages/adapters-test/src",
+    "packages/ui-ascii"
   ],
   "gameRoots": [
-    "packages/ui-ascii",
+    "packages/ui-ascii/pwa",
+    "packages/ui-ascii/src/browser.js",
+    "packages/ui-ascii/src/report.js",
+    "packages/ui-ascii/src/update-reload.js",
     "packages/ui-web",
     "scripts/game",
     "scripts/pwa",
     "scripts/brand",
     "scripts/design",
-    "scripts/demo",
-    "scripts/ui-ascii"
+    "scripts/demo"
   ],
   "apiSurface": {
-    "packages/runtime/src/runner/play-session.js": {
-      "provides": "live play: createPlaySession, act, view, status"
-    },
-    "packages/runtime/src/runner/run-viewer.js": {
-      "provides": "draw a recorded run in the play-session view shape"
-    },
-    "packages/runtime/src/runner/legal-commands.js": {
-      "provides": "the player's legal commands for the current tick"
-    },
     "packages/runtime/src/runner/character-sheet.js": {
       "provides": "character configuration screen model and pipeline"
     },
@@ -79,19 +73,6 @@
     "packages/runtime/src/render/affinity-role.js": {
       "provides": "attack/defence/support labels, trait kinds"
     },
-    "packages/runtime/src/render/ascii-cell-style.js": {
-      "provides": "board character -> palette colour",
-      "seam": 741
-    },
-    "packages/runtime/src/render/battle-log-lines.js": {
-      "provides": "battle log view model"
-    },
-    "packages/runtime/src/render/notebook.js": {
-      "provides": "mini map / notebook memory view model"
-    },
-    "packages/runtime/src/render/visualization-snapshot.js": {
-      "provides": "board visualization snapshot"
-    },
     "packages/runtime/src/render/window-size.js": {
       "provides": "observed window size"
     },
@@ -131,21 +112,24 @@
     },
     "packages/adapters-web/src/adapters/blockchain/index.js": {
       "provides": "browser blockchain adapter"
+    },
+    "packages/ui-ascii/src/game.js": {
+      "provides": "the reference terminal client's game controller over the play session (the phone app runs it in the page)"
+    },
+    "packages/ui-ascii/src/screen.js": {
+      "provides": "the reference client's board, HUD and log drawing"
+    },
+    "packages/ui-ascii/src/keymap.js": {
+      "provides": "the reference client's key bindings and intents"
+    },
+    "packages/ui-ascii/src/html.js": {
+      "provides": "ANSI screen to HTML, for browser views of the reference client"
+    },
+    "packages/adapters-cli/src/cli/playtest-scenarios.mjs": {
+      "provides": "the playtest scenario catalogue and its `ak create` arguments per seed (#744: framework content, shared with the sims)"
     }
   },
   "pathSeams": [
-    {
-      "file": "packages/adapters-cli/src/cli/play-ascii.mjs",
-      "path": "ui-ascii/",
-      "issue": 741,
-      "why": "`ak play` spawns the terminal client by path; becomes the retained minimal client or a configured binary."
-    },
-    {
-      "file": "packages/adapters-cli/src/mcp/tools/play.mjs",
-      "path": "ui-ascii/",
-      "issue": 741,
-      "why": "ak_play_ascii schema text names the bundled levels directory."
-    },
     {
       "file": "packages/adapters-cli/src/mcp/tools/sandbox.mjs",
       "path": "ui-web/",
@@ -189,6 +173,12 @@
     "packages/runtime/src/personas/configurator/guidance-level-builder.js": {
       "why": "Configurator paints a guidance preview with tile colours: presentation inside a persona",
       "seam": 741
+    },
+    "packages/ui-ascii/src/screen.js": {
+      "why": "the reference terminal client draws in the default skin's colours"
+    },
+    "packages/ui-ascii/src/character-screen.js": {
+      "why": "the reference character sheet draws affinity colours"
     }
   }
 }

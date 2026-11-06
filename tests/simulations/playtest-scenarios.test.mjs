@@ -4,17 +4,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  affinitiesForSeed,
-  decodeReplay,
-  encodeReplay,
-  loadPlaytestScenarios,
-  parseReport,
-  renderReport,
-  runPlay,
-  scenarioArgs,
-  traitKinds,
-} from "../../scripts/game/playtest.mjs";
+import { affinitiesForSeed, loadPlaytestScenarios, scenarioArgs, traitKinds } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";
+import { decodeReplay, encodeReplay, parseReport, renderReport, runPlay } from "../../scripts/game/playtest.mjs";
 import { RULES, checkRules, compareWithKnown, runScenarios } from "../../scripts/testing/simulation-lib.mjs";
 import { AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../../packages/runtime/src/contracts/domain-constants.js";
 

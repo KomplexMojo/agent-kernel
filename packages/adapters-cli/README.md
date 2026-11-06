@@ -680,6 +680,16 @@ Agent workflow notes:
 - `Build And Load Game` in the UI remains stricter than plain preview: the authored card set still needs at least 1 room, 1 delver, and 1 warden before `Run` is considered playable.
 - Authoring, bundle review, and Preview all use the synchronous TypeScript core path.
 
+### Playtest scenarios
+
+`src/cli/playtest-scenarios.json` is the named-level catalogue the scenario sim suite, the LLM sims and the
+recipe and power ladders play, and the game's playtest launcher and phone app build from (Darren, 2026-11-06,
+#744: one list, so the level a person plays and the one a sim plays are the same). `src/cli/playtest-scenarios.mjs`
+turns a scenario and a seed into `ak create` arguments: `scenarioArgs`, `createArgs`, `playerDelverSpec`,
+`affinitiesForSeed` (the seed fills `{A}`/`{B}` with one opposed pair, `{C}`/`{D}` another, `{T1}`/`{T2}` two
+trait-bearing kinds), `fillFocus`, `traitsInPlay`, plus `AK_CLI`, the `ak` entry the levels are built with. It is
+part of the published API (`@agent-kernel/adapters-cli`, `tests/architecture/framework-game-boundary.json`).
+
 ### `room-plan`
 Builds a `BuildSpec` directly from Room authoring flags (no hand-edited JSON required) and
 runs the standard build pipeline. This is the Room-first parity command for UI card authoring.
