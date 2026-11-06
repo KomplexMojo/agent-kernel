@@ -15,8 +15,6 @@ import {
 } from "../contracts/game-elements.js";
 import { composeEntitySprite } from "./entity-sprite-composer.js";
 import { computeTileAlpha } from "./affinity-spatial-formulas.js";
-import { getAffinitySpriteAsset } from "./generated/affinity-sprite-assets.js";
-import { getGameSpriteAsset } from "./generated/game-sprite-assets.js";
 import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
 
 // M9: declared in contracts/artifacts.ts, re-exported here under the name importers use.
@@ -206,16 +204,10 @@ function relativePathForAssetId(id) {
   return relativePathForGameAssetId(id);
 }
 
+// The framework's default skin is procedural: every asset is drawn from the palette by
+// buildSpriteForSemantic. The game's painted sprites live in Primordial (#741), which
+// dresses a bundle with its own art; the framework build output carries none.
 function createGeneratedAssetEntry(id, kind, label, ipfsUri) {
-  const affinitySpriteAsset = getAffinitySpriteAsset(id) || getGameSpriteAsset(id);
-  if (affinitySpriteAsset) {
-    return createAssetEntry(id, kind, label, ipfsUri, {
-      dataUri: affinitySpriteAsset.dataUri,
-      relativePath: affinitySpriteAsset.relativePath,
-      variants: affinitySpriteAsset.variants,
-    });
-  }
-
   const pixels = buildSpriteForSemantic(id, DEFAULT_RESOURCE_TILE_SIZE);
   return createAssetEntry(id, kind, label, ipfsUri, {
     dataUri: encodePngDataUri({

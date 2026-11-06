@@ -35,7 +35,7 @@ Classifies every area of this repo as **stays** (framework, public), **moves** (
 
 | Path | Problem | Proposed owner/issue |
 |---|---|---|
-| `packages/runtime/src/render/{source-assets,visual-assets,generated}` | 9.7 MB of art and generated sprite data inside `runtime` (13 MB total). | Moves to Primordial; framework keeps only the manifest contract. #741 |
+| `packages/runtime/src/render/{source-assets,visual-assets,generated}` | 9.7 MB of art and generated sprite data inside `runtime` (13 MB total). | **Moved** (#741): `source-assets` retired in 741b′, `visual-assets` and `generated` now in Primordial `art/sprites/`. Framework keeps the manifest contract and the procedural default skin. #741 |
 | `render/{actor-medallion-composer.{js,ts},entity-sprite-composer,icon-model,sprite-atlas-manifest,affinity-palette,resource-bundle}` | Art composition. `tools/visual-assets/generate-actor-medallion-assets.mts` is its generator. | Composers move; atlas manifest schema stays. #741 |
 | `render/{actor-hud-model,notebook,battle-log-lines,window-size,wall-glyphs,actor-glyphs,ascii-cell-style,affinity-role,visualization-snapshot,inventory-summary-model}` | UI-agnostic view models, consumed by `play-session`, `runtime-fsm`, adapters-cli (`tick-session`, MCP sandbox). | Stay as framework view models; glyph/colour choices become a skin. #741 |
 | `runner/{play-session,character-sheet,legal-commands}` | Game loop and player intents; imported by ui-ascii. | Stay (framework player seam). #739 |
