@@ -10,7 +10,7 @@
  */
 import { createHash } from "node:crypto";
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "../../packages/runtime/src/contracts/domain-constants.js";
-import { GAME_VITAL_KEYS } from "../../packages/runtime/src/contracts/game-elements.js";
+import { GAME_VITAL_KEYS } from "../../packages/runtime/src/contracts/game-vocabulary.js";
 import { createCharacterSheet } from "../../packages/runtime/src/runner/character-sheet.js";
 
 export const DEFAULT_ATTEMPTS = 3;

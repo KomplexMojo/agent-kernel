@@ -1,4 +1,4 @@
-import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
+import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-vocabulary.js";
 // MOTIVATION_KINDS comes from contracts/domain-constants.js. This file used to
 // declare `export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS` — a FOURTH
 // name for one value (see P5.1 D1), exported but never imported by anything.

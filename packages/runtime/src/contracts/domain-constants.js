@@ -5,7 +5,7 @@ import {
   GAME_MOTIVATION_FAMILIES,
   GAME_MOTIVATION_KINDS,
   GAME_VITAL_KEYS,
-} from "./game-elements.js";
+} from "./game-vocabulary.js";
 
 export const AFFINITY_KINDS = GAME_AFFINITY_KINDS;
 export const AFFINITY_EXPRESSIONS = GAME_AFFINITY_EXPRESSIONS;
@@ -91,7 +91,7 @@ export const DELVER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
 export const DEFAULT_DELVER_SETUP_MODE = DELVER_SETUP_MODES[0];
 
 // ── Motivation vocabulary (P5.1 D1: promoted out of personas/) ──────────────
-// These are the runtime-facing names for the game-elements motivation registry,
+// These are the runtime-facing names for the game-vocabulary motivation registry,
 // exactly as AFFINITY_KINDS is for GAME_AFFINITY_KINDS above.
 //
 // They previously lived in personas/configurator/motivation-loadouts.js, which

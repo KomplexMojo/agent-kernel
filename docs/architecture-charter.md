@@ -448,9 +448,10 @@ game (Primordial: clients, scenarios, art) -> framework API (runtime / adapters 
 - **The game reaches the framework only through the declared API surface.** Every framework module a game file imports is listed, with what it provides. That list is exactly what the split publishes as packages (#742). Importing an undeclared module is a decision to widen the API, made in the list, not by accident.
 - **The game never imports `core-ts`.** This extends "UI never imports core-ts" to all game code, scripts included: a missing runtime export is added to runtime, not bypassed.
 - **The game adds content, never a parallel path.** Levels still come from `ak create` and are priced by the Allocator. Game-specific rules and data (affinity table content, palette, glyphs, catalogues, key bindings) enter as configuration the personas consume (#740), never as a second rules engine in the game. Art and the sprite atlas belong to the game; the framework keeps only the manifest contract (#741).
+- **Rules stay in the framework; skin and content move** (Darren, 2026-11-06, #740). The element vocabulary (affinity kinds, expressions, vitals, motivations) is a framework contract in `runtime/src/contracts/game-vocabulary.js`. `contracts/game-elements.js` is the **skin** built on it (palette, element visuals, asset and icon ids). It re-exports the vocabulary, but only recorded skin consumers (render view models) may import it, so persona logic never depends on a colour or an asset id.
 - **Purchased or licensed art never enters the framework repository**, which is public. It lives only in the private game repository.
 
-Enforced by `tests/architecture/framework-game-boundary.test.js` against `tests/architecture/framework-game-boundary.json` (roots, API surface, path seams; every list exact). Game content still inside the framework is marked there with the issue that relocates it.
+Enforced by `tests/architecture/framework-game-boundary.test.js` against `tests/architecture/framework-game-boundary.json` (roots, API surface, path seams, skin consumers; every list exact). Game content still inside the framework is marked there with the issue that relocates it.
 
 ## Core Responsibilities
 

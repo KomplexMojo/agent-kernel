@@ -13,7 +13,7 @@
  * @module sprite-atlas-manifest
  */
 
-import { GAME_AFFINITY_KINDS, GAME_VITAL_KEYS } from "../contracts/game-elements.js";
+import { GAME_AFFINITY_KINDS, GAME_VITAL_KEYS } from "../contracts/game-vocabulary.js";
 
 export const SPRITE_ATLAS_SCHEMA = "agent-kernel/SpriteAtlasManifest";
 export const SPRITE_ATLAS_SCHEMA_VERSION = 1;
