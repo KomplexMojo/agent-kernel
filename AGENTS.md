@@ -1,11 +1,25 @@
 # AGENTS.md
 
-How the solo developer and the agent team work together on this repo. Short, strict, easy to follow. The repo holds
-**Deepward**, the game and public name, and **agent-kernel**, its engine and the internal name the code keeps.
+How the solo developer and the agent team work together on this repo. Short, strict, easy to follow. This repo is
+**agent-kernel**, the public framework. **Primordial**, the game built on it, is a separate private repository.
 
 **Scope split with `CLAUDE.md` — neither file restates the other.** This one owns the roster, the workflow, per-agent scope, review reality, test and benchmark strategy, file placement, naming, and the pre-handoff checklist. `CLAUDE.md` owns reporting, the session-start protocol, code navigation, commands, the architecture summary, and the enforcement checklist. Change a rule in its owning file only.
 
 **Before any coding in a new session**, complete `CLAUDE.md → Session-Start Protocol` in order. It is mandatory for every agent that writes code, not just Claude.
+
+---
+
+## Repository ownership — Claude and Cursor (Darren, 2026-11-06)
+
+| Tool | Owns, and writes | Never writes |
+|---|---|---|
+| **Claude** (and the agents it drives) | **agent-kernel**: architecture and design of the framework (core-ts, runtime and personas, contracts, adapters, `ak`, the MCP server, the reference terminal client, the API surface the game consumes) | **Primordial**, not even a one-line fix |
+| **Cursor** | **Primordial**: UI/UX (the phone app and graphical clients, playtest launcher, skin, art, audio, content) | **agent-kernel** |
+
+- **Each tool asks the other through GitHub issues**, never by editing the other's repo. Claude opens issues in KomplexMojo/Primordial labelled `ui-request`, and Cursor opens issues here labelled `api-request`. An issue says what is needed and why, and names the module or API involved.
+- **The API surface is the contract between them.** A change that would break a module listed in `tests/architecture/framework-game-boundary.json` (`apiSurface`) lands additively here first, with a `ui-request` issue asking Primordial to move to it. The old export is removed only after Primordial has moved.
+- Reading the other repo is fine: Claude may read `../primordial` to check how an API is used, and Cursor reads `../agent-kernel` because Primordial links it.
+- Cursor's always-on rule here, `.cursor/rules/repo-ownership.mdc`, makes this repo read-only for Cursor.
 
 ---
 

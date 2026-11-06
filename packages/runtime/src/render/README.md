@@ -155,14 +155,15 @@ guard confirm it. Do not hand-edit a value.
 
 | Module | Owns |
 |---|---|
-| `resource-bundle.js` | Assembling the versioned `ResourceBundleArtifact`, including inlined asset data URIs. |
+| `resource-bundle.js` | Assembling the versioned `ResourceBundleArtifact`, with the procedural default skin's asset data URIs. |
 | `affinity-palette.js` | Affinity colour re-export and stack-intensity tiers. |
 | `affinity-spatial-formulas.js` | Visual alpha of a field tile (how strongly it is drawn). |
 | `visualization-snapshot.js` | ASCII/state snapshot assembly. |
 
 ## Assets
 
-`visual-assets/` is **source material for an out-of-repo
-generator**, not runtime inputs. Every image the runtime serves is already
-base64-inlined into `generated/{affinity,game}-sprite-assets.js`; the
-`relativePath` fields beside them are metadata nothing opens.
+The framework carries **no painted art** (#741). Every asset in a resource bundle is drawn
+procedurally from the palette (`buildSpriteForSemantic` in `resource-bundle.js`), and its
+`relativePath` names where a game's art for that id would sit. The painted sprite set that used
+to live in `generated/` and `visual-assets/` is in Primordial (`art/sprites/`); a client that
+wants it dresses the bundle by asset id.
