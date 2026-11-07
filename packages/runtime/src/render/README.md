@@ -167,3 +167,11 @@ procedurally from the palette (`buildSpriteForSemantic` in `resource-bundle.js`)
 `relativePath` names where a game's art for that id would sit. The painted sprite set that used
 to live in `generated/` and `visual-assets/` is in Primordial (`art/sprites/`); a client that
 wants it dresses the bundle by asset id.
+
+## Published surface for a graphical client (#767)
+
+`client-surface.js` is the one module a graphical game client imports. It re-exports the play
+session (`createPlaySession`, `replayPlaySession`, command and sight constants), the HUD and icon
+view models, the resource bundle (create, validate, list files) and the board sprite state. Names
+are added, never removed while a game uses them; `tests/architecture/client-surface.test.js` pins
+the list. Everything else under `render/` is internal and may move.

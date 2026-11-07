@@ -12,6 +12,7 @@
     "./src/contracts/game-elements.js": "./src/contracts/game-elements.js",
     "./src/contracts/sound-cues.js": "./src/contracts/sound-cues.js",
     "./src/render/affinity-role.js": "./src/render/affinity-role.js",
+    "./src/render/client-surface.js": "./src/render/client-surface.js",
     "./src/render/entity-sprite-composer.js": "./src/render/entity-sprite-composer.js",
     "./src/render/window-size.js": "./src/render/window-size.js",
     "./src/runner/character-sheet.js": "./src/runner/character-sheet.js"
