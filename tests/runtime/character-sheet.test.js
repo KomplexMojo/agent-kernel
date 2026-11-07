@@ -257,9 +257,9 @@ test("a recipe loads into the sheet, prices as the recipe, and writes a spec ak 
   sheet.apply(SHEET_INTENT.NEXT_RECIPE);
   const loaded = sheet.view();
   assert.deepEqual({ name: loaded.recipe.name, edited: loaded.recipe.edited }, { name: "shadowblade", edited: false });
-  assert.equal(loaded.total, 373, "the catalogue's delver price for the shadowblade");
+  assert.equal(loaded.total, 391, "the catalogue's delver price for the shadowblade");
   assert.match(sheet.spec(), /affinities=fire:push:3:2,dark:emit:3,light:emit:1;equip=fire:push,dark:emit,light:emit;/);
-  assert.match(sheet.spec(), /vitals=health:20:1,mana:30:6,stamina:30:3,durability:10:1/);
+  assert.match(sheet.spec(), /vitals=health:20:1,mana:48:6,stamina:30:3,durability:10:1/);
   sheet.apply(SHEET_INTENT.INC); // slot 1 kind steps on: an edit
   assert.equal(sheet.view().recipe.edited, true);
   sheet.apply(SHEET_INTENT.PREV_RECIPE);

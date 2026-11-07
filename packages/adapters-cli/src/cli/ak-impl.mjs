@@ -2604,6 +2604,10 @@ async function writeBuildOutputs({
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   const costSummary = buildCostSummary(buildResult.budgetReceipt, buildResult.spendProposal, outDir);
+  for (const { actorId, affinity, range, intensity, mana, manaMax } of buildResult.unaffordableCasts ?? []) {
+    console.error(`warning: ${actorId} holds ${affinity}:${range}:${intensity}, which costs ${mana} mana a cast, `
+      + `but its mana max is ${manaMax}; it can never cast it.`);
+  }
   const placedObjects = buildPlacedObjectsNote(spec);
   // #301: how each `--place` constraint came out, from the Configurator's placement decision.
   const constraintReport = (Array.isArray(buildResult.solverDecisions) ? buildResult.solverDecisions : [])
@@ -2640,6 +2644,8 @@ async function writeBuildOutputs({
       ...(grade ? { grade } : {}),
       // #371: authored vitals a Configurator floor raised, so none changes silently.
       ...(buildResult.vitalsReport?.length > 0 ? { vitalsReport: buildResult.vitalsReport } : {}),
+      // #732: casts a held affinity can never make, because they cost more than the mana max.
+      ...(buildResult.unaffordableCasts?.length > 0 ? { unaffordableCasts: buildResult.unaffordableCasts } : {}),
     },
   });
 }

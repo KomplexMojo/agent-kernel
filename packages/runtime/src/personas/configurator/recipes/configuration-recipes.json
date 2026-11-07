@@ -13,7 +13,7 @@
           "regen": 1
         },
         "mana": {
-          "max": 30,
+          "max": 48,
           "regen": 6
         },
         "stamina": {
@@ -63,8 +63,8 @@
           "regen": 1
         },
         "mana": {
-          "max": 40,
-          "regen": 4
+          "max": 80,
+          "regen": 6
         },
         "stamina": {
           "max": 25,
@@ -150,7 +150,7 @@
           "regen": 1
         },
         "mana": {
-          "max": 40,
+          "max": 120,
           "regen": 4
         },
         "stamina": {
@@ -342,7 +342,7 @@
           "regen": 1
         },
         "mana": {
-          "max": 40,
+          "max": 48,
           "regen": 4
         },
         "stamina": {
@@ -430,7 +430,7 @@
           "regen": 1
         },
         "mana": {
-          "max": 40,
+          "max": 48,
           "regen": 4
         },
         "stamina": {
@@ -523,7 +523,7 @@
           "regen": 2
         },
         "mana": {
-          "max": 40,
+          "max": 48,
           "regen": 4
         },
         "stamina": {
@@ -572,7 +572,7 @@
           "regen": 2
         },
         "mana": {
-          "max": 50,
+          "max": 80,
           "regen": 5
         },
         "stamina": {

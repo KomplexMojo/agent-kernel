@@ -67,7 +67,7 @@ test("the prompt lists every recipe with its cost and asks for specs; the reply 
   const catalogue = createRecipeCatalogue();
   const prompt = buildActorPlanPrompt({ text: TEXT, budgetTokens: 5000, recipes: catalogue.list({ kind: "config" }), strategies: catalogue.list({ kind: "strategy" }) });
   assert.match(prompt, /Description: Create a scenario with a shadowblade delver/);
-  assert.match(prompt, /- shadowblade: .*delver 373 t, warden 310 t/);
+  assert.match(prompt, /- shadowblade: .*delver 391 t, warden 328 t/);
   assert.match(prompt, /- kite: Kite \(attacking, exploring\)/);
   assert.match(prompt, /Reply with JSON only: \{"delvers":\["<spec>"\],"wardens":\["<spec>"\]\}/);
   assert.deepEqual(readActorPlanResponse({ response: "{\"delvers\":[{\"recipe\":\"tank\",\"motivation\":[\"user_controlled\"],\"strategyRecipe\":\"break-off\"}]}" }),

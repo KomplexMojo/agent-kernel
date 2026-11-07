@@ -316,6 +316,35 @@ export function applyAffinityDerivedVitalRequirements(actor) {
 }
 
 /**
+ * #732 — the casts an actor holds but can never make: a push or pull whose price is above its
+ * mana max (core never pays more than the pool holds, so the Actor falls through to a weaker slot
+ * every turn). Reported, never raised: an authored pool stands (#371), and resizing is the
+ * author's call. Only an actor with a motivation proposes casts; a barrier's alignment is not one.
+ * Returns `[{ actorId, affinity, range, intensity, mana, manaMax }]` in held order.
+ */
+export function reportUnaffordableCasts(actor) {
+  const affinities = Array.isArray(actor?.affinities) ? actor.affinities : [];
+  const manaMax = actor?.vitals?.mana?.max;
+  const acts = Array.isArray(actor?.motivations) && actor.motivations.length > 0;
+  if (!acts || affinities.length === 0 || !Number.isInteger(manaMax)) return [];
+  const report = [];
+  for (const affinity of affinities) {
+    const kind = typeof affinity?.kind === "string" ? affinity.kind.trim().toLowerCase() : "";
+    const expression = typeof affinity?.expression === "string" && affinity.expression.trim()
+      ? affinity.expression.trim().toLowerCase()
+      : "push";
+    if (!kind || (expression !== "push" && expression !== "pull")) continue;
+    const range = Number.isInteger(affinity?.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
+    const intensity = Number.isInteger(affinity?.intensity) && affinity.intensity > 0 ? affinity.intensity : 1;
+    const mana = resolveAffinityManaCost({ rules: null, kind, expression, stacks: range, intensity });
+    if (Number.isInteger(mana) && mana > manaMax) {
+      report.push({ actorId: actor.id, affinity: `${kind}:${expression}`, range, intensity, mana, manaMax });
+    }
+  }
+  return report;
+}
+
+/**
  * Glue-facing form of the viability floor, shaped like its two siblings so orchestrate-build
  * applies all three at one point rather than knowing which are card-level and which are actor-level.
  */

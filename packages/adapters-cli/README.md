@@ -590,6 +590,8 @@ Inputs/outputs:
 - Authored `vitals=` on `--delver` and `--warden` are kept as written (#371): the movement and cast floors fill only
   a stamina regen or mana pool left at 0. A value you set that a floor still raises (a pool below one step, a vital
   below the viability floor) is listed in the result's `vitalsReport` as `{ actorId, vital, field, set, built, floor }`.
+  A held push or pull that costs more mana than the actor's mana max can never be cast; it is kept, warned on stderr,
+  and listed in the result's `unaffordableCasts` as `{ actorId, affinity, range, intensity, mana, manaMax }` (#732).
 - `--delver` and `--warden` accept `strategy=`: standing orders each actor the card makes follows on its own turns.
   Compact goals run in order: `reach:exit|reach:<x>/<y>`, `defeat:<id>`, `take:<id>`, `guard:<id>[:radius]`,
   `follow:<id>[:distance]`, `lead:<id>[:distance]` (to the exit), `hold:<x>/<y>:<ticks>`, `survive[:distance]`.

@@ -44,6 +44,7 @@ import { assessLayoutFeasibility } from "./feasibility.js";
 import {
   applyAffinityDerivedVitalRequirements,
   applyAuthoredActorVitalFloors,
+  reportUnaffordableCasts,
   applyMotivationDerivedVitalRequirements,
   applyViabilityDerivedVitalRequirements,
   assessDelverStructure,
@@ -396,6 +397,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
     applyAffinityDerivedVitalRequirements,
     /** #371 — all three floors on an authored actor, and which set values they raised. */
     applyAuthoredActorVitalFloors,
+    /** #732 — held casts dearer than the actor's mana max: reported, never raised. */
+    reportUnaffordableCasts,
     /**
      * "What are this card's vitals, with defaults applied?" — a question about card
      * shape, which is why the Allocator asks it rather than answering it. It priced
