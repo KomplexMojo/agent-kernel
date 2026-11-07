@@ -437,6 +437,9 @@ Inputs/outputs:
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
 - `--resource` format: a resource carries a **vital payload**, an **affinity payload**, or both.
   - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
+    Through MCP (`ak_create`), a structured resource may also give the vital as the actor-style map,
+    `vital: { health: { delta: 10 } }` (or `vitals:`), which is spelled as the flat fields above. One vital per
+    resource, and the map takes only `delta`, `regen` and `permanenceMode` (#185).
   - Affinity payload: `affinity=<fire|water|earth|wind|growth|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]`
   - `slots=<n>` (slot-unlock loot) is retired and refused (Darren, 2026-10-30): an actor equips at most three
     affinities and carries the rest as a pack.

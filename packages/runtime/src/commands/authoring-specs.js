@@ -1198,7 +1198,12 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
         }
         const vitalKey = fields.get("vital");
         if (!RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
-          throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}; got "${vitalKey}".`);
+          // #185: an object here is a vital map the MCP serializer could not spell flat.
+          const shape = vitalKey.startsWith("{")
+            ? " A resource grants one vital: a bare name with the amount in delta or regen, or one map entry"
+              + " whose only fields are delta, regen and permanenceMode, e.g. vital: { health: { delta: 10 } }."
+            : "";
+          throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}; got "${vitalKey}".${shape}`);
         }
         // delta is optional once regen is present: a regen-only resource is legal.
         if (!fields.has("delta") && !fields.has("regen")) {

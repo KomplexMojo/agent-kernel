@@ -131,7 +131,9 @@ function normalizeEntitySpec(key, spec) {
     // attempts on 2026-08-22. Dropping them here is the last point before argv is
     // built; the tool schema no longer offers them, so a model that still emits one
     // is improvising rather than following the contract.
-    for (const f of ['vitals', 'affinities', 'goals', 'kind', 'tier', 'stat', 'dropRate']) {
+    // `vitals` stays: a resource may carry the actor-style vital map, which the shared
+    // serializer (resourceSpecToString) flattens to the CLI grammar (#185).
+    for (const f of ['affinities', 'goals', 'kind', 'tier', 'stat', 'dropRate']) {
       delete out[f];
     }
   }

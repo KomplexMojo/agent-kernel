@@ -7,6 +7,7 @@ import {
 import {
   buildLlmActorConfigPromptTemplate,
   buildLlmPhasePromptTemplate,
+  VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
 // Pure string transform, no IO and no Node built-ins (#188). Imported by path, not by bare
@@ -360,8 +361,7 @@ export function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressi
       delete entry.vitals;
     }
     if (entry.vitals && typeof entry.vitals === "object" && !Array.isArray(entry.vitals)) {
-      const keys = ["health", "mana", "stamina", "durability"];
-      keys.forEach((key) => {
+      VITAL_KEYS.forEach((key) => {
         const rawVital = entry.vitals[key];
         if (rawVital !== undefined && (!rawVital || typeof rawVital !== "object" || Array.isArray(rawVital))) {
           delete entry.vitals[key];

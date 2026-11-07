@@ -1,3 +1,4 @@
+import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 import { leftoverCategory } from "./unified-actors.js";
 import { terrainPositions, terrainMarker } from "./terrain-layout.js";
 
@@ -47,7 +48,7 @@ function deriveActorPower(actor) {
 
   const vitals = actor?.vitals && typeof actor.vitals === "object" ? actor.vitals : null;
   if (vitals) {
-    const fallback = ["health", "mana", "stamina", "durability"].reduce((sum, key) => {
+    const fallback = VITAL_KEYS.reduce((sum, key) => {
       const record = vitals[key];
       if (!record || typeof record !== "object") return sum;
       const max = Number.isFinite(record.max) ? Math.max(0, record.max) : 0;
