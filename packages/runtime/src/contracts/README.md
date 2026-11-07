@@ -3,6 +3,9 @@
 `artifacts.ts` is the declaration origin for boundary schemas. It declares data;
 Configurator validates authoring and core validates simulation legality.
 
+`sound-cues.js` (#757) is the sound cue vocabulary (`SOUND_CUE_EVENTS`, `SOUND_CUE_SEAT_ROLES`) the
+play session's turn results carry as `cues`; clients map cues to their own audio, and no sound file is named.
+
 `persona-stamps.js` (#275) names the persona whose `meta.producedBy` stamp each level
 artifact must carry (`REQUIRED_PERSONA_STAMPS`) and reports artifacts stamped otherwise
 (`personaStampViolations`). Personas stamp their own output through

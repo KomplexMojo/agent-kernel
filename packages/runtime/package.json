@@ -10,6 +10,7 @@
     "./src/commands/author-level.js": "./src/commands/author-level.js",
     "./src/contracts/domain-constants.js": "./src/contracts/domain-constants.js",
     "./src/contracts/game-elements.js": "./src/contracts/game-elements.js",
+    "./src/contracts/sound-cues.js": "./src/contracts/sound-cues.js",
     "./src/render/affinity-role.js": "./src/render/affinity-role.js",
     "./src/render/entity-sprite-composer.js": "./src/render/entity-sprite-composer.js",
     "./src/render/window-size.js": "./src/render/window-size.js",
