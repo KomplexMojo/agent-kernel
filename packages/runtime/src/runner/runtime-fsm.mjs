@@ -1399,7 +1399,10 @@ export function createFsmRuntime({
         actors: observation?.actors ?? [],
         focusActorId,
         radius: hibernationRadiusForTick,
-        alwaysAwakeIds: Object.keys(actorCommands),
+        // #700: an actor given a command or a strategy (an order now, or the level's) is asked
+        // even if it cannot move and has no motivation.
+        alwaysAwakeIds: [...Object.keys(actorCommands), ...Object.keys(actorStrategies),
+          ...Object.keys(initialState?.strategies ?? {})],
       });
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,

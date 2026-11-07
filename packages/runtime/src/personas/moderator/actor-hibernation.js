@@ -15,7 +15,9 @@
  * - Still in the registry: lasting fields still project from/onto them; regen/upkeep/exits still
  *   run in the apply/close path. Hibernation is decide/propose cost only, not a second lifecycle.
  * - An actor with an explicit command this tick is always awake (player input cannot be dropped).
- * - Immobile barriers near the focus still enter decide today (#700 may later drop prop spam).
+ * - #700: an actor that can never take a turn of its own (cannot move, no motivations) never
+ *   enters decide, near the focus or not: on a vast level most actors are walls and props, and
+ *   asking each one every tick only ever produced nothing. A command or a strategy wakes it.
  *
  * Pure: positions + ids in, awake ids out. No clock, no IO, no core access.
  */
@@ -48,6 +50,16 @@ export function chebyshevTileDistance(a, b) {
 }
 
 /**
+ * #700: an actor with no turn of its own to take: it cannot move and carries no motivation, so
+ * the Actor never proposes anything for it. Its fields, regen and lifecycle still run.
+ */
+export function isInertActor(actor) {
+  if (!actor || actor.capabilities?.canMove !== false) return false;
+  if (Array.isArray(actor.motivations) && actor.motivations.length > 0) return false;
+  return !actor.motivation?.kind;
+}
+
+/**
  * Which tracked actors stay awake for DECIDE this tick.
  *
  * @param {object} args
@@ -55,7 +67,8 @@ export function chebyshevTileDistance(a, b) {
  * @param {Array<{ id: string, position?: { x: number, y: number } }>} args.actors — positions
  * @param {string} [args.focusActorId] — current controlled / player actor
  * @param {number} [args.radius] — Chebyshev radius (already resolved, or raw)
- * @param {string[]} [args.alwaysAwakeIds] — e.g. actors with explicit commands this tick
+ * @param {string[]} [args.alwaysAwakeIds] — e.g. actors with explicit commands or strategies;
+ *   these are kept even when inert (#700)
  * @returns {string[]} awake actor ids in the same relative order as `actorIds`
  */
 export function filterAwakeActorIds({
@@ -65,28 +78,26 @@ export function filterAwakeActorIds({
   radius,
   alwaysAwakeIds = [],
 } = {}) {
-  const known = Array.isArray(actorIds) ? actorIds.filter((id) => typeof id === "string" && id) : [];
-  const wakeRadius = resolveActorHibernationRadius(radius);
-  if (!Number.isFinite(wakeRadius)) return known.slice();
-
   const byId = new Map();
   for (const actor of Array.isArray(actors) ? actors : []) {
     if (actor && typeof actor.id === "string" && actor.id) byId.set(actor.id, actor);
   }
-  const focus = (typeof focusActorId === "string" && focusActorId)
-    ? byId.get(focusActorId)
-    : null;
-  const focusPos = focus?.position;
   const forced = new Set(
     (Array.isArray(alwaysAwakeIds) ? alwaysAwakeIds : [])
       .filter((id) => typeof id === "string" && id),
   );
   // Focus actor is always awake when present among candidates.
   if (typeof focusActorId === "string" && focusActorId) forced.add(focusActorId);
+  // #700: inert actors drop out first, whatever the radius.
+  const known = (Array.isArray(actorIds) ? actorIds : [])
+    .filter((id) => typeof id === "string" && id && (forced.has(id) || !isInertActor(byId.get(id))));
+  const wakeRadius = resolveActorHibernationRadius(radius);
+  if (!Number.isFinite(wakeRadius)) return known;
 
+  const focusPos = byId.get(focusActorId)?.position;
   // No usable focus position → keep everyone awake (fail open: alive level, not a silent stall).
   if (!focusPos || !Number.isInteger(focusPos.x) || !Number.isInteger(focusPos.y)) {
-    return known.slice();
+    return known;
   }
 
   return known.filter((id) => {

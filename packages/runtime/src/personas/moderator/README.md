@@ -135,8 +135,10 @@ lasting fields, regen, and exits still run. Explicit commands always wake the co
 actor. Override via `createRuntime` / `createPlaySession` `hibernationRadius`, step
 `hibernationRadius`, or `simConfig.execution.actorHibernationRadius` (`false` disables).
 Pinned by `tests/personas/moderator/moderator-actor-hibernation.test.js` and
-`tests/runtime/actor-hibernation.test.js`. Nearby immobile barriers still enter decide
-today; dropping prop spam is #700, orthogonal to distance hibernation.
+`tests/runtime/actor-hibernation.test.js`. Separately from distance (#700), an actor that
+cannot move and has no motivation (a wall, a prop) never enters decide, at any radius: the
+Actor never had a turn to propose for it. A command or a strategy (an order, or the level's)
+still wakes it; its fields, regen and lifecycle run as before.
 
 In short:
 - The Moderator decides **when and in what order** actions are applied, and in what order actors propose them.
