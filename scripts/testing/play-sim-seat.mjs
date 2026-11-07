@@ -86,9 +86,15 @@ export function llmSeatPicker({ adapter, model }) {
 
 /** A picker that replays a recorded transcript's picks in order: the same game with no model call (#679). */
 export function replayPicker(transcript) {
-  const picks = transcript.map((turn) => turn.pick);
   let next = 0;
-  return async () => picks[next++] ?? null;
+  // Carries each turn's recorded answer forward too, so a replayed record matches the played one (#711).
+  const picker = async () => {
+    const turn = transcript[next++];
+    if (typeof turn?.answer === "string") picker.lastRaw = turn.answer;
+    else delete picker.lastRaw;
+    return turn?.pick ?? null;
+  };
+  return picker;
 }
 
 /**

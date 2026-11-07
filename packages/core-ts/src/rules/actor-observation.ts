@@ -121,7 +121,9 @@ const isOwnDark = (selfId: string) => (cell: { sourceId?: string; kind?: string 
 
 /**
  * Keep each living emitter's own concealing field on its tile visible to other
- * observers for concealment, ignoring light that cancelled net dark there.
+ * observers for concealment, when the light reaching that tile does not outweigh it.
+ * A tie goes to the cloak (#709: equal light must not strip it); stronger light
+ * still reveals the emitter, as dark against light is decided by strength (#203, #288).
  */
 function cloakEmittersInOwnDark(
   observation: RegistryObservation,
@@ -132,11 +134,14 @@ function cloakEmittersInOwnDark(
     if (actor.id === observerId || actor.lifecycle !== 'alive') continue;
     const key = `${actor.position.x},${actor.position.y}`;
     const own = isOwnDark(actor.id);
-    const onTile = observation.affinityContributions.filter(cell =>
-      own(cell) && cell.position.x === actor.position.x && cell.position.y === actor.position.y);
+    const atTile = observation.affinityContributions.filter(cell =>
+      cell.position.x === actor.position.x && cell.position.y === actor.position.y);
+    const onTile = atTile.filter(own);
     if (onTile.length === 0) continue;
     const intensity = fieldIntensityByCell(resolveActorFieldOverlap(onTile), 'conceals')[key] ?? 0;
-    if (intensity >= NET_DARK_OBSCURE_INTENSITY_THRESHOLD) {
+    // The light reaching the tile before it meets the emitter's own dark.
+    const light = fieldIntensityByCell(resolveActorFieldOverlap(atTile.filter(cell => !own(cell))), 'illuminates')[key] ?? 0;
+    if (intensity >= NET_DARK_OBSCURE_INTENSITY_THRESHOLD && intensity >= light) {
       darkStacksByCell[key] = Math.max(darkStacksByCell[key] ?? 0, intensity);
     }
   }

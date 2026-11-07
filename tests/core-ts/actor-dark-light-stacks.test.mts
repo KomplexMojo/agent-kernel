@@ -23,8 +23,8 @@ function actor(id: string, x: number): ActorRecord {
       blocksMovement: false, blocksSight: false }, motivations: [], affinities: [], activeAffinityKey: null, holdings: [] };
 }
 
-function emitting(record: ActorRecord, kind: 'light' | 'dark', stacks: number): ActorRecord {
-  record.affinities = [{ kind, expression: 'emit', stacks }];
+function emitting(record: ActorRecord, kind: 'light' | 'dark', stacks: number, intensity?: number): ActorRecord {
+  record.affinities = [{ kind, expression: 'emit', stacks, ...(intensity ? { intensity } : {}) }];
   record.activeAffinityKey = `${kind}:emit`;
   return record;
 }
@@ -37,9 +37,13 @@ const seen = (registry: ReturnType<typeof corridor>, observer: string) =>
   scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), observer).actors.map(entry => entry.id);
 
 test('a dark actor stays hidden while its dark stacks outweigh the light reaching it', () => {
-  // A 2-stack shade at x=4. Self's 5-stack light reaches x<=5 and beats it there.
-  expect(seen(corridor([emitting(actor('self', 0), 'light', 5), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
+  // A 2-stack shade at x=4. Self's 5-stack light reaches x<=5; at intensity 2 it outweighs
+  // the shade's own dark there and reveals it.
+  expect(seen(corridor([emitting(actor('self', 0), 'light', 5, 2), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
     .toContain('shade');
+  // Light that only ties the shade's own dark leaves it cloaked (#709 dark stealth).
+  expect(seen(corridor([emitting(actor('self', 0), 'light', 5), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
+    .not.toContain('shade');
   // Self's 3-stack light stops at x=3, so only dark reaches the shade: it stays hidden.
   expect(seen(corridor([emitting(actor('self', 0), 'light', 3), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
     .not.toContain('shade');
