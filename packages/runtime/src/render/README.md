@@ -175,3 +175,8 @@ session (`createPlaySession`, `replayPlaySession`, command and sight constants),
 view models, the resource bundle (create, validate, list files) and the board sprite state. Names
 are added, never removed while a game uses them; `tests/architecture/client-surface.test.js` pins
 the list. Everything else under `render/` is internal and may move.
+
+`buildBoardDrawModel(view)` (#770) projects a play-session `view()` into what a graphical client
+draws: `cells[y][x] = { tile, sight }` (`tile` is `fog` where nothing was seen), `entities` with a
+two-channel `sprite { role, affinity }`, and `seatHud`, the view's own player model. It reads only the
+view, so fog and information rules are exactly ASCII's; vitals and expression never ride the sprite.
