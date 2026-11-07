@@ -57,6 +57,9 @@
     },
     "packages/adapters-cli/src/cli/playtest-scenarios.mjs": {
       "provides": "the playtest scenario catalogue and its `ak create` arguments per seed (#744: framework content, shared with the sims)"
+    },
+    "packages/runtime/src/render/client-surface.js": {
+      "provides": "graphical client facade: play session, HUD and icon models, resource bundle, board sprite state (#767)"
     }
   },
   "pathSeams": [],
