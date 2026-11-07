@@ -192,7 +192,7 @@ export interface ActorReceivedHit {
 interface ReceivedTurn {
   tick: number;
   casts?: readonly { sourceId: string; kind: string; expression: string; targetId?: string;
-    changes: readonly { actorId: string; delta: number }[] }[];
+    changes: readonly { actorId: string; vital?: string; delta: number }[] }[];
   fieldContacts?: readonly { sourceId: string; targetId: string; kind: string; expression: string;
     changes: readonly { actorId: string; delta: number }[] }[];
 }
@@ -226,6 +226,35 @@ export function readActorReceivedHits(turn: ReceivedTurn | null | undefined, act
     if (contact.sourceId !== actorId && contact.targetId === actorId && tookFrom(contact.changes)) add('field', contact);
   }
   return hits;
+}
+
+/** #758: one cast an actor made last turn and whether it hurt what it struck. */
+export interface ActorDealtCast {
+  tick: number;
+  targetId: string;
+  kind: string;
+  expression: string;
+  /** The struck actor lost health or durability: progress toward a defeat. */
+  harmed: boolean;
+}
+
+const DEFEAT_PATH_VITALS = new Set(['health', 'durability']);
+
+/**
+ * #758: what an actor's own casts did on the last applied turn, as the caster saw them land
+ * (#497: an interaction shows its outcome; the narration says "it looks unhurt"). One entry per
+ * cast that struck another actor, in the turn's order; `harmed` is whether that actor lost health
+ * or durability. A mana or stamina drain is not harm toward a defeat.
+ */
+export function readActorDealtCasts(turn: ReceivedTurn | null | undefined, actorId: string): ActorDealtCast[] {
+  if (!turn) return [];
+  return (turn.casts ?? [])
+    .filter(cast => cast.sourceId === actorId && typeof cast.targetId === 'string' && cast.targetId !== actorId)
+    .map(cast => ({
+      tick: turn.tick, targetId: cast.targetId as string, kind: cast.kind, expression: cast.expression,
+      harmed: cast.changes.some(change => change.actorId === cast.targetId && change.delta < 0
+        && DEFEAT_PATH_VITALS.has(String(change.vital))),
+    }));
 }
 
 /**

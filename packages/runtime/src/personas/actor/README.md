@@ -362,7 +362,8 @@ checked by the exported `normalizeActorStrategy`), like the command vocabulary.
 | `survive {distance=3}` | steps away from a hostile that close | never |
 
 Tactics are `{ when, do }`, checked before goals each turn, first match wins. `when` is
-`{vital, below}` (percent), `{hostileWithin}`, `{defeated}`, `{tickAtLeast}`, or (#718)
+`{vital, below, hostileWithin?}` (percent; with `hostileWithin`, only while a hostile is that close, #758),
+`{hostileWithin}`, `{defeated}`, `{tickAtLeast}`, or (#718)
 `{hitBy: <kind>, by?: "cast" | "field"}` (a hit it felt last turn revealed that affinity), `{hitByCast: true}`
 (another's cast struck it last turn) or `{structureOnRoute: true}` (a structure it can see, an immobile
 durability actor, stands on its walk to the current goal; when structures close every way, the one in the
@@ -376,6 +377,14 @@ A tactic whose action the actor's kit cannot do (equipping what it does not hold
 unequipping what is off) is passed over, and a cast at a selector is proposed only when a slot reaches;
 named by `affinityKey`, only that equipped slot. `"nearest_ally"` names the nearest ally in view, for a
 restoring cast. A strategy of tactics alone leaves an `escorting` actor's escort in place on quiet turns.
+
+**What an order learns (#758).** An actor keeps two things in its progress entry for the whole order.
+An unnamed cast passes over a slot it saw leave that target's health and durability untouched
+(`payload.dealtCasts`, from core's `readActorDealtCasts`: its own casts, as they landed; a mana drain or
+a resisted cast is not harm), so with no useful slot left the tactic hands the turn to the goal
+(`futileCasts`; a later harmful cast of that slot clears it). And a tactic that waits to recover a vital
+it is low on (`{vital, below}` → `wait`) is passed over once a wait did not raise that vital, say when its
+fields' upkeep eats the regen, until the vital rises again (`waited`, `waitStalled`).
 
 **Strategy recipes (#719, #720).** `strategy-recipes.js` reads `strategy-recipes/strategy-recipes.json`,
 fifteen named strategies (`attack-alignment`, `kite`, `structure-breaker`, ...) in this persona's

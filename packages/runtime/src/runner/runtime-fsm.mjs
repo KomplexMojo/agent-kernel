@@ -28,6 +28,7 @@ import {
   readActorRegistryRevealLevels,
   readActorRegistryVisibleCells,
   readActorReceivedHits,
+  readActorDealtCasts,
   scopeActorRegistryObservation,
 } from "../../../core-ts/src/rules/actor-observation.ts";
 import {
@@ -884,11 +885,14 @@ export function createFsmRuntime({
     // #718: what struck this actor last turn, by core's rule (its own hits only; an unseen source unnamed).
     const receivedHits = actorRegistry && actorObservation?.actors
       ? readActorReceivedHits(lastActorTurn, observingActorId, actorObservation) : [];
+    // #758: what this actor's own casts did last turn to what they struck, as it saw them land.
+    const dealtCasts = actorRegistry ? readActorDealtCasts(lastActorTurn, observingActorId) : [];
     const actorPayload = {
       ...base,
       actorId: observingActorId,
       observation: actorObservation,
       ...(receivedHits.length > 0 ? { receivedHits } : {}),
+      ...(dealtCasts.length > 0 ? { dealtCasts } : {}),
       baseTiles,
       ...(Array.isArray(reservedTargets) && reservedTargets.length > 0 ? { reservedTargets } : {}),
       ...(command !== undefined ? { command } : {}),
