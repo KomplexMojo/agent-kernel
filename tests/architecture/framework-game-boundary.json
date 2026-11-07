@@ -20,6 +20,9 @@
     "packages/runtime/src/contracts/domain-constants.js": {
       "provides": "affinity/expression/motivation vocabularies"
     },
+    "packages/runtime/src/contracts/sound-cues.js": {
+      "provides": "sound cue vocabulary for the play session's turn results (#757)"
+    },
     "packages/runtime/src/contracts/game-elements.js": {
       "provides": "skin: GAME_COLOR_PALETTE, element visuals, asset and icon ids (re-exports the vocabulary)",
       "seam": 741

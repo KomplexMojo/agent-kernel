@@ -70,6 +70,7 @@ import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { battleLogLine } from "../render/battle-log-lines.js";
+import { soundCueOf } from "../render/sound-cues.js";
 import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
 import { wallGlyphAt, wallGlyphChars } from "../render/wall-glyphs.js";
 import { actorGlyphs } from "../render/actor-glyphs.js";
@@ -333,6 +334,8 @@ export async function createPlaySession({
   // session only keeps and filters what the Annotator derived (it words and derives nothing).
   const battleLog = [];
   let battleLogTick = -1;
+  // #757: a running count of battle-log rows, so a turn result can hand out the cues of its own ticks.
+  let battleLogSeq = 0;
   // #692: the last band our side's hits read on each other actor, `{ band, tick }`. Shared by the party,
   // like the battle log it comes from; it ages and reads as unknown after ACTOR_CONDITION_FADE_TICKS.
   const conditions = new Map();
@@ -377,10 +380,17 @@ export async function createPlaySession({
         conditions.set(entry.targetId, { band: entry.condition, tick: entry.tick,
           ...(entry.struckVital && entry.struckCondition ? { struckVital: entry.struckVital, struckBand: entry.struckCondition } : {}) });
       }
-      battleLog.push({ entry, readers, ally, ...(ours ? { ours: true } : {}),
+      battleLogSeq += 1;
+      battleLog.push({ seq: battleLogSeq, entry, readers, ally, ...(ours ? { ours: true } : {}),
         ...(change ? { effect: { vital: change.vital, hit: change.hit, regen: change.regen } } : {}) });
     }
     if (battleLog.length > 500) battleLog.splice(0, battleLog.length - 500);
+  }
+
+  /** #757: the sound cues of the battle-log rows after `since` that the seat may read, oldest first. */
+  function cuesSince(since) {
+    return battleLog.filter(({ seq, readers }) => seq > since && readers.includes(activeId))
+      .map(({ entry, ally }) => soundCueOf(entry, { seatId: activeId, friendly: ally })).filter(Boolean);
   }
 
   /** The last `limit` battle-log lines the seat may read, oldest first: `{ tick, event, text }`. */
@@ -511,9 +521,10 @@ export async function createPlaySession({
     const actorCommands = { [actorId]: { kind: "wait" } };
     if (!seat.exited && !seat.defeated) actorCommands[activeId] = { kind: "wait" };
     departures = [];
+    const mark = battleLogSeq;
     await stepWorld({ actorCommands, actorStrategies: { [actorId]: normalized } });
     commandLog.push({ tick: currentTick(), actorId, seat: activeId, order: structuredClone(normalized) });
-    return { ok: true, actorId, tick: currentTick(), strategy: normalized, status: status() };
+    return { ok: true, actorId, tick: currentTick(), strategy: normalized, status: status(), cues: cuesSince(mark) };
   }
 
   // Whether any hostile is in sight of a party member still in the level.
@@ -547,6 +558,7 @@ export async function createPlaySession({
     let ran = 0;
     let stoppedBy = "ticks";
     departures = [];
+    const mark = battleLogSeq;
     while (ran < ticks) {
       const seat = statusOf(activeId);
       if (seat.exited || seat.defeated) {
@@ -564,7 +576,7 @@ export async function createPlaySession({
       ran += 1;
     }
     if (ran === ticks && until && reached()) stoppedBy = until;
-    return { ticks: ran, stoppedBy, tick: currentTick(), status: status() };
+    return { ticks: ran, stoppedBy, tick: currentTick(), status: status(), cues: cuesSince(mark) };
   }
 
   /** Replay one logged tick the seated actor spent on its own strategy. */
@@ -630,13 +642,14 @@ export async function createPlaySession({
     if (visible && !visible[target.position.y]?.[target.position.x]) return refuse("TargetNotInSight");
     departures = [];
     const wait = { kind: "wait" };
+    const mark = battleLogSeq;
     await stepWorld({ actorCommands: { [actorId]: wait } });
     commandLog.push({ tick: currentTick(), actorId, command: wait });
     const after = readSnapshot().actors.find((actor) => actor.id === targetId);
     if (after && after.lifecycle === "alive") {
       remember(actorId, after, readingOf(after, actorId, fog));
     }
-    return { tick: currentTick(), rejected: [], status: status(),
+    return { tick: currentTick(), rejected: [], status: status(), cues: cuesSince(mark),
       accepted: [{ actorId, tick: currentTick(), kind: "inspect", params: { targetId } }] };
   }
 
@@ -706,6 +719,7 @@ export async function createPlaySession({
     const before = statusOf(actorId);
     if (before.exited || before.defeated) return refuse(before.exited ? "exited" : "defeated");
     departures = [];
+    const mark = battleLogSeq;
     await stepWorld({ actorCommands: { [actorId]: normalized } });
     commandLog.push({ tick: currentTick(), actorId, command: structuredClone(normalized) });
     const applyFrame = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
@@ -715,7 +729,7 @@ export async function createPlaySession({
     const rejected = (applyFrame.preCoreRejections || [])
       .filter((entry) => entry?.action?.actorId === actorId && isGameplayAction(entry.action))
       .map(toPlayRejection);
-    return { tick: currentTick(), accepted, rejected, status: status() };
+    return { tick: currentTick(), accepted, rejected, status: status(), cues: cuesSince(mark) };
   }
 
   // Kinds that run a tick of their own or change the seat: they cannot ride in a shared tick.
@@ -753,6 +767,7 @@ export async function createPlaySession({
     if (!actorCommands[activeId] && !seat.exited && !seat.defeated
       && !(strategies()[activeId] || initialState.strategies?.[activeId])) actorCommands[activeId] = { kind: "wait" };
     departures = [];
+    const mark = battleLogSeq;
     await stepWorld({ actorCommands });
     commandLog.push({ tick: currentTick(), actorCommands: structuredClone(Object.fromEntries(ids.map((id) => [id, actorCommands[id]]))) });
     const applyFrame = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
@@ -760,7 +775,7 @@ export async function createPlaySession({
       .filter((action) => ids.includes(action?.actorId) && isGameplayAction(action)).map(toPlayAction));
     rejected.push(...(applyFrame.preCoreRejections || [])
       .filter((entry) => ids.includes(entry?.action?.actorId) && isGameplayAction(entry.action)).map(toPlayRejection));
-    return { tick: currentTick(), accepted, rejected, status: status() };
+    return { tick: currentTick(), accepted, rejected, status: status(), cues: cuesSince(mark) };
   }
 
   // The party as the UI lists it: who is seated, where each member stands, and the

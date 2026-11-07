@@ -253,6 +253,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   let session = null;
   let turns = 0;
   let message = "";
+  // #757: the sound cues of the last call that ran a tick (the session's turn result), for a client with audio.
+  let cues = [];
   let showHelp = initialHelp;
   let finished = false;
   // An open panel: the affinity list, the target picker or the loot list. Opening,
@@ -280,6 +282,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     if (actorId === undefined && (before.exited || before.defeated)) return null;
     const playerBefore = actorId === undefined ? session.view().player : null;
     const result = await session.act(command, actorId === undefined ? {} : { actorId });
+    cues = result.cues ?? [];
     // A command the session refused outright (not your party, already gone) runs no tick.
     if (result.tick !== before.tick) turns += 1;
     const rejected = result.rejected[0];
@@ -301,6 +304,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     panel = null;
     const before = session.status();
     const result = await session.actTick(actorCommands);
+    cues = result.cues ?? [];
     if (result.tick !== before.tick) turns += 1;
     message = "";
     return result;
@@ -334,6 +338,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function order(actorId, strategy) {
     panel = null;
     const result = await session.order(actorId, strategy);
+    cues = result.cues ?? [];
     if (!result.ok) {
       message = result.reason === "invalid_strategy" ? `That order does not make sense: ${result.error}` : rejectionMessage(result.reason);
       return result;
@@ -348,6 +353,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function advance({ ticks, until } = {}) {
     panel = null;
     const result = await session.advance({ ticks, until });
+    cues = result.cues ?? [];
     turns += result.ticks;
     message = result.stoppedBy === "contact" ? "Someone hostile comes into sight."
       : result.stoppedBy === "orders_done" ? "Every order has run its course." : "";
@@ -364,6 +370,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function command(entry) {
     if (!entry || typeof entry !== "object") throw new Error("a command must be an object with a kind");
     message = "";
+    cues = [];
     if (entry.kind === "switch") return switchTo(entry.actorId);
     if (entry.kind === "order") return order(entry.actorId, entry.strategy);
     if (entry.kind === "advance") return advance({ ticks: entry.ticks ?? 1, until: entry.until });
@@ -671,6 +678,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function handle(intent) {
     if (!intent) return { quit: false };
     message = "";
+    cues = [];
     if (panel && await handlePanel(intent)) return { quit: false };
     switch (intent.type) {
       case INTENT.QUIT:
@@ -831,6 +839,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       active: session.activeActorId?.() ?? null,
       party: session.view().party ?? [],
       orders: session.view().orders ?? [],
+      // #757: what the last key or command's ticks sounded like; empty when it ran none.
+      cues,
       warnings: [...(session.pricingReport || []).map(({ message: text }) => text), ...viabilityWarnings()],
     };
   }
