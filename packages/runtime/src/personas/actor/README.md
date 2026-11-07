@@ -368,6 +368,9 @@ Tactics are `{ when, do }`, checked before goals each turn, first match wins. `w
 durability actor, stands on its walk to the current goal; when structures close every way, the one in the
 way). `do` is a command, `{ kind: "retreat" }`, or a cast at a selector: `"nearest_hostile"`, `"attacker"`
 (whoever struck it, when it saw them) or `"route_structure"` (what `structureOnRoute` found).
+A strategy's **hostile** (`hostileWithin`, `retreat`, `"nearest_hostile"`, `survive`) is an actor of
+another side that can harm or chase: never a barrier, and never a resource with no affinity (#731).
+Structures in the way are `structureOnRoute` and `"route_structure"`'s.
 
 A tactic whose action the actor's kit cannot do (equipping what it does not hold or already has on,
 unequipping what is off) is passed over, and a cast at a selector is proposed only when a slot reaches;

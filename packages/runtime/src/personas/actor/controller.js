@@ -1231,6 +1231,15 @@ function resolveActorMotivationParams(view, actorId, payload, kind) {
  * imprecise — it was wrong: with two delvers on the board, delver A closed on
  * and attacked delver B whenever B was nearer than a warden.
  */
+const chebyshev = (from, to) => Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+
+/** A structure that cannot move and carries no affinity to harm with: a barrier or an empty-handed resource. */
+function isInertStructure(other) {
+  if (other?.capabilities?.canMove !== false) return false;
+  if (other.capabilities.blocksMovement) return true;
+  return !(Array.isArray(other.affinities) && other.affinities.length > 0);
+}
+
 function resolveNearestHostile(view, actorId) {
   if (!view?.actors || !Array.isArray(view.actors)) return null;
   const selfActor = view.actors.find((a) => a && a.id === actorId);
@@ -1749,6 +1758,15 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
   const allActors = Array.isArray(observationView?.actors) ? observationView.actors : [];
   const hostiles = allActors.filter((other) => other?.id !== actorId && other?.position
     && !["defeated", "exited"].includes(other.lifecycle) && !alignmentsAreAllied(actor.alignment, other.alignment));
+  // #731: a strategy's nearest hostile can harm or chase: never a structure that only stands
+  // there (a barrier, or a resource with no affinity). Those carry the dungeon's alignment, so
+  // `kite` stepped away from the barrier beside its path every turn. Structures in the way have
+  // their own condition and selector (structureOnRoute, route_structure).
+  const threats = hostiles.filter((other) => !isInertStructure(other));
+  const nearestThreat = threats.reduce((best, other) => {
+    const distance = chebyshev(actor.position, other.position);
+    return !best || distance < best.distance ? { actor: other, distance } : best;
+  }, null);
   const configured = Array.isArray(payload?.initialState?.actors) ? payload.initialState.actors : allActors;
   const context = {
     actorId,
@@ -1756,7 +1774,7 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     record,
     view: observationView,
     hostiles,
-    nearestHostile: resolveNearestHostile(observationView, actorId)?.actor ?? null,
+    nearestHostile: nearestThreat?.actor ?? null,
     configuredIds: new Set(configured.map((other) => other?.id).filter(Boolean)),
     tick: Number.isFinite(tick) ? tick : 0,
     tileKinds: resolveTileKinds(observationView, payload),
