@@ -241,6 +241,10 @@ smaller than one cast keeps that affinity off, both as the author wrote. `applyA
 the movement, cast and viability floors to each authored actor in `ak create` and returns every max or regen
 someone set (anything other than `DEFAULT_VITALS`) that a floor still raised, such as a pool below one step or
 health below the viability floor; the create result lists them under `vitalsReport`.
+`reportUnaffordableCasts` (#732) names each push or pull an actor with a motivation holds whose cast price
+is above its mana max: core never pays more than the pool holds, so that cast is never made and the Actor
+falls through to a weaker slot. It reports and changes nothing; `ak create` lists the rows under
+`unaffordableCasts` and warns on stderr.
 
 The existing `configurator_satisfiability` constraint domain remains reserved for Z9 object-placement
 assignment, which is a genuine combinatorial search. It uses
@@ -571,7 +575,7 @@ Allocator quotes its expansion like any typed spec. `expandConfigurationRecipe({
 returns the fields a delver or warden spec carries, with every affinity equipped; a role with fewer
 slots keeps the first ones and lists the rest as `dropped`. A `{K}` recipe (`spellward`) takes the
 author's kind. The catalogue is validated when it loads (names, kinds, the viability floor, an
-intensity cap of 3), and only `recipes.js` may read the JSON (`tests/architecture/single-origin.test.js`).
+intensity cap of 3, and every push or pull affordable from a full pool, #732), and only `recipes.js` may read the JSON (`tests/architecture/single-origin.test.js`).
 Exposed on the controller as `configurationRecipe`, `configurationRecipeNames`,
 `describeConfigurationRecipes` and `expandConfigurationRecipe`.
 

@@ -59,6 +59,9 @@ const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSE
 // call applies all three and says which values someone set were raised, for the create result.
 const configuratorApplyAuthoredActorVitalFloors = createConfiguratorPersona({ clock: UNUSED_CLOCK })
   .authorCandidates.applyAuthoredActorVitalFloors;
+// #732: the casts an authored actor holds but its mana max can never pay for, for the create result.
+const configuratorReportUnaffordableCasts = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.reportUnaffordableCasts;
 
 const SCHEMAS = Object.freeze({
   solverRequest: SOLVER_REQUEST_SCHEMA,
@@ -241,6 +244,7 @@ export async function orchestrateBuild({
 
   // #371: values someone set that a vital floor raised, for the create result.
   const vitalsReport = [];
+  const unaffordableCasts = [];
   let solverRequest = null;
   let solverResult = null;
   if (solver?.adapter) {
@@ -356,6 +360,7 @@ export async function orchestrateBuild({
           : prepared?.vitals,
       };
       vitalsReport.push(...configuratorApplyAuthoredActorVitalFloors(draft));
+      unaffordableCasts.push(...configuratorReportUnaffordableCasts(draft));
       return draft;
     };
     actorsInput.actors = actorsInput.actors.map(prepareForPricing);
@@ -829,6 +834,7 @@ export async function orchestrateBuild({
     solverResult,
     solverDecisions,
     vitalsReport,
+    unaffordableCasts,
     spendProposal,
     budgetReceipt,
     affinityRules,

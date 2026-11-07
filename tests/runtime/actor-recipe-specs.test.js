@@ -16,7 +16,7 @@ async function specs() {
 }
 
 const TYPED_SHADOWBLADE = "affinity=fire;affinities=fire:push:3:2,dark:emit:3:1,light:emit:1:1;equip=fire:push,dark:emit,light:emit;"
-  + "vitals=health:20:1,mana:30:6,stamina:30:3,durability:10:1";
+  + "vitals=health:20:1,mana:48:6,stamina:30:3,durability:10:1";
 
 test("a recipe expands to exactly the spec a person would type", async () => {
   const { parseDelverSpecs } = await specs();

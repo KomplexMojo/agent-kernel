@@ -24,6 +24,7 @@ import {
 import { GAME_VITAL_KEYS } from "../../contracts/game-vocabulary.js";
 import { MAX_AFFINITY_SLOTS } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { affinityRole } from "../../../../core-ts/src/state/affinity-table.ts";
+import { resolveAffinityManaCost } from "./affinity-rules.js";
 
 export const RECIPE_KIND_PARAMETER = "{K}";
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -70,13 +71,23 @@ function validateRecipe(recipe, seen, maxIntensity) {
     const key = `${entry.kind}:${entry.expression}`;
     if (keys.has(key)) fail(`${label}: ${key} is listed twice.`);
     keys.add(key);
+    // #732: a cast dearer than the pool is never made (core never pays above max mana), so a kit
+    // that cannot pay for its own attack is refused here rather than losing every fight in play.
+    if (entry.expression === "push" || entry.expression === "pull") {
+      const kind = entry.kind === RECIPE_KIND_PARAMETER ? recipe.kindDefault : entry.kind;
+      const cost = resolveAffinityManaCost({ rules: null, kind, expression: entry.expression, stacks: entry.range, intensity: entry.intensity });
+      if (Number.isFinite(cost) && cost > recipe.vitals.mana.max) {
+        fail(`${label}: ${entry.kind}:${entry.expression} costs ${cost} mana a cast but mana max is ${recipe.vitals.mana.max}.`);
+      }
+    }
   }
   if (!Array.isArray(recipe.strategies) || !recipe.strategies.every((name) => typeof name === "string" && NAME.test(name))) {
     fail(`${label}: strategies must be a list of strategy recipe names.`);
   }
 }
 
-function loadCatalogue(source) {
+/** Validates and freezes a recipe catalogue; throws, naming the recipe, on the first defect. */
+export function loadConfigurationRecipeCatalogue(source) {
   if (!Number.isSafeInteger(source?.maxIntensity) || source.maxIntensity < 1) fail("maxIntensity must be a whole number >= 1.");
   if (!Array.isArray(source.recipes) || source.recipes.length === 0) fail("recipes must be a non-empty list.");
   const seen = new Set();
@@ -84,7 +95,7 @@ function loadCatalogue(source) {
   return Object.freeze(source.recipes.map((recipe) => Object.freeze(structuredClone(recipe))));
 }
 
-const RECIPES = loadCatalogue(CATALOGUE);
+const RECIPES = loadConfigurationRecipeCatalogue(CATALOGUE);
 const BY_NAME = new Map(RECIPES.map((recipe) => [recipe.name, recipe]));
 
 /** The catalogue's intensity cap (a recipe above it is refused when the catalogue loads). */

@@ -52,11 +52,19 @@ test("a delver's authored starting current is kept for all four vitals", () => {
   assert.equal(summary.vitalsReport, undefined);
 });
 
-test("an authored mana pool smaller than one cast is kept", () => {
-  const { vitals } = create([
+test("an authored mana pool smaller than one cast is kept, and the cast it can never make is reported (#732)", () => {
+  const { vitals, summary } = create([
     "--delver", "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
   ]);
   assert.deepEqual(vitals["a-1"].mana, { current: 30, max: 30, regen: 3 });
+  assert.deepEqual(summary.unaffordableCasts, [{ actorId: "a-1", affinity: "fire:push", range: 6, intensity: 2, mana: 168, manaMax: 30 }]);
+});
+
+test("an actor whose casts fit its pool reports no unaffordable cast", () => {
+  const { summary } = create([
+    "--delver", "count=1;id=a;affinity=fire;affinities=fire:push:2:1;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+  ]);
+  assert.equal(summary.unaffordableCasts, undefined);
 });
 
 test("vitals left unset still get the movement and cast floors", () => {

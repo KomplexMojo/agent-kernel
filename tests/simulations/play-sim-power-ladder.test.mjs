@@ -71,7 +71,7 @@ test("#724: a play that held a castable attack and cast none is flagged, and say
 
 test("--recipes: a recipe takes the seat's kit and vitals; the seat's id and motivation stay", () => {
   expect(recipeDelverSpec(SPEC, "kiter")).toBe("count=1;id=hero;affinity=wind;affinities=wind:push:3:2,water:push:3:1;equip=wind:push,water:push;"
-    + "vitals=health:20:1,mana:40:4,stamina:100:8,durability:10:1;motivation=user_controlled");
+    + "vitals=health:20:1,mana:48:4,stamina:100:8,durability:10:1;motivation=user_controlled");
   expect(() => recipeDelverSpec(SPEC, "moonwalker")).toThrow(/moonwalker/);
 });
 
