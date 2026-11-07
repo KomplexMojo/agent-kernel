@@ -86,6 +86,44 @@ export function specObjectToString(spec) {
   return parts.join(";");
 }
 
+// #185: one vital shape everywhere. Actors author vitals as a map keyed by name; a resource
+// grants one vital and the CLI grammar takes it flat (permanenceMode + vital + delta|regen).
+// A resource object may carry the actor-style map under `vital` or `vitals`; a map with one
+// vital and only grant fields is spelled here as the flat fields. Anything else travels
+// as JSON for runtime's resource grammar (authoring-specs.js) to refuse with its reason:
+// this never decides what a resource may be, and never throws, so a refused spec is a
+// refused create rather than a crashed call.
+const RESOURCE_GRANT_FIELDS = Object.freeze(["permanenceMode", "delta", "regen"]);
+
+function flattenResourceVitalMap(spec, map) {
+  const names = Object.keys(map);
+  if (names.length !== 1) return null;
+  const [name] = names;
+  const inner = map[name] !== null && typeof map[name] === "object" ? map[name] : { delta: map[name] };
+  if (Array.isArray(inner) || Object.keys(inner).some((field) => !RESOURCE_GRANT_FIELDS.includes(field))) return null;
+  const flat = {};
+  for (const field of RESOURCE_GRANT_FIELDS) {
+    const outer = spec[field];
+    const nested = inner[field];
+    if (outer !== undefined && nested !== undefined && String(outer) !== String(nested)) return null;
+    flat[field] = outer ?? nested;
+  }
+  const rest = Object.fromEntries(Object.entries(spec).filter(([key]) => !["vital", "vitals", ...RESOURCE_GRANT_FIELDS].includes(key)));
+  return { permanenceMode: flat.permanenceMode, vital: name, delta: flat.delta, regen: flat.regen, ...rest };
+}
+
+export function resourceSpecToString(spec) {
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) return specObjectToString(spec);
+  const isMap = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  const mapKey = isMap(spec.vital) ? "vital" : isMap(spec.vitals) ? "vitals" : null;
+  if (!mapKey) return specObjectToString(spec);
+  const both = spec.vital !== undefined && spec.vitals !== undefined;
+  const flat = both ? null : flattenResourceVitalMap(spec, spec[mapKey]);
+  if (flat) return specObjectToString(flat);
+  const { vital: _vital, vitals: _vitals, ...rest } = spec;
+  return specObjectToString({ ...rest, vital: JSON.stringify(spec[mapKey]) });
+}
+
 export function createTool({ name, description, command, inputSchema, buildArgs }) {
   return {
     name,

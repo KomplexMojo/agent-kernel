@@ -1,6 +1,6 @@
 import { normalizeActorDefinition, INPUT_KEYS } from "./unified-actors.js";
 import { computeHazardVitals } from "./affinity-effects.js";
-import { ACTOR_EQUIPMENT_FIELDS, DEFAULT_VITALS } from "../../contracts/domain-constants.js";
+import { ACTOR_EQUIPMENT_FIELDS, DEFAULT_VITALS, RESOURCE_VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 /**
  * Configurator input preparation — the pure grid-sizing / hazard / resource
@@ -210,7 +210,7 @@ function grantVitals(value) {
   const grants = [];
   for (const grant of value) {
     if (!grant || typeof grant !== "object" || Array.isArray(grant)
-      || !["health", "mana", "stamina"].includes(grant.key)
+      || !RESOURCE_VITAL_KEYS.includes(grant.key)
       || !Number.isFinite(grant.delta)
       || Object.keys(grant).some((key) => !["key", "delta", "regen"].includes(key))) {
       return null;
