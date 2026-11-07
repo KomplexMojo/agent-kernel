@@ -1415,7 +1415,7 @@ function canAffordCast(actorRecord, entry, castManaBase) {
   return (actorRecord?.vitals?.mana?.current ?? 0) >= actorCastManaPrice(base, stacks, intensity);
 }
 
-function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase }) {
+function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase, skip = [] }) {
   if (actorRecord?.capabilities?.canCast === false) return null;
   const slots = castableSlots(actorRecord);
   if (slots.length === 0) return null;
@@ -1430,12 +1430,13 @@ function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase }
   // The first equipped push/pull that reaches; named only when core would not pick it. A
   // restoring push (it heals what it hits) is never aimed at a hostile (seed-11 playtest,
   // 2026-10-29: a warden kept healing the delver with a looted growth push).
+  // #758: a slot this actor saw do nothing to this target (`skip`, its learned keys) is passed over.
+  const keyOf = (entry) => `${String(entry.kind).trim().toLowerCase()}:${String(entry.expression).trim().toLowerCase()}`;
   const reaching = slots.find((entry) => distance <= (Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1)
-    && !restoresTarget(entry) && canAffordCast(actorRecord, entry, castManaBase));
+    && !restoresTarget(entry) && !skip.includes(keyOf(entry)) && canAffordCast(actorRecord, entry, castManaBase));
   if (!reaching) return null;
   if (reaching === slots[0]) return { kind: "cast_affinity", params: { targetId: hostile.actor.id } };
-  return { kind: "cast_affinity", params: { targetId: hostile.actor.id,
-    affinityKey: `${String(reaching.kind).trim().toLowerCase()}:${String(reaching.expression).trim().toLowerCase()}` } };
+  return { kind: "cast_affinity", params: { targetId: hostile.actor.id, affinityKey: keyOf(reaching) } };
 }
 
 
@@ -1782,9 +1783,11 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     reservedTargets: payload?.reservedTargets,
     // #718: what struck this actor last turn, as core scoped it for the actor (its own hits only).
     received: Array.isArray(payload?.receivedHits) ? payload.receivedHits : [],
+    // #758: what its own casts did last turn to what they struck (core's rule, as it saw them land).
+    dealt: Array.isArray(payload?.dealtCasts) ? payload.dealtCasts : [],
     exitPlace: () => findExitFromTiles(baseTiles) ?? null,
-    castAt: (target, distance) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance },
-      castManaBase: simConfig?.actionCosts?.castManaBase }),
+    castAt: (target, distance, skip = []) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance },
+      castManaBase: simConfig?.actionCosts?.castManaBase, skip }),
     exitStep: () => {
       const step = buildMoveProposal({ observation, payload, simConfig });
       return step.length > 0 ? step : [{ kind: "wait" }];

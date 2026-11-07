@@ -4,7 +4,7 @@
  * A strategy is data: an ordered list of GOALS and, optionally, conditional TACTICS.
  *   goals    reach · defeat · guard · follow · lead · take · hold · survive
  *   tactics  { when: <condition>, do: <action> }, first match wins, checked before goals
- *   when     vital/below · hostileWithin · defeated · tickAtLeast
+ *   when     vital/below (optionally with hostileWithin, #758) · hostileWithin · defeated · tickAtLeast
  *            hitBy (a kind, optionally by cast or field) · hitByCast · structureOnRoute (#718)
  *
  * Every condition reads only what the actor can observe (the seat rule): its own record, the
@@ -126,7 +126,11 @@ function normalizeCondition(when, label) {
     if (!Number.isFinite(when.below) || when.below <= 0 || when.below > 100) {
       fail(`${label} when.below must be a percentage in (0, 100] (received ${JSON.stringify(when.below)}).`);
     }
-    return { vital: when.vital, below: when.below };
+    // #758: a vital condition may also need a hostile within N tiles (break-off retreats only then).
+    if (when.hostileWithin !== undefined && !isNonNegativeInteger(when.hostileWithin)) {
+      fail(`${label} when.hostileWithin must be a whole number of tiles.`);
+    }
+    return { vital: when.vital, below: when.below, ...(when.hostileWithin !== undefined ? { hostileWithin: when.hostileWithin } : {}) };
   }
   if (keys.includes("hostileWithin")) {
     if (!isNonNegativeInteger(when.hostileWithin)) fail(`${label} when.hostileWithin must be a whole number of tiles.`);
@@ -488,7 +492,7 @@ function receivedHitMatching(when, context) {
  * the actor observes (own record, scoped view, own hits, the tick, the goal it was given).
  */
 export const STRATEGY_CONDITION_INPUTS = Object.freeze({
-  vital: Object.freeze(["record"]),
+  vital: Object.freeze(["record", "self", "nearestHostile"]),
   hostileWithin: Object.freeze(["self", "nearestHostile"]),
   defeated: Object.freeze(["view"]),
   tickAtLeast: Object.freeze(["tick"]),
@@ -499,11 +503,12 @@ export const STRATEGY_CONDITION_INPUTS = Object.freeze({
 
 /** Whether `when` holds this turn; `goal` is the goal the actor is on (structureOnRoute reads it). */
 export function strategyConditionHolds(when, context, goal = null) {
-  if (when.vital) return vitalBelow(context.record, when.vital, when.below);
-  if (when.hostileWithin !== undefined) {
-    return Boolean(context.nearestHostile)
-      && chebyshevDistance(context.self.position, context.nearestHostile.position) <= when.hostileWithin;
+  const hostileWithin = (tiles) => Boolean(context.nearestHostile)
+    && chebyshevDistance(context.self.position, context.nearestHostile.position) <= tiles;
+  if (when.vital) {
+    return vitalBelow(context.record, when.vital, when.below) && (when.hostileWithin === undefined || hostileWithin(when.hostileWithin));
   }
+  if (when.hostileWithin !== undefined) return hostileWithin(when.hostileWithin);
   if (when.defeated) return visibleActor(context.view, when.defeated)?.lifecycle === "defeated";
   if (when.hitBy || when.hitByCast) return receivedHitMatching(when, context) !== null;
   if (when.structureOnRoute) return structureOnRoute(goal, context) !== null;
@@ -579,11 +584,52 @@ function tacticProposal(action, context, goal) {
 const GOAL_MEMORY = Object.freeze(["heldSince", "lastSeen", "unseenSince"]);
 const goalMemory = (from) => Object.fromEntries(GOAL_MEMORY.filter((key) => from[key] !== undefined).map((key) => [key, from[key]]));
 
-export function followStrategy({ strategy, depth, entry = {}, context }) {
+/**
+ * #758: what an actor learns over a whole order, kept in its progress entry across goals.
+ *   futileCasts  { targetId: ["kind:expression", ...] }: slots it saw leave that target's health
+ *                and durability untouched (core's `readActorDealtCasts`); an unnamed cast at that
+ *                target passes them over, and a later harmful cast of the slot clears it.
+ *   waited       { vital, value, tick }: the last recovery wait, so the next turn can tell whether it worked.
+ *   waitStalled  { vital: value }: a recovery wait that did not raise that vital (fields eat the regen,
+ *                say); the wait is passed over while the vital stays at or below that value.
+ */
+function learnFromTurn(entry, context) {
+  const futileCasts = Object.fromEntries(Object.entries(entry.futileCasts ?? {}).map(([id, keys]) => [id, [...keys]]));
+  for (const cast of Array.isArray(context.dealt) ? context.dealt : []) {
+    const key = affinityKeyOf(cast);
+    const keys = futileCasts[cast.targetId] ?? [];
+    const next = cast.harmed ? keys.filter((known) => known !== key) : keys.includes(key) ? keys : [...keys, key];
+    if (next.length > 0) futileCasts[cast.targetId] = next;
+    else delete futileCasts[cast.targetId];
+  }
+  const waitStalled = { ...(entry.waitStalled ?? {}) };
+  for (const vital of Object.keys(waitStalled)) {
+    if (!(context.record?.vitals?.[vital]?.current <= waitStalled[vital])) delete waitStalled[vital];
+  }
+  const waited = entry.waited;
+  if (waited && waited.tick === context.tick - 1 && context.record?.vitals?.[waited.vital]?.current <= waited.value) {
+    waitStalled[waited.vital] = waited.value;
+  }
+  return {
+    ...(Object.keys(futileCasts).length > 0 ? { futileCasts } : {}),
+    ...(Object.keys(waitStalled).length > 0 ? { waitStalled } : {}),
+  };
+}
+
+/** A tactic that waits to recover a vital it is low on; #758 passes one over once it stops working. */
+const isRecoveryWait = (tactic) => Boolean(tactic.when.vital) && tactic.do.kind === "wait";
+
+export function followStrategy({ strategy, depth, entry = {}, context: observed }) {
   const ignored = ignoredStrategyParts(strategy, depth);
+  const learned = depth === STRATEGY_DEPTH.NONE ? {} : learnFromTurn(entry, observed);
+  // An unnamed cast skips what this actor saw do nothing to that target.
+  const context = learned.futileCasts
+    ? { ...observed, castAt: (target, distance) => observed.castAt(target, distance, learned.futileCasts[target.id] ?? []) }
+    : observed;
   const report = (fields) => ({
     ...(entry.order ? { order: entry.order } : {}),
     ...fields,
+    ...learned,
     ...(ignored.length > 0 ? { ignored } : {}),
   });
   if (depth === STRATEGY_DEPTH.NONE) {
@@ -596,12 +642,16 @@ export function followStrategy({ strategy, depth, entry = {}, context }) {
     for (let index = 0; index < strategy.tactics.length; index += 1) {
       const tactic = strategy.tactics[index];
       if (!strategyConditionHolds(tactic.when, context, current)) continue;
+      const recovery = isRecoveryWait(tactic);
+      if (recovery && learned.waitStalled?.[tactic.when.vital] !== undefined) continue;
       const proposal = tacticProposal(tactic.do, context, current);
       if (!proposal) continue;
+      const value = context.record?.vitals?.[tactic.when.vital]?.current;
       return {
         proposals: [proposal],
         entry: report({ goal, status: STRATEGY_STATUS.ACTIVE, tactic: index,
-          ...goalMemory(entry) }),
+          ...goalMemory(entry),
+          ...(recovery && Number.isFinite(value) ? { waited: { vital: tactic.when.vital, value, tick: context.tick } } : {}) }),
       };
     }
   }

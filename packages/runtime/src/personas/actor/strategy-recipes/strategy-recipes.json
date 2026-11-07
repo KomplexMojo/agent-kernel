@@ -283,7 +283,7 @@
       ],
       "mobility": null,
       "fits": "list",
-      "description": "Leaves before it is finished: under a quarter health, or under half stamina (before a water or wind pin), it steps away from the nearest hostile; under a quarter mana it stops and recovers.",
+      "description": "Leaves before it is finished: under a quarter health, or under half stamina with a hostile within two tiles (before a water or wind pin), it steps away from the nearest hostile; under half stamina with no one that close, or under a quarter mana, it stops and recovers, and goes on once a stop no longer recovers.",
       "limits": "Steps away one tile a turn; it does not plan a route out of sight.",
       "requires": [],
       "strategy": {
@@ -300,10 +300,20 @@
           {
             "when": {
               "vital": "stamina",
-              "below": 50
+              "below": 50,
+              "hostileWithin": 2
             },
             "do": {
               "kind": "retreat"
+            }
+          },
+          {
+            "when": {
+              "vital": "stamina",
+              "below": 50
+            },
+            "do": {
+              "kind": "wait"
             }
           },
           {

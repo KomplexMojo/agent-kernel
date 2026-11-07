@@ -75,6 +75,29 @@ test("break-off: under half stamina it steps away before a pin; under a quarter 
   assert.equal(turn("break-off", { actors: [hostile("w", 6, 5)] }).proposals, null, "healthy: no break-off");
 });
 
+// #758: a retreat is a move and stamina recovers only on turns it does not move, so with no one
+// close it stops instead; and a stop that recovers nothing (fields eat the regen) is let go.
+test("break-off: under half stamina with no hostile within two tiles it waits, not retreats", () => {
+  assert.deepEqual(turn("break-off", { vitals: { stamina: vital(40) }, actors: [hostile("w", 9, 5)] }).proposals, [{ kind: "wait" }]);
+  assert.deepEqual(turn("break-off", { vitals: { stamina: vital(40) } }).proposals, [{ kind: "wait" }]);
+});
+
+test("break-off: a wait that did not raise the vital is passed over until the vital rises", () => {
+  const first = turn("break-off", { vitals: { mana: vital(8, 48) } });
+  assert.deepEqual(first.proposals, [{ kind: "wait" }]);
+  assert.deepEqual(first.entry.waited, { vital: "mana", value: 8, tick: 4 });
+  const stuck = turn("break-off", { vitals: { mana: vital(8, 48) }, goalEntry: { ...first.entry, waited: { ...first.entry.waited, tick: 3 } } });
+  assert.equal(stuck.proposals, null, "mana did not rise: the wait no longer recovers, so it goes on");
+  assert.deepEqual(stuck.entry.waitStalled, { mana: 8 });
+  const still = turn("break-off", { vitals: { mana: vital(6, 48) }, goalEntry: stuck.entry });
+  assert.equal(still.proposals, null, "still at or below where waiting stalled");
+  const rising = turn("break-off", { vitals: { mana: vital(10, 48) }, goalEntry: stuck.entry });
+  assert.deepEqual(rising.proposals, [{ kind: "wait" }], "once the vital rises the stop works again");
+  assert.equal(rising.entry.waitStalled, undefined);
+  const recovering = turn("break-off", { vitals: { mana: vital(9, 48) }, goalEntry: { waited: { vital: "mana", value: 8, tick: 3 } } });
+  assert.deepEqual(recovering.proposals, [{ kind: "wait" }], "a wait that raised it keeps waiting");
+});
+
 test("mana-discipline: under half mana it switches off a draw, keeps its light emit, and waits under a quarter", () => {
   const draw = turn("mana-discipline", { affinities: ["light:emit:5", "decay:draw:2"], vitals: { mana: vital(40) } });
   assert.deepEqual(draw.proposals, [{ kind: "unequip_affinity", params: { affinityKey: "decay:draw" } }]);
