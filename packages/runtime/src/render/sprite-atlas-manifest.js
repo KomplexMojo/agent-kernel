@@ -14,8 +14,10 @@
  */
 
 import { GAME_AFFINITY_KINDS, GAME_VITAL_KEYS } from "../contracts/game-vocabulary.js";
+// Declared in contracts/artifacts.ts, re-exported here under the name importers use.
+import { SPRITE_ATLAS_SCHEMA } from "../contracts/artifacts.ts";
 
-export const SPRITE_ATLAS_SCHEMA = "agent-kernel/SpriteAtlasManifest";
+export { SPRITE_ATLAS_SCHEMA };
 export const SPRITE_ATLAS_SCHEMA_VERSION = 1;
 export const SPRITE_ATLAS_TILE_SIZE = 32;
 /** Default atlas files the UI loads (spritesheet PNG + Aseprite JSON export). */

@@ -28,6 +28,147 @@
   },
   "actors": [
     {
+      "id": "barrier_3_2",
+      "position": {
+        "x": 3,
+        "y": 2
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 134,
+          "max": 134,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "barrier_3_3",
+      "position": {
+        "x": 3,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 134,
+          "max": 134,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "barrier_4_3",
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 134,
+          "max": 134,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
       "id": "barrier_4_7",
       "position": {
         "x": 4,
@@ -75,6 +216,194 @@
       "holdings": []
     },
     {
+      "id": "barrier_5_2",
+      "position": {
+        "x": 5,
+        "y": 2
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 134,
+          "max": 134,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "barrier_5_3",
+      "position": {
+        "x": 5,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 134,
+          "max": 134,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "barrier_6_2",
+      "position": {
+        "x": 6,
+        "y": 2
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 64,
+          "max": 64,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "barrier_6_3",
+      "position": {
+        "x": 6,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 64,
+          "max": 64,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
       "id": "barrier_6_7",
       "position": {
         "x": 6,
@@ -116,6 +445,53 @@
           "expression": "push",
           "stacks": 2,
           "intensity": 2
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "barrier_7_3",
+      "position": {
+        "x": 7,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 64,
+          "max": 64,
+          "regen": 1
+        },
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": true
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1,
+          "intensity": 1
         }
       ],
       "activeAffinityKey": "earth:push",
@@ -208,10 +584,34 @@
     }
   ],
   "presentation": {
+    "barrier_3_2": {
+      "category": "barrier"
+    },
+    "barrier_3_3": {
+      "category": "barrier"
+    },
+    "barrier_4_3": {
+      "category": "barrier"
+    },
     "barrier_4_7": {
       "category": "barrier"
     },
+    "barrier_5_2": {
+      "category": "barrier"
+    },
+    "barrier_5_3": {
+      "category": "barrier"
+    },
+    "barrier_6_2": {
+      "category": "barrier"
+    },
+    "barrier_6_3": {
+      "category": "barrier"
+    },
     "barrier_6_7": {
+      "category": "barrier"
+    },
+    "barrier_7_3": {
       "category": "barrier"
     },
     "resource_1": {

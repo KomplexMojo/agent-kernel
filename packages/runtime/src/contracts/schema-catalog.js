@@ -59,6 +59,7 @@ import {
   PRICE_LIST_SCHEMA,
   RESOURCE_ARTIFACT_SCHEMA,
   RESOURCE_BUNDLE_SCHEMA,
+  SPRITE_ATLAS_SCHEMA,
   ROOM_TILE_CONFIG_SCHEMA,
   BATTLE_LOG_ENTRY_SCHEMA,
   RUN_SUMMARY_SCHEMA,
@@ -183,7 +184,7 @@ export const SCHEMA_KIND_BY_SCHEMA = Object.freeze({
   [LLM_RESPONSE_SCHEMA]: SCHEMA_KINDS.PROTOCOL_MESSAGE,
   [SPEND_VERDICT_SCHEMA]: SCHEMA_KINDS.PROTOCOL_MESSAGE,
 
-  // ── constants with no envelope interface in artifacts.ts (19) ──────────────
+  // ── constants with no envelope interface in artifacts.ts (20) ──────────────
   // The seven non-AdaptiveWorkflow entries are M8's relocations. ActorArtifact and
   // LayoutArtifact are the two that are not artifacts at all: `spend-proposal.js`
   // uses them only as `buildSubjectRef(id, SCHEMA)`, naming what a spend line is
@@ -208,6 +209,7 @@ export const SCHEMA_KIND_BY_SCHEMA = Object.freeze({
   [LAYOUT_ARTIFACT_SCHEMA]: SCHEMA_KINDS.UNTYPED,
   [MOTIVATION_RULES_ARTIFACT_SCHEMA]: SCHEMA_KINDS.UNTYPED,
   [POOL_CATALOG_SCHEMA]: SCHEMA_KINDS.UNTYPED,
+  [SPRITE_ATLAS_SCHEMA]: SCHEMA_KINDS.UNTYPED,
 });
 
 /** The kind of one schema, or null when it is not classified (which the guard forbids). */

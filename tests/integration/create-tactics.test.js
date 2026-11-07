@@ -189,8 +189,12 @@ test("tactic-seated emitters keep their fields off resources and hazards (#473)"
         "--created-at", "2026-10-24T00:00:00.000Z", ...withoutTactics(scenarioArgs(scenario, seed)), "--tactic", "auto", "--seed", String(seed)],
       { cwd: ROOT, encoding: "utf8" });
       assert.equal(result.status, 0, `${result.stderr}${result.stdout}`);
-      const { actors } = JSON.parse(readFileSync(join(outDir, "initial-state.json"), "utf8"));
-      const objects = actors.filter((actor) => actor.capabilities?.canMove === false && (actor.motivations ?? []).length === 0);
+      const { actors, presentation = {} } = JSON.parse(readFileSync(join(outDir, "initial-state.json"), "utf8"));
+      // Resources and hazards only: barriers are actors too now, but a field reaching a
+      // barrier is play (a destroyable wall), not the #473 turn-1 resource loss.
+      const objects = actors.filter((actor) => actor.capabilities?.canMove === false && (actor.motivations ?? []).length === 0
+        && ["resource", "hazard"].includes(presentation[actor.id]?.category));
+      assert.ok(objects.length > 0, `seed ${seed}: the level has resources or hazards to check`);
       for (const source of actors.filter((actor) => !objects.includes(actor))) {
         const reach = Math.max(0, ...(source.affinities || [])
           .filter((entry) => entry.expression === "emit" || entry.expression === "draw").map((entry) => entry.stacks));

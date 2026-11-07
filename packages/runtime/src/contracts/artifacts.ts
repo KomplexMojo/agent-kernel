@@ -2461,6 +2461,8 @@ export type NarrativeArtifact = NarrativeArtifactV1;
 // -------------------------
 
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
+/** Sprite atlas manifest: which atlas frame draws which game thing (render/sprite-atlas-manifest.js). */
+export const SPRITE_ATLAS_SCHEMA = "agent-kernel/SpriteAtlasManifest";
 
 /**
  * Visual resource bundle for rendering simulation state.
