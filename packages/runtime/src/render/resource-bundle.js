@@ -14,8 +14,7 @@ import {
   relativePathForGameAssetId,
 } from "../contracts/game-elements.js";
 import { composeEntitySprite } from "./entity-sprite-composer.js";
-import { computeTileAlpha } from "./affinity-spatial-formulas.js";
-import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
+import { computeTileAlpha, SPATIAL_WEIGHTS } from "./affinity-spatial-formulas.js";
 
 // M9: declared in contracts/artifacts.ts, re-exported here under the name importers use.
 import { RESOURCE_BUNDLE_DRESSING_SCHEMA, RESOURCE_BUNDLE_SCHEMA } from "../contracts/artifacts.ts";
