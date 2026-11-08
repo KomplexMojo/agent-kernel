@@ -1,6 +1,6 @@
 {
   "name": "@agon-engine/engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agon, a deterministic simulation engine where players and AI agents contest under one rule set. Built bundle of the public API.",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -20,6 +20,7 @@
   },
   "exports": {
     "./package.json": "./package.json",
+    "./adapters-cli/cli/ak.mjs": "./dist/adapters-cli/cli/ak.mjs",
     "./adapters-cli/cli/playtest-scenarios.js": "./dist/adapters-cli/cli/playtest-scenarios.js",
     "./adapters-web/adapters/solver-recorded/index.js": "./dist/adapters-web/adapters/solver-recorded/index.js",
     "./runtime/commands/author-level.js": "./dist/runtime/commands/author-level.js",
@@ -31,9 +32,23 @@
     "./runtime/render/entity-sprite-composer.js": "./dist/runtime/render/entity-sprite-composer.js",
     "./runtime/render/window-size.js": "./dist/runtime/render/window-size.js",
     "./runtime/runner/character-sheet.js": "./dist/runtime/runner/character-sheet.js",
+    "./ui-ascii/character-cli.mjs": "./dist/ui-ascii/character-cli.mjs",
     "./ui-ascii/game.js": "./dist/ui-ascii/game.js",
     "./ui-ascii/html.js": "./dist/ui-ascii/html.js",
     "./ui-ascii/keymap.js": "./dist/ui-ascii/keymap.js",
-    "./ui-ascii/screen.js": "./dist/ui-ascii/screen.js"
+    "./ui-ascii/screen.js": "./dist/ui-ascii/screen.js",
+    "./adapters-cli/cli/playtest-scenarios.json": "./dist/adapters-cli/cli/playtest-scenarios.json"
+  },
+  "peerDependencies": {
+    "z3-solver": "^5.1.0",
+    "ws": "^8.21.0"
+  },
+  "peerDependenciesMeta": {
+    "z3-solver": {
+      "optional": true
+    },
+    "ws": {
+      "optional": true
+    }
   }
 }

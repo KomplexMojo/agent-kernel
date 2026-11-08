@@ -23,12 +23,14 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 | `packages/ui-ascii/src/html.js` | ANSI screen to HTML, for browser views of the reference client |
 | `packages/adapters-cli/src/cli/playtest-scenarios.mjs` | the playtest scenario catalogue and its `ak create` arguments per seed (#744: framework content, shared with the sims) |
 | `packages/runtime/src/render/client-surface.js` | graphical client facade: play session, HUD and icon models, resource bundle, board sprite state (#767) |
+| `packages/adapters-cli/src/cli/ak.mjs` | the ak command line (spawn it with node: create, play, run, ...) |
+| `packages/ui-ascii/src/character-cli.mjs` | the character configuration command line (spawn it with node) |
 
 `tests/architecture/engine-api-doc.test.js` fails if this table and `apiSurface` disagree, so the list cannot drift.
 
 ## Installing
 
-The published package is `@agon-engine/engine` (public npm, built JavaScript). Each module above is importable as `@agon-engine/engine/<package>/<path under src>`, e.g. `@agon-engine/engine/runtime/render/client-surface.js`. In development the unbuilt workspace packages are used directly; `pnpm run build:engine` builds the bundle, and `tests/architecture/engine-bundle.test.js` keeps its exports equal to `apiSurface`.
+The published package is `@agon-engine/engine` (public npm, built JavaScript). Each module above is importable as `@agon-engine/engine/<package>/<path under src>`, e.g. `@agon-engine/engine/runtime/render/client-surface.js`. The two command lines are built as single files you spawn with `node`: `@agon-engine/engine/adapters-cli/cli/ak.mjs` and `@agon-engine/engine/ui-ascii/character-cli.mjs` (`playtest-scenarios.js` exports `AK_CLI`, the resolved path of the first). `z3-solver` and `ws` are optional peer dependencies for solver and bridge commands. In development the unbuilt workspace packages are used directly; `pnpm run build:engine` builds the bundle, and `tests/architecture/engine-bundle.test.js` keeps its exports equal to `apiSurface`.
 
 ## Stability policy (0.x)
 

@@ -60,6 +60,12 @@
     },
     "packages/runtime/src/render/client-surface.js": {
       "provides": "graphical client facade: play session, HUD and icon models, resource bundle, board sprite state (#767)"
+    },
+    "packages/adapters-cli/src/cli/ak.mjs": {
+      "provides": "the ak command line (spawn it with node: create, play, run, ...)"
+    },
+    "packages/ui-ascii/src/character-cli.mjs": {
+      "provides": "the character configuration command line (spawn it with node)"
     }
   },
   "pathSeams": [],

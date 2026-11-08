@@ -4,6 +4,8 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ## Unreleased
 
+### Fixed
+- `@agon-engine/engine` 0.1.1 (#796): the published bundle now includes `playtest-scenarios.json`, a working `ak` command line (`adapters-cli/cli/ak.mjs`, which `AK_CLI` points at) and the character configuration command line (`ui-ascii/character-cli.mjs`). Both command lines are listed in the public API. `z3-solver` and `ws` are optional peers, needed only by solver and bridge commands.
 ### Added
 - `docs/engine-api.md`: the public API list and the 0.x stability policy.
 
