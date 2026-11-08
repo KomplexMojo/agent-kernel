@@ -27,8 +27,11 @@ export { buildActorHudModel, HUD_VITAL_LABELS } from "./actor-hud-model.js";
 export { buildIconModel, ICON_SHAPES } from "./icon-model.js";
 export {
   createDefaultResourceBundleArtifact,
+  dressResourceBundle,
   validateResourceBundleArtifact,
+  validateResourceBundleDressing,
   listResourceBundleAssetFiles,
+  RESOURCE_BUNDLE_DRESSING_SCHEMA,
   RESOURCE_BUNDLE_SCHEMA,
 } from "./resource-bundle.js";
 export { normalizeEntitySpriteState, ENTITY_SPRITE_ROLES } from "./entity-sprite-composer.js";

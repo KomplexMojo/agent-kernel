@@ -180,3 +180,11 @@ the list. Everything else under `render/` is internal and may move.
 draws: `cells[y][x] = { tile, sight }` (`tile` is `fog` where nothing was seen), `entities` with a
 two-channel `sprite { role, affinity }`, and `seatHud`, the view's own player model. It reads only the
 view, so fog and information rules are exactly ASCII's; vitals and expression never ride the sprite.
+
+`dressResourceBundle(bundle, dressing)` (#769) lays a game's painted art over a V2 bundle and returns
+a new validated bundle. A `ResourceBundleDressing` (`agent-kernel/ResourceBundleDressing`) maps existing
+asset ids to 32x32 PNG data URIs; an unknown id is refused by name, and unlisted assets stay
+procedural. Dressed assets carry `origin: "painted"` (absent means procedural), and
+`listResourceBundleAssetFiles` exports their files. `validateResourceBundleDressing(dressing, bundle?)`
+checks one without applying it. Variants are validated one by one because the framework never
+generates them.
