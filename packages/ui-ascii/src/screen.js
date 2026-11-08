@@ -568,7 +568,7 @@ export function renderScreen({
   panel = null,
   aim = null,
   grade = null,
-  title = `Deepward — ${levelName}${grade ? ` (grade ${grade})` : ""} (${levelIndex + 1}/${levelCount})`,
+  title = `Agon — ${levelName}${grade ? ` (grade ${grade})` : ""} (${levelIndex + 1}/${levelCount})`,
   tickLine = `Tick ${view.tick}   Turns ${turns}`,
   helpLines = HELP_LINES,
   hints = true,

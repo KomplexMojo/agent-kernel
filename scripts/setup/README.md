@@ -56,7 +56,7 @@ Choose exactly one role:
 ### One-time on the Mac (primary)
 
 ```bash
-cd ~/Documents/GitHub/agent-kernel
+cd ~/Documents/GitHub/agon
 bash scripts/setup/setup-km.sh
 ```
 
@@ -80,7 +80,7 @@ After the script finishes:
 After the Mac has pushed the migration:
 
 ```bash
-cd ~/path/to/agent-kernel
+cd ~/path/to/agon
 git pull --ff-only
 bash scripts/setup/setup-km.sh --secondary
 ```

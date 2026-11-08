@@ -9,7 +9,7 @@ alwaysApply: true
 framework, and Claude owns its architecture and design. Cursor owns **Primordial** (`../primordial`): the UI/UX,
 the phone app and graphical clients, skin, art, audio and content.
 
-- Reading this repository is fine: Primordial links it (`link:../agent-kernel/packages/*`), so read code and
+- Reading this repository is fine: Primordial links it (`link:../agon/packages/*`), so read code and
   docs here to understand an API.
 - When the game needs something from the framework (a new export, a rule change, a bug fix), **open an issue
   in KomplexMojo/agon labelled `api-request`**. Say what the game needs, why, and which module or

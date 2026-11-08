@@ -17,6 +17,7 @@ When older notes disagree with the charter or vision contract, the charter and v
 
 ## Core Documents
 
+- `docs/engine-api.md` — what a game may import from Agon, how the API may change, and how to install it.
 - `docs/vision-contract.md` — non-negotiable constraints and scope boundaries.
 - `docs/architecture-charter.md` — Ports & Adapters rules and dependency direction.
 - `docs/architecture/diagram.mmd` — Mermaid architecture overview.

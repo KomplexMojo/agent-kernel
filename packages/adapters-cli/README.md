@@ -416,7 +416,7 @@ Inputs/outputs:
   C 4,100 · B 5,450 · A 7,100 · S 9,450) and the dungeon/delver split (50/50 at H and G, rising to 80/20 at S),
   applied to the pools so the delver pool holds the delver share. An unknown grade is refused, naming the known
   ones. The grade is stamped on the level (`meta.cost.grade` on the sim-config and the other build artifacts, and
-  on the budget receipt), shown in the play header (`Deepward — <level> (grade C)`) and echoed in the result as
+  on the budget receipt), shown in the play header (`Agon — <level> (grade C)`) and echoed in the result as
   `grade: { grade, budgetTokens, dungeonPercent, delverPercent }`. An explicit `--budget-tokens` still wins and is
   reported as `grade.budgetOverride`. Primordial's `bash scripts/game/playtest.sh <scenario> --grade C` builds a
   playtest at that grade and records it in the report.

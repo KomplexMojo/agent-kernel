@@ -1,10 +1,10 @@
-<p align="center">
-  <img src="docs/brand/banner.png" alt="Deepward: a dungeon game, built on the Agon engine" width="100%">
-</p>
+# Agon
 
-<p align="center">
-  <img src="docs/brand/progress.svg" alt="Overall progress 40%" width="520">
-</p>
+**A deterministic framework for building games where players and AI agents contest under one set of rules.**
+
+Agon is the engine. A game is built on top of it: the game brings its look, sound, levels and story, and Agon brings
+the rules, the economy and the simulation. The first game built on Agon is **Primordial**, a dark dungeon game about
+wizards and the affinities they command.
 
 <p align="center">
   <img src="docs/brand/affinities/icon-affinity-fire.png" alt="" height="40">
@@ -29,98 +29,132 @@
 </p>
 
 <p align="center">
-  <a href="#the-game"><b>The game</b></a>
+  <a href="#where-the-name-comes-from"><b>The name</b></a>
   &nbsp;·&nbsp;
-  <a href="#the-engine">The engine</a>
+  <a href="#what-agon-gives-a-game">What Agon gives a game</a>
   &nbsp;·&nbsp;
-  <a href="#surfaces">Surfaces</a>
+  <a href="#agon-and-a-game-primordial">Agon and a game</a>
+  &nbsp;·&nbsp;
+  <a href="#building-a-game-on-agon">Build a game</a>
   &nbsp;·&nbsp;
   <a href="#design-constraints">Design constraints</a>
   &nbsp;·&nbsp;
   <a href="#status">Status</a>
 </p>
 
-> **Status.** This is a **large, multi-year project under active development**. Progress is about **40%** of the intended scope. The simulation core, CLI, and MCP surfaces are in active use; the game that sits on top of them is early.
+> **Status.** Agon is under active development. The simulation core, the CLI, the MCP tools and the reference terminal
+> client are in use today. The public API is documented in [`docs/engine-api.md`](docs/engine-api.md) and is on 0.x,
+> so minor versions may carry breaking changes.
 
-## The game
+## Where the name comes from
 
-**Deepward** is a dungeon game: delvers go down through rooms of wardens, traps and resources, and every one of them
-acts through its affinities and motivations. Deepward is the game and the public name; **Agon** is the engine
-underneath it, and the name the code, packages and tools still carry.
+*Agon* (Greek ἀγών, "agōn") means a **contest**: the struggle, and the gathering where it is held. It is the root of
+*agony*, and of *protagonist* and *antagonist*: the first contestant and the one against. That is what the engine is
+for. A player, an AI-driven opponent and the environment all act in the same arena under the same published rules,
+and the outcome is whatever those rules produce. Nothing is decided off the board.
 
-## The engine
+## What Agon gives a game
 
-Agon is the **underlying simulation engine** for Deepward. It is not the game itself.
+- **A deterministic simulation.** The same inputs produce the same outcome, so a run can be replayed and checked.
+  That is the basis for provable fairness, and for treating a character or an item as something that can be verified
+  rather than trusted.
+- **One rule set for everyone.** Humans, scripted agents, LLM-driven agents and solvers all act through the same
+  actions. There is no separate "AI cheats" path.
+- **An enforced economy.** Every actor, ability and room has a token price. The Allocator is the only owner of
+  pricing, and a level that cannot clear a budget receipt is flagged. Games get balanced content generation for free.
+- **Levels from intent.** Describe a dungeon in plain terms (budget, affinities, motivations), and Agon authors,
+  prices and validates it. The `ak` CLI and the MCP tools do the same for AI harnesses.
+- **A rendering seam.** Agon decides *what* is on the board and hands a client a draw model, an HUD model and a
+  ResourceBundle. It never draws. A terminal, a phone app or a graphical client can all sit on the same data.
+- **Distributed by design.** Artifacts are versioned and content-addressable, ready for IPFS and chain adapters, so
+  characters and loot can be recorded as verifiable assets. The core itself never touches a network or a clock.
 
-The core advances dungeon scenarios deterministically: rooms, actors, affinities, motivations, hazards, resources, combat. Runs are replayable. Given the same inputs, the engine produces the same outcomes — that is the basis for **provable fairness**.
+## Agon and a game: Primordial
 
-Token spend is not advisory. **Token economics are enforced** in the Allocator: base costs, pricing formulas, spend validation, and receipts. Nothing else in the system invents a price.
+Primordial is built *on* Agon and keeps to its own side of a hard line.
+
+| | Agon (the engine) | Primordial (the game) |
+|---|---|---|
+| **Rules** | Affinities, vitals, motivations, combat, fog of war, turn order | None. It plays by Agon's |
+| **Economy** | Token pricing, budgets, receipts (the Allocator) | None. Content is priced by Agon |
+| **Levels** | Generates and validates them (`ak create`) | Chooses which to ship, and its own scenarios and story |
+| **Opponents** | Actor decisions, tactics, temperament, solver hooks | Decides how opponents are presented |
+| **Look and sound** | Draw model, HUD model, ResourceBundle (data only) | Palette, glyphs, sprites, animation, audio |
+| **Clients** | A reference terminal client (`ak play`) | The phone app and graphical client |
+| **Lore** | None | The Primordial Dungeon and its mythology |
+
+In practice: when Primordial shows a fire wizard casting at a warden, Agon decided that the cast was legal, what it
+cost, what it did and who was in sight. Primordial decided what it looks and sounds like. If the game needs a new
+behaviour from the engine, it files an `api-request`. The engine never reaches into the game.
+
+The boundary is enforced by tests (`tests/architecture/framework-game-boundary.test.js`): a game may import only the
+modules listed in the public API, and never the simulation core directly.
+
+## Building a game on Agon
+
+Install the published bundle (available from the first `v0.1.0` release):
+
+```bash
+npm install @agon-engine/engine
+```
+
+Each public module is a subpath, for example
+`@agon-engine/engine/runtime/render/client-surface.js`. The full list, and the rules for how it may change, are in
+[`docs/engine-api.md`](docs/engine-api.md). A typical game:
+
+1. Generates levels with `ak create` (or the `ak_create` MCP tool), choosing budgets and affinities.
+2. Plays them through a session and renders each turn from the draw model.
+3. Dresses the result with its own ResourceBundle: sprites, colours, sounds.
+4. Sends the player's choices back to the session as commands.
+
+Everything gameplay-shaped stays in Agon, and everything expressive stays in the game.
 
 <p align="center">
-  <img src="docs/brand/gameplay-shot.png" alt="Gameplay board from a water-delver / fire-warden scenario run" width="520">
+  <img src="docs/brand/gameplay-shot.png" alt="A board from a water-delver and fire-warden run, rendered by the reference client" width="520">
   <br>
-  <sub>Gameplay board from a run: water delvers, fire wardens and hazards, mid-tick.</sub>
+  <sub>A board from a run: water delvers, fire wardens and hazards, mid-tick.</sub>
 </p>
 
-## Surfaces
+### Authoring through an AI harness
 
-Two surfaces sit on the engine today:
-
-- **CLI** — author scenarios, configure runs, execute ticks, replay frames, inspect artifacts.
-- **MCP** — the same operations exposed as tools so AI harnesses (Cursor, Claude Code, and others) can drive the engine without a custom integration.
-
-A browser UI exists for preview and playback of the same artifacts. Adapters for IPFS, chain anchoring, and related distributed storage are part of the intended stack; the core itself stays free of network and clock access.
-
-### MCP through a harness
-
-With `pnpm run mcp:serve` connected to a harness (Cursor, Claude Code, Codex, and similar), authoring is ordinary language. The harness calls tools such as `ak_create`, `ak_configure`, `ak_run`, and `ak_inspect`; the Allocator still enforces the token budget.
-
-Examples of prompts that drive scenario creation:
-
-<p align="center">
-  <img src="docs/brand/affinities/icon-affinity-water.png" alt="water" height="36">
-  &nbsp;&nbsp;
-  <img src="docs/brand/affinities/icon-affinity-fire.png" alt="fire" height="36">
-  &nbsp;&nbsp;
-  <img src="docs/brand/affinities/icon-affinity-dark.png" alt="dark" height="36">
-</p>
+With `pnpm run mcp:serve` connected to a harness (Cursor, Claude Code, Codex, and similar), level authoring is plain
+language. The harness calls tools such as `ak_create`, `ak_configure`, `ak_run` and `ak_inspect`; the Allocator still
+enforces the token budget.
 
 > Create a new large dungeon using a 50K token budget. Delver affinities should focus on water. Warden and trap affinities should focus on fire.
 
 > Build a small three-room dungeon under 5,000 tokens. One water delver with an attacking motivation, one fire warden defending the exit, and a single fire hazard in the middle room.
 
-> Author a constrained arena: dungeon-side budget 8,000 tokens, delver-side budget 2,000. Dark wardens and dark hazards only. Two fire delvers. Then run 40 ticks and show the outcome.
-
 > Take the last created run, raise the total budget to 20,000 tokens, add a second water delver, and reconfigure without changing the room layout.
 
-The harness turns those requests into structured `ak_create` / `ak_configure` calls (`budgetTokens`, `delver`, `warden`, `hazard`, and related fields). Spend that cannot clear a receipt fails; the engine does not soft-override the budget.
+Spend that cannot clear a receipt is flagged; the engine does not soft-override the budget.
 
 ## Design constraints
 
-- **Decentralized / distributed.** Simulation state and artifacts are designed to move through adapters (IPFS, chain) rather than a privileged server owning the truth.
+- **Decentralized / distributed.** State and artifacts are designed to move through adapters (IPFS, chain) rather than a privileged server owning the truth.
 - **Provably fair.** Deterministic rules, replayable ticks, versioned artifacts. Fairness is a property of the engine, not a claim about a hosted service.
 - **Enforced token economics.** Pricing has one owner. Spend that cannot clear a receipt does not proceed.
-- **Local LLMs for construction and benchmarks.** Scenario construction and benchmarking drive local LLM calls (Ollama and similar), not a dependency on a hosted model API.
+- **Players against AI agents.** Opponents are real participants under the same rules, so play is less predictable while the rules stay deterministic.
+- **Local LLMs for construction and benchmarks.** Scenario construction and benchmarking use local models (Ollama and similar), not a hosted model API.
 - **Z3 instead of rule cages.** Constraint and decision work goes through Z3 solvers rather than sprawling hand-written rule cages.
 
 ## Status
 
-Early relative to the full multi-year scope. The engine, offline authoring path, and harness integration are the working middle. The public game layer, wider distribution path, and product polish are still open.
+Early relative to the full scope. The engine, the offline authoring path and the harness integration are the working
+middle. Publishing the engine to npm, character and loot assets on IPFS and chain, and AI opponents as first-class
+players are the next layers.
 
 ## Licence
 
-**Playing Deepward is free.** The [terms of use](TERMS.md) ask only that you don't sell it or bundle it into something
-paid, and don't host or copy it elsewhere.
-
-The source code, game and engine alike, is published under the [PolyForm Strict License 1.0.0](LICENSE.md): you may read
-and run it for noncommercial use, but not modify or redistribute it. It is source-available, not open source. The
-"Deepward" name and banner are not licensed for reuse. Third-party components keep their own licences
-([NOTICE.md](NOTICE.md)).
+The source code, engine and game alike, is published under the [PolyForm Strict License 1.0.0](LICENSE.md): you may
+read and run it for noncommercial use, but not modify or redistribute it. It is source-available, not open source.
+The game's terms of use are in [TERMS.md](TERMS.md). The Agon and Primordial names and artwork are not licensed for
+reuse. Third-party components keep their own licences ([NOTICE.md](NOTICE.md)).
 
 <br>
 
 <details>
-<summary><b>For developers</b></summary>
+<summary><b>For engine developers</b></summary>
 
 ### Quick start
 

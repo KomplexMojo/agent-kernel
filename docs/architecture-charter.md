@@ -1,6 +1,6 @@
 # Architecture Charter (Ports & Adapters)
 
-This charter governs **Agon**, the engine under **Deepward** (the game and the public name).
+This charter governs **Agon**, the engine under games such as **Primordial**.
 
 `packages/core-ts` is the deterministic core. It must not depend on UI, network, storage, filesystem, clocks, process state, or Node APIs.
 

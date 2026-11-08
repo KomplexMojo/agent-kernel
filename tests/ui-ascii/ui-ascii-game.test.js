@@ -264,7 +264,7 @@ test("the screen shows the board, present vitals only, tick, turns and the statu
   const session = await createPlaySession(fixtureLevel("first-steps"));
   const screen = renderScreen({ view: session.view(), levelName: "first-steps", levelCount: 2 });
   assert.match(screen, /first-steps \(1\/2\)/);
-  assert.match(renderScreen({ view: session.view(), levelName: "first-steps", grade: "C" }), /^Deepward — first-steps \(grade C\) \(1\/1\)$/m,
+  assert.match(renderScreen({ view: session.view(), levelName: "first-steps", grade: "C" }), /^Agon — first-steps \(grade C\) \(1\/1\)$/m,
     "a graded level names its grade in the header (#422)");
   assert.match(screen, /^ {2}S@\.\.│\.\.\.│$/m);
   assert.match(screen, /HP █+ 10\/10/);
