@@ -58,7 +58,7 @@ async function litTurns({ manaRegen, ticks = 20 }) {
   return lit;
 }
 
-test("the kit's quote: regen is most of it, and three lasting slots are priced one by one", async () => {
+test("the kit's quote: regen is most of it, and the k-th lasting slot costs k times", async () => {
   const allocator = await makeAllocator();
   const quote = allocator.pricing.quoteActor({
     vitals: { health: { max: 10, regen: 1 }, mana: { max: 60, regen: 34 }, stamina: { max: 10, regen: 1 }, durability: { max: 10, regen: 1 } },
@@ -66,11 +66,11 @@ test("the kit's quote: regen is most of it, and three lasting slots are priced o
   });
   const byLabel = Object.fromEntries(quote.detail.lineItems.map((item) => [item.label, item.spendTokens]));
   assert.equal(byLabel["mana regen"], 34 * 34, "regen is n² tokens");
-  // Each lasting slot is priced on its own: the second emit costs what it would alone.
+  // #650: cheapest lasting slot first at 1x, then 2x, then 3x its own price (143, 157, 245 alone).
   assert.equal(byLabel["dark+3+emit"], 143);
-  assert.equal(byLabel["wind+4+emit"], 157);
-  assert.equal(byLabel["fire+5+draw"], 245);
-  assert.equal(quote.cost, 1817);
+  assert.equal(byLabel["wind+4+emit"], 157 * 2);
+  assert.equal(byLabel["fire+5+draw"], 245 * 3);
+  assert.equal(quote.cost, 2464);
 });
 
 test("upkeep is 2 + range + intensity² a turn, so the two emits cost 29 together", async () => {
