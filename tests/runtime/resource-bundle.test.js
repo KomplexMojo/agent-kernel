@@ -77,13 +77,14 @@ test("resource bundle visual-assets mode emits v2 mappings with the procedural d
   assert.equal(bundle.mappings.icons.types.hazard, "icon.type.hazard");
   assert.equal(bundle.mappings.icons.items.hazard, "icon.item.hazard");
   assert.equal(bundle.mappings.icons.motivations.user_controlled, "icon.motivation.user_controlled");
-  assert.equal(bundle.mappings.icons.vitals.defence, "icon.vital.defence");
+  assert.equal(bundle.mappings.icons.vitals.durability, "icon.vital.durability");
+  assert.equal(bundle.mappings.icons.vitals.defence, undefined);
 
   const delverFire = bundle.assets.find((asset) => asset.id === "actor.delver.fire");
   const overlayFire = bundle.assets.find((asset) => asset.id === "overlay.affinity.fire");
   const floorOverlayFire = bundle.assets.find((asset) => asset.id === "overlay.tile.floor.affinity.fire");
   const wallOverlayFire = bundle.assets.find((asset) => asset.id === "overlay.tile.wall.affinity.fire");
-  const defenceIcon = bundle.assets.find((asset) => asset.id === "icon.vital.defence");
+  const durabilityIcon = bundle.assets.find((asset) => asset.id === "icon.vital.durability");
   const iconFire = bundle.assets.find((asset) => asset.id === "icon.affinity.fire");
   const fogTile = bundle.assets.find((asset) => asset.id === "tile.fog");
   const spawnTile = bundle.assets.find((asset) => asset.id === "tile.spawn");
@@ -97,7 +98,7 @@ test("resource bundle visual-assets mode emits v2 mappings with the procedural d
   assert.ok(floorOverlayFire?.dataUri?.startsWith("data:image/png;base64,"));
   assert.equal(floorOverlayFire?.relativePath, "visual-assets/tiles/overlays/floor-affinity-fire.png");
   assert.equal(wallOverlayFire?.relativePath, "visual-assets/tiles/overlays/wall-affinity-fire.png");
-  assert.equal(defenceIcon?.relativePath, "visual-assets/misc/icon-vital-defence.png");
+  assert.equal(durabilityIcon?.relativePath, "visual-assets/misc/icon-vital-durability.png");
   assert.ok(iconFire?.dataUri?.startsWith("data:image/png;base64,"));
   assert.ok(fogTile?.dataUri?.startsWith("data:image/png;base64,"));
   assert.equal(fogTile?.relativePath, "visual-assets/tiles/fog.png");
@@ -110,7 +111,8 @@ test("resource bundle visual-assets mode emits v2 mappings with the procedural d
   assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/affinity-fire.png"));
   assert.ok(files.some((file) => file.relativePath === "visual-assets/tiles/spawn.png"));
   assert.ok(files.some((file) => file.relativePath === "visual-assets/tiles/overlays/floor-affinity-fire.png"));
-  assert.ok(files.some((file) => file.relativePath === "visual-assets/misc/icon-vital-defence.png"));
+  assert.ok(files.some((file) => file.relativePath === "visual-assets/misc/icon-vital-durability.png"));
+  assert.equal(bundle.assets.some((asset) => asset.id === "icon.vital.defence"), false);
   assert.equal(files.length, bundle.assets.length);
   assert.equal(files.some((file) => file.relativePath.startsWith("visual-assets/actor-medallions/")), false);
 });
