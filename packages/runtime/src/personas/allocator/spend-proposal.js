@@ -906,6 +906,8 @@ function actorTemperament(actor) {
   return Number.isSafeInteger(value) && value > 0 ? value : 0;
 }
 
+const LASTING_EXPRESSIONS = new Set(["emit", "draw"]);
+
 export function calculateActorConfigurationUnitCost({
   entry,
   priceMap,
@@ -971,6 +973,7 @@ export function calculateActorConfigurationUnitCost({
   // to the expression, mirroring the pre-P1.4 scaling seams.
   let affinityStacks = 0;
   let affinityCost = 0;
+  const lastingLines = [];
   affinities.forEach((affinity) => {
     const stacks = affinity.stacks;
     affinityStacks += stacks;
@@ -991,14 +994,26 @@ export function calculateActorConfigurationUnitCost({
       : 0;
 
     affinityCost += scaledBasePlusStack + expressionCost;
-    lineItems.push({
+    const affinityLine = {
       category: "affinity",
       id: `${affinity.kind || "affinity"}:${affinity.expression}`,
       label: `${affinity.kind || "affinity"}+${stacks}+${affinity.expression}`,
       quantity: 1,
       unitCostTokens: scaledBasePlusStack + expressionCost,
       spendTokens: scaledBasePlusStack + expressionCost,
-    });
+    };
+    lineItems.push(affinityLine);
+    if (LASTING_EXPRESSIONS.has(affinity.expression)) lastingLines.push(affinityLine);
+  });
+
+  // #650: a lasting slot (emit, draw) stays on every turn, so keeping several on is what makes a kit
+  // strong. The k-th lasting slot, cheapest first, costs k times its price; one slot is unchanged.
+  [...lastingLines].sort((a, b) => a.spendTokens - b.spendTokens).forEach((line, index) => {
+    const extra = line.spendTokens * index;
+    if (extra <= 0) return;
+    line.unitCostTokens += extra;
+    line.spendTokens += extra;
+    affinityCost += extra;
   });
 
   const motivations = extractMotivations(entry, normalizeMotivations);
