@@ -154,14 +154,6 @@ const FORBIDDEN_RUNTIME_CAPABILITIES = [
  * it is the record of where the boundary is bent, not a place to park work.
  */
 const ACCEPTED = new Map([
-  [
-    "packages/runtime/src/commands/card-authoring.js::ambient randomness (Web Crypto)",
-    "buildCardId() reaches globalThis.crypto for collision-resistant card IDs, and refuses to "
-      + "generate one when Web Crypto is absent rather than falling back to a weaker source. Those "
-      + "IDs are authoring identity, never simulation state: no golden or replay path reaches this "
-      + "(CLI cards use deterministic card_delver_N ids), which is why the goldens are stable. "
-      + "Listed rather than left uncovered so the next reader sees a decision, not an oversight.",
-  ],
 ]);
 
 function collectSourceFiles(directory, files = []) {

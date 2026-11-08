@@ -10,7 +10,6 @@
     "packages/runtime/src/build/map-build-spec.js": { "max": 1, "issues": [276] },
     "packages/runtime/src/commands/kernel.js": { "max": 9, "issues": [] },
     "packages/runtime/src/commands/ui-flow.js": { "max": 1, "issues": [] },
-    "packages/runtime/src/commands/card-authoring.js": { "max": 5, "issues": [281] },
     "packages/runtime/src/runner/runtime-fsm.mjs": { "max": 1, "issues": [] }
   },
   "unpricedEntrypoints": {}
