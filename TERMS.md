@@ -1,6 +1,6 @@
-# Terms of use for Deepward
+# Terms of use for Primordial
 
-These terms cover playing Deepward, the game, wherever KomplexMojo publishes it. The source code (the game and its
+These terms cover playing Primordial, the game, wherever KomplexMojo publishes it. The source code (the game and its
 engine, Agon) is separately licensed under [PolyForm Strict 1.0.0](LICENSE.md).
 
 ## You may
@@ -15,7 +15,7 @@ engine, Agon) is separately licensed under [PolyForm Strict 1.0.0](LICENSE.md).
 - Sell, rent, sublicense or charge for the game, its code, or access to it, or bundle it into anything that is sold.
 - Copy, host or redistribute the game or its code elsewhere, or publish modified versions, without written permission.
 - Present the game or its code as your own work.
-- Use the "Deepward" name, banner or icons for another product, or in a way that suggests it is official.
+- Use the "Primordial" name, banner or icons for another product, or in a way that suggests it is official.
 
 ## Support
 

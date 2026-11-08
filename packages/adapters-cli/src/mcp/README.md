@@ -168,7 +168,7 @@ To register it by hand instead (for example from outside the repository), use `c
 
 ```bash
 claude mcp add --transport stdio agon-cli -- \
-  node /Users/darren/Documents/GitHub/agent-kernel/packages/adapters-cli/src/mcp/server.mjs
+  node /Users/darren/Documents/GitHub/agon/packages/adapters-cli/src/mcp/server.mjs
 ```
 
 List configured servers:
@@ -186,7 +186,7 @@ If your Claude harness accepts a JSON `mcpServers` block, use:
       "type": "stdio",
       "command": "node",
       "args": [
-        "/Users/darren/Documents/GitHub/agent-kernel/packages/adapters-cli/src/mcp/server.mjs"
+        "/Users/darren/Documents/GitHub/agon/packages/adapters-cli/src/mcp/server.mjs"
       ],
       "env": {}
     }
@@ -207,7 +207,7 @@ Current Codex docs store actual MCP registration in `~/.codex/config.toml` or pr
 ```toml
 [mcp_servers.agon-cli]
 command = "node"
-args = ["/Users/darren/Documents/GitHub/agent-kernel/packages/adapters-cli/src/mcp/server.mjs"]
+args = ["/Users/darren/Documents/GitHub/agon/packages/adapters-cli/src/mcp/server.mjs"]
 
 [mcp_servers.agon-cli.env]
 ```
@@ -216,7 +216,7 @@ CLI equivalent:
 
 ```bash
 codex mcp add agon-cli -- \
-  node /Users/darren/Documents/GitHub/agent-kernel/packages/adapters-cli/src/mcp/server.mjs
+  node /Users/darren/Documents/GitHub/agon/packages/adapters-cli/src/mcp/server.mjs
 ```
 
 Verify:

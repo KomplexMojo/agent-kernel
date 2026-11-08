@@ -55,7 +55,7 @@ configuration.
 Run these commands from the tool directory on the Mac:
 
 ```bash
-cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
+cd /Users/darren/Documents/GitHub/agon/tools/remote-ollama-control
 cp config/llm-host.env.example config/llm-host.env
 ```
 
@@ -116,14 +116,14 @@ If the agent is empty, key auth fails as `Permission denied (publickey,password)
 Install the package onto Ubuntu from the Mac:
 
 ```bash
-cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
+cd /Users/darren/Documents/GitHub/agon/tools/remote-ollama-control
 ./scripts/install-remote.sh internal
 ```
 
 Do not run `install-remote.sh` on Ubuntu, and do not run it with `sudo`. It is a Mac-to-Ubuntu SSH deploy script. If you are already logged into Ubuntu and have this repo checkout there, use the local installer instead:
 
 ```bash
-cd ~/Documents/GitHub/agent-kernel/tools/remote-ollama-control
+cd ~/Documents/GitHub/agon/tools/remote-ollama-control
 ./scripts/install-local-ubuntu.sh
 ```
 
@@ -542,7 +542,7 @@ For direct LAN/VPN queries without a tunnel, set `LLM_OLLAMA_BIND_HOST` on Ubunt
 ## Control Commands
 
 ```bash
-cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
+cd /Users/darren/Documents/GitHub/agon/tools/remote-ollama-control
 ./bin/remote-ollama-mac status --route internal
 ./bin/remote-ollama-mac start --profile primary --model qwen2.5-coder:14b
 ./bin/remote-ollama-mac start --profile secondary --model qwen2.5-coder:7b

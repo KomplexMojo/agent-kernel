@@ -1,13 +1,14 @@
-# Deepward brand kit
+# Legacy Deepward brand kit
 
-Assets for the repository README. **Deepward** is the game and the public name; **Agon** is its engine and the
-internal name (packages, `ak`, the MCP server, schema ids).
+> **Legacy.** These assets were made for the game when it was called Deepward. The game is now **Primordial**, and its
+> brand art belongs in the Primordial repository (Primordial#7). **Agon** is the engine's name (packages, `ak`, the MCP
+> server, schema ids). The README no longer uses the banner or progress badge. Remove this folder once the art has moved.
 
 ## Voice
 
 Notes for the person building this — not a product pitch.
 
-- Lead with the game, Deepward; then say what the engine is: Agon, the core under it, with CLI and MCP surfaces.
+- Lead with what Agon is for: a framework for building games. Primordial is the worked example.
 - Say the constraints plainly: decentralized, distributed, provably fair, enforced token economics.
 - Do not write as if there is an audience to convert. No “what you get”, no install funnel.
 - Keep personas and package architecture under **For developers**.

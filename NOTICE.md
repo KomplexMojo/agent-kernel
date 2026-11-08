@@ -1,6 +1,6 @@
 # Notices
 
-Deepward's own code, including its engine Agon, is licensed under the PolyForm Strict License 1.0.0 (see
+Agon's own code, and the code of the games built on it, is licensed under the PolyForm Strict License 1.0.0 (see
 [LICENSE.md](LICENSE.md)). It uses third-party software that keeps its own licence:
 
 | Component | Licence |
@@ -14,5 +14,5 @@ Run `pnpm licenses list` for the full transitive list.
 
 ## Brand
 
-"Deepward", the banner and the icons in `docs/brand/` are not covered by the code licence. Do not use them to imply
+"Agon", "Primordial", the banner and the icons in `docs/brand/` are not covered by the code licence. Do not use them to imply
 that a fork or derivative is the official game.
