@@ -230,7 +230,6 @@ export const GAME_COLOR_PALETTE = deepFreeze({
     mana: "#4499ff",
     stamina: "#44cc77",
     durability: "#ffaa33",
-    defence: "#7d95b8",
   },
   ui: {
     "playing-surface": "#7f8b96",
@@ -577,7 +576,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
     })),
   ),
   vitals: byKey(
-    [...GAME_VITAL_KEYS, "defence"].map((kind) => element({
+    GAME_VITAL_KEYS.map((kind) => element({
       group: "vitals",
       key: kind,
       label: `${titleLabel(kind)} Vital`,
@@ -586,14 +585,11 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         mana: "🔷",
         stamina: "🏃",
         durability: "⛓️",
-        defence: "🪖",
       }[kind],
       defaultColor: VITAL_COLORS[kind],
       assetId: `icon.vital.${kind}`,
       assetKind: "icon",
-      description: kind === "defence"
-        ? "Legacy defense icon alias for durability-oriented UI surfaces."
-        : `${titleLabel(kind)} vital meter and state marker.`,
+      description: `${titleLabel(kind)} vital meter and state marker.`,
     })),
   ),
   ui: byKey([

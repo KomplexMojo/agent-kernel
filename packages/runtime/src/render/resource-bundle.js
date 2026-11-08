@@ -295,7 +295,7 @@ export function validateResourceBundleArtifact(bundle) {
     if (!bundle.mappings?.icons?.types?.hazard) errors.push("mappings.icons.types.hazard is required");
     if (!bundle.mappings?.icons?.items?.hazard) errors.push("mappings.icons.items.hazard is required");
     if (!bundle.mappings?.icons?.motivations?.user_controlled) errors.push("mappings.icons.motivations.user_controlled is required");
-    if (!bundle.mappings?.icons?.vitals?.defence) errors.push("mappings.icons.vitals.defence is required");
+    if (!bundle.mappings?.icons?.vitals?.durability) errors.push("mappings.icons.vitals.durability is required");
     if (!bundle.mappings?.overlays?.darknessMask) errors.push("mappings.overlays.darknessMask is required");
   }
   return { ok: errors.length === 0, errors };

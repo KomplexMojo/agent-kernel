@@ -43,7 +43,6 @@ export const HUD_VITAL_LABELS = Object.freeze({
   mana: "MP",
   stamina: "ST",
   durability: "DU",
-  defence: "DF",
 });
 
 /**
