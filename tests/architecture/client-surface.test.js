@@ -11,7 +11,7 @@ const PINNED = [
   "HUD_VITAL_LABELS", "ENTITY_SPRITE_ROLES", "ICON_SHAPES", "PLAY_COMMAND_KINDS", "PLAY_DIRECTIONS",
   "PLAY_DIRECTION_STEPS", "PLAY_SIGHT", "RESOURCE_BUNDLE_DRESSING_SCHEMA", "RESOURCE_BUNDLE_SCHEMA", "buildActorHudModel", "buildIconModel",
   "buildBoardDrawModel", "createDefaultResourceBundleArtifact", "createPlaySession", "listResourceBundleAssetFiles",
-  "normalizeEntitySpriteState", "normalizePlayCommand", "replayPlaySession", "dressResourceBundle", "validateResourceBundleArtifact", "validateResourceBundleDressing",
+  "normalizeEntitySpriteState", "normalizePlayCommand", "replayPlaySession", "dressResourceBundle", "elementArtCoverage", "elementKeyFor", "resolveElementArt", "validateResourceBundleArtifact", "validateResourceBundleDressing",
 ];
 
 test("the client surface exports at least the pinned names, each defined", async () => {
