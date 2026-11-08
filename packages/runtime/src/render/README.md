@@ -196,3 +196,10 @@ mappings: `{ tile }`, `{ role: "delver"|"warden", affinity }`, `{ role: "hazard"
 height }` with status `painted`, `procedural` or `missing`; unresolved art is never guessed. A client
 holds no paths or id map, so dressing the bundle changes the art with no client edit.
 `elementArtCoverage(bundle)` lists element keys per status for a release check.
+
+Animation (#771) is optional presentation on a bundle asset: a dressing asset may carry named
+`animations` (`{ loop: "loop"|"once"|"pingpong", frames: [{ dataUri, relativePath, durationMs }] }`,
+2 to 32 frames of 32x32 PNG, frame time 1 to 5000 ms), for example `idle` and `pulse` so a zoomed-out
+view can pick a stronger one. `resolveElementArt` returns them as `animations` (`{}` when none) beside
+the still `dataUri`, which always works; ASCII and undressed bundles are unaffected. Animation never
+enters the simulation, the play view or the board sprite, which stays role plus affinity.

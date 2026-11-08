@@ -2486,6 +2486,19 @@ export interface ResourceBundleAssetV1 {
   variants?: Record<string, ResourceBundleAssetVariantV1>;
   /** Where the pixels came from. Absent means procedural; a dressing sets "painted". */
   origin?: "procedural" | "painted";
+  /** Optional presentation-only frame sequences by name (e.g. idle, pulse). A still image always works. */
+  animations?: Record<string, ResourceBundleAnimationV1>;
+}
+
+export interface ResourceBundleAnimationFrameV1 {
+  dataUri: string;
+  relativePath: string;
+  durationMs: number;
+}
+
+export interface ResourceBundleAnimationV1 {
+  loop: "loop" | "once" | "pingpong";
+  frames: ResourceBundleAnimationFrameV1[];
 }
 
 export interface ResourceBundleAssetVariantV1 {
@@ -2571,6 +2584,7 @@ export interface ResourceBundleDressingAssetV1 {
   /** Defaults to the dressed asset's own relativePath. */
   relativePath?: string;
   variants?: Record<string, ResourceBundleAssetVariantV1>;
+  animations?: Record<string, ResourceBundleAnimationV1>;
 }
 
 export interface ResourceBundleDressingV1 {

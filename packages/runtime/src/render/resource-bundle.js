@@ -314,6 +314,38 @@ function pngSizeMatches(dataUri, width, height) {
   return view.getUint32(16) === width && view.getUint32(20) === height;
 }
 
+const ANIMATION_LOOPS = Object.freeze(["loop", "once", "pingpong"]);
+const ANIMATION_MIN_FRAMES = 2;
+const ANIMATION_MAX_FRAMES = 32;
+const ANIMATION_MAX_FRAME_MS = 5000;
+
+function validateAnimations(animations, at, errors) {
+  if (!animations || typeof animations !== "object" || Array.isArray(animations)) {
+    errors.push(`${at}.animations must be an object`);
+    return;
+  }
+  for (const [name, animation] of Object.entries(animations)) {
+    const aat = `${at}.animations[${name}]`;
+    if (!ANIMATION_LOOPS.includes(animation?.loop)) errors.push(`${aat}.loop must be one of ${ANIMATION_LOOPS.join(", ")}`);
+    const frames = animation?.frames;
+    if (!Array.isArray(frames) || frames.length < ANIMATION_MIN_FRAMES || frames.length > ANIMATION_MAX_FRAMES) {
+      errors.push(`${aat}.frames must hold ${ANIMATION_MIN_FRAMES} to ${ANIMATION_MAX_FRAMES} frames`);
+      continue;
+    }
+    frames.forEach((frame, index) => {
+      const fat = `${aat}.frames[${index}]`;
+      if (!Number.isInteger(frame?.durationMs) || frame.durationMs < 1 || frame.durationMs > ANIMATION_MAX_FRAME_MS) {
+        errors.push(`${fat}.durationMs must be an integer from 1 to ${ANIMATION_MAX_FRAME_MS}`);
+      }
+      if (!isPngDataUri(frame?.dataUri)) errors.push(`${fat}.dataUri must be a PNG data URI`);
+      else if (!pngSizeMatches(frame.dataUri, DEFAULT_RESOURCE_TILE_SIZE, DEFAULT_RESOURCE_TILE_SIZE)) {
+        errors.push(`${fat}.dataUri must be ${DEFAULT_RESOURCE_TILE_SIZE}x${DEFAULT_RESOURCE_TILE_SIZE}`);
+      }
+      if (!String(frame?.relativePath || "").trim()) errors.push(`${fat}.relativePath is required`);
+    });
+  }
+}
+
 function isPositiveInt(value) {
   return Number.isInteger(value) && value > 0;
 }
@@ -350,6 +382,7 @@ export function validateResourceBundleDressing(dressing, bundle) {
     if (!isPngDataUri(asset.dataUri)) errors.push(`${at}.dataUri must be a PNG data URI`);
     else if (!pngSizeMatches(asset.dataUri, asset.width, asset.height)) errors.push(`${at}.dataUri pixels must match width and height`);
     if (asset.relativePath !== undefined && !String(asset.relativePath).trim()) errors.push(`${at}.relativePath must not be empty`);
+    if (asset.animations !== undefined) validateAnimations(asset.animations, at, errors);
     if (asset.variants !== undefined) {
       if (!asset.variants || typeof asset.variants !== "object" || Array.isArray(asset.variants)) {
         errors.push(`${at}.variants must be an object`);
@@ -392,6 +425,8 @@ export function dressResourceBundle(bundle, dressing) {
     };
     if (painted.variants) next.variants = structuredClone(painted.variants);
     else delete next.variants;
+    if (painted.animations) next.animations = structuredClone(painted.animations);
+    else delete next.animations;
     return next;
   });
   const result = validateResourceBundleArtifact(dressed);
@@ -914,6 +949,9 @@ export function listResourceBundleAssetFiles(bundle) {
     pushFile(asset?.relativePath, asset?.dataUri);
     Object.values(asset?.variants || {}).forEach((variant) => {
       pushFile(variant?.relativePath, variant?.dataUri);
+    });
+    Object.values(asset?.animations || {}).forEach((animation) => {
+      (animation?.frames || []).forEach((frame) => pushFile(frame?.relativePath, frame?.dataUri));
     });
   });
   return files;

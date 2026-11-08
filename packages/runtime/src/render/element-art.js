@@ -7,14 +7,15 @@
  * art with no client change. Art that cannot be resolved is reported `missing`, never replaced
  * with a guess. Pure functions over a bundle, no IO.
  *
- * status: "painted" (dressed art) | "procedural" (framework default) | "missing".
+ * `animations` is optional presentation (named frame sequences), `{}` when none; the still `dataUri`
+ * is always the fallback. status: "painted" (dressed art) | "procedural" (framework default) | "missing".
  *
  * @module element-art
  */
 
 import { GAME_AFFINITY_KINDS, GAME_VITAL_KEYS } from "../contracts/game-vocabulary.js";
 
-const MISSING = Object.freeze({ key: "", assetId: null, status: "missing", dataUri: null, relativePath: null, width: null, height: null });
+const MISSING = Object.freeze({ key: "", assetId: null, status: "missing", dataUri: null, relativePath: null, width: null, height: null, animations: Object.freeze({}) });
 
 /** Stable element key, shared by resolution and coverage. "" when the descriptor says nothing. */
 export function elementKeyFor(descriptor) {
@@ -48,7 +49,7 @@ function assetIdFor(bundle, descriptor) {
   return null;
 }
 
-/** Resolve a descriptor to `{ key, assetId, status, dataUri, relativePath, width, height }`. */
+/** Resolve a descriptor to `{ key, assetId, status, dataUri, relativePath, width, height, animations }`. */
 export function resolveElementArt(bundle, descriptor) {
   const key = elementKeyFor(descriptor);
   if (!key) return MISSING;
@@ -63,6 +64,7 @@ export function resolveElementArt(bundle, descriptor) {
     relativePath: asset.relativePath ?? null,
     width: asset.width,
     height: asset.height,
+    animations: asset.animations ?? {},
   };
 }
 
