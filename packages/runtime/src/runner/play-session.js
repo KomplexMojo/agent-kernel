@@ -78,6 +78,7 @@ import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
 import { unpayableActorAffinities } from "../../../core-ts/src/rules/actor-upkeep.ts";
+import { minionBonds } from "../../../core-ts/src/rules/minion-upkeep.ts";
 import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
 import { computeActorMoveStaminaCost } from "../../../core-ts/src/rules/move.ts";
 import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
@@ -191,6 +192,8 @@ export async function createPlaySession({
   // The cast prices core charges this level, as the Allocator reads them, so each slot can show its cast's mana.
   const castManaBase = allocator.castPricesFromLegacyTiers(simConfig.actionCosts ?? null)?.castManaBase;
   const castPrices = castManaBase && typeof castManaBase === "object" ? { castManaBase } : undefined;
+  // #408: what a leader pays per minion per turn, the Allocator's rate core charges.
+  const minionUpkeep = allocator.pricing.minionUpkeepMana();
   const legend = playLegend(simConfig);
   const labels = playActorLabels(sourceActors, presentation);
   // The party: every playable actor, and the seated one even when it is not (a caller's choice).
@@ -498,7 +501,8 @@ export async function createPlaySession({
   // Everyone `order` would accept right now, other than the seated actor, in id order (#272).
   // Your own side is known to you in or out of sight, as the party is.
   function orderableView(snapshot) {
-    return snapshot.actors.filter((actor) => actor.id !== activeId && actor.lifecycle === "alive" && orderable(actor.id))
+    return snapshot.actors.filter((actor) => actor.id !== activeId && actor.lifecycle === "alive" && !actor.bondLapsed
+      && orderable(actor.id))
       .map((actor) => actor.id).sort(compareIds)
       .map((id) => ({ id, label: labels.get(id) ?? null }));
   }
@@ -509,6 +513,8 @@ export async function createPlaySession({
     const refuse = (reason, extra = {}) => ({ ok: false, reason, actorId: actorId ?? ref, tick: currentTick(), status: status(), ...extra });
     if (actorId === undefined) return refuse("unknown_actor");
     if (!orderable(actorId)) return refuse("not_yours");
+    // #408: a minion whose leader could not pay its upkeep takes no orders until the bond holds.
+    if (readSnapshot().actors.find((actor) => actor.id === actorId)?.bondLapsed) return refuse("bond_lapsed");
     let normalized;
     try {
       normalized = normalizeActorStrategy(withStrategyRefsResolved(strategy));
@@ -897,6 +903,7 @@ export async function createPlaySession({
         upkeepTable: typeof runtime.readAffinityUpkeepTable === "function" ? runtime.readAffinityUpkeepTable() : [],
         castPrices,
         movementStamina: simConfig.actionCosts?.movementStamina,
+        minionUpkeep,
     });
     const tickNow = currentTick();
     return {
@@ -1125,7 +1132,7 @@ function moveStaminaCosts(cardinal, soaked) {
   };
 }
 
-export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, movementStamina = undefined, glyphSet = "unicode" }) {
+export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, movementStamina = undefined, minionUpkeep = 0, glyphSet = "unicode" }) {
   // Actor glyphs (#575) come from the glyph set; the table rides on the legend for every UI to read.
   const glyphs = actorGlyphs(glyphSet);
   const legend = { ...baseLegend, ...(baseLegend.barrier === ASCII_TERRAIN_GLYPHS.barrier ? { barrier: glyphs.barrier } : {}) };
@@ -1174,6 +1181,13 @@ export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend,
         // #617: what one move costs this actor in stamina (core's formula, soak included), so a UI can say it.
         moveStamina: moveStaminaCosts(movementStamina?.[player.id], Boolean(player.soaked)),
         maxAffinitySlots: MAX_AFFINITY_SLOTS,
+        // #408: each minion bound to the player, its mana a turn and whether its bond holds (a lapsed
+        // one takes no orders), and the total the player pays a turn, to show beside mana regen.
+        minions: minionBonds(snapshot.actors, player.id, minionUpkeep).map((bond) => ({ id: bond.id,
+          ...(labels.has(bond.id) ? { label: labels.get(bond.id) } : {}), upkeep: bond.upkeep, lapsed: bond.lapsed })),
+        minionUpkeep: minionBonds(snapshot.actors, player.id, minionUpkeep)
+          .reduce((sum, bond) => sum + (bond.lapsed ? 0 : bond.upkeep), 0),
+        ...(player.minionOf ? { leader: player.minionOf, ...(player.bondLapsed ? { bondLapsed: true } : {}) } : {}),
         position: { ...player.position },
       }
       : null,

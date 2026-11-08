@@ -2015,7 +2015,9 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       const progress = view().context.strategies?.[strategyActorId];
       if (payload.strategyOrder !== undefined) {
         strategyEntry = { order: normalizeActorStrategy(payload.strategyOrder), goal: 0, status: STRATEGY_STATUS.ACTIVE };
-      } else if (!commandProposals) {
+      } else if (!commandProposals && decidingActor?.bondLapsed !== true) {
+        // #408: a minion whose leader could not pay its upkeep follows no strategy or order (kept,
+        // where it stood) and runs its own motivations until the bond holds again.
         strategyTurn = resolveStrategyTurn({ entry: progress, payload, observation, observationView, simConfig,
           actorId: strategyActorId, tick, baseTiles });
         if (strategyTurn) strategyEntry = strategyTurn.entry;

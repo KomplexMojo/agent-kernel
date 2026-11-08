@@ -618,6 +618,12 @@ Inputs/outputs:
     --delver "count=1;id=hero;affinity=light;motivation=user_controlled" \
     --delver "count=1;id=pal;affinity=growth;motivation=escorting;escort=hero-1:2"
   ```
+- `--delver` and `--warden` accept `leader=<id>` (#408): the actor this one is a minion of. Each turn, after affinity
+  upkeep, the leader pays the Allocator's minion upkeep (1 mana per living minion); one it cannot pay lapses that
+  minion's bond, so it takes no orders and runs its own motivations until the leader's mana is full again. An escort's
+  ally is its leader unless `leader=` names another, and a retinue's minions are bound to their leader. The level keeps
+  the bonds in `initial-state.json` under `leaders`, keyed by minion id; a leader that is not another actor in the
+  level, or bonds that loop, are refused.
 - `--delver` accepts `minions=<role>[+<role>...]` (roles `shield`, `support`, `striker`; `count=1` only): the delver
   leads a retinue of that many minions, added after any `--tactic` mix (so `--tactic auto` takes them too). The
   Configurator derives each loadout from the delver (a shield emits its kind, a support pushes the restoring kind
@@ -765,7 +771,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]][;strategy-recipe=<name>]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;leader=<id>][;recipe=<name>[;kind=<kind>]][;strategy-recipe=<name>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -800,7 +806,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;recipe=<name>[;kind=<kind>]][;strategy-recipe=<name>]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]][;leader=<id>][;recipe=<name>[;kind=<kind>]][;strategy-recipe=<name>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.

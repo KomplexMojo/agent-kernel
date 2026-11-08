@@ -118,6 +118,8 @@ export function composeRetinue({ leader, size, roles: named = null, category = "
       vitals: floorVitals(),
       affinities: [{ kind, expression, stacks: MINION_RANGE, intensity: MINION_INTENSITY }],
       activeAffinityKey: `${kind}:${expression}`,
+      // #408: bound to its leader, who pays its mana upkeep each turn.
+      leader: leader.id,
       ...(delver ? { escort: { target: leader.id, distance: DELVER_MINION_ESCORT_DISTANCE } } : {}),
     });
     roles.push({ id, role });

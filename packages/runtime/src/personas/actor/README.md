@@ -378,6 +378,11 @@ unequipping what is off) is passed over, and a cast at a selector is proposed on
 named by `affinityKey`, only that equipped slot. `"nearest_ally"` names the nearest ally in view, for a
 restoring cast. A strategy of tactics alone leaves an `escorting` actor's escort in place on quiet turns.
 
+**A lapsed bond (#408).** A minion whose leader could not pay its mana upkeep (`bondLapsed` on its
+record) follows no strategy or order until the bond holds again: its progress is kept where it stood,
+and the turn goes to its escort and its own motivations. The play session refuses new orders to it
+(`bond_lapsed`).
+
 **What an order learns (#758).** An actor keeps two things in its progress entry for the whole order.
 An unnamed cast passes over a slot it saw leave that target's health and durability untouched
 (`payload.dealtCasts`, from core's `readActorDealtCasts`: its own casts, as they landed; a mana drain or

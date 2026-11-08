@@ -3,6 +3,7 @@ import type { ActorCastTrail, ActorSpreadEmber, ActorPosition, ActorRecord, Acto
 
 import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
 import { chargeActorAffinityUpkeep, recoverActorAffinity } from '../rules/actor-upkeep.ts';
+import { chargeMinionUpkeep, restoreMinionBonds } from '../rules/minion-upkeep.ts';
 
 import { validateActorInventory, equipActorAffinity, unequipActorAffinity } from './actor-inventory.ts';
 
@@ -15,7 +16,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
   | 'BlockedByWall' | 'ActorCollision';
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
-  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'escortOf', 'affinityExhausted',
+  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'escortOf', 'minionOf', 'bondLapsed', 'affinityExhausted',
   'affinitySlots', 'raisedBy', 'soaked', 'regenPaused', 'watching', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
 ]);
 
@@ -110,6 +111,13 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       || record.escortOf === record.id)) {
       throw new Error('invalid escortOf');
     }
+    if (record.minionOf !== undefined && (typeof record.minionOf !== 'string' || !record.minionOf
+      || record.minionOf === record.id)) {
+      throw new Error('invalid minionOf');
+    }
+    if (record.bondLapsed !== undefined && (record.bondLapsed !== true || record.minionOf === undefined)) {
+      throw new Error('invalid bondLapsed');
+    }
     const actor = copy(record);
     validateActorRecordVitals(actor);
     validateActorInventory(actor);
@@ -132,6 +140,9 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
   for (const actor of actors.values()) {
     if (actor.escortOf !== undefined && !actors.has(actor.escortOf)) {
       throw new Error(`invalid escortOf: ${actor.id} escorts missing ${actor.escortOf}`);
+    }
+    if (actor.minionOf !== undefined && !actors.has(actor.minionOf)) {
+      throw new Error(`invalid minionOf: ${actor.id} serves missing ${actor.minionOf}`);
     }
   }
   // Ordinal UTF-16 order, never locale-dependent ordering or caller insertion order.
@@ -189,6 +200,13 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     /** Lasting affinities pay their per-turn upkeep; call before regenerate(). */
     chargeAffinityUpkeep(upkeepByStacks: readonly number[]): void {
       for (const actor of ordered) chargeActorAffinityUpkeep(actor, upkeepByStacks);
+    },
+    /**
+     * #408: each living leader pays `upkeep` mana for each living minion whose bond holds, in
+     * id order; one it cannot pay lapses that bond (`bondLapsed`). Call after chargeAffinityUpkeep.
+     */
+    chargeMinionUpkeep(upkeep: number): void {
+      chargeMinionUpkeep(ordered, id => actors.get(id), upkeep);
     },
     /**
      * Raised barriers (#413) pay `upkeep` mana a turn from what they were invested with;
@@ -302,6 +320,8 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
           .map(([vital, turns]) => [vital, turns! - 1]));
         if (Object.keys(left).length > 0) actor.regenPaused = left; else delete actor.regenPaused;
       }
+      // After every actor regenerates, so a leader later in id order counts with its new mana.
+      restoreMinionBonds(ordered, id => actors.get(id));
     },
     advanceExitDwell(): string[] {
       const exited: string[] = [];

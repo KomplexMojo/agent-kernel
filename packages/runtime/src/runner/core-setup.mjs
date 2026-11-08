@@ -33,7 +33,7 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     || ['hazards', 'resources', 'actors', 'tiles', 'kinds'].some(key => Object.hasOwn(data, key))) {
     throw new Error('expected normalized grid terrain without category storage');
   }
-  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation', 'strategies', 'escorts'].includes(key))) {
+  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation', 'strategies', 'escorts', 'leaders'].includes(key))) {
     throw new Error('unexpected initial-state fields');
   }
   const registry = createActorRegistry({ dimensions: { width: data.width, height: data.height },
@@ -59,7 +59,16 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     || Object.keys(escorts).some(id => !actors.some(actor => actor.id === id) || !plain(escorts[id])))) {
     throw new Error('escorts must map actor IDs in this level to escort objects');
   }
-  const costs = allocator.castPricesFromLegacyTiers(simConfig.actionCosts);
+  // #408: what a leader pays per minion per turn is the Allocator's rate, never the artifact's.
+  // #408: the bonds, likewise; core reads `minionOf` on the records, so the map must agree with them.
+  const leaders = initialState.leaders;
+  if (leaders !== undefined && (!plain(leaders)
+    || Object.entries(leaders).some(([id, leader]) => actors.find(actor => actor.id === id)?.minionOf !== leader)
+    || actors.some(actor => actor.minionOf !== undefined && leaders[actor.id] !== actor.minionOf))) {
+    throw new Error('leaders must map each minion in this level to the leader on its record');
+  }
+  const costs = { ...allocator.castPricesFromLegacyTiers(simConfig.actionCosts),
+    minionUpkeep: allocator.pricing.minionUpkeepMana() };
   const castPrices = plain(costs) ? costs.castManaBase : undefined;
   if (!plain(costs) || !plain(castPrices) || !plain(costs.movementStamina)) {
     throw new Error('missing normalized action costs');
