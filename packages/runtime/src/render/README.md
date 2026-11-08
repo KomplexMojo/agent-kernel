@@ -188,3 +188,11 @@ procedural. Dressed assets carry `origin: "painted"` (absent means procedural), 
 `listResourceBundleAssetFiles` exports their files. `validateResourceBundleDressing(dressing, bundle?)`
 checks one without applying it. Variants are validated one by one because the framework never
 generates them.
+
+`resolveElementArt(bundle, descriptor)` (#768) goes from game meaning to drawable art through the bundle
+mappings: `{ tile }`, `{ role: "delver"|"warden", affinity }`, `{ role: "hazard" }`, and
+`{ role: "resource", yields: "affinity"|"vital", affinity|vital }` (a board sprite from
+`buildBoardDrawModel` works as is). It returns `{ key, assetId, status, dataUri, relativePath, width,
+height }` with status `painted`, `procedural` or `missing`; unresolved art is never guessed. A client
+holds no paths or id map, so dressing the bundle changes the art with no client edit.
+`elementArtCoverage(bundle)` lists element keys per status for a release check.
