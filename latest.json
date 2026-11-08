@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-08T04-49-08-618Z-4132ee4c324c-bd819a8b9070",
-    "key": "bd819a8b907075b4489361d2d380879311a0daffe14dc2194020bd7b4a5adf6a",
+    "id": "2026-11-08T05-29-07-708Z-e264c71e0419-d7a1a44402f9",
+    "key": "d7a1a44402f9a23db5f99d3277472ad3068a1ff8ef2338402edcfc4d84bda33e",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-08T04:49:08.618Z",
-    "completedAt": "2026-11-08T04:52:36.594Z",
-    "durationMs": 207976,
+    "startedAt": "2026-11-08T05:29:07.708Z",
+    "completedAt": "2026-11-08T05:32:36.939Z",
+    "durationMs": 209231,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "4132ee4c324c54df8e79b3926372bc056fc543eb",
-    "tree": "d0b13d47e8a916259c54053fa2ca8467dbd49337"
+    "commit": "e264c71e041917e80825c73ed5fb0a245ab27adf",
+    "tree": "bcc6304c0864e98cde110dc51d46d4970d5b5652"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -58,6 +58,7 @@
       "packages/core-ts/src/rules/actor-upkeep.ts",
       "packages/core-ts/src/rules/affinity-damage.ts",
       "packages/core-ts/src/rules/combat.ts",
+      "packages/core-ts/src/rules/minion-upkeep.ts",
       "packages/core-ts/src/rules/move.ts",
       "packages/core-ts/src/state/actor-holdings.ts",
       "packages/core-ts/src/state/actor-inventory.ts",
