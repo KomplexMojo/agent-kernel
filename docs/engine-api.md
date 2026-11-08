@@ -26,6 +26,10 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 
 `tests/architecture/engine-api-doc.test.js` fails if this table and `apiSurface` disagree, so the list cannot drift.
 
+## Installing
+
+The published package is `@agon-engine/engine` (public npm, built JavaScript). Each module above is importable as `@agon-engine/engine/<package>/<path under src>`, e.g. `@agon-engine/engine/runtime/render/client-surface.js`. In development the unbuilt workspace packages are used directly; `pnpm run build:engine` builds the bundle, and `tests/architecture/engine-bundle.test.js` keeps its exports equal to `apiSurface`.
+
 ## Stability policy (0.x)
 
 - **Additive first.** A new export is added and listed before a game is asked to use it. An export is removed only after the game has moved off it (the `api-request` / `ui-request` issue pair records both sides).
