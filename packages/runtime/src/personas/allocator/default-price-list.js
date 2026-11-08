@@ -36,6 +36,7 @@ const QUADRATIC_IDS = new Set([
   "vital_durability_regen_tick",
   "affinity_range",
   "affinity_intensity",
+  "actor_temperament",
 ]);
 
 /** Ids whose quantity scales triangularly: each further unit costs one unitCost more. */
@@ -82,6 +83,7 @@ const DESCRIPTIONS = {
   "motivation_user_controlled": "Playable control — the dearest autonomous motivation stack + 1",
   "motivation_ai_controlled": "AI control — priced as the playable premium: the dearest autonomous motivation stack + 1",
   "actor_spawn": "Spawn one actor (delver or warden)",
+  "actor_temperament": "Temperament (#675): how adventurous its pick among the tactics that fire is — temperament n costs n² × unit tokens",
   "tile_floor": "One floor tile",
   "tile_hallway": "One hallway/connector tile — walkable area, priced as a floor tile",
   // CR.9 M5: `hazard_base` (10) was deleted. `hazard_basic` (5) is the enforced base every

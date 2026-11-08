@@ -512,6 +512,15 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     return isNonEmptyString(value) ? String(value).trim() : undefined;
   }
 
+  // `temperament=<n>` on a delver or warden spec (#675): how adventurous its pick among the
+  // tactics that fire is, a whole number 0 or more. The Allocator prices it.
+  function parseActorTemperament(value, actorType, actorIndex) {
+    if (!isNonEmptyString(value)) return undefined;
+    const text = String(value).trim();
+    if (!/^\d+$/.test(text)) throw new Error(`${actorType}[${actorIndex}] temperament must be a whole number, 0 or more (received "${text}").`);
+    return Number(text);
+  }
+
   function parseActorStrategy(value, actorType, actorIndex) {
     if (!isNonEmptyString(value)) return undefined;
     const text = String(value).trim();
@@ -1269,7 +1278,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
     }
 
-    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy", "strategy-recipe", "escort", "leader", "minions", "recipe", "kind"]);
+    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy", "strategy-recipe", "escort", "leader", "temperament", "minions", "recipe", "kind"]);
     const fields = new Map();
     const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
     if (segments.length === 0) {
@@ -1343,6 +1352,8 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     if (delverEscort !== undefined) delver.escort = delverEscort;
     const delverLeader = parseActorLeader(fields.get("leader"));
     if (delverLeader !== undefined) delver.leader = delverLeader;
+    const delverTemperament = parseActorTemperament(fields.get("temperament"), "delver", delverIndex);
+    if (delverTemperament !== undefined) delver.temperament = delverTemperament;
     // 2026-10-29: `minions=shield+support`, the delver's own retinue (the Configurator composes it).
     if (fields.has("minions") && count !== 1) {
       throw new Error(`delver[${delverIndex}] minions need count=1: they follow one delver.`);
@@ -1372,7 +1383,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       throw new Error(`warden[${wardenIndex}] requires a non-empty spec.`);
     }
 
-    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip", "strategy", "strategy-recipe", "escort", "leader", "recipe", "kind"]);
+    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip", "strategy", "strategy-recipe", "escort", "leader", "temperament", "recipe", "kind"]);
     const fields = new Map();
     const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
     if (segments.length === 0) {
@@ -1451,6 +1462,8 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     if (wardenEscort !== undefined) warden.escort = wardenEscort;
     const wardenLeader = parseActorLeader(fields.get("leader"));
     if (wardenLeader !== undefined) warden.leader = wardenLeader;
+    const wardenTemperament = parseActorTemperament(fields.get("temperament"), "warden", wardenIndex);
+    if (wardenTemperament !== undefined) warden.temperament = wardenTemperament;
     return warden;
   }
 

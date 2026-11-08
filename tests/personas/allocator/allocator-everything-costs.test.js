@@ -77,6 +77,7 @@ function censusPayloads() {
     { layout: { floorTiles: 1, hallwayTiles: 1 } },
     { hazards: [{ id: "h", vitals: ALL_VITALS, affinity: { kind: "fire", expression: "emit", stacks: 1 } }] },
     { actors: [{ id: "a", type: "delver", vitals: ALL_VITALS }] },
+    { actors: [{ id: "a", type: "delver", temperament: 1 }] },
     { resources: [{ id: "r", permanenceMode: "consumable", vitals: [{ key: "mana", delta: 1 }] }] },
     { resources: [{ id: "r", permanenceMode: "level", vitals: [{ key: "mana", delta: 1 }] }] },
     { resources: [{ id: "r", permanenceMode: "permanent", vitals: [{ key: "health", delta: 1 }] }] },

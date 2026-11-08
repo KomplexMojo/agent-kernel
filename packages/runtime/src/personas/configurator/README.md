@@ -545,6 +545,12 @@ roster as `InitialState.leaders` (`{ <minion id>: <leader id> }`) and as `minion
 record, which is what core reads. A leader that is not another actor in the level, or bonds that loop,
 are refused by name.
 
+**Temperaments (#675).** `buildInitialStateArtifact` keeps each actor's temperament beside the roster as
+`InitialState.temperaments` (`{ <actor id>: <n> }`): from `temperament` on the actor
+(`ak create ...;temperament=<n>`) or a `temperaments` map. Only the Actor reads it, so it is never on a
+core record; 0 is the default and is left out. A value that is not a whole number 0 or more, or one for
+an actor not in the level, is refused.
+
 `minefield` (#418, `minefield.js`): a room the spawn-to-exit route passes through (`room=<id>`, else
 one picked from the seed, inner rooms first, with at least two doorways) gets `hazards=<n>`
 (default 4) new emit hazards of range `range=<n>` (default 1). The safe line runs from the doorway

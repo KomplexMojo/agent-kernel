@@ -63,7 +63,7 @@ import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePri
 import { buildDefaultPriceList } from "./default-price-list.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-vocabulary.js";
-import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
+import { ACTOR_TEMPERAMENT_FIELD, VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
 // M8 relocated the two subject types this module names four times between them —
 // `LayoutArtifact` and `ActorArtifact`, which are not artifacts anything writes but the
 // type half of a spend line's `subjectRef`, naming what a charge is about. M9 finished the
@@ -697,6 +697,9 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
         const quantity = Number.isInteger(entry.intensity) && entry.intensity > 0 ? entry.intensity : 1;
         accumulateItem(counts, motivationId, "motivation", quantity, { category, subjectRef });
       });
+
+      // #675: temperament, quadratic at the list, as calculateActorConfigurationUnitCost charges it.
+      accumulateItem(counts, TEMPERAMENT_ID, "actor", actorTemperament(actor), { category, subjectRef });
     });
   }
 
@@ -895,6 +898,14 @@ function readPriceEntry(priceMap, kind, id) {
   return null;
 }
 
+const TEMPERAMENT_ID = "actor_temperament";
+
+/** #675: an actor's authored temperament, a whole number 0 or more (anything else prices as 0; the Configurator refuses it). */
+function actorTemperament(actor) {
+  const value = actor?.[ACTOR_TEMPERAMENT_FIELD];
+  return Number.isSafeInteger(value) && value > 0 ? value : 0;
+}
+
 export function calculateActorConfigurationUnitCost({
   entry,
   priceMap,
@@ -996,7 +1007,19 @@ export function calculateActorConfigurationUnitCost({
   lineItems.push(...motivationResult.lineItems);
   if (Array.isArray(motivationResult.errors)) errors.push(...motivationResult.errors);
 
-  const cost = vitalCost + regenCost + affinityCost + motivationCost;
+  // #675: temperament (how adventurous its pick among the tactics that fire is), list formula.
+  let temperamentCost = 0;
+  const temperament = actorTemperament(entry);
+  if (temperament > 0) {
+    const item = requireEntry("actor", TEMPERAMENT_ID);
+    if (item) {
+      temperamentCost = calculatePriceTotal(item, temperament);
+      lineItems.push({ category: "actor", id: item.id, label: "temperament", quantity: temperament,
+        unitCostTokens: item.unitCost, spendTokens: temperamentCost });
+    }
+  }
+
+  const cost = vitalCost + regenCost + affinityCost + motivationCost + temperamentCost;
   return {
     cost,
     detail: {

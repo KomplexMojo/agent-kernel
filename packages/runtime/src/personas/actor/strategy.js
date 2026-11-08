@@ -3,7 +3,8 @@
  *
  * A strategy is data: an ordered list of GOALS and, optionally, conditional TACTICS.
  *   goals    reach · defeat · guard · follow · lead · take · hold · survive
- *   tactics  { when: <condition>, do: <action> }, first match wins, checked before goals
+ *   tactics  { when: <condition>, do: <action> }, first match wins, checked before goals; an actor
+ *            with a temperament (#675) draws among the matches instead, earlier ones likelier
  *   when     vital/below (optionally with hostileWithin, #758) · hostileWithin · defeated · tickAtLeast
  *            hitBy (a kind, optionally by cast or field) · hitByCast · structureOnRoute (#718)
  *
@@ -619,6 +620,29 @@ function learnFromTurn(entry, context) {
 /** A tactic that waits to recover a vital it is low on; #758 passes one over once it stops working. */
 const isRecoveryWait = (tactic) => Boolean(tactic.when.vital) && tactic.do.kind === "wait";
 
+/**
+ * #675: the weight of the tactic in place `rank` (0 first) among those that fire, for an actor of
+ * this temperament: (t / (t + 1)) ** rank. Temperament 0 always takes the first; each step up
+ * flattens the odds toward an even draw. Pure: the same inputs give the same weights.
+ */
+export function tacticWeights(count, temperament) {
+  const ratio = temperament > 0 ? temperament / (temperament + 1) : 0;
+  return Array.from({ length: count }, (_, rank) => (rank === 0 ? 1 : ratio ** rank));
+}
+
+/** #675: which of `count` firing tactics to take, drawn by weight from `random()` in [0, 1). */
+export function pickTacticRank(count, temperament, random) {
+  if (count <= 1 || !(temperament > 0) || typeof random !== "function") return 0;
+  const weights = tacticWeights(count, temperament);
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  let roll = random() * total;
+  for (let rank = 0; rank < count; rank += 1) {
+    roll -= weights[rank];
+    if (roll < 0) return rank;
+  }
+  return count - 1;
+}
+
 export function followStrategy({ strategy, depth, entry = {}, context: observed }) {
   const ignored = ignoredStrategyParts(strategy, depth);
   const learned = depth === STRATEGY_DEPTH.NONE ? {} : learnFromTurn(entry, observed);
@@ -639,6 +663,10 @@ export function followStrategy({ strategy, depth, entry = {}, context: observed 
   if (depth === STRATEGY_DEPTH.FULL && Array.isArray(strategy.tactics)) {
     const goal = Number.isInteger(entry.goal) ? entry.goal : 0;
     const current = strategy.goals[goal] ?? null;
+    // #675: a calm actor (temperament 0) takes the first tactic that fires. A bolder one draws
+    // among every tactic that fires, earlier ones likelier, from its seeded coin.
+    const temperament = Number.isSafeInteger(context.temperament) && context.temperament > 0 ? context.temperament : 0;
+    const feasible = [];
     for (let index = 0; index < strategy.tactics.length; index += 1) {
       const tactic = strategy.tactics[index];
       if (!strategyConditionHolds(tactic.when, context, current)) continue;
@@ -646,6 +674,11 @@ export function followStrategy({ strategy, depth, entry = {}, context: observed 
       if (recovery && learned.waitStalled?.[tactic.when.vital] !== undefined) continue;
       const proposal = tacticProposal(tactic.do, context, current);
       if (!proposal) continue;
+      feasible.push({ index, tactic, proposal, recovery });
+      if (temperament === 0 || typeof context.random !== "function") break;
+    }
+    if (feasible.length > 0) {
+      const { index, tactic, proposal, recovery } = feasible[pickTacticRank(feasible.length, temperament, context.random)];
       const value = context.record?.vitals?.[tactic.when.vital]?.current;
       return {
         proposals: [proposal],
