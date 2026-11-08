@@ -18,9 +18,9 @@ import { computeTileAlpha } from "./affinity-spatial-formulas.js";
 import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
 
 // M9: declared in contracts/artifacts.ts, re-exported here under the name importers use.
-import { RESOURCE_BUNDLE_SCHEMA } from "../contracts/artifacts.ts";
+import { RESOURCE_BUNDLE_DRESSING_SCHEMA, RESOURCE_BUNDLE_SCHEMA } from "../contracts/artifacts.ts";
 
-export { RESOURCE_BUNDLE_SCHEMA };
+export { RESOURCE_BUNDLE_DRESSING_SCHEMA, RESOURCE_BUNDLE_SCHEMA };
 export const RESOURCE_BUNDLE_VERSION = 2;
 export const DEFAULT_RESOURCE_TILE_SIZE = 32;
 const RESOURCE_BUNDLE_VERSION_V1 = 1;
@@ -299,6 +299,104 @@ export function validateResourceBundleArtifact(bundle) {
     if (!bundle.mappings?.overlays?.darknessMask) errors.push("mappings.overlays.darknessMask is required");
   }
   return { ok: errors.length === 0, errors };
+}
+
+function isPngDataUri(dataUri) {
+  const bytes = decodePngDataUri(dataUri);
+  if (!(bytes instanceof Uint8Array) || bytes.length < PNG_SIGNATURE.length) return false;
+  return PNG_SIGNATURE.every((value, index) => bytes[index] === value);
+}
+
+function pngSizeMatches(dataUri, width, height) {
+  const bytes = decodePngDataUri(dataUri);
+  if (!(bytes instanceof Uint8Array) || bytes.length < 24) return false;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return view.getUint32(16) === width && view.getUint32(20) === height;
+}
+
+function isPositiveInt(value) {
+  return Number.isInteger(value) && value > 0;
+}
+
+/**
+ * Check a game's painted dressing. With a bundle, every dressed id must already exist in it.
+ * Variants are validated one by one: the framework never generates them, so they cannot be
+ * required to pre-exist.
+ */
+export function validateResourceBundleDressing(dressing, bundle) {
+  const errors = [];
+  if (!dressing || typeof dressing !== "object" || Array.isArray(dressing)) {
+    return { ok: false, errors: ["dressing must be an object"] };
+  }
+  if (dressing.schema !== RESOURCE_BUNDLE_DRESSING_SCHEMA) errors.push(`schema must be ${RESOURCE_BUNDLE_DRESSING_SCHEMA}`);
+  if (dressing.schemaVersion !== 1) errors.push("schemaVersion must be 1");
+  if (!String(dressing.dressingId || "").trim()) errors.push("dressingId is required");
+  const assets = dressing.assets;
+  if (!assets || typeof assets !== "object" || Array.isArray(assets) || Object.keys(assets).length === 0) {
+    errors.push("assets must be a non-empty object");
+    return { ok: false, errors };
+  }
+  const known = bundle && Array.isArray(bundle.assets) ? new Set(bundle.assets.map((asset) => asset?.id)) : null;
+  for (const [id, asset] of Object.entries(assets)) {
+    const at = `assets[${id}]`;
+    if (known && !known.has(id)) errors.push(`${at} is not an asset of the bundle`);
+    if (!asset || typeof asset !== "object") {
+      errors.push(`${at} must be an object`);
+      continue;
+    }
+    if (asset.mimeType !== "image/png") errors.push(`${at}.mimeType must be image/png`);
+    if (asset.width !== DEFAULT_RESOURCE_TILE_SIZE) errors.push(`${at}.width must be ${DEFAULT_RESOURCE_TILE_SIZE}`);
+    if (asset.height !== DEFAULT_RESOURCE_TILE_SIZE) errors.push(`${at}.height must be ${DEFAULT_RESOURCE_TILE_SIZE}`);
+    if (!isPngDataUri(asset.dataUri)) errors.push(`${at}.dataUri must be a PNG data URI`);
+    else if (!pngSizeMatches(asset.dataUri, asset.width, asset.height)) errors.push(`${at}.dataUri pixels must match width and height`);
+    if (asset.relativePath !== undefined && !String(asset.relativePath).trim()) errors.push(`${at}.relativePath must not be empty`);
+    if (asset.variants !== undefined) {
+      if (!asset.variants || typeof asset.variants !== "object" || Array.isArray(asset.variants)) {
+        errors.push(`${at}.variants must be an object`);
+        continue;
+      }
+      for (const [name, variant] of Object.entries(asset.variants)) {
+        const vat = `${at}.variants[${name}]`;
+        if (!isPositiveInt(variant?.width) || !isPositiveInt(variant?.height)) errors.push(`${vat} needs a positive integer width and height`);
+        if (!isPngDataUri(variant?.dataUri)) errors.push(`${vat}.dataUri must be a PNG data URI`);
+        else if (!pngSizeMatches(variant.dataUri, variant.width, variant.height)) errors.push(`${vat}.dataUri pixels must match its width and height`);
+        if (!String(variant?.relativePath || "").trim()) errors.push(`${vat}.relativePath is required`);
+      }
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Lay painted art over a V2 bundle. Returns a new validated bundle; the input is untouched.
+ * Dressed assets are marked origin "painted"; the rest stay procedural.
+ */
+export function dressResourceBundle(bundle, dressing) {
+  if (!bundle || Number(bundle.schemaVersion) !== RESOURCE_BUNDLE_VERSION_V2) {
+    throw new Error(`dressResourceBundle needs a ResourceBundle with schemaVersion ${RESOURCE_BUNDLE_VERSION_V2}.`);
+  }
+  const check = validateResourceBundleDressing(dressing, bundle);
+  if (!check.ok) throw new Error(`Invalid ResourceBundleDressing: ${check.errors.join("; ")}`);
+  const dressed = structuredClone(bundle);
+  dressed.assets = dressed.assets.map((asset) => {
+    const painted = dressing.assets[asset.id];
+    if (!painted) return asset;
+    const next = {
+      ...asset,
+      mimeType: painted.mimeType,
+      width: painted.width,
+      height: painted.height,
+      dataUri: painted.dataUri,
+      relativePath: painted.relativePath ? painted.relativePath : asset.relativePath,
+      origin: "painted",
+    };
+    if (painted.variants) next.variants = structuredClone(painted.variants);
+    else delete next.variants;
+    return next;
+  });
+  const result = validateResourceBundleArtifact(dressed);
+  if (!result.ok) throw new Error(`Dressed bundle is invalid: ${result.errors.join("; ")}`);
+  return dressed;
 }
 
 function createPixelBuffer(width, height) {

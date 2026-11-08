@@ -2463,6 +2463,8 @@ export type NarrativeArtifact = NarrativeArtifactV1;
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 /** Sprite atlas manifest: which atlas frame draws which game thing (render/sprite-atlas-manifest.js). */
 export const SPRITE_ATLAS_SCHEMA = "agent-kernel/SpriteAtlasManifest";
+/** A game's painted art laid over a ResourceBundle, asset id by asset id (render/resource-bundle.js). */
+export const RESOURCE_BUNDLE_DRESSING_SCHEMA = "agent-kernel/ResourceBundleDressing";
 
 /**
  * Visual resource bundle for rendering simulation state.
@@ -2482,6 +2484,8 @@ export interface ResourceBundleAssetV1 {
   relativePath?: string;
   /** V2+: Optional size-specific sprite variants for HUD, grid, and preview use. */
   variants?: Record<string, ResourceBundleAssetVariantV1>;
+  /** Where the pixels came from. Absent means procedural; a dressing sets "painted". */
+  origin?: "procedural" | "painted";
 }
 
 export interface ResourceBundleAssetVariantV1 {
@@ -2557,6 +2561,26 @@ export interface ResourceBundleArtifactV2 {
 }
 
 export type ResourceBundleArtifact = ResourceBundleArtifactV1 | ResourceBundleArtifactV2;
+
+/** Painted replacement for one bundle asset. Every size is 32x32; variants carry their own size. */
+export interface ResourceBundleDressingAssetV1 {
+  mimeType: string;
+  width: number;
+  height: number;
+  dataUri: string;
+  /** Defaults to the dressed asset's own relativePath. */
+  relativePath?: string;
+  variants?: Record<string, ResourceBundleAssetVariantV1>;
+}
+
+export interface ResourceBundleDressingV1 {
+  schema: typeof RESOURCE_BUNDLE_DRESSING_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  dressingId: string;
+  /** Keyed by existing ResourceBundle asset id. Assets not listed stay procedural. */
+  assets: Record<string, ResourceBundleDressingAssetV1>;
+}
 
 // -------------------------
 // Resource artifacts
