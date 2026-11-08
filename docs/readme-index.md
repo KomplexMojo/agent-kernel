@@ -12,6 +12,7 @@ the one question it exists to answer: an unlisted directory reads as "no owner d
 |---|---|
 | `README.md` | Project overview, Ports & Adapters structure, quick-start commands. |
 | `docs/README.md` | Architecture law, design intent, vision constraints, and the reading order for the rest of `docs/`. |
+| `docs/building-a-game.md` | A walkthrough of building a game on Agon: install, get a level, play it, draw it, with Primordial as the example. |
 | `docs/engine-api.md` | The public engine API list (from `apiSurface`) and the 0.x stability policy. |
 | `docs/vitals-decision-audit.md` | What each vital decides, what spends and restores it, and the wait-regen grind metric. |
 | `docs/design/actor-tactic-catalogue.md` | Tactics mined from LLM seat runs, classed works / doesn't / z3 solve / list, with data in the sibling JSON (#673). |
