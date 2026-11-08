@@ -4,8 +4,8 @@ import {
   computeIntensity,
   computeStackAlphaMultiplier,
   computeTileAlpha,
+  SPATIAL_WEIGHTS,
 } from "../../packages/runtime/src/render/affinity-spatial-formulas.js";
-import { SPATIAL_WEIGHTS } from "../../packages/runtime/src/contracts/affinity-spatial-rules.js";
 
 const W = SPATIAL_WEIGHTS;
 
@@ -206,72 +206,5 @@ describe("computeTileAlpha", () => {
         }
       }
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// INTERACTION_MATRIX completeness
-// ---------------------------------------------------------------------------
-
-describe("INTERACTION_MATRIX", async () => {
-  const { INTERACTION_MATRIX, SPATIAL_EXPRESSIONS } = await import(
-    "../../packages/runtime/src/contracts/affinity-spatial-rules.js"
-  );
-  const relationships = ["same", "opposite", "unrelated"];
-
-  it("has entries for all 4 source expressions", () => {
-    SPATIAL_EXPRESSIONS.forEach((expr) => {
-      assert.ok(INTERACTION_MATRIX[expr], `Missing source expression: ${expr}`);
-    });
-  });
-
-  it("each source expression has entries for all 4 target expressions", () => {
-    SPATIAL_EXPRESSIONS.forEach((src) => {
-      SPATIAL_EXPRESSIONS.forEach((tgt) => {
-        assert.ok(
-          INTERACTION_MATRIX[src][tgt],
-          `Missing matrix cell [${src}][${tgt}]`,
-        );
-      });
-    });
-  });
-
-  it("each cell has all 3 affinity relationships", () => {
-    SPATIAL_EXPRESSIONS.forEach((src) => {
-      SPATIAL_EXPRESSIONS.forEach((tgt) => {
-        relationships.forEach((rel) => {
-          assert.ok(
-            INTERACTION_MATRIX[src][tgt][rel],
-            `Missing relationship [${src}][${tgt}][${rel}]`,
-          );
-        });
-      });
-    });
-  });
-
-  it("each cell has required fields", () => {
-    SPATIAL_EXPRESSIONS.forEach((src) => {
-      SPATIAL_EXPRESSIONS.forEach((tgt) => {
-        relationships.forEach((rel) => {
-          const c = INTERACTION_MATRIX[src][tgt][rel];
-          assert.ok(typeof c.sourceEffect === "string", `[${src}][${tgt}][${rel}] missing sourceEffect`);
-          assert.ok(typeof c.targetEffect === "string", `[${src}][${tgt}][${rel}] missing targetEffect`);
-          assert.ok(typeof c.visualState === "string", `[${src}][${tgt}][${rel}] missing visualState`);
-          assert.ok(typeof c.formula === "string", `[${src}][${tgt}][${rel}] missing formula`);
-        });
-      });
-    });
-  });
-
-  it("all 48 cells are defined (4 src × 4 tgt × 3 rel)", () => {
-    let count = 0;
-    SPATIAL_EXPRESSIONS.forEach((src) => {
-      SPATIAL_EXPRESSIONS.forEach((tgt) => {
-        relationships.forEach((rel) => {
-          if (INTERACTION_MATRIX[src][tgt]?.[rel]) count += 1;
-        });
-      });
-    });
-    assert.equal(count, 48);
   });
 });
