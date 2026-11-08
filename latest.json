@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-08T03-29-05-877Z-bc76e5cb0f39-d311804f7c8c",
-    "key": "d311804f7c8c743c4bb2580dff94f17e87e74a6024a64fb36b01f73e94b486d5",
+    "id": "2026-11-08T04-09-08-064Z-82a89533d15b-e200b11de684",
+    "key": "e200b11de6841194d89bc1d26d017723ba2ff128554ac30096b3057e6a972f7c",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-08T03:29:05.877Z",
-    "completedAt": "2026-11-08T03:32:33.311Z",
-    "durationMs": 207434,
+    "startedAt": "2026-11-08T04:09:08.064Z",
+    "completedAt": "2026-11-08T04:12:35.143Z",
+    "durationMs": 207079,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "bc76e5cb0f39c7707b208224ad45c82096ef11a7",
-    "tree": "ebad5c02064a9fa6f6047af45b553098df9b0a3e"
+    "commit": "82a89533d15beb2d63bcb6c03dd5e2127bff3dcf",
+    "tree": "419852983e771733f8a12602e79c5e9180c07b68"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -187,6 +187,7 @@
       "packages/runtime/src/ports/solver.js",
       "packages/runtime/src/render/README.md",
       "packages/runtime/src/render/actor-glyphs.js",
+      "packages/runtime/src/render/actor-hud-model.js",
       "packages/runtime/src/render/actor-medallion-composer.js",
       "packages/runtime/src/render/actor-medallion-composer.ts",
       "packages/runtime/src/render/affinity-aura.js",
