@@ -122,16 +122,16 @@ export function paretoInsert(frontier, outcome) {
 const sameScore = (a, b) => a.tokenValueAcquired === b.tokenValueAcquired && a.nonRenewableUse === b.nonRenewableUse;
 
 /** Score one traced run: the five parts, never collapsed. */
-export function scoreRun(trace, { tokenValueOf, optionsLost = {} }) {
+export function scoreRun(trace, { tokenValueOf, optionsLost = {}, delverId = DELVER_ID }) {
   const { frames, final } = trace;
-  const delver = final.actors.find((actor) => actor.id === DELVER_ID);
+  const delver = final.actors.find((actor) => actor.id === delverId);
   const exited = delver.lifecycle === "exited";
   const defeated = delver.lifecycle === "defeated";
 
   let tokenValueAcquired = 0;
   for (const actor of final.actors) {
     for (const holding of actor.holdings ?? []) {
-      if (holding.claimedBy === DELVER_ID) tokenValueAcquired += tokenValueOf(holding, actor);
+      if (holding.claimedBy === delverId) tokenValueAcquired += tokenValueOf(holding, actor);
     }
   }
 
