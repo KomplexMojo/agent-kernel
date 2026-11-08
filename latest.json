@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-07T03-13-28-256Z-b7ee52ea6f91-cb89d9429ec0",
-    "key": "cb89d9429ec0362dd11c84bd12995d646e3ff76c597461f8a707d5eaf2fe4508",
+    "id": "2026-11-08T03-29-05-877Z-bc76e5cb0f39-d311804f7c8c",
+    "key": "d311804f7c8c743c4bb2580dff94f17e87e74a6024a64fb36b01f73e94b486d5",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-07T03:13:28.256Z",
-    "completedAt": "2026-11-07T03:16:55.130Z",
-    "durationMs": 206874,
+    "startedAt": "2026-11-08T03:29:05.877Z",
+    "completedAt": "2026-11-08T03:32:33.311Z",
+    "durationMs": 207434,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "b7ee52ea6f91687f07a6fe6b81319747a304ec97",
-    "tree": "6eacb6f6faed5b16810eb71ddc526192d4ea3599"
+    "commit": "bc76e5cb0f39c7707b208224ad45c82096ef11a7",
+    "tree": "ebad5c02064a9fa6f6047af45b553098df9b0a3e"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -91,6 +91,7 @@
       "packages/runtime/src/contracts/game-vocabulary.js",
       "packages/runtime/src/contracts/persona-stamps.js",
       "packages/runtime/src/contracts/schema-catalog.js",
+      "packages/runtime/src/contracts/sound-cues.js",
       "packages/runtime/src/index.js",
       "packages/runtime/src/mvp/movement.js",
       "packages/runtime/src/personas/_shared/persona-helpers.mts",
@@ -195,12 +196,16 @@
       "packages/runtime/src/render/affinity-tile-mask.js",
       "packages/runtime/src/render/ascii-cell-style.js",
       "packages/runtime/src/render/battle-log-lines.js",
+      "packages/runtime/src/render/board-draw-model.js",
+      "packages/runtime/src/render/client-surface.js",
+      "packages/runtime/src/render/element-art.js",
       "packages/runtime/src/render/entity-sprite-composer.js",
       "packages/runtime/src/render/generated/affinity-sprite-assets.js",
       "packages/runtime/src/render/generated/game-sprite-assets.js",
       "packages/runtime/src/render/icon-model.js",
       "packages/runtime/src/render/notebook.js",
       "packages/runtime/src/render/resource-bundle.js",
+      "packages/runtime/src/render/sound-cues.js",
       "packages/runtime/src/render/source-assets/actor-medallions/README.md",
       "packages/runtime/src/render/source-assets/actor-medallions/actor-symbol-components.png",
       "packages/runtime/src/render/source-assets/actor-medallions/approved-affinity-sprite-sheet.png",
@@ -645,6 +650,7 @@
       "tools/remote-ollama-control/benchmarks/content-gen/simple.json",
       "tools/remote-ollama-control/benchmarks/execution/RUNBOOK.md",
       "tools/remote-ollama-control/benchmarks/execution/generated-content-routes.json",
+      "tools/remote-ollama-control/scripts/lib/ak-runner.js",
       "tools/remote-ollama-control/scripts/lib/ak-tool-schema.js"
     ],
     "pathClasses": [
@@ -692,12 +698,12 @@
     "infrastructure": {
       "count": 1,
       "reasons": [
-        "preflight tests failed"
+        "content catalog identity mismatch"
       ]
     }
   },
   "artifacts": {
-    "retentionId": "preflights/cb89d9429ec0362dd11c84bd12995d646e3ff76c597461f8a707d5eaf2fe4508"
+    "retentionId": null
   },
   "qualifies": false
 }
