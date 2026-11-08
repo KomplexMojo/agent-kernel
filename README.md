@@ -107,7 +107,7 @@ Each public module is a subpath, for example
 3. Dresses the result with its own ResourceBundle: sprites, colours, sounds.
 4. Sends the player's choices back to the session as commands.
 
-Everything gameplay-shaped stays in Agon, and everything expressive stays in the game.
+Everything gameplay-shaped stays in Agon, and everything expressive stays in the game. The full walkthrough is [`docs/building-a-game.md`](docs/building-a-game.md).
 
 <p align="center">
   <img src="docs/brand/gameplay-shot.png" alt="A board from a water-delver and fire-warden run, rendered by the reference client" width="520">
