@@ -107,6 +107,21 @@ function reportLookahead(result) {
   console.log(`  failed to reach: policy ${c.policyFailedToReach} · control ${c.safetyFailedToReach}  ·  both optimal ${c.agree}`);
 }
 
+function reportTacticBenefit(result) {
+  const { counters: c, derived: d } = result;
+  console.log(`  points ${c.points}  ·  exit unreachable ${c.unreachable}  ·  rule: residual ≥ ${percent(result.rule.minResidualShare)}`);
+  console.log(`  policy beaten by the oracle : ${c.gap} (${percent(d.gapFraction)})  ·  on token ${c.tokenGap}  ·  on harm ${c.harmGap}`);
+  console.log(`  closed by: ${Object.entries(result.closedBy).map(([name, count]) => `${name} ${count}`).join("  ·  ")}`);
+  console.log(`  RESIDUAL (no cheap control closes it): ${c.residual} (${percent(d.residualFraction)})`);
+  for (const [name, tally] of Object.entries(result.classVerdicts)) {
+    console.log(`    ${name} boards: points ${tally.points}  ·  gap ${tally.gap}  ·  residual ${tally.residual}  →  ${tally.verdict}`);
+  }
+  console.log(`  information gap (full sight beats seen): ${c.informationGap} (${percent(d.informationGapFraction)})`);
+  for (const entry of result.verdicts) {
+    console.log(`  ${entry.id} [${entry.class}]: ${entry.verdict}${entry.reason ? ` — ${entry.reason}` : ""}`);
+  }
+}
+
 function reportActor(result) {
   const { counters: c, derived: d } = result;
   console.log(`  points ${c.points}  ·  agree ${c.agree}  ·  diverge ${c.diverge} (${percent(d.divergenceFraction)})`);
@@ -214,6 +229,7 @@ async function main() {
     else if (domain === "configurator_satisfiability") reportConfigurator(result);
     else if (domain === "actor_lookahead") reportLookahead(result);
     else if (domain === "actor_action_selection") reportActor(result);
+    else if (domain === "actor_tactic_benefit") reportTacticBenefit(result);
     console.log(`  elapsed ${(result.elapsedMs / 1000).toFixed(1)}s`);
     results.push(result);
   }
