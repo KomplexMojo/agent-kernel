@@ -26,19 +26,16 @@ const ROOT = join(__dirname, "..", "..");
 const SCANNED_ROOTS = ["packages", "scripts"].map((dir) => join(ROOT, dir));
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".mts", ".ts", ".cjs"]);
 const SKIPPED = new Set(["node_modules", "dist", "build"]);
-const CARD_AUTHORING_FILE = "packages/runtime/src/commands/card-authoring.js";
 // The Configurator's own controller PUBLISHES authorCandidates on its persona surface
 // (`authorCandidates: services.authorCandidates`) — that is the origin, not a second
 // consumer, and is excluded for the same reason a function's own definition doesn't
 // count as a caller of itself.
 const PUBLISHING_FILE = "packages/runtime/src/personas/configurator/controller.js";
-// Both are real production wiring sites (CLI and the card-authoring command), each
-// threading a REAL Configurator persona's own authorCandidates into the Allocator —
-// two legitimate callers of the same public surface, not two authors.
+// The one production wiring site (the CLI) threads a REAL Configurator
+// persona's own authorCandidates into the Allocator.
 const EXPECTED_CONSUMER_SITES = [
   // #557: the CLI's wiring moved with the spec grammar into runtime.
   "packages/runtime/src/commands/authoring-specs.js",
-  CARD_AUTHORING_FILE,
 ];
 
 function sourceFiles(directory, found = []) {
@@ -99,25 +96,5 @@ test("every production consumer site sources authorCandidates from a real Config
       /authorCandidates\s*:\s*configurator(Authoring)?\.authorCandidates|authorCandidates\s*:\s*configuratorAuthoring/,
       `${rel}'s wired authorCandidates value must trace to the constructed persona's own surface`,
     );
-  }
-});
-
-// Its only production caller was packages/ui-web, archived in Primordial (#744). Until #754
-// wires it into `ak` / MCP or deletes it, it is recorded as unwired: the test fails as soon
-// as an importer appears, so the record (and the reachability assertion) is restored then.
-const CARD_AUTHORING_UNWIRED_ISSUE = 754;
-
-test("card-authoring.js is reachable from production, or recorded as unwired (#754)", () => {
-  const importers = [];
-  for (const file of allSourceFiles()) {
-    const rel = relative(ROOT, file).split(sep).join("/");
-    if (rel.startsWith("tests/") || rel === CARD_AUTHORING_FILE) continue;
-    const source = readFileSync(file, "utf8");
-    if (/from\s*["'][^"']*commands\/card-authoring(\.js)?["']/.test(source)) importers.push(rel);
-  }
-  if (CARD_AUTHORING_UNWIRED_ISSUE) {
-    assert.deepEqual(importers, [], `card-authoring.js has an importer again: drop CARD_AUTHORING_UNWIRED_ISSUE (#${CARD_AUTHORING_UNWIRED_ISSUE}) and require it`);
-  } else {
-    assert.ok(importers.length > 0, "card-authoring.js has no importer — this guard would be vacuous otherwise");
   }
 });

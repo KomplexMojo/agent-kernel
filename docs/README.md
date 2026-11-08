@@ -45,7 +45,7 @@ Key facts:
 - Watching a recorded run in the same terminal UI goes through `packages/runtime/src/runner/run-viewer.js`, which draws each tick from the registry snapshot the run recorded.
 - Core affinity field records are the canonical tile visualization input. Runtime `observation.auras` is no longer produced: its only source was the old core world's observation, removed in #227.
 - Hazards are the canonical affinity dangers; room affinity labels describe their contained hazards and do not add affinity to the room itself.
-- Card-authoring semantics live in `packages/runtime/src/commands/card-authoring.js`.
+- Card authoring is the Configurator persona (`authorCandidates`); `commands/card-authoring.js` was deleted (#754).
 
 ## Common Commands
 
