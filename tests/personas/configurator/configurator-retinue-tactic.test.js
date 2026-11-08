@@ -138,6 +138,9 @@ test("a built retinue stands within 2 of its leader and is priced from the warde
     assert.ok(chebyshev(seats[id], seats.boss) <= 2, `${id} at ${JSON.stringify(seats[id])}, boss at ${JSON.stringify(seats.boss)}`);
     assert.ok(result.budgetReceipt.lineItems.some((item) => item.id === "actor_spawn" && item.category === "wardens"
       && item.subjectRef?.id === id), `${id} is priced as a warden`);
+    // #408: bound to the boss, who pays its mana upkeep.
+    assert.equal(result.initialState.leaders?.[id], "boss");
+    assert.equal(result.initialState.actors.find((actor) => actor.id === id).minionOf, "boss");
   }
 });
 

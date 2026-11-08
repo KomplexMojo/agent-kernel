@@ -74,6 +74,16 @@ export interface ActorRecordBase {
    */
   escortOf?: string;
   /**
+   * Id of this actor's leader (#408). Each turn the leader pays mana upkeep for it;
+   * omitted means it is no one's minion.
+   */
+  minionOf?: string;
+  /**
+   * True while the leader could not pay this minion's upkeep (#408): it takes no orders
+   * and runs its own motivations until the leader's mana is full again. Omitted means false.
+   */
+  bondLapsed?: true;
+  /**
    * True while the actor's lasting affinity (emit, draw) is off because it could
    * not pay its per-turn mana upkeep; it comes back on when mana is full again.
    * Omitted means false.

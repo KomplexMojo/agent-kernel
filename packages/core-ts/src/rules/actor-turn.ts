@@ -91,6 +91,8 @@ export interface ActorTurnCosts {
   movementStamina: Record<string, number>;
   /** Per-turn mana upkeep of a lasting affinity, indexed by range + intensity²; absent means none. */
   persistentUpkeep?: number[];
+  /** #408: mana a leader pays per living minion per turn, priced by the Allocator; absent means none. */
+  minionUpkeep?: number;
 }
 function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function castPrices(costs: ActorTurnCosts) {
@@ -113,7 +115,10 @@ export function createActorTurn(
   if (Object.values(costs.movementStamina).some(cost => !Number.isSafeInteger(cost) || cost < 0)
     || Object.hasOwn(costs, 'castMana')
     || costs.persistentUpkeep !== undefined && (!Array.isArray(costs.persistentUpkeep)
-      || costs.persistentUpkeep.some(cost => !Number.isSafeInteger(cost) || cost < 0))) throw new Error('invalid action costs');
+      || costs.persistentUpkeep.some(cost => !Number.isSafeInteger(cost) || cost < 0))
+    || costs.minionUpkeep !== undefined && (!Number.isSafeInteger(costs.minionUpkeep) || costs.minionUpkeep < 0)) {
+    throw new Error('invalid action costs');
+  }
   assertActorCastPrices(castPrices(costs));
   const prices = copy(costs);
   // A new tick ends the last one's one-turn cast fields (#461).
@@ -290,6 +295,7 @@ export function createActorTurn(
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
       if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
+      if (prices.minionUpkeep) registry.chargeMinionUpkeep(prices.minionUpkeep);
       registry.chargeWatchUpkeep(WATCH_MANA_UPKEEP);
       registry.erodeRaisedBarriers(RAISED_BARRIER_UPKEEP, RAISED_BARRIER_EROSION);
       registry.drySoaked(state.soakedActorIds ?? []);

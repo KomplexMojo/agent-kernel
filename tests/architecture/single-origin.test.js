@@ -29,9 +29,9 @@ const SKIPPED_DIRECTORIES = new Set(["dist", "node_modules"]);
 // file for all four. This was the SIXTH instance of this repo's recurring defect: the
 // guard was scoped to the spelling that existed when it was written
 // (`DEFAULT_LAYOUT_TILE_COSTS`, which it did catch) rather than to the concept.
-// **When a kind gains a price in `base-costs.json`, add its name here.**
+// **When a kind gains a price in `base-costs.json`, add its name here.** (#408: minion upkeep.)
 const PRICE_OR_BUDGET_CONSTANT = new RegExp(
-  String.raw`^(?:export\s+)?const\s+(?=[\w$]*(?:price|(?:room|resource|layout|design|actor|vital|regen|stack|tile|hazard|motivation|affinity)[\w$]*cost|budget[\w$]*(?:token|split|pool|pct|ratio)|(?:dungeon|delver)[\w$]*pct|(?:delver|warden)[\w$]*ratio|pool[\w$]*weight|sub[\w$]*pool|reference[\w$]*target|default_?pools?|resource[\w$]*permanent[\w$]*multiplier))[\w$]+\s*=\s*(?:-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b|(?:Object\.freeze\s*\(\s*)?[\[{][^;]*?\b-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b)`,
+  String.raw`^(?:export\s+)?const\s+(?=[\w$]*(?:price|(?:room|resource|layout|design|actor|vital|regen|stack|tile|hazard|motivation|affinity)[\w$]*cost|budget[\w$]*(?:token|split|pool|pct|ratio)|minion[\w$]*upkeep|(?:dungeon|delver)[\w$]*pct|(?:delver|warden)[\w$]*ratio|pool[\w$]*weight|sub[\w$]*pool|reference[\w$]*target|default_?pools?|resource[\w$]*permanent[\w$]*multiplier))[\w$]+\s*=\s*(?:-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b|(?:Object\.freeze\s*\(\s*)?[\[{][^;]*?\b-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b)`,
   "gim",
 );
 

@@ -117,17 +117,52 @@ function stampEscortOf(rosterActors, escorting) {
   });
 }
 
+/**
+ * #408 — who leads each minion, authored on the actor (`leader`) or passed by id (`leaders`),
+ * and by default an escort's ally (`escortOf`, already stamped). The leader pays the minion's
+ * mana upkeep; core reads `minionOf` on the record, the map stays beside the roster for
+ * readers. A leader must be another actor in the level, and the bonds may not loop.
+ */
+function collectLeaders(actors, leaders, stampedActors) {
+  const collected = {};
+  for (const actor of stampedActors) if (actor.escortOf !== undefined) collected[actor.id] = actor.escortOf;
+  const ids = new Set(stampedActors.map(actor => actor.id));
+  for (const [id, leader] of Object.entries(leaders ?? {})) {
+    if (!ids.has(id)) throw new Error(`leader for unknown actor: ${id}`);
+    collected[id] = leader;
+  }
+  for (const actor of Array.isArray(actors) ? actors : []) {
+    if (actor?.leader !== undefined && actor.leader !== null && typeof actor.id === 'string') collected[actor.id] = actor.leader;
+  }
+  for (const [id, leader] of Object.entries(collected)) {
+    if (typeof leader !== 'string' || !ids.has(leader) || leader === id) {
+      throw new Error(`actor ${id}: leader ${JSON.stringify(leader)} is not another actor in this level`);
+    }
+  }
+  for (const start of Object.keys(collected)) {
+    const seen = new Set([start]);
+    for (let at = collected[start]; at !== undefined; at = collected[at]) {
+      if (seen.has(at)) throw new Error(`actor ${start}: leaders form a cycle (${[...seen, at].join(' -> ')})`);
+      seen.add(at);
+    }
+  }
+  return collected;
+}
+
 export function buildInitialStateArtifact({
-  meta, simConfigRef, actors, dimensions, terrain, strategies, escorts, ...unsupported
+  meta, simConfigRef, actors, dimensions, terrain, strategies, escorts, leaders, ...unsupported
 } = {}) {
   const keys = Object.keys(unsupported);
   if (keys.length) throw new Error(`unsupported initial-state inputs: ${keys.join(', ')}`);
   const roster = normalizeActorRoster({ actors, dimensions, terrain });
   const authored = collectStrategies(actors, strategies);
   const escorting = collectEscorts(actors, escorts);
-  const stampedActors = stampEscortOf(roster.actors, escorting);
+  const escortedActors = stampEscortOf(roster.actors, escorting);
+  const bonds = collectLeaders(actors, leaders, escortedActors);
+  const stampedActors = escortedActors.map(actor => bonds[actor.id] ? { ...actor, minionOf: bonds[actor.id] } : actor);
   return structuredClone({ schema: INITIAL_STATE_SCHEMA, schemaVersion: 1,
     meta: stampPersona(meta, PERSONA_IDS.configurator), simConfigRef, actors: stampedActors, presentation: roster.presentation,
     ...(Object.keys(authored).length > 0 ? { strategies: authored } : {}),
-    ...(Object.keys(escorting).length > 0 ? { escorts: escorting } : {}) });
+    ...(Object.keys(escorting).length > 0 ? { escorts: escorting } : {}),
+    ...(Object.keys(bonds).length > 0 ? { leaders: bonds } : {}) });
 }

@@ -505,6 +505,13 @@ export const ACTOR_STRATEGY_FIELD = "strategy";
 export const ACTOR_ESCORT_FIELD = "escort";
 
 /**
+ * #408: the authored actor field that names this actor's leader, who pays its mana upkeep.
+ * Not an actor-record field either; the Configurator moves it to `InitialState.leaders` and
+ * stamps `minionOf` on the record for core.
+ */
+export const ACTOR_LEADER_FIELD = "leader";
+
+/**
  * The least an actor can be and still be worth simulating.
  *
  * DEFAULT_VITALS above is a ZERO, not a floor: health 1 with regen 0 dies to a single point of

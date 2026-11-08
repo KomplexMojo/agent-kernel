@@ -1536,6 +1536,13 @@ export interface InitialStateArtifactV1 {
    * `escortOf` onto those actors so core can refuse exit dwell while the leader lives (AK-6).
    */
   escorts?: Record<string, ActorEscortV1>;
+  /**
+   * #408: each minion's leader, keyed by minion ID: the leader pays the minion's mana upkeep
+   * every turn. Optional and additive. An escort's ally is its leader unless another is
+   * authored. The Configurator stamps `minionOf` onto those actors for core, and the run
+   * loader refuses a map that disagrees with them.
+   */
+  leaders?: Record<string, string>;
 }
 
 /** #251: the ally an `escorting` actor keeps near, and within how many tiles. */

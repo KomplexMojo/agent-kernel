@@ -59,6 +59,10 @@
     "action_request_solver": 2,
     "action_move": 0
   },
+  "_upkeepNote": "#408 (Darren, 2026-10-24): mana a leader pays each turn for each living minion bound to it, after affinity upkeep. In-game mana per minion per turn, not tokens; core charges it, the Allocator hands it to the run loader (pricing.minionUpkeepMana).",
+  "upkeep": {
+    "minion_upkeep_mana": 1
+  },
   "freeFloatingPremium": 1.5,
   "_levelAuthoringNote": "Level-authoring economy knobs, moved out of commands/card-authoring.js by CR.1 — they were pricing policy sitting in glue, feeding calculateCardValue, card receipts, UI guidance and auto-generation. budget_split_percent must sum to 100. The reference budget is NOT here: it is REFERENCE_BUDGET_TOKENS in budget-allocation.js, which card-authoring duplicated as DEFAULT_LEVEL_BUDGET_TOKENS (both 2500) until CR.1 collapsed them.",
   "levelAuthoring": {

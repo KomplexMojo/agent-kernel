@@ -746,6 +746,12 @@ and is reported in an unattributed subtotal rather than guessed. A solver reques
 selected from its result are separate work and therefore separate rows. Actor subtotals, unattributed
 units, and the run total must reconcile exactly to those rows and replay byte-for-byte.
 
+**Minion upkeep (#408).** `pricing.minionUpkeepMana()` is the mana a leader pays each turn for each
+living minion bound to it: base-costs `upkeep.minion_upkeep_mana` (1). The run loader
+(`runner/core-setup.mjs`) hands it to core with the level's action costs, and the play session shows it
+on the HUD. It is in-game mana, not tokens: like emit upkeep, it is not a receipt line; the minion's
+own actor price (its motivations, vitals and affinities) is what the level pays for it.
+
 T3.1a exposes this contract through `pricing.runtimeActionCosts()` and
 `issueRuntimeBudgetReceipt({ outcomes, meta })`. T3.1b captures each actual application outcome in the
 runtime, asks that live Allocator instance to issue the receipt, and persists the returned artifact as

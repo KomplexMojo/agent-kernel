@@ -538,6 +538,13 @@ with the same loadouts, floor and slot, and `fitRetinues` checks the Allocator's
 minions the build adds. When InitialState carries `escorts`, the Configurator also stamps
 `escortOf` onto those actors so core refuses exit dwell while the leader is still alive (AK-6).
 
+**Minion bonds (#408).** `buildInitialStateArtifact` binds each minion to one leader, who pays its mana
+upkeep every turn: from `leader` on the actor (`ak create ...;leader=<id>`), a `leaders` map, or by
+default an escort's ally (`escortOf`). A retinue's minions carry `leader` too. The bonds ride beside the
+roster as `InitialState.leaders` (`{ <minion id>: <leader id> }`) and as `minionOf` on each minion's
+record, which is what core reads. A leader that is not another actor in the level, or bonds that loop,
+are refused by name.
+
 `minefield` (#418, `minefield.js`): a room the spawn-to-exit route passes through (`room=<id>`, else
 one picked from the seed, inner rooms first, with at least two doorways) gets `hazards=<n>`
 (default 4) new emit hazards of range `range=<n>` (default 1). The safe line runs from the doorway

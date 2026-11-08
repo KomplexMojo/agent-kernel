@@ -230,6 +230,11 @@ export function attachAllocatorServices({
       move: BASE_COSTS.actionBudget.action_move,
     }),
     /**
+     * #408: the mana a leader pays each turn for each living minion bound to it. A flat rate
+     * per minion (base-costs `upkeep.minion_upkeep_mana`); core charges it after affinity upkeep.
+     */
+    minionUpkeepMana: () => BASE_COSTS.upkeep.minion_upkeep_mana,
+    /**
      * Split a total token budget into pools (CR.1).
      *
      * The Allocator owns the split; other personas ASK for one rather than
