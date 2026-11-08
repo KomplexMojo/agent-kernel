@@ -1,5 +1,5 @@
 /**
- * `--watch`: ui-ascii shows a run `ak run` recorded, with the game's own screen.
+ * `--watch`: ui-ascii shows a run `agon run` recorded, with the game's own screen.
  * The run viewer (runtime) decides what is on the board at a tick; ui-ascii only
  * keeps the tick cursor, finds the run's files and lays out the screen.
  */
@@ -49,14 +49,14 @@ test("watch keys step, jump and quit; play keys mean nothing here", () => {
   assert.equal(watchIntentForKey("i"), null);
 });
 
-test("a run loads from the run/ + create/ layout and from an ak run bundle", () => {
+test("a run loads from the run/ + create/ layout and from an agon run bundle", () => {
   const split = loadRunFromDir(dir);
   assert.equal(split.frames.length, frames.length);
   assert.equal(split.simConfig.meta.id, level.simConfig.meta.id);
 
   const flat = mkdtempSync(join(tmpdir(), "ui-ascii-watch-flat-"));
   try {
-    // `ak run --out-dir`: tick-frames.json beside a bundle that carries the level.
+    // `agon run --out-dir`: tick-frames.json beside a bundle that carries the level.
     writeFileSync(join(flat, "tick-frames.json"), JSON.stringify(frames));
     writeFileSync(join(flat, "bundle.json"), JSON.stringify({ artifacts: [level.simConfig, level.initialState] }));
     const run = loadRunFromDir(flat);

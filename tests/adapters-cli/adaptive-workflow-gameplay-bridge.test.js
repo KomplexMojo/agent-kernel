@@ -32,7 +32,7 @@ test("compiles the workflow output into a bundle and pushes a gameplay envelope"
   assert.equal(s.calls.compile[0], OK_SPEC.spec);
   assert.equal(bundleSeen[0], FAKE_BUNDLE);
   const envelope = s.calls.push[0];
-  assert.equal(envelope.type, "ak.gameplayBundle.v1");
+  assert.equal(envelope.type, "agon.gameplayBundle.v1");
   assert.equal(envelope.targetTab, "gameplay");
   assert.equal(envelope.payload.bundle, FAKE_BUNDLE);
   assert.equal(envelope.payload.source.strategyId, "flagship_full_context_v1");
@@ -76,7 +76,7 @@ test("pre-stages (does not require a client) by default", async () => {
 test("integration: a real AWA-style summary compiles to a SimConfig+InitialState bundle", async () => {
   const { createGameplayBridgeOperation } = await loadOp();
   const { buildBuildSpecFromSummary } = await import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
-  const { compileBuildSpecToGameplayBundle } = await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  const { compileBuildSpecToGameplayBundle } = await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   const pushed = [];
   const op = createGameplayBridgeOperation({
     assembleSpec: buildBuildSpecFromSummary,

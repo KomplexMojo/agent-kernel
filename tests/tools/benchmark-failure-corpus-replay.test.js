@@ -4,8 +4,8 @@ const { mkdtempSync, readdirSync, readFileSync, rmSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
-const { normalizeToolArgs, classifyExecutionOutcome, REPO_ROOT, AK_CLI } = require(
-  "../../tools/remote-ollama-control/scripts/lib/ak-runner",
+const { normalizeToolArgs, classifyExecutionOutcome, REPO_ROOT, AGON_CLI } = require(
+  "../../tools/remote-ollama-control/scripts/lib/agon-runner",
 );
 
 // The corpus this test replays. See tests/fixtures/benchmark-failures/README.md for how it was
@@ -18,14 +18,14 @@ function loadFixtures() {
     .map((name) => JSON.parse(readFileSync(join(FIXTURE_DIR, name), "utf8")));
 }
 
-// Mirrors the tail of runScenario() in ak-runner.js: normalize, inject the scenario-controlled
+// Mirrors the tail of runScenario() in agon-runner.js: normalize, inject the scenario-controlled
 // budget (never the model's own guess), build argv via the shared MCP translation layer, and run
 // the real CLI. No LLM, no network, no GPU.
 async function replay(fixture) {
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
 
-  const outDir = mkdtempSync(join(tmpdir(), `ak-benchmark-failure-${fixture.id}-`));
+  const outDir = mkdtempSync(join(tmpdir(), `agon-benchmark-failure-${fixture.id}-`));
   try {
     const constrained = fixture.scenarioBudget != null;
     const normalizedArgs = normalizeToolArgs({
@@ -38,7 +38,7 @@ async function replay(fixture) {
     if (!constrained) delete normalizedArgs.budgetTokens;
 
     const cliArgs = buildArgv(normalizedArgs, authoringSpec);
-    const result = spawnSync(process.execPath, [AK_CLI, "create", ...cliArgs], {
+    const result = spawnSync(process.execPath, [AGON_CLI, "create", ...cliArgs], {
       encoding: "utf8",
       cwd: REPO_ROOT,
     });

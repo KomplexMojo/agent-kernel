@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 
-const { normalizeToolArgs } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const { normalizeToolArgs } = require("../../tools/remote-ollama-control/scripts/lib/agon-runner");
 
 // normalizeToolArgs' array repair (M3, see coding-issues-affecting-benchmarking.md) is a general
 // bracket-balance fix, not a lookup table of the two malformed strings the benchmark happened to

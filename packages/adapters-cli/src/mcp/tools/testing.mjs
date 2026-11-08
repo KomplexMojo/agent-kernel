@@ -87,7 +87,7 @@ const { join, resolve } = require("node:path");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "..", "..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 test(${JSON.stringify(args.title)}, () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-"));
@@ -239,7 +239,7 @@ const { pathToFileURL } = require("node:url");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "..", "..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const CLI_WORKER_URL = pathToFileURL(
   resolve(ROOT, "packages/adapters-web/src/adapters/cli-worker/index.js"),
 ).href;
@@ -412,7 +412,7 @@ async function createBrowserAdapter() {
   return createCliWorkerAdapter({
     forceInProcess: true,
     fetchFn: createFixtureFetch(ROOT),
-    env: { AK_LLM_LIVE: "1" },
+    env: { AGON_LLM_LIVE: "1" },
     nowIso: () => "2026-03-11T00:00:00.000Z",
   });
 }
@@ -443,7 +443,7 @@ const { spawnSync } = require("node:child_process");
 const { resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "..", "..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 test(${JSON.stringify(args.title)}, () => {
   const result = spawnSync(process.execPath, [CLI, ${toLiteralList(args.commandArgs ?? [])}], {
@@ -548,7 +548,7 @@ function explainFailureText(text) {
 
 export const testingTools = [
   createHandlerTool({
-    name: "ak_test_list_suites",
+    name: "agon_test_list_suites",
     description: "List discovered test suites and current runner ownership from the inventory report.",
     inputSchema: {
       properties: {},
@@ -567,7 +567,7 @@ export const testingTools = [
     },
   }),
   createHandlerTool({
-    name: "ak_test_discover_patterns",
+    name: "agon_test_discover_patterns",
     description: "Discover repo test recipes and matching files, optionally filtered by runner or suite.",
     inputSchema: {
       properties: {
@@ -593,7 +593,7 @@ export const testingTools = [
     },
   }),
   createHandlerTool({
-    name: "ak_test_plan_from_change",
+    name: "agon_test_plan_from_change",
     description: "Recommend runner scopes from changed paths.",
     inputSchema: {
       required: ["paths"],
@@ -620,7 +620,7 @@ export const testingTools = [
     },
   }),
   createHandlerTool({
-    name: "ak_test_run",
+    name: "agon_test_run",
     description: "Run the test harness inventory, Vitest, legacy, or combined matrix scripts.",
     inputSchema: {
       required: ["mode"],
@@ -641,7 +641,7 @@ export const testingTools = [
     },
   }),
   createHandlerTool({
-    name: "ak_test_scaffold_case",
+    name: "agon_test_scaffold_case",
     description: "Scaffold a new test file from a limited structured recipe set.",
     inputSchema: {
       required: ["recipe", "targetFile", "title"],
@@ -732,7 +732,7 @@ export const testingTools = [
     },
   }),
   createHandlerTool({
-    name: "ak_test_insert_case",
+    name: "agon_test_insert_case",
     description: "Append a scaffolded case to an existing test file.",
     inputSchema: {
       required: ["recipe", "targetFile", "title"],
@@ -825,7 +825,7 @@ export const testingTools = [
     },
   }),
   createHandlerTool({
-    name: "ak_test_explain_failure",
+    name: "agon_test_explain_failure",
     description: "Classify a test failure from runner output into a small set of migration-focused categories.",
     inputSchema: {
       required: ["text"],
@@ -839,7 +839,7 @@ export const testingTools = [
     }),
   }),
   createHandlerTool({
-    name: "ak_test_lint_structure",
+    name: "agon_test_lint_structure",
     description: "Report structural migration gaps: uncategorized recipes and codemod exceptions.",
     inputSchema: {
       properties: {},

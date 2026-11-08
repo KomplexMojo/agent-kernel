@@ -3,7 +3,7 @@
  *
  * The roster's own note said "either something else authors actor configs, or nothing
  * does" (`charter-coverage.test.js` KNOWN_UNREGISTERED). Traced: something did, in the
- * wrong layer — `packages/adapters-cli/src/cli/ak-impl.mjs`'s `parseDelverSpec` defaulted
+ * wrong layer — `packages/adapters-cli/src/cli/agon-impl.mjs`'s `parseDelverSpec` defaulted
  * a missing motivation to `"attacking"`, validated affinity/motivation/setup-mode against
  * the chartered enums, and assembled the delver candidate object inline. That is domain
  * logic in adapter glue, which the Enforcement Checklist forbids outright.
@@ -27,7 +27,7 @@ const { extname, join, relative, sep } = require("node:path");
 
 const ROOT = join(__dirname, "..", "..");
 const CLI_SRC = join(ROOT, "packages", "adapters-cli", "src");
-// #557: the spec grammar moved from ak-impl.mjs into runtime, shared with the browser.
+// #557: the spec grammar moved from agon-impl.mjs into runtime, shared with the browser.
 const AUTHORING_SPECS = join(ROOT, "packages", "runtime", "src", "commands", "authoring-specs.js");
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".mts"]);
 const SKIPPED = new Set(["node_modules", "dist", "build"]);
@@ -125,5 +125,5 @@ test("parseDelverSpec sources its candidate from the Configurator, not from inli
 // ## TODO: Test Permutations
 // - parseWardenSpec is untouched by this guard (out of scope) — confirm it still assembles
 //   `type: "warden"` inline without tripping this test
-// - a second CLI file (not ak-impl.mjs) reintroducing `"attacking"` or `type: "delver"`
+// - a second CLI file (not agon-impl.mjs) reintroducing `"attacking"` or `type: "delver"`
 // - authorDelverCandidate called but its return value discarded in favor of a hand-rolled object

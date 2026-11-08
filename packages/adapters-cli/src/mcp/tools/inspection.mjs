@@ -8,7 +8,7 @@ import {
 
 export const inspectionTools = [
   createTool({
-    name: "ak_schemas",
+    name: "agon_schemas",
     description: "List the schema catalog used by the runtime.",
     command: "schemas",
     inputSchema: {
@@ -19,7 +19,7 @@ export const inspectionTools = [
     buildArgs: (args) => buildArgv(args, [{ key: "outDir", flag: "out-dir" }]),
   }),
   createTool({
-    name: "ak_inspect",
+    name: "agon_inspect",
     description: "Inspect recorded tick frames and summarize effects.",
     command: "inspect",
     inputSchema: {
@@ -38,7 +38,7 @@ export const inspectionTools = [
     ]),
   }),
   createTool({
-    name: "ak_narrate",
+    name: "agon_narrate",
     description: "Generate a narrative artifact from frames and initial state.",
     command: "narrate",
     inputSchema: {
@@ -55,7 +55,7 @@ export const inspectionTools = [
     ]),
   }),
   createTool({
-    name: "ak_show",
+    name: "agon_show",
     description: "Show the indexed artifacts for an existing run.",
     command: "show",
     inputSchema: {
@@ -67,7 +67,7 @@ export const inspectionTools = [
     buildArgs: (args) => buildArgv(args, [{ key: "runId", flag: "run-id" }]),
   }),
   createTool({
-    name: "ak_diff",
+    name: "agon_diff",
     description: "Diff two existing runs.",
     command: "diff",
     inputSchema: {
@@ -83,7 +83,7 @@ export const inspectionTools = [
     ]),
   }),
   createTool({
-    name: "ak_runs_list",
+    name: "agon_runs_list",
     description: "List indexed runs from the artifacts directory.",
     command: "runs",
     inputSchema: {

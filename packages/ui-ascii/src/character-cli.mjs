@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The character screen on a terminal: configure your own delver, priced live by the Allocator,
- * and get the `--delver` spec `ak create` builds the level from.
+ * and get the `--delver` spec `agon create` builds the level from.
  *
  *   node packages/ui-ascii/src/character-cli.mjs --spec "<delver spec>" --budget 942 --out spec.txt
  *   node packages/ui-ascii/src/character-cli.mjs --spec "<spec>" --keys "ds+" --json

@@ -9,7 +9,7 @@ import {
   resolveFromRunArtifactPathsFromCommandOutDirs,
   summarizeRunDiff,
   summarizeRunShowFromCommandOutDirs,
-} from "../cli/ak-impl.mjs";
+} from "../cli/agon-impl.mjs";
 import { authoringTools } from "./tools/authoring.mjs";
 import { externalTools } from "./tools/external.mjs";
 import { inspectionTools } from "./tools/inspection.mjs";
@@ -24,7 +24,7 @@ import { startSandboxBridgeServer, stopSandboxBridgeServer } from "./bridge-serv
 
 const SERVER_NAME = "agon-cli";
 const SERVER_VERSION = "1.0.0";
-const SANDBOX_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
+const SANDBOX_BRIDGE_PORT = Number(process.env.AGON_SANDBOX_BRIDGE_PORT) || 38487;
 const TOOL_DEFINITIONS = [
   ...authoringTools,
   ...simulationTools,
@@ -144,15 +144,15 @@ function resolveDefaultOutDir(tool, args) {
   return mkdtempSync(join(SESSION_TEMP_ROOT, `${commandLabel}-`));
 }
 
-// #143 — ak_show_state/ak_tick_forward/ak_tick_backward resolve a run's directory from the
+// #143 — agon_show_state/agon_tick_forward/agon_tick_backward resolve a run's directory from the
 // canonical <cwd>/artifacts/runs/<runId> layout only (tick-session.mjs's resolveRunDir), never
-// consulting REMEMBERED_RUNS the way ak_show/ak_runs_list/maybeResolveRememberedInputs already do.
+// consulting REMEMBERED_RUNS the way agon_show/agon_runs_list/maybeResolveRememberedInputs already do.
 // A run created via the documented default (outDir left unset, landing under SESSION_TEMP_ROOT)
-// was invisible to these three tools even though ak_show found it immediately. When a remembered
+// was invisible to these three tools even though agon_show found it immediately. When a remembered
 // "run" command outDir exists for this runId, pass its parent through as an explicit override —
 // tick-session.mjs's functions all expect a base runDir and append "run/<file>.json" themselves,
 // matching the canonical layout, and the remembered "run" outDir already IS ".../run".
-const TICK_TOOL_NAMES = new Set(["ak_tick_forward", "ak_tick_backward", "ak_show_state"]);
+const TICK_TOOL_NAMES = new Set(["agon_tick_forward", "agon_tick_backward", "agon_show_state"]);
 
 function resolveRememberedRunDirOverride(tool, args) {
   if (!TICK_TOOL_NAMES.has(tool.name)) return null;
@@ -187,7 +187,7 @@ async function maybeResolveRememberedInputs(tool, rawArgs) {
       delete args.fromRun;
     }
   }
-  // ak_scenario {fromRun} for a level made in this session replays that level's files; the
+  // agon_scenario {fromRun} for a level made in this session replays that level's files; the
   // CLI's own --from-run only looks under artifacts/runs/<id>. The run id defaults to the
   // level's, exactly as the CLI's --from-run does.
   if (
@@ -205,7 +205,7 @@ async function maybeResolveRememberedInputs(tool, rawArgs) {
       delete args.fromRun;
     }
   }
-  // ak_play_ascii watching a runId from this session watches the run that ak_run recorded.
+  // agon_play_ascii watching a runId from this session watches the run that agon_run recorded.
   if (tool.command === "play" && args.watch === true && normalizeNonEmptyString(args.runId) && !normalizeNonEmptyString(args.dir)) {
     const runOutDir = REMEMBERED_RUNS.get(args.runId)?.commands.get("run");
     if (runOutDir) {
@@ -213,9 +213,9 @@ async function maybeResolveRememberedInputs(tool, rawArgs) {
       delete args.runId;
     }
   }
-  // ak_play_ascii (and ak_play_start) with a runId from this session plays the level that run wrote.
+  // agon_play_ascii (and agon_play_start) with a runId from this session plays the level that run wrote.
   if (
-    (tool.command === "play" || tool.name === "ak_play_start")
+    (tool.command === "play" || tool.name === "agon_play_start")
     && normalizeNonEmptyString(args.runId)
     && !normalizeNonEmptyString(args.dir)
     && !normalizeNonEmptyString(args.simConfig)
@@ -243,7 +243,7 @@ async function maybeHandleRememberedTool(tool, args) {
     }
   }
 
-  // ak_diff over runs made in this session reads them where the server wrote them.
+  // agon_diff over runs made in this session reads them where the server wrote them.
   if (tool.command === "diff" && normalizeNonEmptyString(args.runA) && normalizeNonEmptyString(args.runB)) {
     const commandOutDirsA = getCommandOutDirEntries(args.runA);
     const commandOutDirsB = getCommandOutDirEntries(args.runB);
@@ -463,7 +463,7 @@ async function handleToolRequest(request, extra) {
 
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => enqueueCommand(() => handleToolRequest(request, extra)));
 
-// Bind the sandbox WS bridge so ak_push_to_ui / ak_sandbox_push_ui have a live server to
+// Bind the sandbox WS bridge so agon_push_to_ui / agon_sandbox_push_ui have a live server to
 // deliver to. A bind failure (e.g. port already in use) must not crash the MCP server —
 // getSandboxBridgeState().startFailed already surfaces it to those tools as SANDBOX_BRIDGE_START_FAILED.
 try {

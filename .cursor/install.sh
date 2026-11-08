@@ -10,7 +10,7 @@ cd "$REPO_ROOT"
 
 # ---------------------------------------------------------------------------
 # Node runtime: the repo imports `.ts` modules directly under Node (see the
-# README quick start and `packages/adapters-cli/src/cli/ak.mjs`), which relies
+# README quick start and `packages/adapters-cli/src/cli/agon.mjs`), which relies
 # on native TypeScript type stripping. That is on by default only in Node
 # >= 22.18 / >= 23.6. Older runtimes fail with ERR_UNKNOWN_FILE_EXTENSION.
 #

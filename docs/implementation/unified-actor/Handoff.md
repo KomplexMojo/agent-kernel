@@ -95,7 +95,7 @@ delver-warden-battle melee red. Row 9 later reviewer. No commit/push/PR.
 LATEST October 10: leftover MCP replay/narrate/run write Configurator
 artifacts; preview counts the hazard actor (Actors 3); motivations and
 presentation.category replace leftover motivation.kind/archetype; sandbox
-planRef imports PLAN_ARTIFACT_SCHEMA; ak_create drift allowlist follows
+planRef imports PLAN_ARTIFACT_SCHEMA; agon_create drift allowlist follows
 shifted lines; stationary stamina denials stay denials (exploring floor
 refills). Perturbs restored. Typecheck 0. Wiring 36 vs 13. Leave
 llm-plan/scenario/authoring pool shorts, occupancy, proximityRadius, V1,
@@ -127,7 +127,7 @@ Leave llm-plan/warden-pool 0, authoring delver-pool short, occupancy,
 proximityRadius, V1, tools/benchmark env red. Row 9 later reviewer. No
 commit/push/PR.
 
-LATEST September 22: leftover ak-golden run/replay/inspect writes Configurator
+LATEST September 22: leftover agon-golden run/replay/inspect writes Configurator
 boxed terrain plus delver artifacts; leftover basic stationary fixtures stay
 off the CLI path. Restoring basic fixtures failed invalid JSON state; restored.
 Typecheck 0. Wiring 36 vs 13. Leave llm-plan/warden-pool 0, t1-medium rooms
@@ -220,7 +220,7 @@ delver-pool short 3/5 red. Typecheck 0. Wiring 36 vs 13. No commit/push/PR.
 
 LATEST September 16: leftover `--tile-barrier` becomes Configurator barrier
 actors; leftover CLI V1 `tier`/`stat`/`dropRate` is rejected at parse, not
-accepted then failed later. ak-errors 20 including barrier placement.
+accepted then failed later. agon-errors 20 including barrier placement.
 Leave llm-plan/warden-pool 0, t1-medium rooms pool, overlay string-affinity,
 and leftover MCP skipped stubs red. Typecheck 0. Wiring 36 vs 13. No
 commit/push/PR.
@@ -237,11 +237,11 @@ red. Typecheck 0. Wiring 36 vs 13. No commit/push/PR.
 LATEST September 16: leftover sandbox MCP place rebuilds SimConfig/InitialState
 through Configurator terrain + roster. No leftover tiles/legend/traits/loot.
 V1 dropRate stays rejected; resource specs use V3 permanence. Wall occupancy
-rejects the leftover rim-cell OOB setup. `ak run --tile-wall/--tile-floor`
+rejects the leftover rim-cell OOB setup. `agon run --tile-wall/--tile-floor`
 mutate terrain; leftover `--tile-barrier` stays rejected. `--actor` requires
 a unified category and rebuilds the roster through Configurator. sandbox-tick
 37 passed / 16 skipped; sandbox-entities 14 passed / 16 skipped including
-create→place→ak_run; ak-errors 20 passed. Leave llm-plan/warden-pool 0,
+create→place→agon_run; agon-errors 20 passed. Leave llm-plan/warden-pool 0,
 t1-medium rooms pool, overlay string-affinity, and leftover `--vital-default`
 glue table red. Typecheck 0. Wiring 36 vs 13. No commit/push/PR.
 
@@ -284,7 +284,7 @@ Typecheck 0. Wiring 36 vs 13. No commit/push/PR.
 LATEST September 16: leftover create hazards now become actors. mapHazards
 assigns `hazard_N` when generated occupants omit id; cloneLayoutData strips
 leftover tiles/hazards/kinds. CLI configurator places then assembles unified
-artifacts. Create-blocking, ak-build, and ak-configurator retargeted off
+artifacts. Create-blocking, agon-build, and agon-configurator retargeted off
 layout.hazards. Perturb requiring hazard ids failed the new oracle; restored.
 Typecheck 0. Wiring 36 vs 13 expected-red. Leave orchestrateBuild pool denials
 and leftover ambulatory-without-category red. No commit/push/PR.

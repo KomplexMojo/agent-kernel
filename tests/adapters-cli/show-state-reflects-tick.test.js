@@ -1,5 +1,5 @@
 /**
- * AM.0b — `ak_show_state` must show the state at the cursor tick (F11, part 2).
+ * AM.0b — `agon_show_state` must show the state at the cursor tick (F11, part 2).
  *
  * Two defects, both invisible from the outside because the output always looked
  * like a plausible map:
@@ -13,7 +13,7 @@
  * Together, a caller stepping the cursor forward saw a map that never changed
  * and never contained an actor, with nothing in the payload admitting it.
  *
- * These tests drive the same `renderAscii` the MCP `ak_show_state` tool and the
+ * These tests drive the same `renderAscii` the MCP `agon_show_state` tool and the
  * CLI `show-state` path both call.
  */
 "use strict";
@@ -25,7 +25,7 @@ const os = require("node:os");
 
 let impl;
 async function loadImpl() {
-  impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   return impl;
 }
 
@@ -57,13 +57,13 @@ function countGlyph(ascii, glyph) {
   return ascii.split("").filter((c) => c === glyph).length;
 }
 
-describe("ak_show_state reflects the cursor tick", () => {
+describe("agon_show_state reflects the cursor tick", () => {
   let workDir;
   let runDir;
 
   beforeAll(async () => {
     const { executeCommand } = await loadImpl();
-    workDir = mkdtempSync(join(os.tmpdir(), "ak-show-state-"));
+    workDir = mkdtempSync(join(os.tmpdir(), "agon-show-state-"));
     // The session layout `renderAscii` reads: build artifacts under
     // <runDir>/create, run outputs under <runDir>/run (see resolveBuildArtifact
     // in packages/adapters-cli/src/tick-session.mjs).

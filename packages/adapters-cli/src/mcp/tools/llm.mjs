@@ -29,7 +29,7 @@ const llmProperties = withCommonOutput({
 
 export const llmTools = [
   createTool({
-    name: "ak_llm",
+    name: "agon_llm",
     description: "Run a single LLM prompt against the configured adapter.",
     command: "llm",
     inputSchema: {
@@ -46,8 +46,8 @@ export const llmTools = [
     ]),
   }),
   createTool({
-    name: "ak_ollama",
-    description: "Alias for ak_llm using the Ollama-backed CLI command.",
+    name: "agon_ollama",
+    description: "Alias for agon_llm using the Ollama-backed CLI command.",
     command: "ollama",
     inputSchema: {
       required: ["prompt"],
@@ -63,7 +63,7 @@ export const llmTools = [
     ]),
   }),
   createTool({
-    name: "ak_llm_plan",
+    name: "agon_llm_plan",
     description: "Generate runnable artifacts from a scenario or freeform text via the LLM planner.",
     command: "llm-plan",
     inputSchema: {

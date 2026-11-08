@@ -62,7 +62,7 @@ function parseTargetDistance(value, field) {
 }
 
 /**
- * The spec-string grammar `ak create --place` and `ak_create` share:
+ * The spec-string grammar `agon create --place` and `agon_create` share:
  *   "<subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]"
  */
 export function parsePlacementConstraint(text, index = 0) {

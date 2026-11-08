@@ -11,7 +11,7 @@
  * solver is free to return ANY satisfying assignment; which one it returns can
  * depend on variable ordering, internal heuristics, and — fatally — on a
  * wall-clock timeout. This repo replays runs and compares them frame by frame
- * (`ak replay` → `match: true`), so a solver that answers differently on the
+ * (`agon replay` → `match: true`), so a solver that answers differently on the
  * second run breaks replay outright.
  *
  * Hence: identical problem → identical model. That is a constraint on how the
@@ -134,7 +134,7 @@ export async function checkSolverConformance(adapter, { problem = CONFORMANCE_PR
   if (first.status !== second?.status || firstModel !== secondModel) {
     failures.push(
       "solve() is not deterministic: the same problem produced different answers. Replay "
-      + "compares runs frame by frame, so this breaks `ak replay` rather than degrading it. "
+      + "compares runs frame by frame, so this breaks `agon replay` rather than degrading it. "
       + `(${first.status}/${firstModel} vs ${second?.status}/${secondModel})`,
     );
   } else if (!capabilities.deterministic) {

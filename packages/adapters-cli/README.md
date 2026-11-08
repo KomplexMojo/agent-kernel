@@ -49,13 +49,13 @@ They do **not**:
 
 ---
 
-## `ak-persona` — run one persona standalone
+## `agon-persona` — run one persona standalone
 
-A second entry point alongside `ak`. Artifact in, artifact out, one process:
+A second entry point alongside `agon`. Artifact in, artifact out, one process:
 
 ```bash
-ak-persona <persona> --in <spec.json> --out <result.json>
-ak-persona <persona> < spec.json > result.json      # stdin/stdout when --in/--out are absent
+agon-persona <persona> --in <spec.json> --out <result.json>
+agon-persona <persona> < spec.json > result.json      # stdin/stdout when --in/--out are absent
 ```
 
 `<persona>` is one of `orchestrator`, `director`, `configurator`, `actor`,
@@ -140,14 +140,14 @@ Errors still exit non-zero.
 
 ### `workflow`
 Runs the `AdaptiveWorkflowAgent` durable control plane. Subcommands:
-`ak workflow <run|status|replay|cancel|validate>`.
+`agon workflow <run|status|replay|cancel|validate>`.
 
 ```
-ak workflow run      [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path] [--dry-run]
-ak workflow validate [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path]
-ak workflow status   --out-dir dir | --run-id id
-ak workflow replay   --out-dir dir [--base-url url]
-ak workflow cancel   --out-dir dir | --cancel runId [--reason text]
+agon workflow run      [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path] [--dry-run]
+agon workflow validate [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path]
+agon workflow status   --out-dir dir | --run-id id
+agon workflow replay   --out-dir dir [--base-url url]
+agon workflow cancel   --out-dir dir | --cancel runId [--reason text]
 ```
 
 - **run** selects a strategy, runs the matching LLM seam, and reaches `complete`
@@ -188,23 +188,23 @@ decision (object placement, and budget fit for `llm-plan --budget-loop`), each w
 fallback answered, `none` when no search was posed), the `status` and `reason` behind it (e.g.
 `deferred` / `solver_domain_unavailable`), and the solver's `objectiveValues` when it answered.
 Every build command hosts the solver (`build`, `llm-plan`, `create`, `configure` and the `*-plan`
-commands, #296); `AK_SOLVER_ENGINE=fixture` turns it off, and a placement then reports
-`fallback (solver_domain_unavailable)`. `AK_SOLVER_RECORD=<file>` appends every solver answer to `<file>` as a JSON line `{ key, result }` (keyed by runtime `ports/solver.js#solverAnswerKey`) without changing it; the phone app build uses it so the browser, which has no solver, replays z3's placement (#557).
+commands, #296); `AGON_SOLVER_ENGINE=fixture` turns it off, and a placement then reports
+`fallback (solver_domain_unavailable)`. `AGON_SOLVER_RECORD=<file>` appends every solver answer to `<file>` as a JSON line `{ key, result }` (keyed by runtime `ports/solver.js#solverAnswerKey`) without changing it; the phone app build uses it so the browser, which has no solver, replays z3's placement (#557).
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
-for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
+for deterministic runs (live network requires `AGON_ALLOW_NETWORK=1`).
 
 ### `llm-plan`
 Runs the Orchestrator LLM session against a scenario fixture or freeform text and emits build outputs
-plus a captured LLM artifact for replay. Requires `AK_LLM_LIVE=1` to query the LLM.
-If `AK_LLM_LIVE` is off, scenario mode falls back to the scenario's `summaryPath` fixture. Text mode can
+plus a captured LLM artifact for replay. Requires `AGON_LLM_LIVE=1` to query the LLM.
+If `AGON_LLM_LIVE` is off, scenario mode falls back to the scenario's `summaryPath` fixture. Text mode can
 still run offline by using `--fixture` or the default stub summary fixture.
-Fixture responses are required unless `AK_ALLOW_NETWORK=1` or the base URL is local.
-Strict mode (`AK_LLM_STRICT=1`) disables repair/sanitization; contract errors fail the
+Fixture responses are required unless `AGON_ALLOW_NETWORK=1` or the base URL is local.
+Strict mode (`AGON_LLM_STRICT=1`) disables repair/sanitization; contract errors fail the
 flow but still emit a capture artifact with `payload.errors`.
 In live mode, single-pass llm-plan requires at least one room and one actor; missing
 entries trigger a repair pass before failing. If the summary does not match catalog
 entries, llm-plan reruns a catalog-focused repair pass and fails if still unmatched.
-Budget loop mode (`--budget-loop` or `AK_LLM_BUDGET_LOOP=1`) runs a multi-phase
+Budget loop mode (`--budget-loop` or `AGON_LLM_BUDGET_LOOP=1`) runs a multi-phase
 layout-only → actors-only loop with remaining budget hints and stop reasons
 (`done`, `missing`, `no_viable_spend`). Each phase is captured as a distinct
 `CapturedInputArtifact` with `payload.phase` and deterministic phase-indexed ids.
@@ -302,20 +302,20 @@ Shows or plays a level in the terminal UI (`packages/ui-ascii`), which it launch
 program; adapters-cli never imports it.
 
 ```bash
-node packages/adapters-cli/src/cli/ak.mjs play --dir <create-out-dir>         # interactive
-node packages/adapters-cli/src/cli/ak.mjs play --from-run <runId> --keys "dd."  # scripted: print the final screen
-node packages/adapters-cli/src/cli/ak.mjs play --level trap-rooms --json        # { ok, level, turns, status, screen, launch, warnings? }
+node packages/adapters-cli/src/cli/agon.mjs play --dir <create-out-dir>         # interactive
+node packages/adapters-cli/src/cli/agon.mjs play --from-run <runId> --keys "dd."  # scripted: print the final screen
+node packages/adapters-cli/src/cli/agon.mjs play --level trap-rooms --json        # { ok, level, turns, status, screen, launch, warnings? }
 ```
 
 Inputs/outputs:
-- One level source: `--dir` (an `ak create --out-dir` or run directory), `--from-run <runId>`,
+- One level source: `--dir` (an `agon create --out-dir` or run directory), `--from-run <runId>`,
   `--sim-config` + `--initial-state`, or `--level <bundled name>`; none plays the bundled levels in order.
 - With no `--keys` and no `--json` the UI takes the terminal until the player quits (it needs a TTY).
 - `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
-  pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map, `--window N` sets the play window (odd, default sized to the terminal) and `--no-window` shows the whole board instead (scripted and MCP runs always do). MCP: `ak_play_ascii`.
+  pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map, `--window N` sets the play window (odd, default sized to the terminal) and `--no-window` shows the whole board instead (scripted and MCP runs always do). MCP: `agon_play_ascii`.
 - A level is played as written. Delvers or wardens below the viability floor, and a level with no Allocator
-  budget receipt (not built by `ak create`, #279), are reported as `warning:` lines on stderr, and as `warnings`
+  budget receipt (not built by `agon create`, #279), are reported as `warning:` lines on stderr, and as `warnings`
   with `--json`.
 - `--realtime <ms>` (interactive play only) passes a turn every `<ms>` milliseconds while the player waits; `t` toggles it
 - `--web` plays in a browser tab instead of the terminal, served on `http://localhost:8765` (`--port <n>` to change; `--lan` also serves the local network for a phone on the same Wi-Fi and prints its address; `--debug` adds the analysis console, for evaluation only: every actor in full, the field per tile, an event log); not with `--keys`/`--json`
@@ -328,23 +328,23 @@ Inputs/outputs:
 
 ### `play-session`
 A game that lasts across calls, for a caller that is not at a terminal (the MCP tools
-`ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_legal`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`, `ak_play_tick`,
-`ak_play_end`). The game is kept in
-`artifacts/play-sessions/<name>.json` (`--session`, default `game`; `AK_PLAY_SESSIONS_DIR` moves it) as a
+`agon_play_start`, `agon_play_act`, `agon_play_view`, `agon_play_legal`, `agon_play_switch`, `agon_play_order`, `agon_play_advance`, `agon_play_tick`,
+`agon_play_end`). The game is kept in
+`artifacts/play-sessions/<name>.json` (`--session`, default `game`; `AGON_PLAY_SESSIONS_DIR` moves it) as a
 player `CapturedInputArtifact` that names its level, so it survives a restart and replays exactly. Each call
 re-runs it in the terminal UI, applies the call's seat change, commands and keys, and saves it again.
 
 ```bash
-ak play-session start --session g --dir <create-out-dir>            # or --from-run / --sim-config + --initial-state / --level
-ak play-session act --session g --keys "dd" --commands '[{"kind":"cast_affinity","params":{"targetId":"W1"}}]'
-ak play-session switch --session g --actor D2                       # seat another party member; free
-ak play-session order --session g --actor D3 --strategy follow:D1:2  # new standing orders; one turn
-ak play-session advance --session g --ticks 20 --until orders_done  # let orders play out
-ak play-session tick --session g --actor-commands '{"W1":{"kind":"wait"},"H2":{"kind":"wait"}}'  # one tick for several ai_controlled actors (#680)
-ak play-session view --session g --save artifacts/games/g.json      # look, and keep a copy
-ak play-session legal --session g                                   # `legal`: commands the seat can try now
-ak play-session end --session g                                     # final board; removes the live file
-ak play-session start --session g2 --load artifacts/games/g.json    # reopen a copy
+agon play-session start --session g --dir <create-out-dir>            # or --from-run / --sim-config + --initial-state / --level
+agon play-session act --session g --keys "dd" --commands '[{"kind":"cast_affinity","params":{"targetId":"W1"}}]'
+agon play-session switch --session g --actor D2                       # seat another party member; free
+agon play-session order --session g --actor D3 --strategy follow:D1:2  # new standing orders; one turn
+agon play-session advance --session g --ticks 20 --until orders_done  # let orders play out
+agon play-session tick --session g --actor-commands '{"W1":{"kind":"wait"},"H2":{"kind":"wait"}}'  # one tick for several ai_controlled actors (#680)
+agon play-session view --session g --save artifacts/games/g.json      # look, and keep a copy
+agon play-session legal --session g                                   # `legal`: commands the seat can try now
+agon play-session end --session g                                     # final board; removes the live file
+agon play-session start --session g2 --load artifacts/games/g.json    # reopen a copy
 ```
 
 - Output: `{ ok, action, name, session, level, turns, status, active, party, aiControlled?, orders?, inSight, legal, battleLog, results?, hud, screen, saved?, ended? }`.
@@ -372,22 +372,22 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
 - Every call also writes `artifacts/play-sessions/hud.txt`, one line about the seated actor, which
   `scripts/play/statusline.mjs` prints as a Claude Code status line (opt in from your own settings).
 
-**Watching a run.** `--watch` shows a run `ak run` recorded instead of playing a level, in the same UI, tick by tick:
+**Watching a run.** `--watch` shows a run `agon run` recorded instead of playing a level, in the same UI, tick by tick:
 
 ```bash
-node packages/adapters-cli/src/cli/ak.mjs play --watch --dir <run-out-dir>              # interactive: left/right step, [ ] jump, q quits
-node packages/adapters-cli/src/cli/ak.mjs play --watch --from-run <runId> --tick 5 --json # { ok, tick, maxTick, level, status, screen, launch }
+node packages/adapters-cli/src/cli/agon.mjs play --watch --dir <run-out-dir>              # interactive: left/right step, [ ] jump, q quits
+node packages/adapters-cli/src/cli/agon.mjs play --watch --from-run <runId> --tick 5 --json # { ok, tick, maxTick, level, status, screen, launch }
 ```
 
-- The run is `--dir` (an `ak run --out-dir`, or an `artifacts/runs/<runId>` directory) or `--from-run <runId>`
+- The run is `--dir` (an `agon run --out-dir`, or an `artifacts/runs/<runId>` directory) or `--from-run <runId>`
   (under `artifacts/runs`). `--tick` opens at that tick (default 0); `--keys` takes the watch keys
   (`.`/`l` next tick, `,`/`h` previous, `[`/`]` first/last).
 - Every actor and trap is drawn where the run recorded it at that tick (no fog), with the HUD following the
   actor the game would seat as the player (`@`). The board is the runtime run viewer's (`runner/run-viewer.js`),
   read from the run's recorded registry snapshots; nothing is re-simulated.
-- `ak tick state|forward|backward` and the MCP tick tools (`ak_show_state`, `ak_tick_forward`,
-  `ak_tick_backward`) draw their `ascii` field this way: it is this screen at the cursor tick, without the key help.
-  MCP: `ak_play_ascii` with `watch: true`.
+- `agon tick state|forward|backward` and the MCP tick tools (`agon_show_state`, `agon_tick_forward`,
+  `agon_tick_backward`) draw their `ascii` field this way: it is this screen at the cursor tick, without the key help.
+  MCP: `agon_play_ascii` with `watch: true`.
 
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus
@@ -411,7 +411,7 @@ Inputs/outputs:
 - `--budget-tokens` is a hard cap for agent-authored spend. If `--text` or `--goal` also says
   `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
   the command fails validation.
-- `--grade <H..S>` (`grade` on `ak_create`, #422) builds at a difficulty grade, H (easiest) to S (ultra hard): the
+- `--grade <H..S>` (`grade` on `agon_create`, #422) builds at a difficulty grade, H (easiest) to S (ultra hard): the
   Allocator's grade table (`base-costs.json`) sets the budget (H 1,000 · G 1,350 · F 1,800 · E 2,350 · D 3,100 ·
   C 4,100 · B 5,450 · A 7,100 · S 9,450) and the dungeon/delver split (50/50 at H and G, rising to 80/20 at S),
   applied to the pools so the delver pool holds the delver share. An unknown grade is refused, naming the known
@@ -437,7 +437,7 @@ Inputs/outputs:
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
 - `--resource` format: a resource carries a **vital payload**, an **affinity payload**, or both.
   - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
-    Through MCP (`ak_create`), a structured resource may also give the vital as the actor-style map,
+    Through MCP (`agon_create`), a structured resource may also give the vital as the actor-style map,
     `vital: { health: { delta: 10 } }` (or `vitals:`), which is spelled as the flat fields above. One vital per
     resource, and the map takes only `delta`, `regen` and `permanenceMode` (#185).
   - Affinity payload: `affinity=<fire|water|earth|wind|growth|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]`
@@ -475,15 +475,15 @@ Inputs/outputs:
 
   ```bash
   # Temporary water affinity — held until its 50 mana is spent
-  node packages/adapters-cli/src/cli/ak.mjs resource-plan \
+  node packages/adapters-cli/src/cli/agon.mjs resource-plan \
     --resource "affinity=water;expression=emit;stacks=2;mana=50" --budget-tokens 5000
 
   # Permanent water affinity — regen refills the pool, so it never expires
-  node packages/adapters-cli/src/cli/ak.mjs resource-plan \
+  node packages/adapters-cli/src/cli/agon.mjs resource-plan \
     --resource "affinity=water;expression=emit;stacks=2;mana=50;manaRegen=5" --budget-tokens 5000
 
   # Heal 5 now and regenerate 2/tick forever, plus a fire affinity, from one resource
-  node packages/adapters-cli/src/cli/ak.mjs resource-plan \
+  node packages/adapters-cli/src/cli/agon.mjs resource-plan \
     --resource "permanenceMode=consumable;vital=health;delta=5;regen=2;affinity=fire;expression=push;stacks=1;mana=20" \
     --budget-tokens 5000
   ```
@@ -494,22 +494,22 @@ Inputs/outputs:
   default 1). A hit is the expression's base × intensity² (push/pull 2, emit/draw 1). A hazard takes the same pair as
   `stacks=<range>;intensity=<n>`. Example: `affinities=fire:push:6:2` throws a fireball 6 tiles for 2 × 2² = 8.
 - `--delver` and `--warden` accept `recipe=<name>` (#715): a named configuration from the Configurator's catalogue
-  (`ak recipes` lists them), expanded into `affinity`, `affinities` (range and intensity), `equip` (every affinity) and
+  (`agon recipes` lists them), expanded into `affinity`, `affinities` (range and intensity), `equip` (every affinity) and
   `vitals` as if typed, then authored and priced like any spec. Fields the spec writes win: `vitals=` entries replace
   the recipe's vital by vital, `affinities=` replaces its affinities and equip order, `equip=`/`affinity=` replace
   theirs. `kind=<kind>` sets a `{K}` recipe's kind (`recipe=spellward;kind=water`). A warden keeps the recipe's first
   two affinities and the result's `warnings` say what was left out. An unknown name is refused, naming the known ones:
   ```bash
-  ak create --grade F --room "size=medium;count=3" --delver "recipe=shadowblade;motivation=user_controlled" --warden "recipe=lantern-bearer"
+  agon create --grade F --room "size=medium;count=3" --delver "recipe=shadowblade;motivation=user_controlled" --warden "recipe=lantern-bearer"
   ```
-- `--delver` and `--warden` accept `strategy-recipe=<name>` (#719): one of the Actor's strategy recipes (`ak recipes
+- `--delver` and `--warden` accept `strategy-recipe=<name>` (#719): one of the Actor's strategy recipes (`agon recipes
   --kind strategy`), written in as the spec's `strategy=` plus the motivations it needs: its posture (aggressive
   recipes are `attacking`), its mobility when it names one, and `strategy_focused` (none for a `user_controlled` or
   `ai_controlled` actor, which already follows tactics). An explicit `motivation=` kind in one of those families
   must fit, or the spec is refused naming both; a role default that does not fit gives way. It cannot sit beside
   `strategy=`. No new price: the added motivations are priced as usual.
   ```bash
-  ak create --grade F --room "size=medium;count=3" --delver "recipe=sapper;strategy-recipe=structure-breaker"
+  agon create --grade F --room "size=medium;count=3" --delver "recipe=sapper;strategy-recipe=structure-breaker"
   ```
 - `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
   affinities the actor can equip at once, from 1 to its preset (delver 3, warden 2; core caps any actor at 3). Buying
@@ -519,13 +519,13 @@ Inputs/outputs:
   runs it at fewer stacks than it holds. Any mix may be equipped, opposite emits included. The Configurator validates
   both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`.
   An actor given `equip=` starts with exactly that list equipped, and with none at all when `equip=` is left out. When
-  the list leaves a held attack (a harmful kind's push, pull, emit or draw) in the pack while a slot is still free, `ak
+  the list leaves a held attack (a harmful kind's push, pull, emit or draw) in the pack while a slot is still free, `agon
   create` prints a `warning:` line and adds it to the JSON result's `warnings` (#722); the level is still built:
   ```bash
-  node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
+  node packages/adapters-cli/src/cli/agon.mjs create --room "size=small;count=1" \
     --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1,fire:pull:1;equip=earth:push:2,growth:emit"
   ```
-- `--place` (repeatable, `place` on `ak_create`) asks for placement as relationships, solved by the Configurator's
+- `--place` (repeatable, `place` on `agon_create`) asks for placement as relationships, solved by the Configurator's
   placement search: `<subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]`.
   The subject is `hazard|resource|delver|warden:<id|n|*>` (an id, a 1-based number, or all of that kind); a target
   is `spawn`, `exit`, `room:<id>` or one hazard, resource, delver or warden. Distances are king moves; a room counts
@@ -534,13 +534,13 @@ Inputs/outputs:
   named in a constraint is placed by the search instead of being seated by the usual rules. The result's
   `placementReport` lists how each constraint held; one that cannot hold refuses the level, naming it.
   ```bash
-  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+  node packages/adapters-cli/src/cli/agon.mjs create --room "size=medium;count=2" \
     --hazard "id=trap1;affinity=fire;expression=emit;stacks=2;proximityRadius=1" \
     --delver "count=1;affinity=wind;motivation=exploring+user_controlled" \
     --warden "count=3;affinity=earth;motivation=stationary" \
     --place "hazard:trap1;near=exit:1" --place "warden:*;near=hazard:trap1:2;count=2"
   ```
-- `--tactic` (repeatable, `tactics` on `ak_create`) asks for a placement tactic: `<ambush|retinue|minefield|shrine>[;key=value...]`.
+- `--tactic` (repeatable, `tactics` on `agon_create`) asks for a placement tactic: `<ambush|retinue|minefield|shrine>[;key=value...]`.
   The Director reads it and refuses an unknown tactic, naming the known ones; the list rides in the plan
   (`directives.tactics`) and the BuildSpec (`plan.hints.tactics`), and the result echoes it as `tactics`. Each tactic
   gets a row in `placementReport`. `ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true]` (#398) puts that
@@ -571,22 +571,22 @@ Inputs/outputs:
   `--tactic auto` (alone; #401) lets the Director pick the mix from the build seed: a minefield and a shrine (#531) always
   fit, a retinue needs a warden, an ambush a warden and a resource, each with a seeded size (a shrine's `count` is 1 or 2). The result's `tactics` lists the picks.
   `--tactic llm` (alone; #402) asks a model for the mix instead (`--fixture` replays a recorded reply; live needs
-  `AK_LLM_LIVE=1`, with `--model`/`--base-url`). The Director refuses unknown tactics and the Configurator checks params
+  `AGON_LLM_LIVE=1`, with `--model`/`--base-url`). The Director refuses unknown tactics and the Configurator checks params
   and the wardens and resources the plan claims; no model, a failed call or an invalid reply falls back to the seeded
   pick. The result's `tacticPlan` says which decided (`decidedBy: llm|seeded`, `reasons`, the model's `response`), and
   `tactics` replays the build with no model.
-- `--actors llm` (`actors: "llm"` on `ak_create`; #721) asks a model for the level's delvers and wardens from `--text`.
+- `--actors llm` (`actors: "llm"` on `agon_create`; #721) asks a model for the level's delvers and wardens from `--text`.
   The prompt lists every configuration recipe with its Allocator cost per role and one sentence, and the strategy
   recipes; the reply is spec strings (or objects of spec fields) such as `recipe=shadowblade;motivation=user_controlled`.
   They join any typed `--delver`/`--warden` and are parsed the same way, so an unknown recipe is refused. `--fixture`
-  (`actorFixture`) replays a recorded reply; live needs `AK_LLM_LIVE=1`. No model or an unreadable reply is an error,
+  (`actorFixture`) replays a recorded reply; live needs `AGON_LLM_LIVE=1`. No model or an unreadable reply is an error,
   there is no seeded cast to fall back to, and it cannot share a fixture with `--tactic llm`. `actorPlan` in the result
   holds the specs, so typing them as `--delver`/`--warden` rebuilds the level with no model.
-  `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
+  `--seed N` (`seed` on `agon_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
   it as `seed`, so the same flags plus `--seed` rebuild the level exactly. `--place` also takes `outOfSight=room:<id>`:
   a cell no doorway of that room can see, by core's line of sight.
   ```bash
-  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+  node packages/adapters-cli/src/cli/agon.mjs create --room "size=medium;count=2" \
     --resource "permanenceMode=consumable;vital=health;delta=5;id=loot" \
     --warden "count=2;motivation=defending" --tactic "ambush;guards=2" --seed 7
   ```
@@ -604,7 +604,7 @@ Inputs/outputs:
   `strategyReport` lists ignored parts and target ids the level lacks (reported, never refused). Strategies are free;
   the thinking motivation is what is priced.
   ```bash
-  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+  node packages/adapters-cli/src/cli/agon.mjs create --room "size=medium;count=2" \
     --delver "count=1;id=hero;affinity=light;motivation=user_controlled" \
     --delver "count=5;id=pal;affinity=earth;motivation=exploring+goal_oriented;strategy=follow:hero-1:2"
   ```
@@ -614,7 +614,7 @@ Inputs/outputs:
   an ally that is not another actor in the level, or a distance below 1, is refused. `escorting` is priced like
   `patrolling` (3).
   ```bash
-  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+  node packages/adapters-cli/src/cli/agon.mjs create --room "size=medium;count=2" \
     --delver "count=1;id=hero;affinity=light;motivation=user_controlled" \
     --delver "count=1;id=pal;affinity=growth;motivation=escorting;escort=hero-1:2"
   ```
@@ -636,7 +636,7 @@ Inputs/outputs:
   with one slot, `escorting` + `friendly` + `goal_oriented` (it follows the leader and takes orders), seated beside it, and priced from
   the delver share. A role the delver cannot fill (no affinity kind) is left out and the tactic row says so.
   ```bash
-  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+  node packages/adapters-cli/src/cli/agon.mjs create --room "size=medium;count=2" \
     --delver "count=1;id=hero;affinities=fire:emit:2,fire:push:3;equip=fire:emit;motivation=user_controlled;minions=shield+support"
   ```
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
@@ -662,19 +662,19 @@ configurations; each row carries the Allocator's quote of its expansion as a del
 and as a warden (`defending`), and its attack/defence/support mix from the affinity table.
 
 ```bash
-node packages/adapters-cli/src/cli/ak.mjs recipes                       # name, delver cost, archetype, roles, affinities
-node packages/adapters-cli/src/cli/ak.mjs recipes --role support --json # only recipes with a support slot
-node packages/adapters-cli/src/cli/ak.mjs recipe spellward --role warden --kind water --json
+node packages/adapters-cli/src/cli/agon.mjs recipes                       # name, delver cost, archetype, roles, affinities
+node packages/adapters-cli/src/cli/agon.mjs recipes --role support --json # only recipes with a support slot
+node packages/adapters-cli/src/cli/agon.mjs recipe spellward --role warden --kind water --json
 ```
 
 `recipe <name>` prints the expansion for `--role` (default delver): vitals, affinities with range and
 intensity, equip order, what a warden's two slots leave out (`dropped`), and the price line items.
-MCP twins: `ak_recipe_list` (`kind`, `role`) and `ak_recipe_show` (`name`, `role`, `kind`). Use a name as
+MCP twins: `agon_recipe_list` (`kind`, `role`) and `agon_recipe_show` (`name`, `role`, `kind`). Use a name as
 `recipe=` in a `--delver`/`--warden` spec (see `create` above). An MCP object spec's `affinities` entries
 now carry `intensity` too.
 
-Strategy recipes (#719) are the Actor's: `ak recipes --kind strategy` lists each with its postures, mobility
-and whether it is a `z3-candidate`; `ak recipe kite --json` shows its goals and tactics, the kit it expects
+Strategy recipes (#719) are the Actor's: `agon recipes --kind strategy` lists each with its postures, mobility
+and whether it is a `z3-candidate`; `agon recipe kite --json` shows its goals and tactics, the kit it expects
 (`requires`) and what the list version leaves out (`limits`). They have no price of their own. Use a name
 as `strategy-recipe=` in a spec.
 
@@ -686,7 +686,7 @@ accept `motivation=random` (deterministic seed-derived movement), which `create`
 persists into the emitted initial state.
 
 ```bash
-ak.mjs create --room "size=medium;count=1" --delver "count=1;affinity=fire;motivation=attacking;vitals=health:10:10:0,mana:10:10:0,stamina:10:10:0" --warden "count=1;affinity=dark;motivation=defending;vitals=health:6:6:0,mana:6:6:0,stamina:6:6:0"
+agon.mjs create --room "size=medium;count=1" --delver "count=1;affinity=fire;motivation=attacking;vitals=health:10:10:0,mana:10:10:0,stamina:10:10:0" --warden "count=1;affinity=dark;motivation=defending;vitals=health:6:6:0,mana:6:6:0,stamina:6:6:0"
 ```
 
 Agent workflow notes:
@@ -701,9 +701,9 @@ Agent workflow notes:
 `src/cli/playtest-scenarios.json` is the named-level catalogue the scenario sim suite, the LLM sims and the
 recipe and power ladders play, and the game's playtest launcher and phone app build from (Darren, 2026-11-06,
 #744: one list, so the level a person plays and the one a sim plays are the same). `src/cli/playtest-scenarios.mjs`
-turns a scenario and a seed into `ak create` arguments: `scenarioArgs`, `createArgs`, `playerDelverSpec`,
+turns a scenario and a seed into `agon create` arguments: `scenarioArgs`, `createArgs`, `playerDelverSpec`,
 `affinitiesForSeed` (the seed fills `{A}`/`{B}` with one opposed pair, `{C}`/`{D}` another, `{T1}`/`{T2}` two
-trait-bearing kinds), `fillFocus`, `traitsInPlay`, plus `AK_CLI`, the `ak` entry the levels are built with. It is
+trait-bearing kinds), `fillFocus`, `traitsInPlay`, plus `AGON_CLI`, the `agon` entry the levels are built with. It is
 part of the published API (`@agon-engine/adapters-cli`, `tests/architecture/framework-game-boundary.json`).
 
 ### `room-plan`
@@ -783,7 +783,7 @@ Inputs/outputs:
   kind, one cognition kind, plus `user_controlled`, e.g. `motivation=exploring+attacking`. Two kinds
   from one family (`exploring+patrolling`) are refused with the Configurator's reason. The
   `motivation=` key itself is given once per spec; repeating it is rejected.
-- Only a delver authored `user_controlled` is playable (`ak play` seats it as `@`); every other
+- Only a delver authored `user_controlled` is playable (`agon play` seats it as `@`); every other
   delver acts on its own motivations. A delver authored `friendly` is a companion: it keeps with its
   allies and takes orders in play. Nothing is tagged playable or friendly automatically.
   `user_controlled` is priced by the Allocator at the dearest autonomous motivation stack + 1, and a
@@ -891,7 +891,7 @@ Emit the full runtime schema catalog for UI or agent discovery. With `--out-dir`
 Stage a constrained scenario (e.g., "two actors conflict") and emit a `SolverRequest`
 artifact plus a `SolverResult` (no network). Since 2026-09-04 the default engine is real Z3
 (`createHybridConstraintSolverAdapter`); pass `--solver-fixture <path>` to replay a recorded result
-instead, or set `AK_SOLVER_ENGINE=fixture` to force the stub adapter everywhere. An explicitly
+instead, or set `AGON_SOLVER_ENGINE=fixture` to force the stub adapter everywhere. An explicitly
 supplied fixture path always wins over the engine default.
 
 Stdout is structured JSON: `ok`, `runId`, `outDir`, `status`, optional `reason`,
@@ -901,7 +901,7 @@ free-text `--scenario` carries no domain, so it reports `solved: false`, status 
 reason `constraint_domain_unsupported`.
 
 **Asking about a built level (`--dir` + `--question`, #300).** Point `--dir` at a built level
-(an `ak create --out-dir`, holding `sim-config.json` and `initial-state.json`) and pick one
+(an `agon create --out-dir`, holding `sim-config.json` and `initial-state.json`) and pick one
 question. The owning persona poses the problem and judges the answer; the CLI only chooses
 which question to ask.
 
@@ -919,7 +919,7 @@ the solver round trip: the adapter's own status when it was asked, `deferred` wi
 `solver_domain_unavailable` when the engine cannot serve the domain (the fallback decided),
 or `not_posed` with reason `no_search_needed` when the persona needed no search, e.g. a
 layout already under budget. `solver-request.json` and `solver-result.json` are written only
-when the adapter was asked. `ak_solve` takes the same `dir`, `question` and `budgetTokens`.
+when the adapter was asked. `agon_solve` takes the same `dir`, `question` and `budgetTokens`.
 
 ### `run`
 Execute a configured simulation run using captured artifacts, emitting TickFrame and
@@ -934,7 +934,7 @@ writes that bundle to `bundle.json` in the run outDir, upgrades the create outDi
 bundle-free so CLI run output remains artifact-for-artifact equivalent to the browser
 host's run output. The run also persists the Allocator-issued
 `runtime-budget-receipt.json`; when a gameplay bundle is stitched, it includes that
-artifact unchanged. The stitched bundle is what `ak_push_to_ui` delivers to the UI.
+artifact unchanged. The stitched bundle is what `agon_push_to_ui` delivers to the UI.
 
 ### `configurator`
 Build `SimConfigArtifact` + `InitialStateArtifact` outputs from deterministic configurator inputs.
@@ -971,92 +971,92 @@ These commands exercise the external adapters directly.
 
 ### Local run
 ```
-node packages/adapters-cli/src/cli/ak.mjs <command> [options]
+node packages/adapters-cli/src/cli/agon.mjs <command> [options]
 ```
 
 Example usage:
 ```
-node packages/adapters-cli/src/cli/ak.mjs build --spec tests/fixtures/artifacts/build-spec-v1-basic.json --out-dir artifacts/build_demo
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_loop_demo
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_text_demo
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
-node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with a hazard, one delver, and one warden." --room "size=large;count=1" --floor-tile "count=18" --hazard "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
-node packages/adapters-cli/src/cli/ak.mjs configure --text "Configure the hazard layout for the room." --room "size=small;count=1" --hazard "id=hazard_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
-node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --run-id run_hazard_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/hazard_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --budget-tokens 200 --run-id run_hazard_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/hazard_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --run-id run_resource_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/resource_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --budget-tokens 200 --run-id run_resource_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/resource_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=2;affinity=fire;motivation=attacking" --delver "count=1;affinity=earth;motivation=patrolling" --run-id run_delver_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_advanced_demo
-node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=2;affinity=dark;motivation=defending" --warden "count=1;affinity=earth;motivation=stationary" --run-id run_warden_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_advanced_demo
-node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
-node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 100 --world-state-checkpoints 0,10,25,50,100
-node packages/adapters-cli/src/cli/ak.mjs run --from-run run_fixture --ticks 5 --progress 2>&1 >/dev/null
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
-node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
-node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --out-dir path/to/out
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v2-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
-node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
-node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
-node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
-node packages/adapters-cli/src/cli/ak.mjs ipfs-publish --artifact-map tests/fixtures/adapters/ipfs-artifacts-map.json --fixture-cid bafyfixture
-node packages/adapters-cli/src/cli/ak.mjs ipfs-load --cid bafy... --out-dir artifacts/ipfs_load_demo
-node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url https://rpc.example --address 0xabc
-node packages/adapters-cli/src/cli/ak.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-delver.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
-node packages/adapters-cli/src/cli/ak.mjs blockchain-load --rpc-url http://local --token-id token_fixture_1 --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-load tests/fixtures/adapters/blockchain-load.json
-node packages/adapters-cli/src/cli/ak.mjs llm --model phi4 --prompt "Summarize plan"
-node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
+node packages/adapters-cli/src/cli/agon.mjs build --spec tests/fixtures/artifacts/build-spec-v1-basic.json --out-dir artifacts/build_demo
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_demo
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_loop_demo
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_text_demo
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
+node packages/adapters-cli/src/cli/agon.mjs create --text "Create a fire room with a hazard, one delver, and one warden." --room "size=large;count=1" --floor-tile "count=18" --hazard "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
+node packages/adapters-cli/src/cli/agon.mjs configure --text "Configure the hazard layout for the room." --room "size=small;count=1" --hazard "id=hazard_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
+node packages/adapters-cli/src/cli/agon.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
+node packages/adapters-cli/src/cli/agon.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
+node packages/adapters-cli/src/cli/agon.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --run-id run_hazard_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/hazard_plan_demo
+node packages/adapters-cli/src/cli/agon.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --budget-tokens 200 --run-id run_hazard_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/hazard_plan_budget_demo
+node packages/adapters-cli/src/cli/agon.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --run-id run_resource_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/resource_plan_demo
+node packages/adapters-cli/src/cli/agon.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --budget-tokens 200 --run-id run_resource_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/resource_plan_budget_demo
+node packages/adapters-cli/src/cli/agon.mjs delver-plan --delver "count=2;affinity=fire;motivation=attacking" --delver "count=1;affinity=earth;motivation=patrolling" --run-id run_delver_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_demo
+node packages/adapters-cli/src/cli/agon.mjs delver-plan --delver "count=1;affinity=fire" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_budget_demo
+node packages/adapters-cli/src/cli/agon.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_advanced_demo
+node packages/adapters-cli/src/cli/agon.mjs warden-plan --warden "count=2;affinity=dark;motivation=defending" --warden "count=1;affinity=earth;motivation=stationary" --run-id run_warden_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_demo
+node packages/adapters-cli/src/cli/agon.mjs warden-plan --warden "count=1;affinity=dark" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_budget_demo
+node packages/adapters-cli/src/cli/agon.mjs warden-plan --warden "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_advanced_demo
+node packages/adapters-cli/src/cli/agon.mjs schemas --out-dir artifacts/shared/schemas
+node packages/adapters-cli/src/cli/agon.mjs solve --scenario "two actors conflict"
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 100 --world-state-checkpoints 0,10,25,50,100
+node packages/adapters-cli/src/cli/agon.mjs run --from-run run_fixture --ticks 5 --progress 2>&1 >/dev/null
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
+node packages/adapters-cli/src/cli/agon.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
+node packages/adapters-cli/src/cli/agon.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --out-dir path/to/out
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v2-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
+node packages/adapters-cli/src/cli/agon.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
+node packages/adapters-cli/src/cli/agon.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
+node packages/adapters-cli/src/cli/agon.mjs ipfs --cid bafy... --json
+node packages/adapters-cli/src/cli/agon.mjs ipfs-publish --artifact-map tests/fixtures/adapters/ipfs-artifacts-map.json --fixture-cid bafyfixture
+node packages/adapters-cli/src/cli/agon.mjs ipfs-load --cid bafy... --out-dir artifacts/ipfs_load_demo
+node packages/adapters-cli/src/cli/agon.mjs blockchain --rpc-url https://rpc.example --address 0xabc
+node packages/adapters-cli/src/cli/agon.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-delver.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
+node packages/adapters-cli/src/cli/agon.mjs blockchain-load --rpc-url http://local --token-id token_fixture_1 --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-load tests/fixtures/adapters/blockchain-load.json
+node packages/adapters-cli/src/cli/agon.mjs llm --model phi4 --prompt "Summarize plan"
+node packages/adapters-cli/src/cli/agon.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 ```
 
 UI-to-CLI parity recipes (Room/Hazard/Resource/Delver/Warden, AD1):
 ```
 # 1) Room parity recipe (RP1-RP4): author rooms, costs, then smoke-run with one actor override.
-node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1;affinities=water:pull:1" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/room/sim-config.json --initial-state artifacts/parity-recipes/room/initial-state.json --actor room_probe,1,1,delver --ticks 0 --run-id run_room_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room-run
+node packages/adapters-cli/src/cli/agon.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1;affinities=water:pull:1" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config artifacts/parity-recipes/room/sim-config.json --initial-state artifacts/parity-recipes/room/initial-state.json --actor room_probe,1,1,delver --ticks 0 --run-id run_room_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room-run
 
 # 2) Hazard parity recipe: direct hazard authoring + sidecar artifact.
-node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --budget-tokens 200 --run-id run_hazard_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/hazard
+node packages/adapters-cli/src/cli/agon.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --budget-tokens 200 --run-id run_hazard_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/hazard
 
 # 3) Resource parity recipe: direct resource authoring + sidecar artifact.
-node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --budget-tokens 200 --run-id run_resource_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/resource
+node packages/adapters-cli/src/cli/agon.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --budget-tokens 200 --run-id run_resource_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/resource
 
 # 4) Delver parity recipe (AP1/AP2): direct advanced delver authoring + playback.
-node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/delver/sim-config.json --initial-state artifacts/parity-recipes/delver/initial-state.json --ticks 0 --run-id run_delver_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver-run
+node packages/adapters-cli/src/cli/agon.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config artifacts/parity-recipes/delver/sim-config.json --initial-state artifacts/parity-recipes/delver/initial-state.json --ticks 0 --run-id run_delver_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver-run
 
 # 5) Warden parity recipe (DP1/DP2): direct advanced warden authoring + playback.
-node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/warden/sim-config.json --initial-state artifacts/parity-recipes/warden/initial-state.json --ticks 0 --run-id run_warden_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden-run
+node packages/adapters-cli/src/cli/agon.mjs warden-plan --warden "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config artifacts/parity-recipes/warden/sim-config.json --initial-state artifacts/parity-recipes/warden/initial-state.json --ticks 0 --run-id run_warden_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden-run
 ```
 
 Fixture-driven usage (no network):
 ```
-node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
-node packages/adapters-cli/src/cli/ak.mjs ipfs-publish --artifact-map tests/fixtures/adapters/ipfs-artifacts-map.json --fixture-cid bafyfixture --out-dir artifacts/ipfs_publish_fixture
-node packages/adapters-cli/src/cli/ak.mjs ipfs-load --cid bafyfixture --fixture-map tests/fixtures/adapters/ipfs-artifacts-map.json --out-dir artifacts/ipfs_load_fixture
-node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
-node packages/adapters-cli/src/cli/ak.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-delver.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
-node packages/adapters-cli/src/cli/ak.mjs blockchain-load --rpc-url http://local --token-id token_fixture_1 --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-load tests/fixtures/adapters/blockchain-load.json
-node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1" --run-id run_room_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2" --run-id run_hazard_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=level;vital=health;delta=4" --run-id run_resource_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --run-id run_delver_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark" --run-id run_warden_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
+node packages/adapters-cli/src/cli/agon.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
+node packages/adapters-cli/src/cli/agon.mjs ipfs-publish --artifact-map tests/fixtures/adapters/ipfs-artifacts-map.json --fixture-cid bafyfixture --out-dir artifacts/ipfs_publish_fixture
+node packages/adapters-cli/src/cli/agon.mjs ipfs-load --cid bafyfixture --fixture-map tests/fixtures/adapters/ipfs-artifacts-map.json --out-dir artifacts/ipfs_load_fixture
+node packages/adapters-cli/src/cli/agon.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
+node packages/adapters-cli/src/cli/agon.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-delver.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
+node packages/adapters-cli/src/cli/agon.mjs blockchain-load --rpc-url http://local --token-id token_fixture_1 --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-load tests/fixtures/adapters/blockchain-load.json
+node packages/adapters-cli/src/cli/agon.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs room-plan --room "size=small;count=1" --run-id run_room_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2" --run-id run_hazard_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs resource-plan --resource "permanenceMode=level;vital=health;delta=4" --run-id run_resource_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs delver-plan --delver "count=1;affinity=fire" --run-id run_delver_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs warden-plan --warden "count=1;affinity=dark" --run-id run_warden_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/agon.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
 ```
 
 `run` always writes the final `world-state.json`. Supplying
@@ -1079,7 +1079,7 @@ evidence that a pickup happened and what it did.
 Use this when an agent only needs to author or adjust room/layout intent and hand the result to the UI for inspection.
 
 ```
-node packages/adapters-cli/src/cli/ak.mjs create \
+node packages/adapters-cli/src/cli/agon.mjs create \
   --text "Create a small fire room for preview." \
   --room "size=small;count=1" \
   --run-id run_room_preview \
@@ -1097,7 +1097,7 @@ What to do next:
 Use this when an agent wants one additive command that emits a playable bundle without hand-editing JSON.
 
 ```
-node packages/adapters-cli/src/cli/ak.mjs create \
+node packages/adapters-cli/src/cli/agon.mjs create \
   --text "Create a fire room with a hazard, one delver, and one warden." \
   --room "size=large;count=1" \
   --floor-tile "count=18" \
@@ -1139,7 +1139,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - Blockchain mint (`blockchain-mint`): `--rpc-url` + `--card` required; optional `--owner`, `--contract`, `--token-id`, `--fixture-chain-id`, `--fixture-mint`.
 - Blockchain load (`blockchain-load`): `--rpc-url` + `--token-id` required; optional `--owner`, `--contract`, `--fixture-chain-id`, `--fixture-load`.
 - LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model` (default: `phi4`), `--prompt`.
-- LLM format hint: set `AK_LLM_FORMAT=json` to request JSON-only output from Ollama-compatible endpoints.
+- LLM format hint: set `AGON_LLM_FORMAT=json` to request JSON-only output from Ollama-compatible endpoints.
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 - Run action log: `--actions` path to an ActionSequence artifact (emitted to `action-log.json`).
 - Configurator budget inputs: `--budget`, `--price-list`, optional `--receipt-out` to write the receipt elsewhere.
@@ -1176,7 +1176,7 @@ Expected outputs (defaults when `--out-dir` is set):
 When overrides are provided, `run` writes `resolved-sim-config.json` and
 `resolved-initial-state.json` to the output directory for inspection. The Allocator
 prices the overridden level again (#278), against the budget of the `budget-receipt.json`
-`ak create` wrote beside `--sim-config` (the reference budget when there is none), and
+`agon create` wrote beside `--sim-config` (the reference budget when there is none), and
 writes the new `budget-receipt.json` and `price-list.json` with them; the resolved
 SimConfig names that receipt. A level the overrides take over budget still runs: the
 output carries `pricingReport: [{ code: "overrides_over_budget", message }]`.
@@ -1221,7 +1221,7 @@ Affinity summary output (resolved from presets + loadouts):
 
 Example:
 ```
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v2-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
+node packages/adapters-cli/src/cli/agon.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v2-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
 ```
 Expected outputs in `--out-dir`:
 - `affinity-summary.json`
@@ -1235,7 +1235,7 @@ Configurator command (artifact builder):
 
 Example:
 ```
-node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen tests/fixtures/configurator/level-gen-input-v1-hazard.json --actors tests/fixtures/configurator/actors-v1-affinity-base.json --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --out-dir artifacts/configurator_demo
+node packages/adapters-cli/src/cli/agon.mjs configurator --level-gen tests/fixtures/configurator/level-gen-input-v1-hazard.json --actors tests/fixtures/configurator/actors-v1-affinity-base.json --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --out-dir artifacts/configurator_demo
 ```
 
 ## Demo bundle script
@@ -1257,19 +1257,19 @@ Inspect the emitted artifacts in your chosen `--out-dir` or `artifacts/demo-bund
 
 ## Sandbox sessions (`sandbox-create`)
 
-`ak sandbox-create` and `ak_sandbox_create` run the same code. `--budget-receipt <file>` must be a
+`agon sandbox-create` and `agon_sandbox_create` run the same code. `--budget-receipt <file>` must be a
 receipt the Allocator approves (a `partial` or `denied` receipt is refused with `budgetInsufficient`).
 `--budget <file>` is spent by the Allocator on the room (`--width`/`--height`, default 10x10); the
 issued `budget-receipt.json` and `price-list.json` are written to `--out-dir` and the session's
 `budgetReceiptRef` names that receipt. `sandbox-place` names no `planRef`, since no Director plans a
 sandbox.
 
-## MCP sandbox bridge (`ak_push_to_ui`)
+## MCP sandbox bridge (`agon_push_to_ui`)
 
-The MCP server's `ak_push_to_ui` tool delivers an `agon/GameplayBundle` to a
+The MCP server's `agon_push_to_ui` tool delivers an `agon/GameplayBundle` to a
 connected browser UI over the sandbox WebSocket bridge
 (`packages/adapters-cli/src/mcp/bridge-server.mjs`), so an agent can author with
-`ak_create`, execute with `ak_run`, and load the result into the gameplay surface
+`agon_create`, execute with `agon_run`, and load the result into the gameplay surface
 without manual file handoff.
 
 - Bundle source (one of): inline `bundle`, an explicit `bundlePath`, or an `outDir`
@@ -1279,7 +1279,7 @@ without manual file handoff.
 - `requireClient` (default `true`): fail if no UI client is connected. Agon ships no
   browser client since the web UI was archived in Primordial (#744), and `openBrowser` is gone:
   the bridge is the port a game client connects to.
-- Bridge port: `38487` by default, overridable with `AK_SANDBOX_BRIDGE_PORT`.
+- Bridge port: `38487` by default, overridable with `AGON_SANDBOX_BRIDGE_PORT`.
 - Failure results are structured: missing bundle sources, invalid bundle shape, bridge
   start failure (`SANDBOX_BRIDGE_START_FAILED`), and no-connected-client cases each
   return `ok: false` with a specific reason rather than throwing.

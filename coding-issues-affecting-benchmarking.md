@@ -61,7 +61,7 @@ deliberately not restated here** — a second copy of a rule is how this repo ha
 with two versions that disagree.
 
 **The 173 recorded failures are free fixtures.** Each is a real `toolArgs` that broke something.
-Replayed through `normalizeToolArgs -> buildArgv -> ak create` with no model involved, they become a
+Replayed through `normalizeToolArgs -> buildArgv -> agon create` with no model involved, they become a
 deterministic regression corpus. The repo already has the convention for negative cases
 (`tests/fixtures/artifacts/invalid/`). Harvesting them is M0 and it comes before every other
 milestone.
@@ -75,7 +75,7 @@ benchmark only to answer "did model BEHAVIOUR change", never "is the code correc
 
 ### The system
 `tools/remote-ollama-control/` drives a benchmark that asks local LLMs to author dungeon content
-through the `ak_create` tool, runs the result through `packages/adapters-cli/src/cli/ak.mjs`, and
+through the `agon_create` tool, runs the result through `packages/adapters-cli/src/cli/agon.mjs`, and
 scores it. 100 scenarios across four tiers (simple, affinity, complex, constrained), six
 model/hardware configurations, up to 3 passes each.
 
@@ -168,7 +168,7 @@ difference between fixing these defects once and rediscovering them every run.
    and that they are recorded model output, not hand-written.
 3. Add a replay test that runs each fixture through the REAL path —
    `normalizeToolArgs` -> `buildArgv` (`packages/adapters-cli/src/mcp/tools/shared.mjs`) ->
-   `ak.mjs create` — and asserts the observed outcome. No LLM, no network, no GPU.
+   `agon.mjs create` — and asserts the observed outcome. No LLM, no network, no GPU.
 4. The test starts RED for every harness defect and GREEN for every genuine model error. That split
    is the deliverable: it mechanically separates "our bug" from "model got it wrong", which is what
    M1 does by hand.
@@ -251,12 +251,12 @@ Observed, from the run:
 **Do:**
 1. Reproduce each from the recorded `toolArgs` by running the real path:
    `normalizeToolArgs` -> `buildArgv` (from `packages/adapters-cli/src/mcp/tools/shared.mjs`) ->
-   `ak.mjs create`. A standalone script is fine; do not reimplement the translation.
+   `agon.mjs create`. A standalone script is fine; do not reimplement the translation.
 2. For each: decide whether the SCHEMA should forbid the shape, or the CLI should accept it.
    Default to constraining the schema — it is guidance the model actually follows, and the CLI's
    contract is deliberate.
 3. `dungeonAffinity` almost certainly just needs the same `enum` the other affinity fields carry.
-4. Extend `tests/tools/ak-tool-schema-cli-conformance.test.js`. That test DERIVES cases from the
+4. Extend `tests/tools/agon-tool-schema-cli-conformance.test.js`. That test DERIVES cases from the
    schema rather than hand-writing them, on purpose: a hand-written sample passes against a
    defective schema too, which makes it a mirror rather than a guard. Keep that property.
 
@@ -265,7 +265,7 @@ CLI. Conformance test extended and perturbation-verified. Suite and typecheck gr
 
 **Trap:** a schema `description` is a PROMPT. Adding "note this is a STRING, unlike X" previously
 TRIPLED malformed values for that field. Do not describe a field by contrast with another.
-`tests/tools/ak-tool-schema-cli-conformance.test.js` has a test pinning this; read it first.
+`tests/tools/agon-tool-schema-cli-conformance.test.js` has a test pinning this; read it first.
 
 ---
 
@@ -302,7 +302,7 @@ element <parameter> closed by </function>"}
 ```
 That is Ollama's tool-call parser failing on the model's output. `failureClass: 'infrastructure'`
 causes `executeContentGenMatrix` to **throw and abort the entire run** (see
-`tools/remote-ollama-control/scripts/lib/ak-matrix.js`). A 14-hour run can be destroyed by one
+`tools/remote-ollama-control/scripts/lib/agon-matrix.js`). A 14-hour run can be destroyed by one
 malformed generation.
 
 **Do:**
@@ -391,7 +391,7 @@ one, and "other" (28) resolves into six named causes.
 | spatial placement | 10 | model weakness — resolved, M4 | `configurator inputs could not place hazard/resource: insufficient unoccupied walkable tiles`. Same root cause and same M4 evidence as the row above — one code path (single-room), one code path (multi-room), one model misunderstanding. | `bf-007` |
 | budget: CLI pre-allocator minimum-spend check | 8 | model weakness | `create infeasible (insufficient_budget)`: the CLI's own minimum-spend floor rejects the request before budget scoring runs — a distinct code path from the allocator row above. Collapsing the two would have hidden this path entirely. | `bf-012` |
 | model: authored nothing | 3 | model weakness | Tool call with no `--room`/`--floor-tile`/`--hazard`/`--resource`/`--delver`/`--warden` at all. All three from qwen3:14b. | `bf-015` |
-| model: no tool call produced | 3 | model weakness, no code path | `toolArgs` is `null` — `ak_create` was never called. Not replayable through `normalizeToolArgs -> buildArgv -> create`; nothing in the harness to fix. | `bf-013` |
+| model: no tool call produced | 3 | model weakness, no code path | `toolArgs` is `null` — `agon_create` was never called. Not replayable through `normalizeToolArgs -> buildArgv -> create`; nothing in the harness to fix. | `bf-013` |
 | schema: unsupported field | 2 | model weakness | Model invents a field the schema never offered (`hazard.manaRegen`, `room.description`). Correctly rejected. | `bf-024` |
 | schema/CLI: dungeonAffinity enum | 2 | model weakness — was **open** | `--dungeon-affinity` rejects "neutral". M3 investigated: the enum has been on this field since 2026-05-05; schema and CLI already agree. Reclassified from the original "harness defect" guess once M3 checked the actual code. Both from qwen3:14b. | `bf-020` |
 | schema/CLI: hazard mana format | 2 | model weakness — was **open** | Hazard `mana` parser rejects a negative amount and a malformed `one-time:c:m:r` triple. M3 investigated both: neither is a schema gap (see below). Reclassified from the original "harness defect" guess. | `bf-025`, `bf-026` |
@@ -469,7 +469,7 @@ job was to verify each against the real code. Only one symptom family survived: 
 
 **Fixed — `normalizeToolArgs`'s array repair (bf-003, bf-018, bf-027, 16 occurrences).** The schema
 was never wrong: `delver`/`warden` are correctly declared as arrays of objects, and the CLI correctly
-parses that shape. The gap was in `toArray()` (`tools/remote-ollama-control/scripts/lib/ak-runner.js`)
+parses that shape. The gap was in `toArray()` (`tools/remote-ollama-control/scripts/lib/agon-runner.js`)
 — it already repaired Python-repr quoting and a trailing `)`, but not two bracket-balance faults
 models actually produce: an extra trailing `}` after a complete array (the array closes, then one
 more stray brace), or a missing final `]` on an otherwise-complete array (every object inside is
@@ -498,14 +498,14 @@ first commit (`18aadb6`, 2026-05-05) — before this benchmark's every run. The 
 which is not a real affinity and never was; schema and CLI already agree. No drift exists to fix.
 
 **Not a defect — hazard `mana` format (bf-025, bf-026, 2 occurrences).** `mana: "-5"`: a hazard's
-mana pool size cannot be negative, and the parser (`ak-impl.mjs`'s `parseHazardVitalSpec`) has no
+mana pool size cannot be negative, and the parser (`agon-impl.mjs`'s `parseHazardVitalSpec`) has no
 drain concept for a negative value to express — correctly rejected. `mana: "one-time:15:0:0"`: the
 model blended the `one-time:<amount>` and `regen:<c>:<max>:<regen>` grammars (one-time takes exactly
 one number). A candidate fix — add a `one-time:15`-style example, since the schema's current
 `examples` only show the plain-integer and regen forms even though the pattern already permits
 `one-time:` — was considered and NOT landed: `hazard.mana`'s description already carries a scar from
 one earlier, unmeasured edit that tripled malformed values (the pinned test at
-`tests/tools/ak-tool-schema-cli-conformance.test.js`). One occurrence isn't enough justification to
+`tests/tools/agon-tool-schema-cli-conformance.test.js`). One occurrence isn't enough justification to
 risk repeating that, unmeasured. Left as model-error, with the candidate fix recorded here for
 whoever picks this up with more evidence.
 
@@ -532,7 +532,7 @@ harness-defect fixtures (fixed, reaching their scenario's own expected outcome) 
 2 not-replayable. Full suite: 443 files / 3459 passed / 207 skipped. Typecheck: 0.
 
 **Deviation from §"Do" step 4, deliberately:** the plan named
-`tests/tools/ak-tool-schema-cli-conformance.test.js` as the file to extend. It wasn't touched. That
+`tests/tools/agon-tool-schema-cli-conformance.test.js` as the file to extend. It wasn't touched. That
 file derives minimal schema-VALID samples and checks the CLI executes them -- it tests
 schema-declared shapes against CLI acceptance. The one real defect here was never a schema-declared
 shape; it was the normalization layer's robustness to a malformed shape the schema never advertised
@@ -565,7 +565,7 @@ changes. The scenario-48 case matters: it shows this isn't just "the model asked
 tile" (the common case) — even a seemingly generous count (60 for 9 rooms) can still be short once
 connectivity between rooms is accounted for, and the model has no way to know that either.
 
-**Root cause:** `floorTile.count` has no description in the tool schema at all (`ak-tool-schema.js`)
+**Root cause:** `floorTile.count` has no description in the tool schema at all (`agon-tool-schema.js`)
 — just `{type: 'integer', minimum: 1}`. Nothing tells the model this is a **whole-level** walkable-tile
 budget that must scale with room count and size, not a per-room or symbolic value. The model
 consistently sends something small (often literally `1`) regardless of how many rooms/objects it
@@ -608,7 +608,7 @@ unilaterally as part of this milestone's acceptance.
 that signal existed and was simply never consulted before this milestone.
 
 **Fixed:**
-- `runScenario` (`ak-runner.js`) now retries a transport-level failure once
+- `runScenario` (`agon-runner.js`) now retries a transport-level failure once
   (`MAX_TRANSPORT_RETRIES = 1`) before giving up — a genuine network-level failure (no
   `statusCode`) is never retried, since retrying an unreachable endpoint just burns the same
   timeout twice. Returns `llmErrorIsTransport` and `llmRetries` alongside the existing fields.

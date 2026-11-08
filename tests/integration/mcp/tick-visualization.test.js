@@ -2,9 +2,9 @@
 
 // M1 — MCP integration tests for visualization support on tick tools.
 //
-// Tests for ak_show_state and ak_tick_forward with a `visualization` argument
+// Tests for agon_show_state and agon_tick_forward with a `visualization` argument
 // FAIL until M3 (ascii) and M4 (image) implement the option.
-// The harness uses AK_ARTIFACTS_DIR to isolate runs inside a temp directory.
+// The harness uses AGON_ARTIFACTS_DIR to isolate runs inside a temp directory.
 
 const assert = require("node:assert/strict");
 const { spawn, spawnSync } = require("node:child_process");
@@ -14,7 +14,7 @@ const os = require("node:os");
 
 const ROOT   = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
-const CLI    = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI    = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 // ---------------------------------------------------------------------------
 // McpServerHarness (same pattern as mcp-tools.test.js)
@@ -190,8 +190,8 @@ async function scaffoldRun(artifactsDir, runId, { maxTick = 5 } = {}) {
 // FAILING: visualization option on MCP tick tools (M3/M4)
 // ---------------------------------------------------------------------------
 
-test("ak_show_state with visualization:ascii returns visualization object", async () => {
-  const workDir     = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-ascii-"));
+test("agon_show_state with visualization:ascii returns visualization object", async () => {
+  const workDir     = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-ascii-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId       = "run_mcp_viz_ascii";
   await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
@@ -199,15 +199,15 @@ test("ak_show_state with visualization:ascii returns visualization object", asyn
   // Advance cursor via CLI so state is at tick 1
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    // FAILS: ak_show_state does not yet accept a visualization argument
-    const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "ascii" });
+    // FAILS: agon_show_state does not yet accept a visualization argument
+    const result = await harness.callToolRaw("agon_show_state", { runId, visualization: "ascii" });
     assert.equal(result.ok, true);
     assert.equal(result.tick, 1);
     // FAILS: visualization field not returned until M3
-    assert.ok(result.visualization !== undefined, "ak_show_state must return visualization field");
+    assert.ok(result.visualization !== undefined, "agon_show_state must return visualization field");
     assert.equal(result.visualization.mode, "ascii");
     assert.ok(result.visualization.layers, "ascii visualization must include layers");
     assert.equal(typeof result.visualization.layers.layout, "string");
@@ -218,23 +218,23 @@ test("ak_show_state with visualization:ascii returns visualization object", asyn
   }
 });
 
-test("ak_show_state with visualization:image writes a PNG file and returns its path (#144)", async () => {
+test("agon_show_state with visualization:image writes a PNG file and returns its path (#144)", async () => {
   // #144 — a data URI this size (443,790 characters on a trivial one-room, one-actor real run)
   // reliably blows an MCP tool-result token budget; ascii mode never carries image bytes and
   // stayed well under it. Image mode now writes the PNG to disk and returns visualizationPath
-  // instead of inlining the bytes, the same convention every other artifact-producing ak_* tool
+  // instead of inlining the bytes, the same convention every other artifact-producing agon_* tool
   // already follows.
-  const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-img-"));
+  const workDir      = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-img-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_viz_img";
   await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "image" });
+    const result = await harness.callToolRaw("agon_show_state", { runId, visualization: "image" });
     assert.equal(result.ok, true);
     assert.ok(result.visualization !== undefined, "visualization must be present");
     assert.equal(result.visualization.mode, "image");
@@ -262,17 +262,17 @@ test("ak_show_state with visualization:image writes a PNG file and returns its p
   }
 });
 
-test("ak_tick_forward with visualization:ascii returns visualization at the new tick", async () => {
-  const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-fwd-viz-"));
+test("agon_tick_forward with visualization:ascii returns visualization at the new tick", async () => {
+  const workDir      = mkdtempSync(join(os.tmpdir(), "agon-mcp-fwd-viz-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_fwd_viz";
   await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
 
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
     // FAILS until M3
-    const result = await harness.callToolRaw("ak_tick_forward", { runId, visualization: "ascii" });
+    const result = await harness.callToolRaw("agon_tick_forward", { runId, visualization: "ascii" });
     assert.equal(result.ok, true);
     assert.equal(result.tick, 1);
     assert.ok(result.visualization !== undefined, "tick forward must include visualization when option set");
@@ -283,8 +283,8 @@ test("ak_tick_forward with visualization:ascii returns visualization at the new 
   }
 });
 
-test("ak_tick_backward with visualization:ascii returns visualization at the rewound tick", async () => {
-  const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-bwd-viz-"));
+test("agon_tick_backward with visualization:ascii returns visualization at the rewound tick", async () => {
+  const workDir      = mkdtempSync(join(os.tmpdir(), "agon-mcp-bwd-viz-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_bwd_viz";
   await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
@@ -292,11 +292,11 @@ test("ak_tick_backward with visualization:ascii returns visualization at the rew
   runCli(["tick", "forward", "--run-id", runId], workDir);
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
     // FAILS until M3
-    const result = await harness.callToolRaw("ak_tick_backward", { runId, visualization: "ascii" });
+    const result = await harness.callToolRaw("agon_tick_backward", { runId, visualization: "ascii" });
     assert.equal(result.ok, true);
     assert.equal(result.tick, 1);
     assert.ok(result.visualization !== undefined, "tick backward must include visualization when option set");
@@ -306,19 +306,19 @@ test("ak_tick_backward with visualization:ascii returns visualization at the rew
   }
 });
 
-test("ak_show_state with unknown visualization value returns ok:false with structured error", async () => {
-  const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-bad-"));
+test("agon_show_state with unknown visualization value returns ok:false with structured error", async () => {
+  const workDir      = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-bad-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_viz_bad";
   await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
     // FAILS until M3 validates the option
-    const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "video" });
+    const result = await harness.callToolRaw("agon_show_state", { runId, visualization: "video" });
     assert.equal(result.ok, false);
     assert.match(result.error, /ascii|image|visualization/i);
   } finally {
@@ -326,18 +326,18 @@ test("ak_show_state with unknown visualization value returns ok:false with struc
   }
 });
 
-test.skip("mcp ak_show_state visualization ascii with missing core-ts returns best-effort ascii", () => {});
-test.skip("mcp ak_tick_forward visualization ascii successive calls report different actor positions", () => {});
+test.skip("mcp agon_show_state visualization ascii with missing core-ts returns best-effort ascii", () => {});
+test.skip("mcp agon_tick_forward visualization ascii successive calls report different actor positions", () => {});
 
-test("mcp ak_show_state without visualization arg returns no visualization field", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-none-"));
+test("mcp agon_show_state without visualization arg returns no visualization field", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-none-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId = "run_mcp_viz_none";
   await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_show_state", { runId });
+    const result = await harness.callToolRaw("agon_show_state", { runId });
     assert.equal(result.ok, true);
     assert.equal(result.visualization, undefined);
   } finally {
@@ -345,15 +345,15 @@ test("mcp ak_show_state without visualization arg returns no visualization field
   }
 });
 
-test("mcp ak_show_state at tick 0 with visualization ascii returns initial ascii snapshot", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-tick0-"));
+test("mcp agon_show_state at tick 0 with visualization ascii returns initial ascii snapshot", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-tick0-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId = "run_mcp_viz_tick0";
   await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "ascii" });
+    const result = await harness.callToolRaw("agon_show_state", { runId, visualization: "ascii" });
     assert.equal(result.ok, true);
     assert.equal(result.tick, 0);
     assert.equal(result.visualization.mode, "ascii");
@@ -364,15 +364,15 @@ test("mcp ak_show_state at tick 0 with visualization ascii returns initial ascii
   }
 });
 
-test("mcp ak_show_state at tick 0 with visualization image returns path or null gracefully", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-img0-"));
+test("mcp agon_show_state at tick 0 with visualization image returns path or null gracefully", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-img0-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId = "run_mcp_viz_img0";
   await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "image" });
+    const result = await harness.callToolRaw("agon_show_state", { runId, visualization: "image" });
     assert.equal(result.ok, true);
     assert.equal(result.tick, 0);
     assert.equal(result.visualization.mode, "image");
@@ -385,16 +385,16 @@ test("mcp ak_show_state at tick 0 with visualization image returns path or null 
   }
 });
 
-test("mcp ak_tick_forward at maxTick with visualization ascii returns boundary ok:false", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-max-"));
+test("mcp agon_tick_forward at maxTick with visualization ascii returns boundary ok:false", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-max-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId = "run_mcp_viz_max";
   await scaffoldRun(artifactsDir, runId, { maxTick: 1 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    await harness.callToolRaw("ak_tick_forward", { runId, visualization: "ascii" });
-    const result = await harness.callToolRaw("ak_tick_forward", { runId, visualization: "ascii" });
+    await harness.callToolRaw("agon_tick_forward", { runId, visualization: "ascii" });
+    const result = await harness.callToolRaw("agon_tick_forward", { runId, visualization: "ascii" });
     assert.equal(result.ok, false);
     assert.match(String(result.error || ""), /cannot advance past max tick/);
   } finally {
@@ -402,15 +402,15 @@ test("mcp ak_tick_forward at maxTick with visualization ascii returns boundary o
   }
 });
 
-test("mcp ak_tick_backward at tick 0 with visualization ascii returns boundary ok:false", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-bwd0-"));
+test("mcp agon_tick_backward at tick 0 with visualization ascii returns boundary ok:false", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-viz-bwd0-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId = "run_mcp_viz_bwd0";
   await scaffoldRun(artifactsDir, runId, { maxTick: 2 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_tick_backward", { runId, visualization: "ascii" });
+    const result = await harness.callToolRaw("agon_tick_backward", { runId, visualization: "ascii" });
     assert.equal(result.ok, false);
     assert.match(String(result.error || ""), /cannot rewind past tick 0/);
   } finally {

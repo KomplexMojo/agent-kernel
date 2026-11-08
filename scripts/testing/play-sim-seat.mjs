@@ -1,7 +1,7 @@
 /**
  * Play-sim seat driver (#654): a model plays the player's seat for a whole level through
- * `ak play-session` (start, legal, act, end), the command behind the MCP tools ak_play_start,
- * ak_play_legal, ak_play_act and ak_play_end. Nothing here reaches into the runtime: the driver
+ * `agon play-session` (start, legal, act, end), the command behind the MCP tools agon_play_start,
+ * agon_play_legal, agon_play_act and agon_play_end. Nothing here reaches into the runtime: the driver
  * sees only what an MCP client sees (fog on, the screen, the HUD line, the legal list), and the
  * session file is the only state, so a client without this script could play the same game.
  *
@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { conditionNote } from "../../packages/runtime/src/render/battle-log-lines.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 export const DEFAULT_MAX_TURNS = 60;
 export const DEFAULT_RETRIES = 2;
@@ -35,14 +35,14 @@ export function vitalsFromHud(hud) {
   return out;
 }
 
-/** The session over `ak play-session`: one subprocess per call, as an MCP tool call would be. */
+/** The session over `agon play-session`: one subprocess per call, as an MCP tool call would be. */
 export function createCliTransport({ sessionsDir, name = "seat" } = {}) {
-  const dir = sessionsDir ?? mkdtempSync(join(tmpdir(), "ak-seat-"));
+  const dir = sessionsDir ?? mkdtempSync(join(tmpdir(), "agon-seat-"));
   const call = (action, extra = []) => {
     const run = spawnSync(process.execPath, [AK, "play-session", action, "--session", name, ...extra], {
-      cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, AK_PLAY_SESSIONS_DIR: dir },
+      cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, AGON_PLAY_SESSIONS_DIR: dir },
     });
-    if (run.status !== 0) return { ok: false, error: (run.stderr || run.stdout || `ak exited ${run.status}`).trim().slice(0, 600) };
+    if (run.status !== 0) return { ok: false, error: (run.stderr || run.stdout || `agon exited ${run.status}`).trim().slice(0, 600) };
     return JSON.parse(run.stdout);
   };
   return {

@@ -278,7 +278,7 @@ function loadAbstractPlanCatalog(catalog = 'pilot') {
   }
   validateCatalog(document);
   if (document.sourceScenarioSet) {
-    const { loadScenarioCatalog } = require('./ak-scenarios');
+    const { loadScenarioCatalog } = require('./agon-scenarios');
     const source = loadScenarioCatalog();
     if (document.sourceScenarioSet.count !== source.count
       || document.sourceScenarioSet.sha256 !== source.sha256) {

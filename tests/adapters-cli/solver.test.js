@@ -4,7 +4,7 @@ const { join, resolve } = require("node:path");
 const { tmpdir } = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
-const cliPath = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const cliPath = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const fixturePath = resolve(ROOT, "tests/fixtures/artifacts/solver-result-v1-basic.json");
 
 test("cli solve supports solver fixture", () => {

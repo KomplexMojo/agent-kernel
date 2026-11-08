@@ -6,7 +6,7 @@
  * scenarios, 75% had an outcome that depended on that order.
  *
  * These test the ruling itself: intentions surface from the Actor, the Moderator orders from
- * them, and the order it returns is stable enough for `ak replay` to compare frame by frame.
+ * them, and the order it returns is stable enough for `agon replay` to compare frame by frame.
  */
 "use strict";
 

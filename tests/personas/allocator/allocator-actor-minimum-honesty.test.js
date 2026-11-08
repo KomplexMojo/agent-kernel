@@ -5,7 +5,7 @@ const { join, resolve } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const ROOT = resolve(__dirname, "../../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 // The minimum the Allocator REPORTS must be one it can actually honour.
 //
@@ -17,7 +17,7 @@ const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 // asking whether the reported number was true.
 
 function create(flag, spec, budgetTokens) {
-  const outDir = mkdtempSync(join(tmpdir(), "ak-min-honesty-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-min-honesty-"));
   try {
     const r = spawnSync(process.execPath, [
       CLI, "create", "--text", "minimum honesty probe", flag, spec,

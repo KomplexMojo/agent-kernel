@@ -14,7 +14,7 @@ const { join, resolve } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const ROOT = resolve(__dirname, "../../..");
-const CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const SCENARIOS = join(ROOT, "tools/remote-ollama-control/benchmarks/content-gen/constrained.json");
 
 function constrainedScenario(index) {
@@ -37,7 +37,7 @@ test("allocator denies one token below a warden pool boundary while total budget
     `Use a ${boundaryBudget} token hard budget`,
   );
 
-  const outDir = mkdtempSync(join(tmpdir(), "ak-allocator-pool-denial-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-allocator-pool-denial-"));
   try {
     const result = spawnSync(process.execPath, [
       CLI,

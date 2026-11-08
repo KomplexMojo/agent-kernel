@@ -8,7 +8,7 @@
   "observedOutcome": "execution_failed",
   "scenarioBudget": 450,
   "toolArgs": {
-    "text": "Create a base room with one attacking delver and one defending warden. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "text": "Create a base room with one attacking delver and one defending warden. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
     "runId": "run_001_base_room",
     "outDir": "output/dungeon/base",
     "budgetTokens": 450,

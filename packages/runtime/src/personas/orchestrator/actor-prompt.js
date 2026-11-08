@@ -1,5 +1,5 @@
 /**
- * #721 — the Orchestrator's prompt contract for an LLM-authored cast (`ak create --actors llm`).
+ * #721 — the Orchestrator's prompt contract for an LLM-authored cast (`agon create --actors llm`).
  *
  * The model is shown the author's text, the budget and the recipe catalogue (configuration recipes
  * with their Allocator cost per role and one sentence, strategy recipes with their postures), and

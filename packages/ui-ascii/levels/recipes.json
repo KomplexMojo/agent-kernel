@@ -1,5 +1,5 @@
 {
-  "about": "Each bundled level is `ak create` run with these arguments, --run-id <name> and --created-at below. Regenerate with `pnpm run levels:ascii`; `pnpm run levels:ascii -- --check` fails on drift.",
+  "about": "Each bundled level is `agon create` run with these arguments, --run-id <name> and --created-at below. Regenerate with `pnpm run levels:ascii`; `pnpm run levels:ascii -- --check` fails on drift.",
   "createdAt": "2026-10-10T00:00:00.000Z",
   "levels": [
     {

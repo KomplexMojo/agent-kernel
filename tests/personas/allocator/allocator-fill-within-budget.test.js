@@ -8,7 +8,7 @@ const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 // 312 is these three cards' floor since #340 priced intensity apart (it was under 300 before).
 test.each([312, 1000, 2500, 5000, 10000])("delver-plan filled to %i tokens is approved by its own receipt", (budget) => {
@@ -31,4 +31,4 @@ test.each([312, 1000, 2500, 5000, 10000])("delver-plan filled to %i tokens is ap
 // ## TODO: Test Permutations
 // - room-plan with sizeFlexible rooms filled to an explicit budget stays within it.
 // - delver cards with an explicit affinities list and a singular affinity price the list only.
-// - ak create with --budget-tokens and singular-affinity delvers is approved at small budgets.
+// - agon create with --budget-tokens and singular-affinity delvers is approved at small budgets.

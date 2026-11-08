@@ -2,13 +2,13 @@
 
 **Status (2026-08-31):** all four milestones (SM0–SM3) complete. Phase one of the two-phase ordering
 below is done; phase two (resilience) has not started, per the maintainer's own ordering.
-A drift guard now enforces phase one going forward: `tests/architecture/ak-create-error-message-drift.test.js`
+A drift guard now enforces phase one going forward: `tests/architecture/agon-create-error-message-drift.test.js`
 re-runs the SM0 survey tool (refactored to export `surveyErrorMessages()` for in-process reuse,
 no file-write side effect on import) against current source and fails on any new no-detail throw
-site on the ak_create surface, or a stale allowlist entry. The 19 currently-known exceptions (12
+site on the agon_create surface, or a stale allowlist entry. The 19 currently-known exceptions (12
 genuine "nothing more to say" sites plus 7 concatenated-template-literal / helper-function sites the
 classifier can't parse as interpolated) are recorded with reasons in
-`tests/architecture/ak-create-error-detail-allowlist.json`. Perturbation-tested both directions: a
+`tests/architecture/agon-create-error-detail-allowlist.json`. Perturbation-tested both directions: a
 bare-string throw injected into scope fails the guard; a stale allowlist entry also fails it.
 **Audience:** an agent with no memory of the session that produced it.
 **Source of evidence:** `coding-issues-affecting-benchmarking.md` (M3/M4, merged as
@@ -61,16 +61,16 @@ actually need it, not designed up front on three examples.
 
 ---
 
-## Scope: the `ak create` model-facing surface, not the whole codebase
+## Scope: the `agon create` model-facing surface, not the whole codebase
 
 The codebase has 468 `throw new Error(` sites across `core-ts`/`runtime`/`adapters-cli`. Almost all
-of them are unreachable from a single `ak_create` call (simulation-tick internals, other CLI
+of them are unreachable from a single `agon_create` call (simulation-tick internals, other CLI
 subcommands like `room-plan`/`llm-plan`/`narrate` the benchmark never exercises). Scoping to what a
-model authoring through `ak_create` can actually trigger:
+model authoring through `agon_create` can actually trigger:
 
 | area | file(s) | throw sites |
 |---|---|---|
-| entity-spec parsers + authoring command body | `ak-impl.mjs` (named-function scan: the singular `parseXSpec` family actually called from `agentAuthoringCommand`/`createCommand`, plus `parseOptimizationGoalEntry`/`List`, `parseActorVitals`, `parseActorAffinities`) | 92 |
+| entity-spec parsers + authoring command body | `agon-impl.mjs` (named-function scan: the singular `parseXSpec` family actually called from `agentAuthoringCommand`/`createCommand`, plus `parseOptimizationGoalEntry`/`List`, `parseActorVitals`, `parseActorAffinities`) | 92 |
 | build/level-gen orchestration | `orchestrate-build.js` | 24 |
 | Configurator persona | `personas/configurator/*.js` (6 files) | 12 |
 | Allocator persona | `personas/allocator/*.js` (2 files) | 3 |
@@ -80,7 +80,7 @@ model authoring through `ak_create` can actually trigger:
 
 This is where M3/M4's bugs lived, and it is the only layer whose messages a model (or a future
 re-prompt loop) would ever see. **Do not expand scope to the other ~337 sites without new evidence
-that a model can reach them through `ak_create`.**
+that a model can reach them through `agon_create`.**
 
 ---
 
@@ -88,12 +88,12 @@ that a model can reach them through `ak_create`.**
 
 ### SM0 — Mechanically list the sites and flag zero-interpolation ones (S — complete, 2026-08-31)
 
-**Done:** `tools/benchmark/survey-ak-create-error-messages.mjs`. Scope is defined by function NAME,
+**Done:** `tools/benchmark/survey-agon-create-error-messages.mjs`. Scope is defined by function NAME,
 not line range (a lesson from this repo's own history of drift-prone second homes for a value) —
 each named function's body is bounded by a brace-depth scan from its declaration, string/template/
 comment-aware, so the tool stays correct as the file grows. Whole-file scan for
 `orchestrate-build.js` and the Configurator/Allocator persona files, where every throw is already on
-the `ak_create` path.
+the `agon_create` path.
 
 **Bug found and fixed while building it:** the first version located a function's body by finding
 the first `{` after its name — which breaks for `parseDelverSpec`/`parseWardenSpec`, whose parameter
@@ -144,14 +144,14 @@ calculation.
 them later: (a) several are module-load-time assertions on hardcoded constants
 (`affinity-rules.js:710`, `motivation-rules.js:419`) or internal API-contract guards between
 Configurator/Allocator modules (`budget-maximizer.js:113/119`) — genuinely unreachable from a
-model's `ak_create` call, not merely "unlikely"; (b) the rest already interpolate the one thing
+model's `agon_create` call, not merely "unlikely"; (b) the rest already interpolate the one thing
 worth saying (`requireUnitCost`, `assertUniqueActorIds`, `formatBudgetReceiptDenial`,
 `assignPositionedLayoutObjects` — M4's own fix).
 
 **Correction found at the start of SM2, before any fix landed:** the five sites originally called a
 "naming leak" (`parseRoomSpecs`/`parseHazardSpecs`/`parseResourceSpecs`/`parseDelverSpecs`/
 `parseWardenSpecs`, each hardcoding a standalone `X-plan` command's name) turned out to be **not
-reachable from `ak create` at all**. Tracing actual call sites: `agentAuthoringCommand` parses each
+reachable from `agon create` at all**. Tracing actual call sites: `agentAuthoringCommand` parses each
 entity inline via `normalizeList(args.room).map(parseRoomSpec)` etc. — the SINGULAR form, never the
 PLURAL "at least one entry" wrapper. Every plural wrapper's only caller is its own standalone
 command (`parseRoomSpecs` → only `roomPlanCommand`, confirmed by grep, one call site each). Two of
@@ -199,7 +199,7 @@ X, this wants Y" primes the next attempt toward the same confusion it's naming.
 
 **All of it landed in one batch (2026-08-31) — `orchestrate-build.js`, all 14 `detail-dropped` sites
 plus the bonus `formatBudgetReceiptDenial` cap fix.** After the naming-leak correction removed the
-only `ak-impl.mjs` findings, and Configurator/Allocator had zero `detail-dropped` sites from SM1,
+only `agon-impl.mjs` findings, and Configurator/Allocator had zero `detail-dropped` sites from SM1,
 `orchestrate-build.js` turned out to be the entire fix list — there was no second batch to do.
 Threaded existing local data into every message, matching the M4 pattern exactly:
 - 11 actor-placement sites (both `normalizeActorPositions` and `normalizeActorPositionsLegacy`) now
@@ -210,9 +210,9 @@ Threaded existing local data into every message, matching the M4 pattern exactly
 
 **Only 5 of the 15 fixes got a genuine, non-contrived reproduction — and that's an honest number,
 not a shortfall to paper over.** Two actor-placement cases (too many delvers for the entry room, too
-many wardens for the room) and the denied-lines cap all reproduce through a real `ak create` call,
+many wardens for the room) and the denied-lines cap all reproduce through a real `agon create` call,
 perturbation-verified (`git stash` the fix, watch all 5 tests fail, restore). Two of the three misc
-guards are tested directly against `orchestrateBuild` with a hand-built spec, since `ak create`'s own
+guards are tested directly against `orchestrateBuild` with a hand-built spec, since `agon create`'s own
 parsing can never produce the malformed state they guard against (`hasActors` is always true;
 `agentAuthoringCommand` always constructs an array). **The third misc guard and the remaining 9
 actor-placement sites are not independently tested at all**, for two different reasons worth keeping
@@ -226,7 +226,7 @@ distinct:
   `unresolved strategic placement`, in both the current and Legacy placement functions) are
   defensive backstops behind the carving algorithm's own guarantee (a minimum walkable interior per
   room, spawn/exit chosen from the walkable set) — the same shape as
-  `assertJudgementBudget`'s "must never fire" comment found during SM1. No `ak create` input reaches
+  `assertJudgementBudget`'s "must never fire" comment found during SM1. No `agon create` input reaches
   them without that upstream guarantee already having broken.
 
 All 15 fixes are kept regardless — they're low-risk (pure message formatting, no control-flow
@@ -267,7 +267,7 @@ recorded attempts either) — at this model/configuration, the placement algorit
 that the specific under-specification pattern M3/M4 found for floor-tile/hazard placement doesn't
 reproduce the same way for actors within a modest 9-scenario sample. The dedicated reproductions in
 `tests/integration/create-actor-placement-refusal-detail.test.js` remain the actual proof the fixes
-work — real `ak create` calls, not mocks, just deliberately constructed rather than naturally
+work — real `agon create` calls, not mocks, just deliberately constructed rather than naturally
 occurring in this sample. A larger or differently-tiered sample might surface a natural case; not
 run here, matching this plan's own restraint about not inflating a small local debug run into more
 than it is.
@@ -276,7 +276,7 @@ than it is.
 
 ## Explicitly out of scope
 
-- **The 326 throw sites outside the `ak_create` surface** (§Scope) — no evidence a model reaches
+- **The 326 throw sites outside the `agon_create` surface** (§Scope) — no evidence a model reaches
   them; revisit only if new evidence says otherwise.
 - **A shared structured-error/`buildError()` helper** — the governing principle's own caution: design
   it after SM1's data exists, not before, and treat it as its own plan with its own maintainer

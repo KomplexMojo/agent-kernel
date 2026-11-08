@@ -256,7 +256,7 @@ jobs:
             // only when that SET changes. Not every run: at a 30-minute cadence a comment per check
             // would bury the signal it exists to raise, which is why body-editing was chosen in the
             // first place. Changes only.
-            const SET_OPEN = '<!-- ak-problem-set:';
+            const SET_OPEN = '<!-- agon-problem-set:';
             const SET_CLOSE = '-->';
 
             // Stored and compared in the same capped, whitespace-collapsed form, so one enormous

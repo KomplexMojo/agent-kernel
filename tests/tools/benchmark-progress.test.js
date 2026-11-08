@@ -175,7 +175,7 @@ test('the summary is serializable, since it crosses a process and a git branch',
 // configuration used to be eliminated by its second miss. 0.96 permits four. Pinned because the
 // value is a maintainer calibration decision, not an implementation detail to drift.
 test('the verdict gate permits four misses in a hundred, and the tool-call gate still permits one', () => {
-  const { DEFAULT_THRESHOLDS, canStillQualify } = require('../../tools/remote-ollama-control/scripts/lib/ak-compare');
+  const { DEFAULT_THRESHOLDS, canStillQualify } = require('../../tools/remote-ollama-control/scripts/lib/agon-compare');
 
   assert.equal(DEFAULT_THRESHOLDS.scenarioVerdictRate, 0.96);
   assert.equal(DEFAULT_THRESHOLDS.toolCallRate, 0.99);

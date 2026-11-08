@@ -21,11 +21,11 @@ function record(id, key = 'K1') {
   };
 }
 
-// The remote is addressed by URL, exactly as AK_BENCHMARK_RESULTS_REMOTE does in production. Every
+// The remote is addressed by URL, exactly as AGON_BENCHMARK_RESULTS_REMOTE does in production. Every
 // pre-existing test in this suite passed a local bare PATH, where `git --git-dir=<path>` happens to
 // work -- so the whole class of "cannot read a branch through a URL" was invisible.
 function seededRemote() {
-  const root = mkdtempSync(join(tmpdir(), 'ak-publisher-url-'));
+  const root = mkdtempSync(join(tmpdir(), 'agon-publisher-url-'));
   const bare = join(root, 'remote.git');
   git(root, ['init', '--bare', '--quiet', bare]);
   const seed = join(root, 'seed');

@@ -1,9 +1,9 @@
 import { booleanSchema, buildArgv, createTool, integerSchema, pathSchema, stringSchema } from "./shared.mjs";
 
-// A live game (`ak play-session`): one file per session name, replayed and saved on every call.
+// A live game (`agon play-session`): one file per session name, replayed and saved on every call.
 const sessionSpec = [{ key: "session" }];
 const saveSpec = [{ key: "save" }];
-const saveProperty = pathSchema("Also copy the game to this file after the call (e.g. artifacts/games/<name>.json); ak_play_start with load reopens it.");
+const saveProperty = pathSchema("Also copy the game to this file after the call (e.g. artifacts/games/<name>.json); agon_play_start with load reopens it.");
 const levelSpec = [
   { key: "runId", flag: "from-run" },
   { key: "dir" },
@@ -21,7 +21,7 @@ const SESSION_RESULT = "Returns { screen, status, turns, active, party, orders?,
   + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position, motivations and status; "
   + "`orders` lists every actor following a strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (active, searching: target out of sight, stalled: with a reason, done, ignored: its thinking motivation does not reach the strategy); "
   + "`battleLog` is the last 20 lines of the Annotator's battle log for the seated actor, newest last (what hit whom, field effects, defeats); "
-  + "`legal` lists the commands the seat can try now (see ak_play_legal); "
+  + "`legal` lists the commands the seat can try now (see agon_play_legal); "
   + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id, and its motivations (the stack that explains how it acts). "
   + "Fog of war is on: report only what the screen and inSight show.";
 
@@ -36,7 +36,7 @@ const actingProperties = {
       + "Every command except switch is one turn for the whole level, refused or not.",
     items: { type: "object", additionalProperties: true },
   },
-  keys: stringSchema("Keys to play after commands, as in ak_play_ascii: w/a/s/d or h/j/k/l move, y/u/b/n diagonals, upper case (or x before a move) sprints two tiles, '.' waits, g takes loot. Each acting key is one turn."),
+  keys: stringSchema("Keys to play after commands, as in agon_play_ascii: w/a/s/d or h/j/k/l move, y/u/b/n diagonals, upper case (or x before a move) sprints two tiles, '.' waits, g takes loot. Each acting key is one turn."),
 };
 
 const playSpec = [
@@ -58,22 +58,22 @@ const fogArgs = (args) => (args.fog === false ? ["--no-fog"] : []);
 
 export const playTools = [
   createTool({
-    name: "ak_play_ascii",
+    name: "agon_play_ascii",
     description:
       "Show a level in the agon ASCII terminal UI (packages/ui-ascii), and optionally play moves in it, or watch a recorded run in it. "
-      + "Use it right after ak_create (or ak_configure/ak_run) to display what was made: pass that call's runId, or its outDir as dir. "
+      + "Use it right after agon_create (or agon_configure/agon_run) to display what was made: pass that call's runId, or its outDir as dir. "
       + "Returns { screen, status, turns, launch }. Show `screen` to the user verbatim in a code block, and give `launch`: "
       + "the command that opens the interactive, coloured game in their own terminal. "
       + "`keys` plays moves first: w/a/s/d or h/j/k/l move, y/u/b/n move diagonally, '.' waits (stepping through the exit E takes one wait on the tile before it), r restarts. "
       + "Each call replays from the start, so pass the whole key history to continue a game, or pass `record` to save the played commands and `replay` to re-run a saved game before `keys`. "
-      + "`watch: true` shows the run an ak_run call recorded instead (its runId, or its outDir as dir) at `tick`, every actor in place, as { screen, tick, maxTick, status, launch }. "
+      + "`watch: true` shows the run an agon_run call recorded instead (its runId, or its outDir as dir) at `tick`, every actor in place, as { screen, tick, maxTick, status, launch }. "
       + "Board: @ is the player (when watching, the actor the HUD follows), D/W other delvers and wardens, H traps (hazards), B barriers, # wall, . floor, S spawn, E exit, ? not yet seen. "
       + "Fog of war is on when playing: only what the player can see (or remembers) is drawn, and actors and traps only when in sight now. The player sees only what @ sees, so show the fogged screen; fog: false is a debug view for checking a level's layout, not for play. A watched run has no fog.",
     command: "play",
     inputSchema: {
       properties: {
-        runId: stringSchema("Run id of an earlier ak_create/ak_configure/ak_run call in this session (or under artifacts/runs/<runId>). With watch, an ak_run call's run id."),
-        dir: pathSchema("A directory holding sim-config.json and initial-state.json, such as an ak_create outDir. With watch, an ak_run outDir."),
+        runId: stringSchema("Run id of an earlier agon_create/agon_configure/agon_run call in this session (or under artifacts/runs/<runId>). With watch, an agon_run call's run id."),
+        dir: pathSchema("A directory holding sim-config.json and initial-state.json, such as an agon_create outDir. With watch, an agon_run outDir."),
         simConfig: pathSchema("SimConfig artifact path (with initialState)."),
         initialState: pathSchema("InitialState artifact path (with simConfig)."),
         level: stringSchema("A bundled ui-ascii level by name (packages/ui-ascii/levels). Omit to start at the first."),
@@ -82,24 +82,24 @@ export const playTools = [
         fog: booleanSchema("Fog of war (default true): the player sees only what @ sees. false is a debug view of the whole level."),
         record: pathSchema("Save the played commands to this path as a CapturedInputArtifact."),
         replay: pathSchema("Re-run a game saved with record on its level first, then apply keys."),
-        watch: booleanSchema("Watch the run an ak_run call recorded (runId or dir) instead of playing a level."),
+        watch: booleanSchema("Watch the run an agon_run call recorded (runId or dir) instead of playing a level."),
         tick: integerSchema("With watch: the tick to show (default 0).", { minimum: 0 }),
       },
     },
     buildArgs: (args) => [...buildArgv(args, playSpec), ...fogArgs(args), "--json"],
   }),
   createTool({
-    name: "ak_play_start",
-    description: "Start a live game on a level and keep it between calls, for playing turn by turn (then ak_play_act). "
-      + "Name the level as for ak_play_ascii: an ak_create call's runId, its outDir as dir, simConfig + initialState, or a bundled level. "
+    name: "agon_play_start",
+    description: "Start a live game on a level and keep it between calls, for playing turn by turn (then agon_play_act). "
+      + "Name the level as for agon_play_ascii: an agon_create call's runId, its outDir as dir, simConfig + initialState, or a bundled level. "
       + "The seated actor is the first one authored user_controlled. Optional actor/commands/keys are played straight away. A name already running must be ended first. "
       + SESSION_RESULT,
     command: "play-session",
     inputSchema: {
       properties: {
         session: sessionProperty,
-        runId: stringSchema("Run id of an earlier ak_create/ak_configure/ak_run call (or under artifacts/runs/<runId>)."),
-        dir: pathSchema("A directory holding sim-config.json and initial-state.json, such as an ak_create outDir."),
+        runId: stringSchema("Run id of an earlier agon_create/agon_configure/agon_run call (or under artifacts/runs/<runId>)."),
+        dir: pathSchema("A directory holding sim-config.json and initial-state.json, such as an agon_create outDir."),
         simConfig: pathSchema("SimConfig artifact path (with initialState)."),
         initialState: pathSchema("InitialState artifact path (with simConfig)."),
         level: stringSchema("A bundled ui-ascii level by name."),
@@ -110,8 +110,8 @@ export const playTools = [
     buildArgs: (args) => ["start", ...buildArgv(args, [...sessionSpec, ...levelSpec, { key: "load" }, ...actingSpec])],
   }),
   createTool({
-    name: "ak_play_act",
-    description: "Play turns in a live game started with ak_play_start: optional actor (seat change, free), then commands, then keys, then the game is saved. "
+    name: "agon_play_act",
+    description: "Play turns in a live game started with agon_play_start: optional actor (seat change, free), then commands, then keys, then the game is saved. "
       + "For natural-language orders, translate them into commands or keys a few turns at a time and stop to report when something new comes into sight or a vital drops. "
       + SESSION_RESULT,
     command: "play-session",
@@ -119,16 +119,16 @@ export const playTools = [
     buildArgs: (args) => ["act", ...buildArgv(args, [...sessionSpec, ...actingSpec, ...saveSpec])],
   }),
   createTool({
-    name: "ak_play_view",
+    name: "agon_play_view",
     description: "Show a live game's board without playing anything; with save, also copy the game to a file. " + SESSION_RESULT,
     command: "play-session",
     inputSchema: { properties: { session: sessionProperty, save: saveProperty } },
     buildArgs: (args) => ["view", ...buildArgv(args, [...sessionSpec, ...saveSpec])],
   }),
   createTool({
-    name: "ak_play_legal",
+    name: "agon_play_legal",
     description: "List the commands the seated actor can try right now in a live game, without playing anything: `legal` is [{ id, label, command }] ordered by id "
-      + "(wait, move:<dir>, sprint:<dir>, cast:<affinity>@<target>, equip:<kind:expression> and unequip:<kind:expression> for held affinities, one turn each, take:...). Pass a listed `command` to ak_play_act. Read from what the seat can see (fog respected) and a candidate list: "
+      + "(wait, move:<dir>, sprint:<dir>, cast:<affinity>@<target>, equip:<kind:expression> and unequip:<kind:expression> for held affinities, one turn each, take:...). Pass a listed `command` to agon_play_act. Read from what the seat can see (fog respected) and a candidate list: "
       + "obvious refusals (walls, barriers, occupied tiles, unaffordable stamina or mana) are left out, but core still decides and a listed command can be refused. A step into a cell you cannot see right now (typically a diagonal past a corner, where a barrier can stand unseen) is listed with `unseen: true` and a label saying so; it may be refused with ActorCollision. When too little stamina is why no step is listed, `legalNote` says what a step costs (soak included) and what you have. "
       + SESSION_RESULT,
     command: "play-session",
@@ -136,7 +136,7 @@ export const playTools = [
     buildArgs: (args) => ["legal", ...buildArgv(args, sessionSpec)],
   }),
   createTool({
-    name: "ak_play_switch",
+    name: "agon_play_switch",
     description: "Seat another party member in a live game (an actor authored user_controlled or ai_controlled, by id or label such as D2). Free: no turn passes, and fog follows the new seat. "
       + "A companion, warden or trap cannot be seated (results say not_playable). " + SESSION_RESULT,
     command: "play-session",
@@ -150,7 +150,7 @@ export const playTools = [
     buildArgs: (args) => ["switch", ...buildArgv(args, [...sessionSpec, { key: "actor" }])],
   }),
   createTool({
-    name: "ak_play_order",
+    name: "agon_play_order",
     description: "Give a party member or a companion (a friendly actor on the seated actor's side) a new strategy in a live game: standing orders it follows on its own turns. "
       + "It replaces the actor's strategy and starts at the first goal. Giving the order is the seated actor's turn and taking it the ordered actor's, so one turn passes. "
       + "How much it follows depends on its thinking motivation: goal_oriented follows the goals, strategy_focused and user_controlled the tactics too; any other actor ignores it. "
@@ -182,7 +182,7 @@ export const playTools = [
       { key: "strategy", format: (value) => JSON.stringify(value) }])],
   }),
   createTool({
-    name: "ak_play_advance",
+    name: "agon_play_advance",
     description: "Let a live game run several turns at once, for orders to play out: the seated actor follows its own strategy if it has one, else waits. "
       + "Stops after `ticks`, or earlier at `until`: orders_done (every actor's strategy is done, stalled or ignored) or contact (a hostile comes into a party member's sight). "
       + "Use it as a bounded autopilot only when the player asks you to play on. Results give { ticks, stoppedBy }. " + SESSION_RESULT,
@@ -197,10 +197,10 @@ export const playTools = [
     buildArgs: (args) => ["advance", ...buildArgv(args, [...sessionSpec, { key: "ticks" }, { key: "until" }])],
   }),
   createTool({
-    name: "ak_play_tick",
+    name: "agon_play_tick",
     description: "Run ONE tick in a live game commanding several ai_controlled actors at once (wardens, hazards, any actor authored ai_controlled), instead of commanding one, switching, and advancing the world once per actor. "
-      + "actorCommands maps an actor's id or label (W1, H2) to a command as in ak_play_act. Actors left out play their own motivations. "
-      + "Refused entries are named in results[].rejected and the others still run: not_playable (not ai_controlled; the player's party is commanded with ak_play_act), unknown_actor, exited, defeated, "
+      + "actorCommands maps an actor's id or label (W1, H2) to a command as in agon_play_act. Actors left out play their own motivations. "
+      + "Refused entries are named in results[].rejected and the others still run: not_playable (not ai_controlled; the player's party is commanded with agon_play_act), unknown_actor, exited, defeated, "
       + "single_actor_only (inspect, watch, switch, order and advance need a tick of their own). No valid entry means no tick. " + SESSION_RESULT,
     command: "play-session",
     inputSchema: {
@@ -218,7 +218,7 @@ export const playTools = [
     buildArgs: (args) => ["tick", ...buildArgv(args, [...sessionSpec, { key: "actorCommands", flag: "actor-commands", format: (value) => JSON.stringify(value) }, ...saveSpec])],
   }),
   createTool({
-    name: "ak_play_end",
+    name: "agon_play_end",
     description: "End a live game: returns its final board and removes its live file. Pass save to keep a copy first. "
       + SESSION_RESULT,
     command: "play-session",

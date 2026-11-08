@@ -1,4 +1,4 @@
-// #301: `ak create --place` / `ak_create { place }` hand relational placement constraints to the
+// #301: `agon create --place` / `agon_create { place }` hand relational placement constraints to the
 // Configurator's solver-backed placement. The level they build honours them, the create result
 // reports how each held, and one that cannot hold refuses the level with the constraint named.
 
@@ -9,16 +9,16 @@ const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const AK_CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AGON_CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 async function create(payload) {
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  const outDir = mkdtempSync(join(tmpdir(), "ak-place-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-place-"));
   try {
     const result = spawnSync(process.execPath, [
-      AK_CLI, "create",
+      AGON_CLI, "create",
       ...buildArgv({ ...payload, outDir, runId: "place_probe", createdAt: "2026-10-18T00:00:00.000Z" }, authoringSpec),
     ], { cwd: ROOT, encoding: "utf8" });
     const read = (name) => JSON.parse(readFileSync(join(outDir, name), "utf8"));

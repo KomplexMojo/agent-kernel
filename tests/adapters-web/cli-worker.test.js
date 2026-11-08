@@ -53,7 +53,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   };
 
   const specPath = "/tests/fixtures/artifacts/build-spec-v1-configurator.json";
-  const adapter = createCliWorkerAdapter({ forceInProcess: true, fetchFn, env: { AK_LLM_LIVE: "1" } });
+  const adapter = createCliWorkerAdapter({ forceInProcess: true, fetchFn, env: { AGON_LLM_LIVE: "1" } });
   const buildResult = await adapter.build({ specPath });
 
   assert.equal(buildResult.spec.schema, "agon/BuildSpec");

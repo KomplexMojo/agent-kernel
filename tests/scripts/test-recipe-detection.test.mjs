@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { collectTestInventory } from "../../scripts/testing/shared.mjs";
 import { SCAFFOLDABLE_RECIPES } from "../../scripts/testing/recipe-catalog.mjs";
 
-// A recipe ak_test_scaffold_case can author but the inventory can never detect is
+// A recipe agon_test_scaffold_case can author but the inventory can never detect is
 // worse than either whole state: the scaffolded case is classified as some other
 // family the moment it lands (#167, after #160 moved tests/allocator/ under
 // tests/personas/allocator/ and left budget_policy_invariant pointing at nothing).

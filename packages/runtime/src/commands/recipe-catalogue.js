@@ -1,5 +1,5 @@
 /**
- * The recipe catalogue as every front end reads it (#716): `ak recipes` / `ak recipe`, the MCP
+ * The recipe catalogue as every front end reads it (#716): `agon recipes` / `agon recipe`, the MCP
  * tools, the character sheet and the LLM planner. Glue only: the recipes are the Configurator's
  * (configuration) and the Actor's (strategy), each row's price is the Allocator's quote of the
  * recipe's expansion. Nothing here decides what a recipe holds or costs. Strategy recipes have no

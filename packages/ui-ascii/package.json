@@ -7,9 +7,10 @@
     "./src/game.js": "./src/game.js",
     "./src/html.js": "./src/html.js",
     "./src/keymap.js": "./src/keymap.js",
-    "./src/screen.js": "./src/screen.js"
+    "./src/screen.js": "./src/screen.js",
+    "./src/character-cli.mjs": "./src/character-cli.mjs"
   },
   "bin": {
-    "ak-maze": "src/cli.mjs"
+    "agon-maze": "src/cli.mjs"
   }
 }

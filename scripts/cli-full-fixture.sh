@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLI="$ROOT/packages/adapters-cli/src/cli/ak.mjs"
+CLI="$ROOT/packages/adapters-cli/src/cli/agon.mjs"
 
 RUN_ID="${RUN_ID:-run_cli_fixture_$(date +%Y%m%d_%H%M%S)}"
 CREATED_AT="${CREATED_AT:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
@@ -17,7 +17,7 @@ INITIAL_STATE="$BASE/llm-plan/initial-state.json"
 
 echo "RUN_ID=$RUN_ID"
 
-AK_LLM_LIVE=1 node "$CLI" llm-plan \
+AGON_LLM_LIVE=1 node "$CLI" llm-plan \
   --scenario "$SCENARIO" \
   --model fixture \
   --fixture "$LLM_FIXTURE" \

@@ -1,17 +1,17 @@
 # Strategy sources compared by play-sim outcome (#677)
 
-Tracker #611, AI S1. Strategy here is the dungeon configuration. The same scenario, seed and token budget were built through `ak create` twice, differing only in who picked the placement tactics, then played by the same T0 driver (the delver is ordered to the exit).
+Tracker #611, AI S1. Strategy here is the dungeon configuration. The same scenario, seed and token budget were built through `agon create` twice, differing only in who picked the placement tactics, then played by the same T0 driver (the delver is ordered to the exit).
 
-Tool: `scripts/testing/play-sim-strategy-sources.mjs`. Everything goes through `ak create` and the Allocator; nothing is hand-priced. No engine changes.
+Tool: `scripts/testing/play-sim-strategy-sources.mjs`. Everything goes through `agon create` and the Allocator; nothing is hand-priced. No engine changes.
 
 ```
 node scripts/testing/play-sim-strategy-sources.mjs --scenarios first-look,duel --seeds 0,1,2 \
-  --model <id> --base-url <ollama url>          # live model (sets AK_LLM_LIVE=1 for the llm source)
+  --model <id> --base-url <ollama url>          # live model (sets AGON_LLM_LIVE=1 for the llm source)
 node scripts/testing/play-sim-strategy-sources.mjs --fixture tests/fixtures/llm/tactic-plan-valid.json   # recorded reply
 ```
 
 - **catalogue**: `--tactic auto`, the Director's seeded pick (#395).
-- **llm**: `--tactic llm`. If there is no model or the reply is invalid, ak falls back to the seeded plan. A pair where the model did not decide is listed as `fellBack` and left out, so "llm" never silently means "catalogue".
+- **llm**: `--tactic llm`. If there is no model or the reply is invalid, agon falls back to the seeded plan. A pair where the model did not decide is listed as `fellBack` and left out, so "llm" never silently means "catalogue".
 - **Progress**: exits and median ticks to exit. **Deaths**: defeats. **Loops**: timeouts, where the fixed order never reached the exit.
 
 ## Result of the run made here

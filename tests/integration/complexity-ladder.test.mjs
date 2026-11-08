@@ -7,7 +7,7 @@ import { describe, test, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 
-import { ROOT, runAk, makeOutDir, readJsonIfExists } from "../helpers/ak-cli.mjs";
+import { ROOT, runAk, makeOutDir, readJsonIfExists } from "../helpers/agon-cli.mjs";
 
 // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
 // The t1-medium fixture's hazard spec was corrected to an in-room offset (same hazard count/affinity).
@@ -23,7 +23,7 @@ function loadTiers() {
 describe("complexity ladder (author -> build -> run)", () => {
   for (const tier of loadTiers()) {
     test(`${tier.id} (${tier.tier})`, () => {
-      const outDir = makeOutDir(`ak-ladder-${tier.id}-`);
+      const outDir = makeOutDir(`agon-ladder-${tier.id}-`);
       const create = runAk("create", [
         ...tier.createArgs,
         "--run-id", `run_ladder_${tier.id}`,
@@ -65,7 +65,7 @@ describe("complexity ladder (author -> build -> run)", () => {
 
       // Simulate the built level.
       if (tier.expect.runnable) {
-        const runOut = makeOutDir(`ak-ladder-run-${tier.id}-`);
+        const runOut = makeOutDir(`agon-ladder-run-${tier.id}-`);
         const run = runAk("run", [
           "--sim-config", join(outDir, "sim-config.json"),
           "--initial-state", join(outDir, "initial-state.json"),

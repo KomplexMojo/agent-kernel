@@ -7,7 +7,7 @@ const { spawnSync } = require('child_process');
 const { aggregateExecutionResults, evaluateExecutionArtifacts, loadExecutionArtifacts } = require('./execution-evaluator');
 const { loadExecutionCatalog } = require('./execution-catalog');
 
-const DEFAULT_CLI = path.resolve(__dirname, '..', '..', '..', '..', 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
+const DEFAULT_CLI = path.resolve(__dirname, '..', '..', '..', '..', 'packages', 'adapters-cli', 'src', 'cli', 'agon.mjs');
 
 function safeSegment(value) {
   return String(value).replace(/[^A-Za-z0-9._-]+/g, '-');

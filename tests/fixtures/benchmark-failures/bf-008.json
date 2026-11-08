@@ -8,7 +8,7 @@
   "observedOutcome": "budget_denied",
   "scenarioBudget": 96,
   "toolArgs": {
-    "text": "Create one defending dark Warden. One token below its minimum passing budget. Use a 85 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "text": "Create one defending dark Warden. One token below its minimum passing budget. Use a 85 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
     "runId": "run-dark-warden-001",
     "outDir": "./out/dark-warden",
     "budgetTokens": 85,

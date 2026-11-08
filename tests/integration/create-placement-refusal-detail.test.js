@@ -13,15 +13,15 @@ const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const AK_CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AGON_CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 async function create(payload) {
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  const outDir = mkdtempSync(join(tmpdir(), "ak-placement-refusal-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-placement-refusal-"));
   try {
     const result = spawnSync(process.execPath, [
-      AK_CLI, "create",
+      AGON_CLI, "create",
       ...buildArgv({ ...payload, outDir, runId: "placement_refusal_probe" }, authoringSpec),
     ], { cwd: ROOT, encoding: "utf8" });
     return { status: result.status, detail: `${result.stderr || ""}${result.stdout || ""}` };

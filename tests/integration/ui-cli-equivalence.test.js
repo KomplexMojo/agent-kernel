@@ -6,7 +6,7 @@ const { pathToFileURL } = require("node:url");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const CLI_WORKER_URL = pathToFileURL(
   resolve(ROOT, "packages/adapters-web/src/adapters/cli-worker/index.js"),
 ).href;
@@ -188,7 +188,7 @@ async function createBrowserAdapter() {
   return createCliWorkerAdapter({
     forceInProcess: true,
     fetchFn: createFixtureFetch(ROOT),
-    env: { AK_LLM_LIVE: "1" },
+    env: { AGON_LLM_LIVE: "1" },
     nowIso: () => "2026-03-11T00:00:00.000Z",
   });
 }
@@ -526,7 +526,7 @@ test("browser host llm-plan artifacts are equivalent to Node CLI output", async 
     "2025-01-01T00:00:00Z",
     "--out-dir",
     outDir,
-  ], { AK_LLM_LIVE: "1" });
+  ], { AGON_LLM_LIVE: "1" });
 
   const cliArtifacts = collectJsonArtifacts(outDir);
   const adapter = await createBrowserAdapter();
@@ -559,7 +559,7 @@ test("browser host llm artifacts are equivalent to Node CLI output", async () =>
     "tests/fixtures/adapters/llm-generate.json",
     "--out-dir",
     outDir,
-  ], { AK_LLM_LIVE: "1" });
+  ], { AGON_LLM_LIVE: "1" });
 
   const cliArtifacts = collectJsonArtifacts(outDir);
   const adapter = await createBrowserAdapter();

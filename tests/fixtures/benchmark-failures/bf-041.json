@@ -8,7 +8,7 @@
   "observedOutcome": "budget_denied",
   "scenarioBudget": 1300,
   "toolArgs": {
-    "text": "Using the agon skill and the agon MCP, create a tick-session-ready dungeon with an exploring Delver, a stationary Warden, a fire hazard emitting affinity stacks, and a level resource pickup. Use a 1300 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "text": "Using the agon skill and the agon MCP, create a tick-session-ready dungeon with an exploring Delver, a stationary Warden, a fire hazard emitting affinity stacks, and a level resource pickup. Use a 1300 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
     "runId": "dungeon-session-001",
     "outDir": "./output/dungeon-001",
     "budgetTokens": 1300,

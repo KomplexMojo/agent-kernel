@@ -11,7 +11,7 @@
       "tools/remote-ollama-control/benchmarks/content-gen/**",
       "tools/remote-ollama-control/config/models.json",
       "tools/remote-ollama-control/config/llm-profiles.json",
-      "tools/remote-ollama-control/scripts/lib/ak-*.js",
+      "tools/remote-ollama-control/scripts/lib/agon-*.js",
       "tools/remote-ollama-control/scripts/remote-ollama-mac.js"
     ],
     "runtimeExecution": [
@@ -36,7 +36,7 @@
     "tools/remote-ollama-control/benchmarks/execution/**",
     "tools/remote-ollama-control/config/models.json",
     "tools/remote-ollama-control/config/llm-profiles.json",
-    "tools/remote-ollama-control/scripts/lib/ak-*.js",
+    "tools/remote-ollama-control/scripts/lib/agon-*.js",
     "tools/remote-ollama-control/scripts/lib/execution-*.js",
     "tools/remote-ollama-control/scripts/remote-ollama-mac.js"
   ]

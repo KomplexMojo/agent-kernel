@@ -2,8 +2,8 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
-const { AK_CREATE_TOOL } = require("../../tools/remote-ollama-control/scripts/lib/ak-tool-schema");
-const { normalizeToolArgs, REPO_ROOT } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const { AGON_CREATE_TOOL } = require("../../tools/remote-ollama-control/scripts/lib/agon-tool-schema");
+const { normalizeToolArgs, REPO_ROOT } = require("../../tools/remote-ollama-control/scripts/lib/agon-runner");
 
 // The CLI is the authority on which resource fields exist. Read its allow-list out of the
 // source rather than restating it here: a copy would keep passing after the CLI moved on,
@@ -11,7 +11,7 @@ const { normalizeToolArgs, REPO_ROOT } = require("../../tools/remote-ollama-cont
 // advertised and the parser rejected.
 function cliV3ResourceFields() {
   const source = readFileSync(
-    // #557: the resource parser moved from ak-impl.mjs into runtime with the rest of the spec grammar.
+    // #557: the resource parser moved from agon-impl.mjs into runtime with the rest of the spec grammar.
     join(REPO_ROOT, "packages/runtime/src/commands/authoring-specs.js"),
     "utf8",
   );
@@ -25,7 +25,7 @@ function cliV3ResourceFields() {
 }
 
 function schemaResourceFields() {
-  const resource = AK_CREATE_TOOL.function.parameters.properties.resource;
+  const resource = AGON_CREATE_TOOL.function.parameters.properties.resource;
   return new Set(Object.keys(resource.items.properties));
 }
 
@@ -42,14 +42,14 @@ test("every resource field offered to the model is one the CLI's V3 parser accep
 
 test("no required-field combination steers the model into a shape the CLI rejects", () => {
   const allowed = cliV3ResourceFields();
-  const resource = AK_CREATE_TOOL.function.parameters.properties.resource;
+  const resource = AGON_CREATE_TOOL.function.parameters.properties.resource;
   const required = (resource.items.anyOf || []).flatMap((branch) => branch.required || []);
   const rejected = required.filter((field) => !allowed.has(field));
   assert.deepEqual(rejected, [], `anyOf demands fields the CLI rejects: ${rejected.join(", ")}`);
 });
 
 test("the resource description does not promise support the CLI withdrew", () => {
-  const resource = AK_CREATE_TOOL.function.parameters.properties.resource;
+  const resource = AGON_CREATE_TOOL.function.parameters.properties.resource;
   const allowed = cliV3ResourceFields();
   for (const field of ["tier", "stat", "dropRate"]) {
     if (allowed.has(field)) continue;
@@ -98,7 +98,7 @@ const { mkdtempSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { spawnSync } = require("node:child_process");
 
-const AK_CLI = join(REPO_ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AGON_CLI = join(REPO_ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 // The benchmark hands the model an object and ships `key=value;key=value` to the CLI. Go through
 // the same shape, so the test exercises the path the run actually takes.
@@ -107,9 +107,9 @@ function toSegments(resource) {
 }
 
 function createWithResource(resource) {
-  const outDir = mkdtempSync(join(tmpdir(), "ak-resource-conformance-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-resource-conformance-"));
   return spawnSync(process.execPath, [
-    AK_CLI, "create",
+    AGON_CLI, "create",
     "--resource", toSegments(resource),
     "--run-id", "run_resource_conformance",
     "--created-at", "2026-08-24T00:00:00.000Z",
@@ -142,7 +142,7 @@ function branchCases(branch, path = []) {
   ).map((c) => ({ fields: [...base, ...c.fields], label: c.label })));
 }
 
-const RESOURCE_ITEMS = AK_CREATE_TOOL.function.parameters.properties.resource.items;
+const RESOURCE_ITEMS = AGON_CREATE_TOOL.function.parameters.properties.resource.items;
 const DERIVED_CASES = (RESOURCE_ITEMS.anyOf || []).flatMap((b) => branchCases(b));
 
 assert.ok(DERIVED_CASES.length >= 2, "failed to derive executable cases from the resource schema");
@@ -175,7 +175,7 @@ test("the two shapes that cost 57 attempts are rejected by the CLI and unreprese
     "a vital payload without permanenceMode should still be rejected");
 
   // ...and the schema must no longer advertise them.
-  const items = AK_CREATE_TOOL.function.parameters.properties.resource.items;
+  const items = AGON_CREATE_TOOL.function.parameters.properties.resource.items;
   const branches = items.anyOf || [];
   const vitalBranch = branches.find((b) => (b.required || []).includes("vital"));
   const affinityBranch = branches.find((b) => (b.required || []).includes("affinity"));

@@ -6,7 +6,7 @@
  * deterministically during execution are recorded, and the Orchestrator fulfils them AFTER
  * the run, capturing the results for future deterministic runs. **None of it existed.**
  * `dispatchEffect` marked effects `deferred`, the Moderator's plan recorded the disposition,
- * and the only thing downstream was `ak inspect`, which COUNTED them. The registry carried
+ * and the only thing downstream was `agon inspect`, which COUNTED them. The registry carried
  * the entry as blocked with `invocation: "none"` for that reason — a G1 test cannot come
  * before the behavior.
  *

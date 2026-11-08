@@ -12,7 +12,7 @@
  * Default out dir: artifacts/play-sim/<run-id> (gitignored; cards are not committed).
  *
  * T0 driver: the seated user_controlled actor is given one `order` (the strategy below) and the
- * game then `advance`s with no further input, exactly as ak_play_order / ak_play_advance do.
+ * game then `advance`s with no further input, exactly as agon_play_order / agon_play_advance do.
  *   dash   reach the exit and nothing else (default)
  *   fight  reach the exit, but cast at the nearest hostile once one is within 2 tiles
  *
@@ -21,7 +21,7 @@
  * resumes after each burst. Default driver `t0`.
  *
  * `--driver seat --model <id>` (#654) hands the seat to a model for the whole level, through
- * `ak play-session` (the command behind ak_play_start / ak_play_legal / ak_play_act), seeing only
+ * `agon play-session` (the command behind agon_play_start / agon_play_legal / agon_play_act), seeing only
  * the fogged screen and the legal list (play-sim-seat.mjs). No T0 order is given.
  *
  * `--build-source llm --model <id>` (M3, #614) lets a local Ollama model propose the player's
@@ -32,9 +32,9 @@
  * record. It is analysis, never a gate. The default stays the scenario's own character.
  *
  * The treatment scales `--budget-tokens` by 0.9. The delver pool is a fixed share of that total
- * (ak create does not take a per-pool cap), so the whole level shrinks with it; each run records
+ * (agon create does not take a per-pool cap), so the whole level shrinks with it; each run records
  * the delver pool's cap and spend from the budget receipt so the arms can be compared on it.
- * The harness holds no policy: levels come from `ak create` (the Allocator prices them) and play
+ * The harness holds no policy: levels come from `agon create` (the Allocator prices them) and play
  * goes through the runtime play session.
  */
 import { spawnSync } from "node:child_process";
@@ -52,14 +52,14 @@ import { createCliTransport, llmSeatPicker, runSeat } from "./play-sim-seat.mjs"
 import { createAnthropicAdapter, resolveProvider } from "./play-sim-anthropic.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 export const TREATMENT_SHARE = 0.9;
 export const DEFAULT_SEEDS = [0, 1];
 export const DEFAULT_MAX_TICKS = 200;
 const CHUNK = 5;
 
-/** The T0 order for the seated actor: a strategy `ak_play_order` accepts. */
+/** The T0 order for the seated actor: a strategy `agon_play_order` accepts. */
 export function strategyFor(name) {
   // #725: a strategy object (a strategy recipe's, say) is ordered as given.
   if (name && typeof name === "object") return name;
@@ -79,7 +79,7 @@ export function armBudgets(scenario, { baseline = true, treatment = true } = {})
   return arms;
 }
 
-function ak(args) {
+function agon(args) {
   const result = spawnSync(process.execPath, [AK, ...args], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
@@ -88,11 +88,11 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-/** Build one arm through `ak create`; returns { ok, dir, error?, args } and cleans nothing up. */
+/** Build one arm through `agon create`; returns { ok, dir, error?, args } and cleans nothing up. */
 export function buildArm(scenario, seed, { arm, budgetTokens }, workDir, createdAt, character) {
   const dir = join(workDir, `${scenario.id}-s${seed}-${arm}`);
   const args = scenarioArgs({ ...scenario, budgetTokens }, seed, undefined, character);
-  const result = ak(["create", "--run-id", `play-sim-${scenario.id}-s${seed}-${arm}`, "--created-at", createdAt, ...args, "--out-dir", dir]);
+  const result = agon(["create", "--run-id", `play-sim-${scenario.id}-s${seed}-${arm}`, "--created-at", createdAt, ...args, "--out-dir", dir]);
   if (result.status !== 0) return { ok: false, dir, args, error: `${result.stderr}${result.stdout}`.trim().slice(0, 600) };
   return { ok: true, dir, args };
 }
@@ -210,7 +210,7 @@ export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, bas
     return found;
   });
   mkdirSync(outDir, { recursive: true });
-  const workDir = mkdtempSync(join(tmpdir(), "ak-play-sim-"));
+  const workDir = mkdtempSync(join(tmpdir(), "agon-play-sim-"));
   const runs = [];
   try {
     for (const scenario of picked) {

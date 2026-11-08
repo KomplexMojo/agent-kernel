@@ -29,7 +29,7 @@ const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/ui-ascii/src/cli.mjs");
 const GENERATE_LEVELS = resolve(ROOT, "scripts/ui-ascii/generate-levels.mjs");
 // Hand-written levels with a known shape, for tests that assert exact rows.
-// The bundled levels are `ak create` output, so their shape is the Configurator's.
+// The bundled levels are `agon create` output, so their shape is the Configurator's.
 const FIXTURE_LEVELS_DIR = resolve(ROOT, "tests/fixtures/ui-ascii/levels");
 const fixtureLevel = (name) => loadBundledLevel(name, FIXTURE_LEVELS_DIR);
 const fixtureLevels = () => loadBundledLevels(FIXTURE_LEVELS_DIR);
@@ -153,7 +153,7 @@ test("bundled levels list in play order and every one loads and is winnable", as
   }
 });
 
-test("bundled levels are exactly what `ak create` makes from their recipes", () => {
+test("bundled levels are exactly what `agon create` makes from their recipes", () => {
   const result = spawnSync(process.execPath, [GENERATE_LEVELS, "--check"], { cwd: ROOT, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
 });
@@ -190,7 +190,7 @@ test("an unknown bundled level is refused with the list of real ones", () => {
   assert.throws(() => loadBundledLevel("nope"), /Unknown level "nope".*first-steps/);
 });
 
-test("a level loads from an ak run directory's build artifacts", () => {
+test("a level loads from an agon run directory's build artifacts", () => {
   const runDir = mkdtempSync(join(tmpdir(), "ui-ascii-run-"));
   try {
     mkdirSync(join(runDir, "create"));
@@ -199,8 +199,8 @@ test("a level loads from an ak run directory's build artifacts", () => {
     const level = loadLevelFromRunDir(runDir);
     assert.equal(level.simConfig.meta.id, "sim_config_first-steps");
     assert.throws(() => loadLevelFromRunDir(join(runDir, "missing")), /No sim-config.json/);
-    // `ak create --out-dir` writes the pair at the top level.
-    // `ak create --out-dir` output, as the bundled levels are.
+    // `agon create --out-dir` writes the pair at the top level.
+    // `agon create --out-dir` output, as the bundled levels are.
     copyFileSync(join(BUNDLED_LEVELS_DIR, "long-way-round.sim-config.json"), join(runDir, "sim-config.json"));
     copyFileSync(join(BUNDLED_LEVELS_DIR, "long-way-round.initial-state.json"), join(runDir, "initial-state.json"));
     assert.equal(loadLevelFromRunDir(runDir).simConfig.layout.kind, loadBundledLevel("long-way-round").simConfig.layout.kind);
@@ -294,7 +294,7 @@ test("the cli records a game into a directory that does not exist yet", () => {
     "--sim-config", join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"),
     "--initial-state", join(FIXTURE_LEVELS_DIR, "first-steps.initial-state.json"),
   ];
-  const dir = mkdtempSync(join(tmpdir(), "ak-maze-record-nested-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-maze-record-nested-"));
   try {
     const capturePath = join(dir, "games", "saves", "capture.json");
     const recorded = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", "d", "--record", capturePath], { encoding: "utf8" });
@@ -311,7 +311,7 @@ test("the cli records a game and replays it to the same place", () => {
     "--sim-config", join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"),
     "--initial-state", join(FIXTURE_LEVELS_DIR, "first-steps.initial-state.json"),
   ];
-  const dir = mkdtempSync(join(tmpdir(), "ak-maze-record-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-maze-record-"));
   try {
     const half = FIRST_STEPS_SOLUTION.slice(0, 6);
     const capturePath = join(dir, "capture.json");
@@ -361,7 +361,7 @@ test("the cli plays a scripted game end to end, as text or JSON", () => {
 });
 
 test("the cli plays a level below the viability floor as written and warns about it", () => {
-  const dir = mkdtempSync(join(tmpdir(), "ak-maze-floor-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-maze-floor-"));
   try {
     const vitals = viableVitals({ mana: 4 });
     const level = buildUnifiedLevel({ id: "weak_floor", tiles: ["#####", "#S.E#", "#####"],
@@ -374,7 +374,7 @@ test("the cli plays a level below the viability floor as written and warns about
     assert.equal(json.status, 0, json.stderr);
     const message = "delver_1 mana max is 4, below the viability floor of 10.";
     // A hand-written level was never priced by the Allocator either, and says so (#279).
-    const unpriced = "This level has no budget receipt, so it was not priced by the Allocator; build it with ak create to price it.";
+    const unpriced = "This level has no budget receipt, so it was not priced by the Allocator; build it with agon create to price it.";
     assert.deepEqual(JSON.parse(json.stdout).warnings, [unpriced, message]);
     assert.match(json.stderr, new RegExp(`warning: ${message.replace(/\./g, "\\.")}`));
   } finally {

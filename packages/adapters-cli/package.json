@@ -4,11 +4,13 @@
   "type": "module",
   "exports": {
     "./package.json": "./package.json",
-    "./src/cli/playtest-scenarios.mjs": "./src/cli/playtest-scenarios.mjs"
+    "./src/cli/playtest-scenarios.mjs": "./src/cli/playtest-scenarios.mjs",
+    "./src/cli/agon.mjs": "./src/cli/agon.mjs"
   },
   "bin": {
-    "ak-mcp": "src/mcp/server.mjs",
-    "ak-persona": "src/cli/ak-persona.mjs"
+    "agon": "src/cli/agon.mjs",
+    "agon-mcp": "src/mcp/server.mjs",
+    "agon-persona": "src/cli/agon-persona.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

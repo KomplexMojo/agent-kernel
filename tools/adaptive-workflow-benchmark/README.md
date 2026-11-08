@@ -3,7 +3,7 @@
 Runs a small, agent-specific scenario set through the **AdaptiveWorkflowAgent**
 (`runAdaptiveWorkflow`) against a live Ollama-compatible model endpoint, and
 writes a `summary.md` / `summary.json`. This is distinct from the content-gen
-benchmark under `tools/remote-ollama-control`, which drives the `ak_create` tool
+benchmark under `tools/remote-ollama-control`, which drives the `agon_create` tool
 surface, not the agent.
 
 ## What it measures
@@ -27,7 +27,7 @@ simplest form is an SSH alias from your own `~/.ssh/config`:
 ```bash
 ssh -f -N -L 21436:127.0.0.1:11436 <ssh-alias>
 
-AK_ALLOW_NETWORK=1 node tools/adaptive-workflow-benchmark/run-agent-benchmark.mjs \
+AGON_ALLOW_NETWORK=1 node tools/adaptive-workflow-benchmark/run-agent-benchmark.mjs \
   --base-url http://localhost:21436 \
   --model qwen3-coder:30b-a3b-q4_K_M \
   --runs 3 --route external \

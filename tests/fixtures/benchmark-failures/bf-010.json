@@ -8,7 +8,7 @@
   "observedOutcome": "budget_denied",
   "scenarioBudget": 1500,
   "toolArgs": {
-    "text": "Using the agon skill and the agon MCP, create a base room with three defending wardens. Use a 1500 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "text": "Using the agon skill and the agon MCP, create a base room with three defending wardens. Use a 1500 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
     "budgetTokens": 1500,
     "emitIntermediates": true,
     "warden": [

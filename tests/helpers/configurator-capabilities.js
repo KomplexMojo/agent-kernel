@@ -48,7 +48,7 @@ async function configuratorNormalizeMotivations() {
  * containing room cards (D8.3).
  *
  * Same rule as everything else here: tests wire what production wires. `ui-flow.js`,
- * `card-authoring.js`, `ak-impl.mjs` and the Director persona itself all build this exact
+ * `card-authoring.js`, `agon-impl.mjs` and the Director persona itself all build this exact
  * pair off `createConfiguratorPersona`, so a test that hand-rolled a stub would be the
  * second author of room geometry that `DirectorRoomGeometryError` exists to prevent.
  */

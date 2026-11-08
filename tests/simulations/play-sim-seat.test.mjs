@@ -1,4 +1,4 @@
-// Play-sim seat driver (#654): a fixture picker plays a whole level through `ak play-session`
+// Play-sim seat driver (#654): a fixture picker plays a whole level through `agon play-session`
 // (the command behind the MCP tools). No live model, no network.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

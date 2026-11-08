@@ -1,7 +1,7 @@
 // M4 — Sandbox movement MCP contract tests.
 //
 // Tools tested:
-//   ak_sandbox_move — compose a cardinal move into an ActionSequence file
+//   agon_sandbox_move — compose a cardinal move into an ActionSequence file
 //
 // Movement rules tested:
 //   - Move actor east → ok: true, actionsOut file exists with one action
@@ -177,14 +177,14 @@ function makeTempDir(prefix) {
 // ---------------------------------------------------------------------------
 
 async function setupSessionWithDelver(harness, outDir, { x = 2, y = 2, width, height } = {}) {
-  const createResult = await harness.callTool("ak_sandbox_create", {
+  const createResult = await harness.callTool("agon_sandbox_create", {
     budgetReceipt: BUDGET_RECEIPT_APPROVED,
     outDir,
     ...(width === undefined ? {} : { width }),
     ...(height === undefined ? {} : { height }),
   });
   const sessionPath = join(createResult.outDir, "sandbox-session.json");
-  await harness.callTool("ak_sandbox_place", {
+  await harness.callTool("agon_sandbox_place", {
     session: sessionPath,
     entityType: "delver",
     spec: `id=delver_1;x=${x};y=${y};affinity=water;motivation=exploring`,
@@ -196,15 +196,15 @@ async function setupSessionWithDelver(harness, outDir, { x = 2, y = 2, width, he
 // Tool discovery
 // ---------------------------------------------------------------------------
 
-test("mcp tools/list includes ak_sandbox_move", async () => {
+test("mcp tools/list includes agon_sandbox_move", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const listing = await harness.listTools();
     const names = listing.tools.map((t) => t.name);
     assert.ok(
-      names.includes("ak_sandbox_move"),
-      `Expected ak_sandbox_move in tools/list, got: ${names.join(", ")}`,
+      names.includes("agon_sandbox_move"),
+      `Expected agon_sandbox_move in tools/list, got: ${names.join(", ")}`,
     );
   } finally {
     await harness.close();
@@ -215,7 +215,7 @@ test("mcp tools/list includes ak_sandbox_move", async () => {
 // Happy path — move east
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move moves actor east and returns ok: true with actionsOut file", async () => {
+test("mcp agon_sandbox_move moves actor east and returns ok: true with actionsOut file", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -223,7 +223,7 @@ test("mcp ak_sandbox_move moves actor east and returns ok: true with actionsOut 
     const sessionPath = await setupSessionWithDelver(harness, outDir);
     const actionsOut = join(outDir, "actions.json");
 
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -241,7 +241,7 @@ test("mcp ak_sandbox_move moves actor east and returns ok: true with actionsOut 
   }
 });
 
-test("mcp ak_sandbox_move action file contains schema Action with kind=move and correct positions", async () => {
+test("mcp agon_sandbox_move action file contains schema Action with kind=move and correct positions", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -249,7 +249,7 @@ test("mcp ak_sandbox_move action file contains schema Action with kind=move and 
     const sessionPath = await setupSessionWithDelver(harness, outDir);
     const actionsOut = join(outDir, "actions.json");
 
-    await harness.callTool("ak_sandbox_move", {
+    await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -274,7 +274,7 @@ test("mcp ak_sandbox_move action file contains schema Action with kind=move and 
   }
 });
 
-test("mcp ak_sandbox_move updates actor position in InitialState for subsequent moves", async () => {
+test("mcp agon_sandbox_move updates actor position in InitialState for subsequent moves", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -282,7 +282,7 @@ test("mcp ak_sandbox_move updates actor position in InitialState for subsequent 
     const sessionPath = await setupSessionWithDelver(harness, outDir);
     const actionsOut = join(outDir, "actions.json");
 
-    await harness.callTool("ak_sandbox_move", {
+    await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -306,7 +306,7 @@ test("mcp ak_sandbox_move updates actor position in InitialState for subsequent 
 // Action accumulation — second move appends and increments tick
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move second call appends action and increments tick", async () => {
+test("mcp agon_sandbox_move second call appends action and increments tick", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -315,7 +315,7 @@ test("mcp ak_sandbox_move second call appends action and increments tick", async
     const actionsOut = join(outDir, "actions.json");
 
     // First move: delver_1 (2,2) → east → (3,2)
-    await harness.callTool("ak_sandbox_move", {
+    await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -323,7 +323,7 @@ test("mcp ak_sandbox_move second call appends action and increments tick", async
     });
 
     // Second move: now at (3,2) → east → (4,2)
-    const result2 = await harness.callTool("ak_sandbox_move", {
+    const result2 = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -347,19 +347,19 @@ test("mcp ak_sandbox_move second call appends action and increments tick", async
 // Error: move blocked by wall
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move rejects move into wall and returns blockedByWall: true", async () => {
+test("mcp agon_sandbox_move rejects move into wall and returns blockedByWall: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-wall-");
 
     // Place delver at (1,1) — one step east of west wall, one step south of north wall.
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -368,7 +368,7 @@ test("mcp ak_sandbox_move rejects move into wall and returns blockedByWall: true
     const actionsOut = join(outDir, "actions.json");
 
     // Moving north from (1,1) → (1,0) which is the top-border wall row
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "north",
@@ -388,7 +388,7 @@ test("mcp ak_sandbox_move rejects move into wall and returns blockedByWall: true
 // Inter-cardinal directions
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move moves actor northeast and records direction enum value 1", async () => {
+test("mcp agon_sandbox_move moves actor northeast and records direction enum value 1", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -397,7 +397,7 @@ test("mcp ak_sandbox_move moves actor northeast and records direction enum value
     const actionsOut = join(outDir, "actions.json");
 
     // Delver starts at (2,2); northeast = dx+1, dy-1 → (3,1)
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "northeast",
@@ -416,26 +416,26 @@ test("mcp ak_sandbox_move moves actor northeast and records direction enum value
   }
 });
 
-test("mcp ak_sandbox_move rejects northwest move into wall corner and returns blockedByWall: true", async () => {
+test("mcp agon_sandbox_move rejects northwest move into wall corner and returns blockedByWall: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-nw-wall-");
 
     // Place delver at (1,1); northwest = dx-1,dy-1 → (0,0) which is a wall corner
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
     });
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "northwest",
@@ -454,7 +454,7 @@ test("mcp ak_sandbox_move rejects northwest move into wall corner and returns bl
 // Error: actor not found
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move rejects unknown actorId with actorNotFound: true", async () => {
+test("mcp agon_sandbox_move rejects unknown actorId with actorNotFound: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -462,7 +462,7 @@ test("mcp ak_sandbox_move rejects unknown actorId with actorNotFound: true", asy
     const sessionPath = await setupSessionWithDelver(harness, outDir);
     const actionsOut = join(outDir, "actions.json");
 
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "ghost_actor",
       direction: "east",
@@ -481,7 +481,7 @@ test("mcp ak_sandbox_move rejects unknown actorId with actorNotFound: true", asy
 // Error: unknown direction
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move rejects unknown direction with ok: false", async () => {
+test("mcp agon_sandbox_move rejects unknown direction with ok: false", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -489,7 +489,7 @@ test("mcp ak_sandbox_move rejects unknown direction with ok: false", async () =>
     const sessionPath = await setupSessionWithDelver(harness, outDir);
     const actionsOut = join(outDir, "actions.json");
 
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "diagonal",
@@ -507,21 +507,21 @@ test("mcp ak_sandbox_move rejects unknown direction with ok: false", async () =>
 // Error: session has no initialStateRef
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move rejects session without initialStateRef (no entities placed)", async () => {
+test("mcp agon_sandbox_move rejects session without initialStateRef (no entities placed)", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-nosession-");
 
     // Create session but do NOT place any entities — no initialStateRef in artifacts
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
     const actionsOut = join(outDir, "actions.json");
 
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -539,7 +539,7 @@ test("mcp ak_sandbox_move rejects session without initialStateRef (no entities p
 // Safety: session not corrupted by failed move
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move failed move does not modify the session file", async () => {
+test("mcp agon_sandbox_move failed move does not modify the session file", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -550,7 +550,7 @@ test("mcp ak_sandbox_move failed move does not modify the session file", async (
     const sessionBefore = readFileSync(sessionPath, "utf8");
 
     // Attempt move with unknown actor — should fail
-    await harness.callToolRaw("ak_sandbox_move", {
+    await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "nonexistent",
       direction: "east",
@@ -579,27 +579,27 @@ test("mcp ak_sandbox_move failed move does not modify the session file", async (
 //   if staminaAfterRegen < cost → insufficientStamina: true
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move cardinal move deducts movementCost from stamina", async () => {
+test("mcp agon_sandbox_move cardinal move deducts movementCost from stamina", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-stamina-cardinal-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
 
     // Actor with movementCost=1, stamina 10/10/0
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring;movementCost=1;staminaCurrent=10;staminaMax=10",
     });
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east", // cardinal → cost 1
@@ -620,27 +620,27 @@ test("mcp ak_sandbox_move cardinal move deducts movementCost from stamina", asyn
   }
 });
 
-test("mcp ak_sandbox_move diagonal move deducts 2× base cost from stamina (cost=1 → 2)", async () => {
+test("mcp agon_sandbox_move diagonal move deducts 2× base cost from stamina (cost=1 → 2)", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-stamina-diagonal-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
 
     // Actor with movementCost=1, stamina 10/10/0
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring;movementCost=1;staminaCurrent=10;staminaMax=10",
     });
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "northeast", // diagonal → cost 1 + 1 = 2
@@ -658,27 +658,27 @@ test("mcp ak_sandbox_move diagonal move deducts 2× base cost from stamina (cost
   }
 });
 
-test("mcp ak_sandbox_move diagonal move with movementCost=2 costs 3 stamina", async () => {
+test("mcp agon_sandbox_move diagonal move with movementCost=2 costs 3 stamina", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-stamina-diagonal-cost2-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
 
     // movementCost=2 → diagonal extra = max(1, trunc(2/2)) = 1 → total 3
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring;movementCost=2;staminaCurrent=10;staminaMax=10",
     });
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "southeast",
@@ -692,27 +692,27 @@ test("mcp ak_sandbox_move diagonal move with movementCost=2 costs 3 stamina", as
   }
 });
 
-test("mcp ak_sandbox_move cardinal move with insufficient stamina returns insufficientStamina", async () => {
+test("mcp agon_sandbox_move cardinal move with insufficient stamina returns insufficientStamina", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-stamina-insufficient-cardinal-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
 
     // staminaCurrent=0 — cannot afford cardinal cost 1
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=stationary;movementCost=1;staminaCurrent=0;staminaMax=10",
     });
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -729,27 +729,27 @@ test("mcp ak_sandbox_move cardinal move with insufficient stamina returns insuff
   }
 });
 
-test("mcp ak_sandbox_move diagonal move rejected when stamina covers cardinal but not diagonal", async () => {
+test("mcp agon_sandbox_move diagonal move rejected when stamina covers cardinal but not diagonal", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-stamina-insufficient-diagonal-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
 
     // staminaCurrent=1 — enough for cardinal (1) but not diagonal (2)
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=stationary;movementCost=1;staminaCurrent=1;staminaMax=10",
     });
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "northwest", // diagonal → cost 2 > staminaAfterRegen 1
@@ -765,7 +765,7 @@ test("mcp ak_sandbox_move diagonal move rejected when stamina covers cardinal bu
   }
 });
 
-test("mcp ak_sandbox_move actor without movementCost gets free movement regardless of stamina", async () => {
+test("mcp agon_sandbox_move actor without movementCost gets free movement regardless of stamina", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -774,7 +774,7 @@ test("mcp ak_sandbox_move actor without movementCost gets free movement regardle
 
     const actionsOut = join(outDir, "actions.json");
     // Verify it moves without stamina fields on the result (staminaRemaining absent)
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "northeast", // diagonal, but free movement
@@ -801,13 +801,13 @@ test("mcp ak_sandbox_move actor without movementCost gets free movement regardle
   }
 });
 
-test("mcp ak_sandbox_move stamina regen is applied before deduction", async () => {
+test("mcp agon_sandbox_move stamina regen is applied before deduction", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-move-stamina-regen-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
@@ -815,14 +815,14 @@ test("mcp ak_sandbox_move stamina regen is applied before deduction", async () =
 
     // staminaCurrent=0 but staminaRegen=2 → staminaAfterRegen = min(0+2, 5) = 2
     // cardinal cost = 1 → 2 >= 1 → succeeds, remaining = 1
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring;movementCost=1;staminaCurrent=0;staminaMax=5;staminaRegen=2",
     });
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -846,7 +846,7 @@ test("mcp ak_sandbox_move stamina regen is applied before deduction", async () =
 // Tampered InitialState with null/NaN coordinates must be rejected cleanly.
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_move rejects actor with null position coordinates", async () => {
+test("mcp agon_sandbox_move rejects actor with null position coordinates", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -861,7 +861,7 @@ test("mcp ak_sandbox_move rejects actor with null position coordinates", async (
     writeFileSync(initialStatePath, JSON.stringify(is, null, 2), "utf8");
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -887,7 +887,7 @@ test("mcp ak_sandbox_move rejects actor with null position coordinates", async (
   }
 });
 
-test("mcp ak_sandbox_move rejects actor with string position coordinates", async () => {
+test("mcp agon_sandbox_move rejects actor with string position coordinates", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -902,7 +902,7 @@ test("mcp ak_sandbox_move rejects actor with string position coordinates", async
     writeFileSync(initialStatePath, JSON.stringify(is, null, 2), "utf8");
 
     const actionsOut = join(outDir, "actions.json");
-    const result = await harness.callToolRaw("ak_sandbox_move", {
+    const result = await harness.callToolRaw("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: "east",
@@ -921,7 +921,7 @@ test("mcp ak_sandbox_move rejects actor with string position coordinates", async
   }
 });
 
-test("mcp ak_sandbox_move covers the remaining walkable direction enum permutations", async () => {
+test("mcp agon_sandbox_move covers the remaining walkable direction enum permutations", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -937,7 +937,7 @@ test("mcp ak_sandbox_move covers the remaining walkable direction enum permutati
       const outDir = makeTempDir(`agon-sandbox-move-${entry.direction}-`);
       const sessionPath = await setupSessionWithDelver(harness, outDir);
       const actionsOut = join(outDir, "actions.json");
-      const result = await harness.callTool("ak_sandbox_move", {
+      const result = await harness.callTool("agon_sandbox_move", {
         session: sessionPath,
         actorId: "delver_1",
         direction: entry.direction,
@@ -954,7 +954,7 @@ test("mcp ak_sandbox_move covers the remaining walkable direction enum permutati
   }
 });
 
-test("mcp ak_sandbox_move rejects cardinal and diagonal moves into every tested wall edge", async () => {
+test("mcp agon_sandbox_move rejects cardinal and diagonal moves into every tested wall edge", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -969,7 +969,7 @@ test("mcp ak_sandbox_move rejects cardinal and diagonal moves into every tested 
       const outDir = makeTempDir(`agon-sandbox-wall-${entry.direction}-`);
       const sessionPath = await setupSessionWithDelver(harness, outDir, entry);
       const actionsOut = join(outDir, "actions.json");
-      const result = await harness.callToolRaw("ak_sandbox_move", {
+      const result = await harness.callToolRaw("agon_sandbox_move", {
         session: sessionPath,
         actorId: "delver_1",
         direction: entry.direction,
@@ -985,7 +985,7 @@ test("mcp ak_sandbox_move rejects cardinal and diagonal moves into every tested 
   }
 });
 
-test("mcp ak_sandbox_move creates nested output, appends three ticks, and preserves session refs", async () => {
+test("mcp agon_sandbox_move creates nested output, appends three ticks, and preserves session refs", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -994,7 +994,7 @@ test("mcp ak_sandbox_move creates nested output, appends three ticks, and preser
     const actionsOut = join(outDir, "nested", "actions", "actions.json");
 
     for (const direction of ["east", "south", "west"]) {
-      await harness.callTool("ak_sandbox_move", {
+      await harness.callTool("agon_sandbox_move", {
         session: sessionPath,
         actorId: "delver_1",
         direction,
@@ -1012,7 +1012,7 @@ test("mcp ak_sandbox_move creates nested output, appends three ticks, and preser
   }
 });
 
-test("mcp ak_sandbox_move returns validation errors for each missing required argument", async () => {
+test("mcp agon_sandbox_move returns validation errors for each missing required argument", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -1028,7 +1028,7 @@ test("mcp ak_sandbox_move returns validation errors for each missing required ar
     for (const key of ["actorId", "direction", "actionsOut"]) {
       const args = { ...valid };
       delete args[key];
-      const result = await harness.callToolRaw("ak_sandbox_move", args);
+      const result = await harness.callToolRaw("agon_sandbox_move", args);
       assert.equal(result.ok, false);
       assert.match(result.error, new RegExp(key, "i"));
     }
@@ -1037,7 +1037,7 @@ test("mcp ak_sandbox_move returns validation errors for each missing required ar
   }
 });
 
-test("mcp ak_sandbox_move rejects a missing actor position and replaces malformed action JSON safely", async () => {
+test("mcp agon_sandbox_move rejects a missing actor position and replaces malformed action JSON safely", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -1048,7 +1048,7 @@ test("mcp ak_sandbox_move rejects a missing actor position and replaces malforme
     delete invalidState.actors[0].position;
     writeFileSync(invalidStatePath, JSON.stringify(invalidState, null, 2), "utf8");
 
-    const invalidResult = await harness.callToolRaw("ak_sandbox_move", {
+    const invalidResult = await harness.callToolRaw("agon_sandbox_move", {
       session: invalidSession,
       actorId: "delver_1",
       direction: "east",
@@ -1061,7 +1061,7 @@ test("mcp ak_sandbox_move rejects a missing actor position and replaces malforme
     const malformedSession = await setupSessionWithDelver(harness, malformedDir);
     const actionsOut = join(malformedDir, "actions.json");
     writeFileSync(actionsOut, "{not-json", "utf8");
-    await harness.callTool("ak_sandbox_move", {
+    await harness.callTool("agon_sandbox_move", {
       session: malformedSession,
       actorId: "delver_1",
       direction: "east",
@@ -1075,7 +1075,7 @@ test("mcp ak_sandbox_move rejects a missing actor position and replaces malforme
   }
 });
 
-test("mcp ak_sandbox_move normalizes direction case and supports custom 5x5 rooms", async () => {
+test("mcp agon_sandbox_move normalizes direction case and supports custom 5x5 rooms", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -1083,7 +1083,7 @@ test("mcp ak_sandbox_move normalizes direction case and supports custom 5x5 room
     const sessionPath = await setupSessionWithDelver(harness, outDir, { width: 5, height: 5 });
     const actionsOut = join(outDir, "actions.json");
 
-    const result = await harness.callTool("ak_sandbox_move", {
+    const result = await harness.callTool("agon_sandbox_move", {
       session: sessionPath,
       actorId: "delver_1",
       direction: " NORTH ",

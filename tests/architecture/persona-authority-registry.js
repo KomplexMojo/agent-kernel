@@ -30,7 +30,7 @@
  * only by persona could not express that.
  *
  * ── INVOCATION KINDS ───────────────────────────────────────────────────────────
- *   "cli"      reachable through ak-persona / runPersonaInvocation (an advance() round)
+ *   "cli"      reachable through agon-persona / runPersonaInvocation (an advance() round)
  *   "service"  reachable only in-process, by calling the persona's service methods
  *   "none"     no standalone invocation exists yet — the behavior has no seam
  *
@@ -79,7 +79,7 @@ const REGISTRY = Object.freeze([
         + "is built inside llm-round.js's settle(), which cannot run before a terminal state "
         + "— pinned by \"CR.4: the round's capture is stamped by a round that actually "
         + "reached a terminal state\" in tests/personas/orchestrator/orchestrator-llm-round.test.js. "
-        + "The producedBy that kernel.js and ak-impl.mjs pass is an OPTION into a "
+        + "The producedBy that kernel.js and agon-impl.mjs pass is an OPTION into a "
         + "round-hosted call, not glue stamping an artifact of its own; every one of the "
         + "six sites was checked, not sampled. runLlmSession itself survives only as the "
         + "differential's reference implementation, which is why its call sites are tests.",
@@ -110,7 +110,7 @@ const REGISTRY = Object.freeze([
         + "matters: `coordinateDeferredEffects` refuses unless the Orchestrator in THIS run's "
         + "registry can host the round, so glue cannot mint a fresh persona to sign the "
         + "captures — the CR.8 façade, one artifact over. Reaches production through "
-        + "`ak run`, which writes `deferred-coordination.json`. "
+        + "`agon run`, which writes `deferred-coordination.json`. "
         + "⚠️ The A2 ablation is deliberately not the headline: production used to do NOTHING "
         + "here, so 'nothing happens without the Orchestrator' was true before the feature "
         + "and proves nothing. The load-bearing test is that deferrals are coordinated at all.",
@@ -144,7 +144,7 @@ const REGISTRY = Object.freeze([
         + "PRODUCTION always fills that slot with an Orchestrator-backed runner, since the "
         + "loop's own code cannot prove that about itself — runSession is just a required "
         + "callback with no default. Answered by inventory: every production call site "
-        + "(kernel.js, ak-impl.mjs, design-guidance.js, adaptive-workflow/llm-seams.js, "
+        + "(kernel.js, agon-impl.mjs, design-guidance.js, adaptive-workflow/llm-seams.js, "
         + "scripts/level-generation-benchmark.mjs — 5/5, none excepted) imports "
         + "runLlmSessionHosted from the canonical commands/llm-host.js and wires it as "
         + "runSession; that function itself constructs a real createOrchestratorPersona and "
@@ -174,7 +174,7 @@ const REGISTRY = Object.freeze([
       why:
         "A2 only. normalizeSummary and deriveAllowedOptionsFromCatalog are the two "
         + "glue-facing functions controller.js's own comment names (CR.7 / WP-5), published "
-        + "there so kernel.js/ak-impl.mjs/ui-flow.js reach them through the persona rather "
+        + "there so kernel.js/agon-impl.mjs/ui-flow.js reach them through the persona rather "
         + "than importing prompt-contract.js directly. Two things close the ownership "
         + "question: uniqueness (exactly one production definition of each function exists "
         + "anywhere in the tree — no shadow validator glue could call instead) and an "
@@ -188,7 +188,7 @@ const REGISTRY = Object.freeze([
         + "is stronger than one trusting the other. The BEHAVIORAL half — that this "
         + "normalization is load-bearing — is not reproven here: "
         + "tests/personas/orchestrator/orchestrator-prompt-contract.test.js (~15 validation-rule cases) and "
-        + "tests/adapters-cli/ak-llm-plan.test.js (\"cli llm-plan rejects summaries that do "
+        + "tests/adapters-cli/agon-llm-plan.test.js (\"cli llm-plan rejects summaries that do "
         + "not match catalog entries\", through the real CLI) already cover it.",
     },
   },
@@ -396,7 +396,7 @@ const REGISTRY = Object.freeze([
         + "wires a REAL createConfiguratorPersona(), not a stub. Not reproven here. What "
         + "was missing was the CONFIGURATOR-side claim and its production inventory: "
         + "exactly two sites in the whole tree assign authorCandidates a value "
-        + "(commands/card-authoring.js, ak-impl.mjs), both constructing a real "
+        + "(commands/card-authoring.js, agon-impl.mjs), both constructing a real "
         + "createConfiguratorPersona() and threading its own .authorCandidates — no third "
         + "site, no hand-rolled stand-in. Perturbation run for real: pointed "
         + "card-authoring.js's authorCandidates at an empty fake object instead of the "
@@ -419,13 +419,13 @@ const REGISTRY = Object.freeze([
       why:
         "A2. KNOWN_UNREGISTERED's own note said actor-config-generation.js was deleted by "
         + "P1.4 as dead code and either something else authors actor configs or nothing "
-        + "does. Traced: something did, in adapter glue — ak-impl.mjs's parseDelverSpec "
+        + "does. Traced: something did, in adapter glue — agon-impl.mjs's parseDelverSpec "
         + "defaulted a missing motivation to \"attacking\", validated affinity/motivation/"
         + "setup-mode against the chartered enums, and assembled the delver candidate "
         + "object inline, all in the CLI. Moved into authorDelverCandidate, published on "
         + "the Configurator's own surface (configurator-services.js -> controller.js), and "
         + "wired at the single production call site through the existing module-level "
-        + "createConfiguratorPersona() instance ak-impl.mjs already constructs for "
+        + "createConfiguratorPersona() instance agon-impl.mjs already constructs for "
         + "authorCandidates/deriveRoomLayout. actor-generator.js's generateActorSet was "
         + "investigated and is NOT this responsibility's fulfiller: it has a real, "
         + "separate test-fixture consumer (tests/helpers/tier-generators.js -> "
@@ -502,12 +502,12 @@ const REGISTRY = Object.freeze([
     status: {
       owned: true,
       since: "P1 / CR.1",
-      provenBy: "tests/adapters-cli/ak-hazard-resource-plan.test.js",
+      provenBy: "tests/adapters-cli/agon-hazard-resource-plan.test.js",
       why:
         "A2 through the real CLI: when the Allocator denies the receipt, `orchestrateBuild` "
         + "throws `Budget receipt denied: …` and the command exits non-zero. "
         + "⚠️ **THE CITATION IS THE FINDING.** This entry first cited "
-        + "`ak-warden-plan.test.js`, the obvious candidate — it names the denial string and "
+        + "`agon-warden-plan.test.js`, the obvious candidate — it names the denial string and "
         + "asserts a non-zero exit. Perturbing the refusal away leaves it GREEN, because its "
         + "regex accepts three different messages "
         + "(`/budget|minimum_cost_exceeds_budget|Budget receipt denied/i`) and that scenario "
@@ -628,7 +628,7 @@ const REGISTRY = Object.freeze([
       provenBy: "tests/architecture/allocator-receipt-authority.test.js",
       why:
         "A2, the other half of allocator/spend-authority. That entry proves a DENIED "
-        + "receipt stops a build (ak-hazard-resource-plan.test.js, through the real CLI). "
+        + "receipt stops a build (agon-hazard-resource-plan.test.js, through the real CLI). "
         + "This entry proves the complementary claim: the Allocator is the ONLY thing that "
         + "can mark a receipt approved — a denial-only guarantee would let glue construct "
         + "its own 'everything's fine' receipt with nothing downstream able to tell, since "

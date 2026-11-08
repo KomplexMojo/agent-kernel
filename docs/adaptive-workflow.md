@@ -24,7 +24,7 @@ from the application layer.
 | Metrics + benchmark evidence | `metrics.js`, `benchmark-evidence.js` | Run summary + offline evidence ingestion/promotion. |
 | Model adapters | `packages/adapters-cli/src/adapters/model/*` | OpenAI, Anthropic, Ollama behind one neutral port. |
 | Workflow adapters | `packages/adapters-cli/src/adapters/adaptive-workflow/*` | Filesystem store, runtime-profile probe, controlled execution, benchmark loader. |
-| CLI / MCP surfaces | `src/cli/ak-impl.mjs`, `src/mcp/adaptive-workflow-tools.mjs` | `ak workflow …`; `ak_workflow_*` tools + resources. |
+| CLI / MCP surfaces | `src/cli/agon-impl.mjs`, `src/mcp/adaptive-workflow-tools.mjs` | `agon workflow …`; `agon_workflow_*` tools + resources. |
 
 ## State-machine flow
 
@@ -130,12 +130,12 @@ Benchmark data is **offline evidence only**; it never silently rewrites routing.
   `timeout` (model_transport), `idempotency_conflict` / `durable_candidate_missing`
   (persistence), `patch_target_mismatch` (repair).
 - **Replay** — re-run deterministically from recorded responses with
-  `ak workflow replay --out-dir <run>`; it performs no live model/execution call
+  `agon workflow replay --out-dir <run>`; it performs no live model/execution call
   and writes only `replay-*` sidecars.
 
 ## Surfaces
 
-- **CLI**: `ak workflow <run|status|replay|cancel|validate>` — see
+- **CLI**: `agon workflow <run|status|replay|cancel|validate>` — see
   [`packages/adapters-cli/README.md`](../packages/adapters-cli/README.md).
-- **MCP tools**: `ak_workflow_run|status|replay|cancel|validate`.
+- **MCP tools**: `agon_workflow_run|status|replay|cancel|validate`.
 - **MCP resources**: `agon://adaptive-workflow/{policy,runtime-profile,validators,run-history}`.

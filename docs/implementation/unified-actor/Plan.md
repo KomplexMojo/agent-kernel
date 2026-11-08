@@ -119,7 +119,7 @@ tools/benchmark env red. Row 9 later reviewer.
 
 Status October 10: leftover MCP run/replay/narrate uses Configurator
 artifacts; preview Actors 3; motivations/presentation oracles; sandbox
-planRef schema constant; ak_create drift lines; stationary stamina denials.
+planRef schema constant; agon_create drift lines; stationary stamina denials.
 Leave invent-required pool denials, occupancy, proximityRadius, V1,
 tools/benchmark env red. Row 9 later reviewer.
 
@@ -138,7 +138,7 @@ bundles; shared delver-warden-battle tiles stay leftover-red. Leave
 llm-plan/authoring pool denials, occupancy, proximityRadius, V1,
 tools/benchmark env red. Row 9 later reviewer.
 
-Status September 22: leftover ak-golden uses Configurator boxed terrain plus
+Status September 22: leftover agon-golden uses Configurator boxed terrain plus
 delver. Leave llm-plan/t1-medium/pool denials, occupancy, proximityRadius,
 V1, tools/benchmark env red. Row 9 later reviewer.
 
@@ -176,7 +176,7 @@ hazards map to actors; leftover ambulatory kind/role/motivation maps to
 category; omitted vitals seed from Configurator defaults then the floor;
 leftover CLI hazard/placement/run/affinity-summary/sandbox oracles use
 presentation actors, terrain spawn/exit, and Configurator artifacts.
-Sandbox MCP no longer writes leftover tiles/traits. `ak run --tile-wall`
+Sandbox MCP no longer writes leftover tiles/traits. `agon run --tile-wall`
 mutates terrain; leftover `--tile-barrier` becomes barrier actors; leftover
 motivated/ambulatory `--actor` kinds are rejected. Leftover CLI V1
 `tier`/`stat`/`dropRate` is rejected at parse. Leftover `--vital-default`
@@ -897,7 +897,7 @@ Stop on those gates. Remaining producer/CLI fixtures stay pending.
 
 Owner persona-configurator. Targets input-preparation.js mapHazards,
 configurator-hazard-vitals.test.js, Configurator README, and these records.
-Unpositioned `ak create --hazard` still sent string affinity plus affinityStacks.
+Unpositioned `agon create --hazard` still sent string affinity plus affinityStacks.
 mapHazards required an object pair and threw invalid hazard actor request.
 Read affinityStacks[0], then object affinity, then string affinity+expression.
 Do not spread extra CLI fields. Do not migrate resource extras or leftover core APIs.
@@ -1065,15 +1065,15 @@ Recorded: 4202 tests, 3935 passed, 86 failed, 181 pending; typecheck 0.
 Wiring 36 vs 13. Prior 4198/3808/162/228. Leave invent-required reds. Row 9
 adversarial is later reviewer.
 
-### September 22 — leftover ak-golden Configurator artifacts (S)
+### September 22 — leftover agon-golden Configurator artifacts (S)
 
-Owner architecture-adapter-io. Targets ak-golden.test.js and these records.
+Owner architecture-adapter-io. Targets agon-golden.test.js and these records.
 Run/replay/inspect still fed leftover basic stationary fixtures (invalid JSON
 state). Write Configurator boxed terrain plus delver with health vitals. Do not
 mutate shared leftover basic fixtures. Do not invent pools.
 
 Failing oracle: leftover basic fixtures throw invalid JSON state.
-Validation: ak-golden, adapters-cli-no-actor-authoring, dependency-direction,
+Validation: agon-golden, adapters-cli-no-actor-authoring, dependency-direction,
 typecheck. Perturb by restoring basic fixture paths; restore. Leave
 llm-plan/pool denials and tools/benchmark env red.
 
@@ -1086,15 +1086,15 @@ boxed terrain plus delver bundles in-test; leave shared battle scenario
 untouched (melee leftover-red). Do not invent pools or restore attack.
 
 Failing oracle: leftover scenario compile throws category storage.
-Validation: gameplay-surface-ingestion, ak-golden, typecheck. Perturb by
+Validation: gameplay-surface-ingestion, agon-golden, typecheck. Perturb by
 restoring leftover scenario compile; restore. Leave invent-required pool
 denials red.
 
 ### September 22 — leftover ActionV1 / affinity / floor oracles (S)
 
 Owner persona-actor + architecture-adapter-io. Targets
-actor-proposal-replay.test.js, ak-delver-plan.test.js, ak-warden-plan.test.js,
-ak-configurator.test.js and these records. Replay still expected leftover
+actor-proposal-replay.test.js, agon-delver-plan.test.js, agon-warden-plan.test.js,
+agon-configurator.test.js and these records. Replay still expected leftover
 from/to/direction and tile-kind filters; plan oracles still read
 traits.affinities; configurator still expected width×height floor count.
 Assert params.target + defeated eligibility; actor.affinities; tile_floor 9.
@@ -1119,7 +1119,7 @@ prices. Do not raise the wiring baseline.
 
 Failing oracle: an attacking selection with no actor type is a delver when
 wardens are unfunded. Validation: director-build-spec-card-set-roundtrip,
-ak-llm-plan. Perturb by restoring the warden default for a missing type;
+agon-llm-plan. Perturb by restoring the warden default for a missing type;
 restore. Next decision: the four measured delver budgets.
 
 ### October 10 — runtime-decision move target (S)
@@ -1183,11 +1183,11 @@ invent-required reds. Row 9 later reviewer.
 
 ### October 10 — leftover MCP artifacts, motivation oracles, schema literal (S)
 
-Owner architecture-adapter-io, with ui-web preview count and the ak_create
+Owner architecture-adapter-io, with ui-web preview count and the agon_create
 drift allowlist. Targets mcp-tools, mcp-server, sandbox-movement,
 mcp-cli-ui-random-scenario, cli-run-multi-actor-movement,
-agent-authoring-ui-flow, sandbox.mjs planRef, ak-impl V1 throw line,
-ak-create-error-detail-allowlist.json, and these records. Replay/run still
+agent-authoring-ui-flow, sandbox.mjs planRef, agon-impl V1 throw line,
+agon-create-error-detail-allowlist.json, and these records. Replay/run still
 paired leftover hazard tiles with an affinity initial state (simConfigRef
 mismatch). Preview still expected 2 actors after hazards became actors.
 Motivation oracles still read motivation.kind/archetype. Sandbox planRef
@@ -1196,14 +1196,14 @@ denial oracles use stationary. Do not invent pools or loot keys.
 
 Failing oracle: simConfigRef mismatch; Actors 2; archetype/motivation.kind;
 inline PlanArtifact; drift line mismatch; exploring stamina 0 accepts the move.
-Validation: those files, schema-declaration-origin, ak-create-error-message-drift,
+Validation: those files, schema-declaration-origin, agon-create-error-message-drift,
 adapters-cli-no-actor-authoring, typecheck. Perturb each restored. Wiring
 36 vs 13. Leave invent-required reds. Row 9 later reviewer.
 
 ### September 22 — leftover demo-cli / resource-plan / catalog oracles (S)
 
 Owner architecture-adapter-io. Targets scripts/demo-cli.sh,
-ak-hazard-resource-plan.test.js, remote-ollama-content-gen-catalog.test.js and
+agon-hazard-resource-plan.test.js, remote-ollama-content-gen-catalog.test.js and
 these records. demo-cli still ran leftover basic stationary fixtures; resource-plan
 fail budget 10 was above totalCost 6; catalog expected leftover resource.affinity
 object. Write Configurator demo artifacts; deny at budget 5; assert unified

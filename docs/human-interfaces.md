@@ -12,8 +12,8 @@ pnpm run test
 ## 2) Run CLI Demos
 
 ```bash
-node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
-node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
+node packages/adapters-cli/src/cli/agon.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
+node packages/adapters-cli/src/cli/agon.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 ```
 
 Bundle fixture demos:
@@ -26,7 +26,7 @@ pnpm run demo:cli
 
 The browser UI (Design, Preview, Run, Diagnostics) was archived in the private Primordial repository
 (#744), with the phone app and the graphical clients. In this repository, play and watch runs with the
-reference terminal client (`pnpm run play:ascii`, `ak play`).
+reference terminal client (`pnpm run play:ascii`, `agon play`).
 
 ## Runtime Cost Display Contract (T3.0)
 

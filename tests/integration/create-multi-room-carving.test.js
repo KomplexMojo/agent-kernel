@@ -3,8 +3,8 @@
  * base tests (interface-testing benchmark sweep, 2026-07-09).
  *
  * Seam driven (same seam the MCP server uses):
- *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
- *   -> packages/adapters-cli/src/cli/ak-impl.mjs executeCommand("create", argv)
+ *   packages/adapters-cli/src/mcp/tools/authoring.mjs agon_create buildArgs
+ *   -> packages/adapters-cli/src/cli/agon-impl.mjs executeCommand("create", argv)
  *
  * GROUND TRUTH (confirmed by direct invocation during test authoring):
  *   - `--room "count=3;size=medium"` WITHOUT a floorTile spec carves all three
@@ -30,13 +30,13 @@ const { mkdtempSync, rmSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 let authoringToolsModule;
 
 async function loadModules() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   authoringToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  return { ak_impl, authoringToolsModule };
+  return { agon_impl, authoringToolsModule };
 }
 
 function findTool(tools, name) {
@@ -103,7 +103,7 @@ function carvedInRoom(layoutData, room) {
 let permutationOutDir;
 
 beforeAll(() => {
-  permutationOutDir = mkdtempSync(join(os.tmpdir(), "ak-i4-permutations-"));
+  permutationOutDir = mkdtempSync(join(os.tmpdir(), "agon-i4-permutations-"));
 });
 
 afterAll(() => {
@@ -114,7 +114,7 @@ describe("create multi-room carving (I4: floorTile cap leaves declared rooms unc
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-i4-carving-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-i4-carving-"));
   });
 
   afterAll(() => {
@@ -122,12 +122,12 @@ describe("create multi-room carving (I4: floorTile cap leaves declared rooms unc
   });
 
   test("count=3 without floorTile carves every declared room (contract pin — passes today)", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const dir = join(outDir, "no-cap");
     const result = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["count=3;size=medium"],
@@ -149,12 +149,12 @@ describe("create multi-room carving (I4: floorTile cap leaves declared rooms unc
   });
 
   test("count=2 with floorTile count=24 still carves floor inside EVERY declared room (FAILS today)", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const dir = join(outDir, "capped");
     const result = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["count=2;size=medium"],
@@ -187,11 +187,11 @@ describe("create multi-room carving (I4: floorTile cap leaves declared rooms unc
 
 // ## TODO: Test Permutations (expanded 2026-07-11 — M5)
 test("i4 floorTile count below one room interior is rejected with a structured message", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=3;size=medium"],
@@ -216,12 +216,12 @@ test("i4 floorTile count below one room interior is rejected with a structured m
 // corridor between them costs more. Three medium rooms need 19 tiles, not 15, and
 // unequal room shapes split the budget unequally.
 test("i4 floorTile count at the minimum viable three-room budget carves every room", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "three-room-minimum");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=3;size=medium"],
@@ -242,12 +242,12 @@ test("i4 floorTile count at the minimum viable three-room budget carves every ro
 });
 
 test("i4 floorTile count 20 still spreads carve budget across all declared rooms", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "three-room-twenty");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=3;size=medium"],
@@ -268,12 +268,12 @@ test("i4 floorTile count 20 still spreads carve budget across all declared rooms
 });
 
 test("i4 floorTile count 24 keeps every room carved", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "three-room-twenty-four");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=3;size=medium"],
@@ -294,12 +294,12 @@ test("i4 floorTile count 24 keeps every room carved", async () => {
 });
 
 test("i4 budget receipt bills the same carve total that the map actually contains", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "three-room-fifty");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=3;size=medium"],

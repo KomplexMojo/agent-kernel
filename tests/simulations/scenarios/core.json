@@ -218,7 +218,7 @@
     },
     {
       "id": "authored-vitals",
-      "note": "authored vitals survive ak create (low stamina regen, a wide cast)",
+      "note": "authored vitals survive agon create (low stamina regen, a wide cast)",
       "ticks": 10,
       "args": [
         "--room",

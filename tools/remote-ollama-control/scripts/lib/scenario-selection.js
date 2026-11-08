@@ -52,7 +52,7 @@ function classify(row, policy) {
 }
 
 /**
- * @param {Array} perScenario rows as published by ak-compare's perScenarioAggregate
+ * @param {Array} perScenario rows as published by agon-compare's perScenarioAggregate
  * @param {number} runOrdinal which focused run this is; rotates the healthy slice
  */
 function selectScenarios(perScenario, { runOrdinal = 0, policy = {} } = {}) {

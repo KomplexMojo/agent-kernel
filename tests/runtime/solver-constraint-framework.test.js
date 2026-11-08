@@ -185,7 +185,7 @@ test("conformance CATCHES an adapter that declares neither a domain nor a contra
 // The half that retiring `actor_action_selection` added, and the one that could rot quietly:
 // an adapter answering the Actor's envelope declares a CONTRACT and no domain, and must still
 // clear the gate. Get this wrong and the Actor adapter silently stops being conformance-checked
-// at all -- losing the determinism guarantee that `ak replay` depends on.
+// at all -- losing the determinism guarantee that `agon replay` depends on.
 test("an adapter that declares only a problem contract still clears the gate", async () => {
   const { checkSolverConformance, describeSolverCapabilities } = await loadConformance();
   const byContract = {

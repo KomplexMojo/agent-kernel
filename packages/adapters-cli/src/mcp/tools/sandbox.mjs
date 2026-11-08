@@ -1,11 +1,11 @@
 /**
  * Sandbox MCP tools — M2 + M3
  *
- * ak_sandbox_create: Create a SandboxSessionArtifact with budget enforcement.
+ * agon_sandbox_create: Create a SandboxSessionArtifact with budget enforcement.
  *   Produces a session envelope that indexes the BudgetReceiptArtifact and
  *   establishes room configuration. Foundation for Phaser rendering.
  *
- * ak_sandbox_place: Place and configure an entity in an existing sandbox session.
+ * agon_sandbox_place: Place and configure an entity in an existing sandbox session.
  *   Builds or updates SimConfig, InitialState, and ResourceBundle artifacts.
  *   Reuses the existing session's room dimensions for bounds checking.
  */
@@ -37,7 +37,7 @@ import { createConfiguratorPersona } from "../../../../runtime/src/personas/conf
 import { createAllocatorPersona, evaluateConfiguratorSpend } from "../../../../runtime/src/personas/allocator/persona.js";
 
 // ---------------------------------------------------------------------------
-// Local I/O helpers (self-contained — no dependency on ak-impl.mjs)
+// Local I/O helpers (self-contained — no dependency on agon-impl.mjs)
 // ---------------------------------------------------------------------------
 
 async function readJson(filePath) {
@@ -586,21 +586,21 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
     };
   }
 
-  // A sibling bundle.json is what ak_run's M7-gap-3 stitching (ak-impl.mjs ~line 2165)
+  // A sibling bundle.json is what agon_run's M7-gap-3 stitching (agon-impl.mjs ~line 2165)
   // looks for to decide whether a run's output should carry a post-run GameplayBundle
-  // forward for ak_push_to_ui — "identified by its pre-run bundle.json sibling". Without
+  // forward for agon_push_to_ui — "identified by its pre-run bundle.json sibling". Without
   // one, a sandbox-authored run is treated the same as a bare fixture run and stays
   // bundle-free, so nothing placed/moved in a sandbox session could ever reach the UI.
   // `spec` is optional in buildGameplayBundleFromRunArtifacts (sandbox sessions have no
   // BuildSpec/cardSet to offer — they're direct entity placement, not card authoring), so
   // this placeholder omits it rather than fabricate one; the stitched bundle still carries
-  // real simConfig/initialState/tickFrames once ak_run picks this up. Only written if
-  // absent — later ak_sandbox_place calls in the same session must not clobber whatever
-  // ak_run already upgraded this file to (see ak-impl.mjs's own "upgrade that sibling
+  // real simConfig/initialState/tickFrames once agon_run picks this up. Only written if
+  // absent — later agon_sandbox_place calls in the same session must not clobber whatever
+  // agon_run already upgraded this file to (see agon-impl.mjs's own "upgrade that sibling
   // bundle.json in place" comment).
   //
   // The resourceBundle DOES need to be in `artifacts` here, not left for a later step:
-  // ak_run's stitching only carries forward the create-bundle's artifacts whose schema
+  // agon_run's stitching only carries forward the create-bundle's artifacts whose schema
   // isn't superseded by the run's own simConfig/initialState — ResourceBundleArtifact
   // always qualifies, but only if it was here to carry in the first place. Without it,
   // gameplay-view.js's buildBoardState() finds no ResourceBundleArtifact in the final
@@ -961,10 +961,10 @@ export async function executeSandboxMove({
 }
 
 // ---------------------------------------------------------------------------
-// ak_push_to_ui — M7 gap 4: deliver a create+run GameplayBundle to the UI (M8 bridge)
+// agon_push_to_ui — M7 gap 4: deliver a create+run GameplayBundle to the UI (M8 bridge)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
+const DEFAULT_BRIDGE_PORT = Number(process.env.AGON_SANDBOX_BRIDGE_PORT) || 38487;
 
 function makePushMessageId() {
   return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -1010,7 +1010,7 @@ export async function executePushToUi({
       return {
         ok: false,
         command: "push-to-ui",
-        error: "ak_push_to_ui requires one of bundle, bundlePath, or outDir.",
+        error: "agon_push_to_ui requires one of bundle, bundlePath, or outDir.",
       };
     }
     if (!existsSync(resolvedBundlePath)) {
@@ -1069,14 +1069,14 @@ export async function executePushToUi({
   // D4 (sandbox-bridge-client.js handleBundle): targetTab lives at the envelope
   // root, not inside payload.
   const envelope = {
-    type: "ak.gameplayBundle.v1",
+    type: "agon.gameplayBundle.v1",
     id: messageId,
     ...(correlationId ? { correlationId } : {}),
     createdAt: new Date().toISOString(),
     targetTab,
     payload: {
       bundle,
-      source: { tool: "ak_push_to_ui" },
+      source: { tool: "agon_push_to_ui" },
     },
   };
 
@@ -1108,7 +1108,7 @@ export async function executePushToUi({
 
 export const sandboxTools = [
   createHandlerTool({
-    name: "ak_sandbox_create",
+    name: "agon_sandbox_create",
     description:
       "Create a standalone Phaser sandbox session with budget enforcement. " +
       "Produces a SandboxSessionArtifact (sandbox-session.json) referencing the " +
@@ -1148,7 +1148,7 @@ export const sandboxTools = [
   }),
 
   createHandlerTool({
-    name: "ak_sandbox_place",
+    name: "agon_sandbox_place",
     description:
       "Place and configure an entity in an existing Phaser sandbox session. " +
       "Builds or updates the canonical SimConfig, InitialState, and ResourceBundle artifacts " +
@@ -1159,7 +1159,7 @@ export const sandboxTools = [
     inputSchema: {
       required: ["session", "entityType", "spec"],
       properties: {
-        session: pathSchema("Absolute path to the sandbox-session.json file created by ak_sandbox_create."),
+        session: pathSchema("Absolute path to the sandbox-session.json file created by agon_sandbox_create."),
         entityType: {
           type: "string",
           enum: ["delver", "warden", "hazard", "resource"],
@@ -1186,7 +1186,7 @@ export const sandboxTools = [
   }),
 
   createHandlerTool({
-    name: "ak_sandbox_move",
+    name: "agon_sandbox_move",
     description:
       "Compose a single-tile cardinal move for an actor in a Phaser sandbox session. " +
       "Appends an Action to the ActionSequence file at actionsOut (creating it if absent). " +
@@ -1201,7 +1201,7 @@ export const sandboxTools = [
       required: ["session", "actorId", "direction", "actionsOut"],
       properties: {
         session: pathSchema(
-          "Absolute path to the sandbox-session.json file created by ak_sandbox_create.",
+          "Absolute path to the sandbox-session.json file created by agon_sandbox_create.",
         ),
         actorId: stringSchema(
           "ID of the actor to move. Must match an actor id in the session's InitialState.",
@@ -1232,12 +1232,12 @@ export const sandboxTools = [
   }),
 
   createHandlerTool({
-    name: "ak_push_to_ui",
+    name: "agon_push_to_ui",
     description:
-      "Deliver a compiled agon/GameplayBundle (produced by ak_create + ak_run) to the " +
+      "Deliver a compiled agon/GameplayBundle (produced by agon_create + agon_run) to the " +
       "connected browser UI via the sandbox WebSocket bridge, so the Phaser gameplay surface can " +
       "load and play back the run. Accepts an explicit bundlePath, an outDir containing bundle.json " +
-      "(the shape ak_run writes after M7 stitching), or an inline bundle object. " +
+      "(the shape agon_run writes after M7 stitching), or an inline bundle object. " +
       "Returns ok: false with bundleNotFound: true when no bundle is found at the resolved path, " +
       "SANDBOX_UI_NOT_CONNECTED when no browser UI is connected and requireClient is true, and " +
       "SANDBOX_BRIDGE_START_FAILED when the bridge server failed to start. " +
@@ -1248,8 +1248,8 @@ export const sandboxTools = [
       "UI's own HTTP dev server may load fine -- confirmed via connection-refused from both a " +
       "local curl and the browser's own WebSocket attempt in that kind of environment. " +
       "If you cannot confirm the caller " +
-      "and this MCP server share a reachable network path, use ak_show_state / ak_tick_forward / " +
-      "ak_tick_backward with a visualization mode instead -- they return state over the MCP " +
+      "and this MCP server share a reachable network path, use agon_show_state / agon_tick_forward / " +
+      "agon_tick_backward with a visualization mode instead -- they return state over the MCP " +
       "response itself (ascii inline, image as a file path since #144), with no second network hop.",
     inputSchema: {
       properties: {

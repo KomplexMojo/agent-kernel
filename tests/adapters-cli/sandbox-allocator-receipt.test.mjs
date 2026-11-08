@@ -11,7 +11,7 @@ import { test } from "vitest";
 import { executeSandboxCreate, executeSandboxPlace } from "../../packages/adapters-cli/src/mcp/tools/sandbox.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const BUDGET = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 

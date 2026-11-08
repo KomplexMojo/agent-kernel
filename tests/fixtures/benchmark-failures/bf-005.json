@@ -8,7 +8,7 @@
   "observedOutcome": "budget_denied",
   "scenarioBudget": 92,
   "toolArgs": {
-    "text": "Create one exploring fire Delver at its minimum passing budget. Use a 92 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "text": "Create one exploring fire Delver at its minimum passing budget. Use a 92 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
     "runId": "fire-delver-min-budget-001",
     "outDir": "./artifacts/fire-delver-run",
     "budgetTokens": 92,

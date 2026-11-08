@@ -24,7 +24,7 @@ function git(cwd, args) {
 }
 
 function setupRepository() {
-  const root = mkdtempSync(join(tmpdir(), 'ak-benchmark-pipeline-'));
+  const root = mkdtempSync(join(tmpdir(), 'agon-benchmark-pipeline-'));
   const remote = join(root, 'remote.git');
   const operator = join(root, 'operator');
   git(root, ['init', '--bare', remote]);
@@ -195,7 +195,7 @@ test('installed agent composes authoring/runtime/generated evidence into a compa
 });
 
 test('runtime-only pipeline reuses retained authoring without inference and reruns generated execution', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'ak-benchmark-runtime-only-'));
+  const root = mkdtempSync(join(tmpdir(), 'agon-benchmark-runtime-only-'));
   const fixture = buildFixture(root);
   const stateDir = join(root, 'state');
   await runBenchmarkPipeline(pipelineOptions(fixture, stateDir, 'a'.repeat(64), {
@@ -211,7 +211,7 @@ test('runtime-only pipeline reuses retained authoring without inference and reru
 });
 
 test('missing cached runtime evidence and missing explicit generated routes fail closed', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'ak-benchmark-pipeline-missing-'));
+  const root = mkdtempSync(join(tmpdir(), 'agon-benchmark-pipeline-missing-'));
   const fixture = buildFixture(root);
   const stateDir = join(root, 'state');
   await assert.rejects(() => runBenchmarkPipeline(pipelineOptions(fixture, stateDir, 'c'.repeat(64), {
@@ -229,7 +229,7 @@ test('missing cached runtime evidence and missing explicit generated routes fail
 });
 
 test('versioned route manifests bind exact identities and cover every scenario variant', () => {
-  const root = mkdtempSync(join(tmpdir(), 'ak-benchmark-route-contract-'));
+  const root = mkdtempSync(join(tmpdir(), 'agon-benchmark-route-contract-'));
   const fixture = buildFixture(root);
   const components = pipelineComponents(fixture.sourceWorktree, CATALOG);
   assert.deepEqual(validateRouteManifestDocument({
@@ -266,7 +266,7 @@ test('versioned route manifests bind exact identities and cover every scenario v
 });
 
 test('production pipeline components are loaded from the pinned source worktree', () => {
-  const sourceWorktree = mkdtempSync(join(tmpdir(), 'ak-benchmark-source-components-'));
+  const sourceWorktree = mkdtempSync(join(tmpdir(), 'agon-benchmark-source-components-'));
   const libRoot = join(sourceWorktree, 'tools', 'remote-ollama-control', 'scripts', 'lib');
   mkdirSync(libRoot, { recursive: true });
   writeFileSync(join(libRoot, 'execution-catalog.js'),
@@ -282,9 +282,9 @@ test('production pipeline components are loaded from the pinned source worktree'
     "exports.runExecutionSchedule = function sourceSchedule() {};",
     '',
   ].join('\n'));
-  writeFileSync(join(libRoot, 'ak-compare.js'),
+  writeFileSync(join(libRoot, 'agon-compare.js'),
     "exports.validateContentResult = function sourceValidate() {};\n");
-  writeFileSync(join(libRoot, 'ak-scenarios.js'),
+  writeFileSync(join(libRoot, 'agon-scenarios.js'),
     "exports.loadScenarioCatalog = () => ({ sha256: 'source-content', scenarios: [] });\n");
 
   const components = pipelineComponents(sourceWorktree);

@@ -1,4 +1,4 @@
-// #371: `ak create` keeps the vitals an author wrote. The movement and cast floors fill only
+// #371: `agon create` keeps the vitals an author wrote. The movement and cast floors fill only
 // what was left unset (a stamina regen or mana max of 0); a value the author set stands, even
 // when it means resting longer between steps or never affording a cast. A floor that still has
 // to raise a value someone set (a pool too small for one step, the viability floor) does so in
@@ -11,13 +11,13 @@ const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const AK_CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AGON_CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 function create(args) {
-  const outDir = mkdtempSync(join(tmpdir(), "ak-vitals-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-vitals-"));
   try {
     const result = spawnSync(process.execPath, [
-      AK_CLI, "create", "--room", "size=small;count=1", ...args,
+      AGON_CLI, "create", "--room", "size=small;count=1", ...args,
       "--out-dir", outDir, "--run-id", "vitals_probe", "--created-at", "2026-10-18T00:00:00.000Z",
     ], { cwd: ROOT, encoding: "utf8" });
     assert.equal(result.status, 0, `${result.stderr}${result.stdout}`);
@@ -76,10 +76,10 @@ test("vitals left unset still get the movement and cast floors", () => {
 });
 
 test("a delver pool too small for one step is refused with the reason", () => {
-  const outDir = mkdtempSync(join(tmpdir(), "ak-vitals-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-vitals-"));
   try {
     const result = spawnSync(process.execPath, [
-      AK_CLI, "create", "--room", "size=small;count=1", "--out-dir", outDir,
+      AGON_CLI, "create", "--room", "size=small;count=1", "--out-dir", outDir,
       "--delver", "count=1;id=a;affinity=wind;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:1:1,durability:10:1",
     ], { cwd: ROOT, encoding: "utf8" });
     assert.notEqual(result.status, 0);
@@ -103,4 +103,4 @@ test("a set value the viability floor raises is reported, never changed silently
 // - a warden whose authored mana max is 0 with an affinity gets the cast floor
 // - an authored stamina regen of 0 on a mover is filled to one move's cost
 // - configure reports vitalsReport the same way create does
-// - the MCP ak_create result carries vitalsReport
+// - the MCP agon_create result carries vitalsReport

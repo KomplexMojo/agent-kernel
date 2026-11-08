@@ -174,7 +174,7 @@ an operator-owned environment template. Installation is idempotent and never ove
 `~/.local/share/agon-benchmark/source.git`; local state and the isolated result checkout live
 under `~/.local/state/agon-benchmark/`. The operator's project checkout is never used.
 
-M4b ships with `AK_BENCHMARK_DRY_RUN=1`. In that mode the agent fetches the configured source ref,
+M4b ships with `AGON_BENCHMARK_DRY_RUN=1`. In that mode the agent fetches the configured source ref,
 computes the immutable run key, classifies path/hash triggers, prints JSON, and exits without writing
 poll state, running a model/GPU, or publishing Git results. The internal Node lock is the only
 single-instance mechanism; the timer does not add a second lock.
@@ -197,16 +197,16 @@ const path = require('node:path');
 const { currentBenchmarkIdentity } = require('./scripts/lib/benchmark-result-reader');
 const identity = currentBenchmarkIdentity(path.resolve('.'));
 process.stdout.write([
-  `AK_BENCHMARK_SCENARIO_HASH=${identity.scenarioSet.sha256}`,
-  `AK_BENCHMARK_MATRIX_HASH=${identity.matrix.sha256}`,
-  `AK_BENCHMARK_EXECUTION_SUITE_HASH=${identity.execution.executionSuiteHash}`,
+  `AGON_BENCHMARK_SCENARIO_HASH=${identity.scenarioSet.sha256}`,
+  `AGON_BENCHMARK_MATRIX_HASH=${identity.matrix.sha256}`,
+  `AGON_BENCHMARK_EXECUTION_SUITE_HASH=${identity.execution.executionSuiteHash}`,
   '',
 ].join('\n'));
 NODE
 ```
 
 Copy those lines into `~/.config/agon-benchmark/benchmark-agent.env`, keep
-`AK_BENCHMARK_DRY_RUN=1` and `AK_BENCHMARK_LIVE=0`, then retain the read-only handoff:
+`AGON_BENCHMARK_DRY_RUN=1` and `AGON_BENCHMARK_LIVE=0`, then retain the read-only handoff:
 
 ```bash
 mkdir -p ~/.local/state/agon-benchmark
@@ -361,7 +361,7 @@ floor. Alerts name the configuration.
 ### Updating the agent on the runner — a merge does NOT deploy
 
 `~/remote-ollama-control/` on the box is an installed **file copy**, not a checkout (`git log` there
-fails). The agent checks out `AK_BENCHMARK_SOURCE_REF` fresh for every run, so a merge to `main`
+fails). The agent checks out `AGON_BENCHMARK_SOURCE_REF` fresh for every run, so a merge to `main`
 updates *the code under test* — the preflight suite and the content-gen child script — while the
 agent that **spawns** them keeps running whatever was last installed. Both halves are then true at
 once, which is what makes this so easy to misread:
@@ -378,9 +378,9 @@ identical `infrastructure_error` kept publishing for another hour because the in
 Reinstall from the box (no Mac tree required):
 
 ```bash
-rm -rf ~/tmp/ak-install-src
-git clone -q --depth 1 -b main https://github.com/KomplexMojo/agon.git ~/tmp/ak-install-src
-cd ~/tmp/ak-install-src/tools/remote-ollama-control && bash scripts/install-local-ubuntu.sh
+rm -rf ~/tmp/agon-install-src
+git clone -q --depth 1 -b main https://github.com/KomplexMojo/agon.git ~/tmp/agon-install-src
+cd ~/tmp/agon-install-src/tools/remote-ollama-control && bash scripts/install-local-ubuntu.sh
 ```
 
 Then confirm the code you expected actually landed — grep the installed file, not the checkout:
@@ -728,7 +728,7 @@ Each run records endpoint, profile, model, context, `num_predict`, wall time, Ol
 
 ## Content-Gen Benchmark
 
-Compare how well the primary single-card profile and the two-card dual profile handle the current 100 Agon MCP scenarios. The secondary card is not benchmarked alone; it participates only through the dual profile. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference expectations.
+Compare how well the primary single-card profile and the two-card dual profile handle the current 100 Agon MCP scenarios. The secondary card is not benchmarked alone; it participates only through the dual profile. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `agon_create` tool, extracts the generated tool call, runs `agon.mjs create` locally with those arguments, and scores the result against the reference expectations.
 
 The benchmark questions are versioned under `benchmarks/content-gen/` as four reviewed tier catalogs with 25 simple, 25 affinity, 25 complex, and 25 constrained scenarios. `loadScenarioCatalog()` validates the complete 1–100 id range and returns a canonical SHA-256, so a scenario-set change is visible in Git and has a stable identity. Canonical payloads use `$RUN_OUTPUT/create` rather than a machine-specific output path.
 
@@ -790,8 +790,8 @@ non-zero child, so the nightly inherits the breaker without extra wiring.
 
 Override with `--no-collapse-breaker`, `--collapse-score-floor N`, `--collapse-tool-call-floor RATIO`,
 or `--collapse-min-attempts N`. The nightly service, which cannot pass flags, reads
-`AK_BENCHMARK_COLLAPSE_BREAKER=0`, `AK_BENCHMARK_COLLAPSE_SCORE_FLOOR`,
-`AK_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR`, and `AK_BENCHMARK_COLLAPSE_MIN_ATTEMPTS`; explicit flags win.
+`AGON_BENCHMARK_COLLAPSE_BREAKER=0`, `AGON_BENCHMARK_COLLAPSE_SCORE_FLOOR`,
+`AGON_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR`, and `AGON_BENCHMARK_COLLAPSE_MIN_ATTEMPTS`; explicit flags win.
 Turn it off for adversarial or diagnostic subsets, for the same reason `--no-early-stop` exists — a
 subset chosen to fail must be allowed to fail.
 
@@ -809,8 +809,8 @@ execution failures, so an expected budget rejection can qualify while remaining 
 Scoring (100 pts per run):
 | Component | Points | How |
 |---|---:|---|
-| Tool call produced | 20 | LLM called `ak_create` |
-| Exec succeeded | 10 | `ak.mjs create` exited 0 |
+| Tool call produced | 20 | LLM called `agon_create` |
+| Exec succeeded | 10 | `agon.mjs create` exited 0 |
 | Entity types match | 20 | Same entity types as reference |
 | Entity counts match | 20 | Same count-per-type as reference |
 | Affinity match | 20 | Same primary affinity per type |
@@ -821,8 +821,8 @@ Scoring (100 pts per run):
 `run-abstract-plan` separates reasoning quality from game vocabulary. The model receives only a
 domain-neutral component catalog, exact quantity/capacity/signal/budget constraints, and a
 minimum-cost objective. It returns opaque component ids through `submit_abstract_build_plan`.
-A hidden deterministic mapping then translates those ids into production `ak_create` arguments and
-runs `ak.mjs create`.
+A hidden deterministic mapping then translates those ids into production `agon_create` arguments and
+runs `agon.mjs create`.
 
 The catalog is versioned under `benchmarks/abstract-plan/`. `pilot.json` is one hand-authored stress
 case. `parallel.json` contains 100 generated cases aligned one-to-one with the content-generation

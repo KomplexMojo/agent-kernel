@@ -26,7 +26,7 @@
  * against were both live, 200 lines apart, the day it was written. Both derivations are now
  * one function.
  *
- * TIES BREAK ON ACTOR ID, and that is a real constraint rather than a detail: `ak replay`
+ * TIES BREAK ON ACTOR ID, and that is a real constraint rather than a detail: `agon replay`
  * compares runs frame by frame, so an ordering that varied between runs would break replay
  * outright rather than degrade it. Id is stable, total, and independent of how the build
  * happened to emit the actor list — which is precisely what the array order was not.

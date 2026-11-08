@@ -1,7 +1,7 @@
 // M2 — Sandbox creation MCP contract tests.
 //
 // Tools tested:
-//   ak_sandbox_create — create a SandboxSessionArtifact with budget enforcement
+//   agon_sandbox_create — create a SandboxSessionArtifact with budget enforcement
 //
 // Budget enforcement rules tested:
 //   - Denied BudgetReceiptArtifact → ok: false, budgetInsufficient: true
@@ -10,7 +10,7 @@
 //   - Approved receipt             → ok: true, sandbox-session.json written
 //
 // Regression:
-//   - ak_create must still appear in tools/list
+//   - agon_create must still appear in tools/list
 
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
@@ -186,28 +186,28 @@ function makeTempDir(prefix) {
 // Tool discovery
 // ---------------------------------------------------------------------------
 
-test("mcp tools/list includes ak_sandbox_create", async () => {
+test("mcp tools/list includes agon_sandbox_create", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const listing = await harness.listTools();
     const names = listing.tools.map((t) => t.name);
     assert.ok(
-      names.includes("ak_sandbox_create"),
-      `Expected ak_sandbox_create in tools/list, got: ${names.join(", ")}`,
+      names.includes("agon_sandbox_create"),
+      `Expected agon_sandbox_create in tools/list, got: ${names.join(", ")}`,
     );
   } finally {
     await harness.close();
   }
 });
 
-test("mcp tools/list still includes ak_create (no regression)", async () => {
+test("mcp tools/list still includes agon_create (no regression)", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const listing = await harness.listTools();
     const names = listing.tools.map((t) => t.name);
-    assert.ok(names.includes("ak_create"), "ak_create must still be present");
+    assert.ok(names.includes("agon_create"), "agon_create must still be present");
   } finally {
     await harness.close();
   }
@@ -217,12 +217,12 @@ test("mcp tools/list still includes ak_create (no regression)", async () => {
 // Happy path — approved budget receipt
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_create with approved budget receipt returns ok: true", async () => {
+test("mcp agon_sandbox_create with approved budget receipt returns ok: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-create-");
-    const result = await harness.callTool("ak_sandbox_create", {
+    const result = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
@@ -238,12 +238,12 @@ test("mcp ak_sandbox_create with approved budget receipt returns ok: true", asyn
   }
 });
 
-test("mcp ak_sandbox_create writes sandbox-session.json to outDir", async () => {
+test("mcp agon_sandbox_create writes sandbox-session.json to outDir", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-session-file-");
-    await harness.callTool("ak_sandbox_create", {
+    await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
@@ -259,12 +259,12 @@ test("mcp ak_sandbox_create writes sandbox-session.json to outDir", async () => 
   }
 });
 
-test("mcp ak_sandbox_create default room is 10x10", async () => {
+test("mcp agon_sandbox_create default room is 10x10", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-default-room-");
-    const result = await harness.callTool("ak_sandbox_create", {
+    const result = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
@@ -275,12 +275,12 @@ test("mcp ak_sandbox_create default room is 10x10", async () => {
   }
 });
 
-test("mcp ak_sandbox_create accepts custom room dimensions", async () => {
+test("mcp agon_sandbox_create accepts custom room dimensions", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-custom-dim-");
-    const result = await harness.callTool("ak_sandbox_create", {
+    const result = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       width: 20,
       height: 15,
@@ -293,12 +293,12 @@ test("mcp ak_sandbox_create accepts custom room dimensions", async () => {
   }
 });
 
-test("mcp ak_sandbox_create accepts valid entity categories", async () => {
+test("mcp agon_sandbox_create accepts valid entity categories", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-entity-cats-");
-    const result = await harness.callTool("ak_sandbox_create", {
+    const result = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       entityCategories: ["delver", "warden"],
       outDir,
@@ -309,12 +309,12 @@ test("mcp ak_sandbox_create accepts valid entity categories", async () => {
   }
 });
 
-test("mcp ak_sandbox_create with budget artifact (approved) returns ok: true", async () => {
+test("mcp agon_sandbox_create with budget artifact (approved) returns ok: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-budget-art-");
-    const result = await harness.callTool("ak_sandbox_create", {
+    const result = await harness.callTool("agon_sandbox_create", {
       budget: BUDGET_BASIC,
       outDir,
     });
@@ -330,12 +330,12 @@ test("mcp ak_sandbox_create with budget artifact (approved) returns ok: true", a
 // Budget enforcement — denied receipt
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_create with denied budget receipt returns ok: false, budgetInsufficient: true", async () => {
+test("mcp agon_sandbox_create with denied budget receipt returns ok: false, budgetInsufficient: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-denied-");
-    const result = await harness.callToolRaw("ak_sandbox_create", {
+    const result = await harness.callToolRaw("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_DENIED,
       outDir,
     });
@@ -351,12 +351,12 @@ test("mcp ak_sandbox_create with denied budget receipt returns ok: false, budget
 // Budget enforcement — zero-token budget artifact
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_create with zero-token budget artifact returns ok: false, budgetInsufficient: true", async () => {
+test("mcp agon_sandbox_create with zero-token budget artifact returns ok: false, budgetInsufficient: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-zero-tok-");
-    const result = await harness.callToolRaw("ak_sandbox_create", {
+    const result = await harness.callToolRaw("agon_sandbox_create", {
       budget: BUDGET_ZERO_TOKENS,
       outDir,
     });
@@ -372,12 +372,12 @@ test("mcp ak_sandbox_create with zero-token budget artifact returns ok: false, b
 // Budget enforcement — missing budget inputs
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_create without budget inputs returns ok: false, budgetRequired: true", async () => {
+test("mcp agon_sandbox_create without budget inputs returns ok: false, budgetRequired: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-no-budget-");
-    const result = await harness.callToolRaw("ak_sandbox_create", {
+    const result = await harness.callToolRaw("agon_sandbox_create", {
       outDir,
     });
     assert.equal(result.ok, false);
@@ -392,12 +392,12 @@ test("mcp ak_sandbox_create without budget inputs returns ok: false, budgetRequi
 // Malformed receipts that share the right schema must still be rejected.
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_create rejects budget receipt with missing meta.id", async () => {
+test("mcp agon_sandbox_create rejects budget receipt with missing meta.id", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-receipt-no-meta-id-");
-    const result = await harness.callToolRaw("ak_sandbox_create", {
+    const result = await harness.callToolRaw("agon_sandbox_create", {
       budgetReceipt: resolve(ROOT, "tests/fixtures/sandbox/budget-receipt-v1-missing-meta-id.json"),
       outDir,
     });
@@ -409,12 +409,12 @@ test("mcp ak_sandbox_create rejects budget receipt with missing meta.id", async 
   }
 });
 
-test("mcp ak_sandbox_create rejects budget receipt with unknown status (not approved)", async () => {
+test("mcp agon_sandbox_create rejects budget receipt with unknown status (not approved)", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-receipt-unknown-status-");
-    const result = await harness.callToolRaw("ak_sandbox_create", {
+    const result = await harness.callToolRaw("agon_sandbox_create", {
       budgetReceipt: resolve(ROOT, "tests/fixtures/sandbox/budget-receipt-v1-unknown-status.json"),
       outDir,
     });
@@ -426,12 +426,12 @@ test("mcp ak_sandbox_create rejects budget receipt with unknown status (not appr
   }
 });
 
-test("mcp ak_sandbox_create rejects budget receipt with missing lineItems array", async () => {
+test("mcp agon_sandbox_create rejects budget receipt with missing lineItems array", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-receipt-no-lineitems-");
-    const result = await harness.callToolRaw("ak_sandbox_create", {
+    const result = await harness.callToolRaw("agon_sandbox_create", {
       budgetReceipt: resolve(ROOT, "tests/fixtures/sandbox/budget-receipt-v1-missing-line-items.json"),
       outDir,
     });
@@ -442,15 +442,15 @@ test("mcp ak_sandbox_create rejects budget receipt with missing lineItems array"
   }
 });
 
-test.skip("mcp ak_sandbox_create accepts partial budget receipt status", () => {});
-test.skip("mcp ak_sandbox_create accepts approved receipt with remaining zero", () => {});
-test.skip("mcp ak_sandbox_create reflects custom runId in sandboxId and session meta", () => {});
-test.skip("mcp ak_sandbox_create reflects custom createdAt in session meta", () => {});
-test.skip("mcp ak_sandbox_create defaults outDir to artifacts/sandbox/<runId>", () => {});
-test.skip("mcp ak_sandbox_create with empty entityCategories omits entityCategories from result", () => {});
-test.skip("mcp ak_sandbox_create handles invalid entityCategories deterministically", () => {});
-test.skip("mcp ak_sandbox_create with negative budget tokens returns budgetInsufficient", () => {});
-test.skip("mcp ak_sandbox_create with missing budget.tokens returns budgetInsufficient", () => {});
-test.skip("mcp ak_sandbox_create writes sandbox-session.json valid against SANDBOX_SESSION_SCHEMA", () => {});
-test.skip("mcp ak_sandbox_create budgetReceiptRef matches loaded receipt meta.id", () => {});
-test.skip("mcp ak_sandbox_create budgetReceiptRef has synthetic id when using budget artifact", () => {});
+test.skip("mcp agon_sandbox_create accepts partial budget receipt status", () => {});
+test.skip("mcp agon_sandbox_create accepts approved receipt with remaining zero", () => {});
+test.skip("mcp agon_sandbox_create reflects custom runId in sandboxId and session meta", () => {});
+test.skip("mcp agon_sandbox_create reflects custom createdAt in session meta", () => {});
+test.skip("mcp agon_sandbox_create defaults outDir to artifacts/sandbox/<runId>", () => {});
+test.skip("mcp agon_sandbox_create with empty entityCategories omits entityCategories from result", () => {});
+test.skip("mcp agon_sandbox_create handles invalid entityCategories deterministically", () => {});
+test.skip("mcp agon_sandbox_create with negative budget tokens returns budgetInsufficient", () => {});
+test.skip("mcp agon_sandbox_create with missing budget.tokens returns budgetInsufficient", () => {});
+test.skip("mcp agon_sandbox_create writes sandbox-session.json valid against SANDBOX_SESSION_SCHEMA", () => {});
+test.skip("mcp agon_sandbox_create budgetReceiptRef matches loaded receipt meta.id", () => {});
+test.skip("mcp agon_sandbox_create budgetReceiptRef has synthetic id when using budget artifact", () => {});

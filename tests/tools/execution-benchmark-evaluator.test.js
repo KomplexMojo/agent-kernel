@@ -309,7 +309,7 @@ test('gate descriptions are reporting-only and cannot change verdicts', () => {
 });
 
 test('loader, atomic writer, and comparison guards preserve result identities', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ak-execution-evaluator-'));
+  const dir = mkdtempSync(join(tmpdir(), 'agon-execution-evaluator-'));
   const value = artifacts();
   for (const [name, file] of Object.entries({
     simConfig: 'sim-config.json', initialState: 'initial-state.json', tickFrames: 'tick-frames.json',
@@ -341,7 +341,7 @@ test('loader, atomic writer, and comparison guards preserve result identities', 
 });
 
 test('checkpoint reader consumes only declared WorldStateArtifact ticks and reports gaps', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ak-execution-checkpoints-'));
+  const dir = mkdtempSync(join(tmpdir(), 'agon-execution-checkpoints-'));
   const checkpointDir = join(dir, 'world-state-checkpoints');
   mkdirSync(checkpointDir, { recursive: true });
   const checkpoint = (tick) => ({

@@ -27,7 +27,7 @@ function run(env = {}, expectFailure = false, mode = null) {
 }
 
 function install(mode = 'app') {
-  const dir = mkdtempSync(join(tmpdir(), 'ak-bench-app-'));
+  const dir = mkdtempSync(join(tmpdir(), 'agon-bench-app-'));
   // Forcing the system lets this run on the Ubuntu box too; the icon step degrades on its own when
   // the macOS image tools are absent.
   run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir }, false, mode);
@@ -172,7 +172,7 @@ test('both mode installs each form', () => {
 // match, and under `set -e` that false ended the script -- so `command` exited having installed
 // nothing while still reporting success.
 test('command mode actually installs, rather than exiting on the mode test', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ak-bench-app-'));
+  const dir = mkdtempSync(join(tmpdir(), 'agon-bench-app-'));
   const { status } = run(
     { BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir }, false, 'command',
   );

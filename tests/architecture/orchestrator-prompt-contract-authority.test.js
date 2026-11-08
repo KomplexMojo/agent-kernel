@@ -4,7 +4,7 @@
  * `normalizeSummary` and `deriveAllowedOptionsFromCatalog` (`prompt-contract.js`) are
  * published on `controller.js` (CR.7 / WP-5) specifically so glue reaches them through
  * the persona rather than importing the module directly — `controller.js`'s own comment
- * names `ak-impl.mjs`, `kernel.js` and `ui-flow.js` as the three call sites that used to
+ * names `agon-impl.mjs`, `kernel.js` and `ui-flow.js` as the three call sites that used to
  * cross the boundary. What no G1 test asked (the roster's `KNOWN_UNREGISTERED` note,
  * verbatim): could production normalize a summary, or derive a prompt's allowed options,
  * without the Orchestrator?
@@ -24,7 +24,7 @@
  * The BEHAVIORAL half — that this normalization is load-bearing, not decorative — already
  * has extensive coverage this entry does not duplicate: `tests/personas/orchestrator/orchestrator-prompt-contract.test.js`
  * (the validation rules themselves, ~15 cases) and
- * `tests/adapters-cli/ak-llm-plan.test.js` ("cli llm-plan rejects summaries that do not
+ * `tests/adapters-cli/agon-llm-plan.test.js` ("cli llm-plan rejects summaries that do not
  * match catalog entries", exercised through the real CLI). This file's job is narrower:
  * prove production cannot reach an equivalent result without this exact code.
  */

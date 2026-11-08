@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Try the game controls the Claude Code harness drives, straight through `ak`.
+# Try the game controls the Claude Code harness drives, straight through `agon`.
 # Each step prints the board and what changed; the same steps are what /game-play
-# does through the ak_play_* MCP tools. Usage: bash scripts/play/try-controls.sh
+# does through the agon_play_* MCP tools. Usage: bash scripts/play/try-controls.sh
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-AK="node packages/adapters-cli/src/cli/ak.mjs"
+AK="node packages/adapters-cli/src/cli/agon.mjs"
 SESSION="try-controls"
 LEVEL="$(mktemp -d)"
 FLOOR="vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1"
 
-# Print the board and the lines worth reading from one ak JSON result.
+# Print the board and the lines worth reading from one agon JSON result.
 show() {
   node -e '
     const r = JSON.parse(require("fs").readFileSync(0, "utf8").trim().split("\n").at(-1));

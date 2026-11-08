@@ -2,7 +2,7 @@
  * Framework vs game — the boundary the Primordial split cuts along (#739, tracker #747).
  *
  * agon is the framework: core-ts, runtime (personas, contracts, ports, runner,
- * render view models), the adapters, `ak`, the MCP server and the reference terminal
+ * render view models), the adapters, `agon`, the MCP server and the reference terminal
  * client (ui-ascii, kept by Darren 2026-11-06, #741). The game (Primordial) is a CONSUMER
  * of it, in its own private repository: the phone app, the playtest launcher, the archived
  * web UI, brand and design art. The game paths still here are the brand, design and demo
@@ -14,7 +14,7 @@
  *
  *   1. The framework never imports game code.
  *   2. The framework names a game path only at a recorded seam, each with the issue
- *      that removes it. These are process or URL boundaries (`ak play` spawning the
+ *      that removes it. These are process or URL boundaries (`agon play` spawning the
  *      terminal client), not imports, but they still break when the game moves.
  *   3. The game reaches the framework only through the declared API surface, and
  *      never imports core-ts. The surface is exactly what the split must publish

@@ -14,7 +14,7 @@
  *
  *   solver   the production persona surface with the real Z3 hybrid adapter wired
  *   greedy   the same surface with an adapter that defers — which is EXACTLY the
- *            shipped default, since `AK_SOLVER_ENGINE` unset yields a stub
+ *            shipped default, since `AGON_SOLVER_ENGINE` unset yields a stub
  *            declaring `domains: []`
  *   oracle   exhaustive brute force (`logic-oracles.mjs`)
  *

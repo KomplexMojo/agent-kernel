@@ -2,7 +2,7 @@
  * #297 — one route rule for both placement paths (Darren, 2026-10-17, option B): a
  * blocking object counts against the spawn-to-exit route only if it can't be destroyed
  * (no durability to lose). A destroyable trap is passable and never causes a rejection.
- * The legacy fallback (what `ak create` uses when no solver answers) takes the first free
+ * The legacy fallback (what `agon create` uses when no solver answers) takes the first free
  * cell in reading order and used to emit a level whose only corridor an indestructible
  * blocker had sealed; it now refuses that level, as the solver path does.
  */

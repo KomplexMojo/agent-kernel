@@ -2,7 +2,7 @@ import { test, expect } from "vitest";
 import { createConfiguratorPersona } from "../../../packages/runtime/src/personas/configurator/controller.js";
 import { mapHazards, mapResources } from "../../../packages/runtime/src/personas/configurator/input-preparation.js";
 
-// #300 — `ak solve --question place-objects` re-poses a built level's placement problem. The
+// #300 — `agon solve --question place-objects` re-poses a built level's placement problem. The
 // Configurator turns the level's placed hazard and resource actors back into placement
 // requests; placing them must reproduce the same actors, so the question is about this level.
 const clock = () => "2026-10-17T00:00:00.000Z";

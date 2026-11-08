@@ -133,11 +133,11 @@ test("adaptive workflow state machine does not duplicate side-effect events for 
   machine.advance(AdaptiveWorkflowEvents.SUBMIT_OBJECTIVE, { objective: "idempotency test" });
   const first = machine.advance(AdaptiveWorkflowEvents.RECORD_SIDE_EFFECT, {
     idempotencyKey: "cli:execute:1",
-    details: { command: "ak workflow dry-run" },
+    details: { command: "agon workflow dry-run" },
   });
   const second = machine.advance(AdaptiveWorkflowEvents.RECORD_SIDE_EFFECT, {
     idempotencyKey: "cli:execute:1",
-    details: { command: "ak workflow dry-run" },
+    details: { command: "agon workflow dry-run" },
   });
 
   assert.equal(first.phase, AdaptiveWorkflowPhases.PLAN);

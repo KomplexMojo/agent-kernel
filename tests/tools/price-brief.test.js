@@ -80,7 +80,7 @@ test("the brief stays small enough to sit in every prompt", () => {
 // what was being measured while all three pinned hashes sat still, and two runs would have looked
 // comparable. That is the silent-drift failure this repository cares most about.
 
-const { authoringPolicy } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const { authoringPolicy } = require("../../tools/remote-ollama-control/scripts/lib/agon-runner");
 const { assertResumable } = require("../../tools/remote-ollama-control/scripts/lib/content-gen-checkpoint");
 
 // assertResumable checks catalog, matrix, policy, scenario ids and configuration ids in that
@@ -147,7 +147,7 @@ test("no price list reaches the model", () => {
 // a second call in the prompt path would let them disagree again.
 test("the prompt and the run record cannot disagree about what was sent", () => {
   const source = readFileSync(
-    resolve(__dirname, "../../tools/remote-ollama-control/scripts/lib/ak-runner.js"), "utf8",
+    resolve(__dirname, "../../tools/remote-ollama-control/scripts/lib/agon-runner.js"), "utf8",
   );
   // Comments are stripped first: the constant's own docblock names buildPriceBrief() as the way to
   // re-enable the brief, and that instruction is worth keeping readable.
@@ -157,7 +157,7 @@ test("the prompt and the run record cannot disagree about what was sent", () => 
   const calls = code.match(/buildPriceBrief\(\)/g) || [];
   assert.deepEqual(
     calls, [],
-    "ak-runner must read AUTHORING_PRICE_BRIEF rather than calling buildPriceBrief() — two calls is "
+    "agon-runner must read AUTHORING_PRICE_BRIEF rather than calling buildPriceBrief() — two calls is "
     + "how the prompt and the identity came to be separate values",
   );
   assert.match(source, /const AUTHORING_PRICE_BRIEF = /);

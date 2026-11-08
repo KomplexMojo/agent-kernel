@@ -5,10 +5,10 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { requestJson } = require('./ollama');
 const { evaluateAbstractPlan, mapAbstractPlanToCreateArgs } = require('./abstract-plan');
-const { classifyExecutionOutcome } = require('./ak-runner');
+const { classifyExecutionOutcome } = require('./agon-runner');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
+const AGON_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'agon.mjs');
 
 const ABSTRACT_PLAN_TOOL = {
   type: 'function',
@@ -145,7 +145,7 @@ async function runAbstractScenario(endpoint, model, scenario, runOutDir, runId, 
   const { buildArgv, authoringSpec } = await getBuildTools();
   const cliArgs = buildArgv(mappedArgs, authoringSpec);
   const execStarted = Date.now();
-  const result = spawnSync(process.execPath, [AK_CLI, 'create', ...cliArgs], {
+  const result = spawnSync(process.execPath, [AGON_CLI, 'create', ...cliArgs], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
     timeout: timeoutMs,

@@ -1,5 +1,5 @@
 /**
- * `ak run --actor` adds an actor to a unified level. Core setup refuses a mover
+ * `agon run --actor` adds an actor to a unified level. Core setup refuses a mover
  * with no authored move cost, so the override must assemble one (#211).
  */
 "use strict";

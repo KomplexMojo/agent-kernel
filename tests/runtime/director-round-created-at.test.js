@@ -3,7 +3,7 @@
  * from the clock it was given, and refuses only when it was given NEITHER.
  *
  * WHY THIS WAS A DECISION AND NOT A FIX. `beginDirectorRound` required `createdAt`
- * outright, while the two remaining allowlist rows — `ui-flow.js` and `ak-impl.mjs`
+ * outright, while the two remaining allowlist rows — `ui-flow.js` and `agon-impl.mjs`
  * importing `director/buildspec-assembler.js` — belong to paths that legitimately carry
  * a clock instead: `ui-web/card-builder-controller.js` passes `clock: () => new
  * Date().toISOString()` with `createdAt: undefined`, and `cli-worker/shared.js` forwards

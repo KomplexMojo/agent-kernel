@@ -1,4 +1,4 @@
-// `ak create slots=` / `equip=`: the Configurator authors an actor card's affinity slots and
+// `agon create slots=` / `equip=`: the Configurator authors an actor card's affinity slots and
 // starting equips as the fields core loads, and refuses only what core could not load.
 const assert = require("node:assert/strict");
 

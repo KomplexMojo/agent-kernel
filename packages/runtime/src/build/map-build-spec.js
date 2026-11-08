@@ -42,7 +42,7 @@ function buildIntent(spec, producedBy) {
  * it in via `directorRound` and this function is not used; see mapBuildSpecToArtifacts.
  *
  * It survives because several orchestrateBuild callers have only a spec and never
- * ran a Director at all (the sandbox bridge, `ak build --spec`, fixture-driven
+ * ran a Director at all (the sandbox bridge, `agon build --spec`, fixture-driven
  * tests). For those there is no earlier round to prefer, so this is the ONLY
  * Director — not a second one, and therefore not CR.3's defect. The llm-plan and
  * scenario paths carry their own round (`director.currentRound()`, #280).

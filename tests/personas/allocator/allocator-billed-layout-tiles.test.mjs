@@ -1,7 +1,7 @@
 import { test, expect } from "vitest";
 import { createAllocatorPersona } from "../../../packages/runtime/src/personas/allocator/controller.js";
 
-// #300 — `ak solve --question budget-fit` asks about the tiles a built level was billed for,
+// #300 — `agon solve --question budget-fit` asks about the tiles a built level was billed for,
 // so the Allocator publishes its own count rather than the CLI re-deriving one.
 const allocator = () => createAllocatorPersona({ clock: () => "2026-10-17T00:00:00.000Z" });
 

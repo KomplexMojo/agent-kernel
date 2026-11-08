@@ -67,7 +67,7 @@ function addError(errors, field, code) {
  * motivations are currently coerced silently in production rather than refused — the
  * same silent-fallback defect class as CR.1's `DEFAULT_ACTION_COST` and PX.3's default
  * clock. **Whether they SHOULD be refused is an open behavior decision** (it touches the
- * `ak_create` authoring path, so it is benchmark-relevant); this function is the seam
+ * `agon_create` authoring path, so it is benchmark-relevant); this function is the seam
  * that decision would use. It is kept, not deleted, for that reason — and flagged here
  * rather than left looking load-bearing.
  */

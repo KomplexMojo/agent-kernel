@@ -91,7 +91,7 @@ const OPEN_FINDINGS = Object.freeze([
   // maximization's price teeth, input preparation's state gate — the last claiming A3 ONLY,
   // because that is all its test proves). The other two are not unproven behaviors; they are
   // UNIMPLEMENTED ones, and that is the finding:
-  //   orchestrator/deferred-side-effects — dispatchEffect defers, `ak inspect` counts, and
+  //   orchestrator/deferred-side-effects — dispatchEffect defers, `agon inspect` counts, and
   //     nothing in the Orchestrator ever picks them up. The charter and two READMEs describe
   //     post-run coordination that does not exist.
   //   allocator/reconciliation — chartered, has its own README section, and `rg reconcil`
@@ -106,7 +106,7 @@ const OPEN_FINDINGS = Object.freeze([
   //     so there was no second number to reconcile against. No instrument could report that:
   //     a counter nobody reads is indistinguishable from a counter that agrees.
   //   orchestrator/deferred-side-effects — the Moderator's DEFER decisions were recorded and
-  //     then consumed by nothing but `ak inspect`'s counter. A run that dropped every
+  //     then consumed by nothing but `agon inspect`'s counter. A run that dropped every
   //     deferral looked identical, in every output test, to a run that had none.
   // ⇒ Both are the same shape as the stale-instrument failures above, inverted: not an
   // instrument outliving its subject, but a subject with no instrument at all.

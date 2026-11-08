@@ -13,7 +13,7 @@ import { createWebSolverAdapter } from "../solver/index.js";
  * Z10: REAL Z3 IS THE DEFAULT, and the fixture stub is now the opt-out.
  *
  * It used to be the other way round, and the cost of that was measured rather than
- * argued. Without AK_SOLVER_ENGINE=z3-real every hosted solver call got a stub
+ * argued. Without AGON_SOLVER_ENGINE=z3-real every hosted solver call got a stub
  * declaring `domains: []`, so the host deferred and each persona took its greedy
  * fallback. Across 2800 Allocator budget-fit decision points that fallback was
  * optimal 40.8% of the time against an exhaustive oracle, while real Z3 was optimal
@@ -26,14 +26,14 @@ import { createWebSolverAdapter } from "../solver/index.js";
  * by default while every solve leaked ~10MB would have made a correctness win into
  * an availability problem.
  *
- * AN EXPLICIT FIXTURE STILL WINS. `ak solve --solver-fixture` and a build spec's
+ * AN EXPLICIT FIXTURE STILL WINS. `agon solve --solver-fixture` and a build spec's
  * `solver.fixture` hint are requests to REPLAY a recorded answer, not to search for
  * one; honouring the engine default over them would silently ignore the file the
  * caller named. So a supplied fixturePath selects the fixture adapter regardless of
  * engine, which is also what keeps every fixture-driven test meaningful.
  */
 function resolveSolverEngine(env) {
-  const value = env?.AK_SOLVER_ENGINE;
+  const value = env?.AGON_SOLVER_ENGINE;
   if (value === "fixture" || value === "stub") return "fixture";
   return "z3-real";
 }

@@ -11,7 +11,7 @@ const { mkdtempSync, rmSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
-const { runScenario } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const { runScenario } = require("../../tools/remote-ollama-control/scripts/lib/agon-runner");
 
 const SCENARIO = { budgetMode: "unconstrained", prompt: "Create a small room." };
 
@@ -26,7 +26,7 @@ async function withServer(handler, run) {
 }
 
 function withTempDir(run) {
-  const dir = mkdtempSync(join(tmpdir(), "ak-transport-retry-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-transport-retry-"));
   return run(dir).finally(() => rmSync(dir, { recursive: true, force: true }));
 }
 

@@ -12,7 +12,7 @@ const { MANIFEST_NAME } = require('../../tools/remote-ollama-control/scripts/lib
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function retention() {
-  return mkdtempSync(join(tmpdir(), 'ak-authoring-invocation-'));
+  return mkdtempSync(join(tmpdir(), 'agon-authoring-invocation-'));
 }
 
 function seedAuthoringRun(retentionDir, name, { manifest = true } = {}) {

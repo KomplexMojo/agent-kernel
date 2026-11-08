@@ -146,7 +146,7 @@ test("an actor inside the room joins the perimeter rather than stalling", async 
 });
 
 test("the patrol is deterministic", async () => {
-  // `ak replay` compares runs frame by frame, so a patrol that varied between runs would
+  // `agon replay` compares runs frame by frame, so a patrol that varied between runs would
   // break replay outright rather than degrade it.
   const a = await walk({ x: 1, y: 1 }, 10);
   const b = await walk({ x: 1, y: 1 }, 10);

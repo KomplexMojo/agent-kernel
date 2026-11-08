@@ -110,7 +110,7 @@ dedicated file... covers it"*) and was correct about the code, but the code was 
 D8-V had already ruled against giving the Configurator this authority, months before the roster
 called its absence a gap. No pool-related responsibility currently exists anywhere in the persona
 layer, checked directly: catalog CONTENTS (as opposed to catalog *shape*) are external data, read
-from disk by adapter glue (`ak-impl.mjs`'s `--catalog` flag) exactly like a scenario asset — not
+from disk by adapter glue (`agon-impl.mjs`'s `--catalog` flag) exactly like a scenario asset — not
 unauthored persona work. If a future need arises for the Configurator to actually AUTHOR pool
 catalogs (rather than validate their shape), that is new product scope needing its own decision,
 not a resurrection of this row. See `local-codex/Plan.md` §POST-AM/Z for the full trail.
@@ -286,7 +286,7 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
 
 ### No parallel paths (adopted 2026-10-17, #275)
 
-*Maintainer sign-off 2026-10-17. Found by the #275 audit: `ak create` with no budget built a level the
+*Maintainer sign-off 2026-10-17. Found by the #275 audit: `agon create` with no budget built a level the
 Allocator never priced (#274), and seven more entrypoints skipped a persona when the caller left an input
 out (#276–#282). Every static guard passed, because a conditional skip — `if (budget) { …allocator… }` — is
 invisible to import and boundary checks.*
@@ -437,18 +437,18 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 
 ## Framework vs Game (adopted 2026-11-06, #739, tracker #747)
 
-Agon is the **framework**: `core-ts`, `runtime` (personas, contracts, ports, runner, render view models), the adapters, `ak`, the MCP server and the reference terminal client (`ui-ascii`). The game (**Primordial**, a separate private repository) is a **consumer** of it: the phone app, `ui-web`, the playtest launcher and PWA scripts, lore, brand and art.
+Agon is the **framework**: `core-ts`, `runtime` (personas, contracts, ports, runner, render view models), the adapters, `agon`, the MCP server and the reference terminal client (`ui-ascii`). The game (**Primordial**, a separate private repository) is a **consumer** of it: the phone app, `ui-web`, the playtest launcher and PWA scripts, lore, brand and art.
 
 ```text
-game (Primordial: clients, scenarios, art) -> framework API (runtime / adapters / ak / MCP) -> core-ts
+game (Primordial: clients, scenarios, art) -> framework API (runtime / adapters / agon / MCP) -> core-ts
 ```
 
-- **The framework never imports the game.** No framework module may import a game module, and framework source names a game path only at a recorded seam (a process or URL boundary such as `ak play` spawning the terminal client), each carrying the issue that removes it.
+- **The framework never imports the game.** No framework module may import a game module, and framework source names a game path only at a recorded seam (a process or URL boundary such as `agon play` spawning the terminal client), each carrying the issue that removes it.
 - **The game reaches the framework only through the declared API surface.** Every framework module a game file imports is listed, with what it provides. That list is exactly what the split publishes as packages (#742). Importing an undeclared module is a decision to widen the API, made in the list, not by accident.
 - **The game never imports `core-ts`.** This extends "UI never imports core-ts" to all game code, scripts included: a missing runtime export is added to runtime, not bypassed.
-- **The game adds content, never a parallel path.** Levels still come from `ak create` and are priced by the Allocator. Game-specific rules and data (affinity table content, palette, glyphs, catalogues, key bindings) enter as configuration the personas consume (#740), never as a second rules engine in the game. Art and the sprite atlas belong to the game; the framework keeps only the manifest contract (#741).
+- **The game adds content, never a parallel path.** Levels still come from `agon create` and are priced by the Allocator. Game-specific rules and data (affinity table content, palette, glyphs, catalogues, key bindings) enter as configuration the personas consume (#740), never as a second rules engine in the game. Art and the sprite atlas belong to the game; the framework keeps only the manifest contract (#741).
 - **Rules stay in the framework; skin and content move** (Darren, 2026-11-06, #740). The element vocabulary (affinity kinds, expressions, vitals, motivations) is a framework contract in `runtime/src/contracts/game-vocabulary.js`. `contracts/game-elements.js` is the **skin** built on it (palette, element visuals, asset and icon ids). It re-exports the vocabulary, but only recorded skin consumers (render view models) may import it, so persona logic never depends on a colour or an asset id.
-- **The reference client and the scenario catalogue stay** (Darren, 2026-11-06, #741, #744). `ui-ascii`'s terminal client keeps `ak play` and the sims a client the framework tests, and the playtest scenarios (`adapters-cli/src/cli/playtest-scenarios.*`) stay the levels the sims play. The game builds on both through the API (the phone app runs the client's game controller in the page), so a person and a sim play the same level.
+- **The reference client and the scenario catalogue stay** (Darren, 2026-11-06, #741, #744). `ui-ascii`'s terminal client keeps `agon play` and the sims a client the framework tests, and the playtest scenarios (`adapters-cli/src/cli/playtest-scenarios.*`) stay the levels the sims play. The game builds on both through the API (the phone app runs the client's game controller in the page), so a person and a sim play the same level.
 - **Purchased or licensed art never enters the framework repository**, which is public. It lives only in the private game repository.
 
 Enforced by `tests/architecture/framework-game-boundary.test.js` against `tests/architecture/framework-game-boundary.json` (roots, API surface, path seams, skin consumers; every list exact). Game content still inside the framework is marked there with the issue that relocates it.
@@ -489,7 +489,7 @@ Enforced by `tests/architecture/framework-game-boundary.test.js` against `tests/
 - Dependency direction is preserved: the runner and its contracts, validators, strategy policy, repair controller, and replay envelopes live in `runtime`. All model, hardware-probe, persistence, CLI-execution, and MCP-transport IO lives behind injected ports fulfilled by adapters. The runtime layer imports no adapter, MCP, `node:fs`, `node:child_process`, or `node:crypto` module.
 - The LLM proposes plans, configurations, and repairs but is never the authority on validity or completion. Deterministic validators own the `validate` and `verify` gates; a model can never mark a workflow complete.
 - Model, MCP, and CLI calls are mockable; deterministic tests use fixtures and never hit a live service. Benchmark measurements are offline evidence only and cannot rewrite routing policy without an explicit, versioned promotion.
-- CLI (`ak workflow …`) and MCP (`ak_workflow_*`) surfaces are additive; existing commands and tools are unchanged. See [`adaptive-workflow.md`](adaptive-workflow.md).
+- CLI (`agon workflow …`) and MCP (`agon_workflow_*`) surfaces are additive; existing commands and tools are unchanged. See [`adaptive-workflow.md`](adaptive-workflow.md).
 - **Every schema in this cluster is declared in `packages/runtime/src/contracts/artifacts.ts` and imported from there (CR.4 M7, 2026-08-08).** This is the general artifact rule, recorded here because this cluster is where it was broken worst: twelve of its twenty schemas were declared elsewhere — six in `adaptive-workflow/` modules, one in an *adapter* — and **six had no constant at all**, the string retyped at each use site. `tests/architecture/schema-declaration-origin.test.js` enforces it by matching **literals, not declarations**: a schema with no constant is invisible to any instrument that looks for constants, which is precisely how the cluster was miscounted three times (9 → 15 → 20). The guard's `KNOWN_OUTSTANDING` list enumerated the seven production schemas elsewhere in the tree that still violated the rule; it was an inventory of debt, not a silencer. **M8 (2026-08-11) emptied it** — every production schema literal in the tree is declared in `artifacts.ts`, so the declaration rule has no exemptions left and a new undeclared schema fails on arrival.
 - **Declared centrally and *used from* the declaration are different properties, and only the second is single origin.** A file that retypes `"agon/Whatever"` inline passes a declaration check — the schema *is* declared, it simply is not being read from there — while remaining free to drift from it. Both prior failures were exactly this: `RUNTIME_PROFILE_SNAPSHOT_SCHEMA`, a second origin under a name that read like a different schema, and `GAMEPLAY_BUNDLE_SCHEMA`, declared once in the CLI that writes bundles and once in the browser module that reads them.
 - **THE RULE IS NOW ABSOLUTE (M9, 2026-08-11): no production file outside `artifacts.ts` may write an `agon/*` string literal at all.** M7 and M8 held a *named set* of schemas to this stricter rule while 182 sites across 50 files still retyped a centrally declared schema — 68 of them rival `const` declarations, five inside `contracts/` itself. That backlog is closed, so the guard needs no list: a rule that enumerates what it protects is a rule someone has to remember to extend, and M8's named ten would have covered none of the other 172. The single `KNOWN_OUTSTANDING` list is now the only exemption, is empty, and is honoured by every check — an exemption that silences one check but not another is not an escape hatch, it just looks like one.
@@ -583,15 +583,15 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   capability, dispatches it through `createSolverPort`, awaits the result, and invokes the Allocator's
   result consumer. Persona code owns the problem and validation; host glue owns transport only.
 - **Real Z3 is the DEFAULT engine.** A host builds `createHybridConstraintSolverAdapter` unless a
-  fixture path was explicitly supplied or `AK_SOLVER_ENGINE=fixture` opts out. The default was the
+  fixture path was explicitly supplied or `AGON_SOLVER_ENGINE=fixture` opts out. The default was the
   fixture stub until 2026-09-04, when measurement showed the stub's greedy fallback was optimal on
   40.8% of Allocator budget-fit decision points against an exhaustive oracle while real Z3 was
   optimal on 100% and never worse, and refused 250 affordable layouts outright
   (`~/vault/decisions/2026-09-04-does-the-solver-actually-win.md`).
 - An explicitly supplied fixture path always selects the fixture adapter, whatever the engine:
-  `ak solve --solver-fixture` and a build spec's `solver.fixture` hint are requests to replay a
+  `agon solve --solver-fixture` and a build spec's `solver.fixture` hint are requests to replay a
   recorded answer, not to search for one.
-- `createRealZ3SolverAdapter`, `createActorLexicographicSolverAdapter`, and `AK_SOLVER_ENGINE=z3-real`
+- `createRealZ3SolverAdapter`, `createActorLexicographicSolverAdapter`, and `AGON_SOLVER_ENGINE=z3-real`
   remain compatibility names; the canonical factory is `createHybridConstraintSolverAdapter`, and
   `z3-real` now names the default rather than enabling it. Adapter or domain-capability absence,
   `deferred`, and `error` return control to the Allocator's exact characterized fallback.
@@ -610,13 +610,13 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - `packages/runtime/src/runner/play-session.js` is the runtime seam it drives: `await createPlaySession({ simConfig, initialState, playerActorId })`, `await act({ kind, params })` → `{ tick, accepted, rejected, status }`, `view()`, `status()`. It is glue: it closes its own tick after every command (the driver advances the tick), and a rejected move still costs the turn.
 - Core is the authority on everything the game reports: move legality (the ValidationError code, reported verbatim), arriving at the exit (standing on core's exit-approach seat), leaving it (core's exit dwell), and the board terrain (the actor registry's snapshot, drawn in the level's legend by `play-session`). HUD labels and colours come from `render/actor-hud-model.js`.
 - `ui-ascii` owns terminal IO only: key → intent mapping, screen layout, level-file loading. It must not import `core-ts`, decide legality, or restate glyph or colour meaning.
-- The `ak` CLI and MCP server reach it as a separate program: `ak play` (MCP `ak_play_ascii`) launches `ui-ascii`'s CLI as a child process, interactively or with scripted keys returning JSON. `ak play --watch` (MCP `watch: true`) and the `ascii` field of `ak tick` / `ak_show_state` launch it the same way to draw a recorded run. `adapters-cli` never imports `ui-ascii`, and `ui-ascii` never imports `adapters-cli`; its bundled levels are `ak create` output checked in from `levels/recipes.json`.
+- The `agon` CLI and MCP server reach it as a separate program: `agon play` (MCP `agon_play_ascii`) launches `ui-ascii`'s CLI as a child process, interactively or with scripted keys returning JSON. `agon play --watch` (MCP `watch: true`) and the `ascii` field of `agon tick` / `agon_show_state` launch it the same way to draw a recorded run. `adapters-cli` never imports `ui-ascii`, and `ui-ascii` never imports `adapters-cli`; its bundled levels are `agon create` output checked in from `levels/recipes.json`.
 - Terminal colour follows the same single origin as every other surface: `packages/runtime/src/render/ascii-cell-style.js` maps board characters to `GAME_COLOR_PALETTE` entries (tile fills as backgrounds, role colours for what stands on them, `motivations.user_controlled` for the player). `ui-ascii` only converts the returned hex to ANSI escapes.
 - Every other actor takes its turn: `act` is one `runtime.step({ actorCommands: { [playerActorId]: command } })`. The Actor persona owns the command vocabulary and turns the command into the player's proposal; the runner only routes it to that actor. Because the runtime now flushes core's effects, `atExit` reads "standing on core's exit-approach seat" (the cell core's exit dwell counts) instead of LimitReached.
 
 ## Sandbox Bridge (MCP → CLI → UI)
 
-- The `ak_push_to_ui` MCP tool delivers an `agon/GameplayBundle` to a connected UI client over the sandbox WebSocket bridge (`packages/adapters-cli/src/mcp/bridge-server.mjs`, default port 38487, override with `AK_SANDBOX_BRIDGE_PORT`).
+- The `agon_push_to_ui` MCP tool delivers an `agon/GameplayBundle` to a connected UI client over the sandbox WebSocket bridge (`packages/adapters-cli/src/mcp/bridge-server.mjs`, default port 38487, override with `AGON_SANDBOX_BRIDGE_PORT`).
 - The tool accepts an inline `bundle`, a `bundlePath`, or an `outDir` containing `bundle.json`. The framework ships no browser client since `ui-web` was archived (#744), and no longer serves or opens one (`openBrowser` is gone); the bridge is the port a game client connects to.
 - CLI `run` stitches a post-run `GameplayBundle` (`bundle.json`) only when its inputs came from an authored `create` outDir; fixture-driven runs stay bundle-free so CLI output remains artifact-for-artifact equivalent to the browser host's run output.
 - The bridge is an adapter-layer concern: bundle assembly reuses runtime contracts, and no bridge or WebSocket code lives in `runtime` or `core-ts`.

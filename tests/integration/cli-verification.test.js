@@ -16,7 +16,7 @@ const { resolve, join } = require("node:path");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {

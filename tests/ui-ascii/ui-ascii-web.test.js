@@ -92,13 +92,13 @@ test("the analysis console is absent without --debug and present with it", async
   } finally { await debug.stop(); }
 });
 
-// #514: a level built with `ak create --out-dir` carries its receipt and price list into the console.
+// #514: a level built with `agon create --out-dir` carries its receipt and price list into the console.
 test("the analysis console carries the build's budget receipt and price list", async () => {
   const { copyFileSync, mkdtempSync, rmSync } = require("node:fs");
   const { tmpdir } = require("node:os");
   const { join } = require("node:path");
   const { BUNDLED_LEVELS_DIR, loadLevelFromRunDir } = require("../../packages/ui-ascii/src/levels.js");
-  const dir = mkdtempSync(join(tmpdir(), "ak-costing-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-costing-"));
   try {
     copyFileSync(join(BUNDLED_LEVELS_DIR, "first-steps.sim-config.json"), join(dir, "sim-config.json"));
     copyFileSync(join(BUNDLED_LEVELS_DIR, "first-steps.initial-state.json"), join(dir, "initial-state.json"));

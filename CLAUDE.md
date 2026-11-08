@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Guidance for Claude Code (claude.ai/code) in this repository. **Agon** is the public framework
-(packages, `ak`, the MCP server, schema ids). **Primordial** is the game built on it, in a separate private
+(packages, `agon`, the MCP server, schema ids). **Primordial** is the game built on it, in a separate private
 repository (`../primordial`); the line between them is charter → "Framework vs Game".
 
 **Ownership (Darren, 2026-11-06): Claude owns Agon's architecture and design, and never writes to Primordial. Cursor owns Primordial's UI/UX, and never writes to Agon.** When the game needs a framework change, Cursor opens an `api-request` issue here. When the framework needs the game to change, Claude opens a `ui-request` issue in KomplexMojo/Primordial. Full rule: `AGENTS.md → Repository ownership`.
@@ -79,7 +79,7 @@ The full roster (models, effort levels, tools, scope limits) is in `AGENTS.md �
 | Mechanical implementation from a complete milestone spec | `/codex:rescue` |
 | Full suite run + triage + fix | `/tiered-test-optimizer` (`fast-pass` → `fix-pass` subagents) |
 | Expand `## TODO: Test Permutations` stubs | `/local-test-gen` (Ollama, local or remote GPU) |
-| Author or scaffold a test to an existing recipe | `/structured-test-authoring` + the `ak_test_*` MCP tools |
+| Author or scaffold a test to an existing recipe | `/structured-test-authoring` + the `agon_test_*` MCP tools |
 | Summarize / classify / extract structured data | `local_*` MCP tools (Ollama) |
 
 **Routing to a scoped skill is mandatory, not a suggestion.** Before planning or editing Agon domain/architecture code, load the owning skill and stay inside it — do not default to a full-app sweep. `/agentic-change-planning` holds the routing table; the plan it produces must name the exact owner id, copy that skill's allowed edit surfaces, and cite its narrow validation command. Each owner skill then supplies *Allowed edit surfaces · Forbidden · Workflow · Validation · Escalate*, and its Validation block — the persona's own tests plus its specific `tests/architecture/*-authority.test.js` guards — is the gate to run before commit, in place of the full suite. Ambiguous ownership, or a change spanning two owners without a thin artifact handoff, is an **escalation**, not a wider plan.
@@ -88,7 +88,7 @@ The skills live in `.claude/skills/`; their roster and mirroring rules are `AGEN
 
 **Before any milestone code:** state assumptions, surface ambiguity (stop and ask rather than guess), present the tradeoff if a simpler path exists. Implementation order is (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand the stubs to Ollama.
 
-**The `agon-cli` MCP server** (`pnpm run mcp:serve`, tools `ak_*`) is the preferred surface for authoring, simulation, inspection, LLM planning, and adapter operations — use it instead of shelling out to `ak.mjs` when it is connected.
+**The `agon-cli` MCP server** (`pnpm run mcp:serve`, tools `agon_*`) is the preferred surface for authoring, simulation, inspection, LLM planning, and adapter operations — use it instead of shelling out to `agon.mjs` when it is connected.
 
 **Ollama is strategic, not legacy.** It is the no-cost path for decomposable subtasks; the remote dual-GPU box runs heavy batch work. Subagents cannot run on Ollama models, so that tier stays skill/MCP-mediated by design.
 
@@ -131,7 +131,7 @@ pnpm run sim:sweep                                    # Simulation sweep: rules 
 pnpm run typecheck                                    # Typecheck gate (core-ts + its tests, strict)
 pnpm run typecheck:report                             # Cost of widening the gate, per package
 pnpm run typecheck:report -- --check-js               # ...including .js: the all-TypeScript size
-pnpm run mcp:serve                                    # agon-cli MCP server (ak_* tools)
+pnpm run mcp:serve                                    # agon-cli MCP server (agon_* tools)
 pnpm run demo:cli                                     # CLI demo
 ```
 
@@ -152,9 +152,9 @@ Pure-TypeScript simulation kernel using **Ports & Adapters** with deterministic 
 | `core-ts` | Deterministic simulation: state transitions, validation, effect emission as data. No IO, no clock, no imports outside itself. |
 | `runtime` | Persona FSMs, tick orchestration, artifact contracts, effect routing (ESM). |
 | `adapters-web` | Browser IO (fetch, IndexedDB). |
-| `adapters-cli` | CLI commands (`packages/adapters-cli/src/cli/ak.mjs`) and the MCP server. |
+| `adapters-cli` | CLI commands (`packages/adapters-cli/src/cli/agon.mjs`) and the MCP server. |
 | `adapters-test` | Fixture-based deterministic test doubles. |
-| `ui-ascii` | Reference terminal client (`ak play`, run viewer). Game clients live in the private Primordial repo. |
+| `ui-ascii` | Reference terminal client (`agon play`, run viewer). Game clients live in the private Primordial repo. |
 
 Tests live under `tests/` — `personas/` (persona behavior), `runtime/`, `core-ts/`, `contracts/` (artifact schemas), `architecture/` (the boundary guards), `integration/` (UI↔CLI equivalence, LLM), `simulations/` (levels run headless and checked against rules), `adapters-*`, `ui-ascii/`, `fixtures/` (shared data; `invalid/` holds negative cases).
 
@@ -211,7 +211,7 @@ Run on every diff. **Fix failures — don't just flag them.** The guards in `tes
 
 **Documentation, same diff** — architecture boundaries changed → `docs/architecture-charter.md` + `docs/architecture/diagram.mmd` (Opus/high, maintainer sign-off) · CLI flags or behavior changed → `packages/adapters-cli/README.md` (Sonnet/medium) · a module's canonical file moved or a persona surface changed → that persona's or package's `README.md` (Sonnet/medium). A doc that now contradicts the code is a **blocking** defect: fix it in the diff that made it wrong. `tests/architecture/persona-readme-authority.test.js` enforces part of this.
 
-**Not a checklist item:** benchmarks. If a change touches the `ak_create` tool schema, CLI arg mapping, or entity normalization, note that in the commit message so a result can be attributed — that is the whole development obligation. Read compact source-pinned evidence from `benchmark-results`; raw results stay out of Git.
+**Not a checklist item:** benchmarks. If a change touches the `agon_create` tool schema, CLI arg mapping, or entity normalization, note that in the commit message so a result can be attributed — that is the whole development obligation. Read compact source-pinned evidence from `benchmark-results`; raw results stay out of Git.
 
 ---
 

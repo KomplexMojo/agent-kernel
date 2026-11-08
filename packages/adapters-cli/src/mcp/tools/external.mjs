@@ -11,7 +11,7 @@ import {
 
 export const externalTools = [
   createTool({
-    name: "ak_ipfs",
+    name: "agon_ipfs",
     description: "Fetch IPFS content through the CLI adapter.",
     command: "ipfs",
     inputSchema: {
@@ -35,7 +35,7 @@ export const externalTools = [
     ]),
   }),
   createTool({
-    name: "ak_ipfs_publish",
+    name: "agon_ipfs_publish",
     description: "Publish artifact maps through the IPFS adapter.",
     command: "ipfs-publish",
     inputSchema: {
@@ -57,7 +57,7 @@ export const externalTools = [
     ]),
   }),
   createTool({
-    name: "ak_ipfs_load",
+    name: "agon_ipfs_load",
     description: "Load artifact files from IPFS through the CLI adapter.",
     command: "ipfs-load",
     inputSchema: {
@@ -81,7 +81,7 @@ export const externalTools = [
     ]),
   }),
   createTool({
-    name: "ak_blockchain",
+    name: "agon_blockchain",
     description: "Inspect blockchain adapter state.",
     command: "blockchain",
     inputSchema: {
@@ -103,7 +103,7 @@ export const externalTools = [
     ]),
   }),
   createTool({
-    name: "ak_blockchain_mint",
+    name: "agon_blockchain_mint",
     description: "Mint a card through the blockchain adapter.",
     command: "blockchain-mint",
     inputSchema: {
@@ -131,7 +131,7 @@ export const externalTools = [
     ]),
   }),
   createTool({
-    name: "ak_blockchain_load",
+    name: "agon_blockchain_load",
     description: "Load a minted card through the blockchain adapter.",
     command: "blockchain-load",
     inputSchema: {

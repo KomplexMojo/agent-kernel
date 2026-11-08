@@ -26,8 +26,8 @@ class Harness {
 test("MCP exposes typed workflow tools and safe resources without regressing existing tools", async () => {
   const h = new Harness(); try {
     const initialized = await h.init(); assert.deepEqual(initialized.capabilities.resources, {}); const listed = await h.request("tools/list"); const names = listed.tools.map((tool) => tool.name);
-    assert.ok(names.includes("ak_run"));
-    for (const name of ["ak_workflow_run", "ak_workflow_status", "ak_workflow_replay", "ak_workflow_cancel", "ak_workflow_validate"]) {
+    assert.ok(names.includes("agon_run"));
+    for (const name of ["agon_workflow_run", "agon_workflow_status", "agon_workflow_replay", "agon_workflow_cancel", "agon_workflow_validate"]) {
       const schema = listed.tools.find((tool) => tool.name === name).inputSchema; assert.equal(schema.additionalProperties, false); assert.equal(schema.type, "object");
       assert.equal(Array.isArray(name.endsWith("run") || name.endsWith("validate") ? schema.oneOf : schema.anyOf), true);
       if (name.endsWith("run") || name.endsWith("validate")) { assert.equal(schema.properties.maxModelAttempts.type, "integer"); assert.equal(schema.properties.maxModelAttempts.minimum, 1); assert.equal(schema.properties.createdAt.format, "date-time"); }
@@ -40,70 +40,70 @@ test("MCP exposes typed workflow tools and safe resources without regressing exi
 
 test("workflow calls use temp persistence, remembered lifecycle, and duplicate request protection", async () => {
   const h = new Harness(); try {
-    await h.init(); const first = await h.call("ak_workflow_run", { input: INPUT }, 41); const duplicate = await h.call("ak_workflow_run", { input: INPUT }, 41);
+    await h.init(); const first = await h.call("agon_workflow_run", { input: INPUT }, 41); const duplicate = await h.call("agon_workflow_run", { input: INPUT }, 41);
     assert.equal(first.outcome, "complete"); assert.equal(first.executionCalls, 1); assert.deepEqual(duplicate, first); assert.equal(first.artifactLocation.defaultedToTemp, true);
-    const status = await h.call("ak_workflow_status", { runId: first.runId }); assert.equal(status.phase, "complete");
+    const status = await h.call("agon_workflow_status", { runId: first.runId }); assert.equal(status.phase, "complete");
     const sourceState = readFileSync(join(first.outDir, "state.json"), "utf8");
-    const replay = await h.call("ak_workflow_replay", { runId: first.runId }); assert.equal(replay.liveModelCalls, 0); assert.equal(replay.liveExecutionCalls, 0);
+    const replay = await h.call("agon_workflow_replay", { runId: first.runId }); assert.equal(replay.liveModelCalls, 0); assert.equal(replay.liveExecutionCalls, 0);
     assert.equal(readFileSync(join(first.outDir, "state.json"), "utf8"), sourceState); assert.equal(existsSync(join(first.outDir, "replay-state.json")), true);
-    const cancel = await h.call("ak_workflow_cancel", { runId: first.runId }); assert.equal(cancel.terminal, true);
+    const cancel = await h.call("agon_workflow_cancel", { runId: first.runId }); assert.equal(cancel.terminal, true);
     const history = await h.request("resources/read", { uri: "agon://adaptive-workflow/run-history" }); assert.equal(JSON.parse(history.contents[0].text).runs[0].runId, first.runId);
   } finally { await h.close(); }
 });
 
 test("workflow schema and request-id conflicts fail without killing the server", async () => {
   const h = new Harness(); try {
-    await h.init(); await assert.rejects(() => h.call("ak_workflow_validate", { input: INPUT, unknown: true }), /unknown/i);
-    const valid = await h.call("ak_workflow_validate", { input: INPUT }, 99); assert.equal(valid.valid, true);
-    await assert.rejects(() => h.call("ak_workflow_validate", { objective: "different" }, 99), /request id|conflict/i);
-    const samePayload = await h.call("ak_workflow_validate", { input: INPUT }, 98); assert.equal(samePayload.valid, true); await assert.rejects(() => h.call("ak_workflow_status", { runId: "anything" }, 98), /request id|conflict/i);
-    await assert.rejects(() => h.call("ak_workflow_run", {}, 97), /input form|requires/i); await assert.rejects(() => h.call("ak_workflow_validate", { input: INPUT }, 97), /request id|conflict/i); assert.equal((await h.call("ak_workflow_validate", { input: INPUT }, 96)).valid, true);
-    assert.ok((await h.request("tools/list")).tools.some((tool) => tool.name === "ak_create"));
+    await h.init(); await assert.rejects(() => h.call("agon_workflow_validate", { input: INPUT, unknown: true }), /unknown/i);
+    const valid = await h.call("agon_workflow_validate", { input: INPUT }, 99); assert.equal(valid.valid, true);
+    await assert.rejects(() => h.call("agon_workflow_validate", { objective: "different" }, 99), /request id|conflict/i);
+    const samePayload = await h.call("agon_workflow_validate", { input: INPUT }, 98); assert.equal(samePayload.valid, true); await assert.rejects(() => h.call("agon_workflow_status", { runId: "anything" }, 98), /request id|conflict/i);
+    await assert.rejects(() => h.call("agon_workflow_run", {}, 97), /input form|requires/i); await assert.rejects(() => h.call("agon_workflow_validate", { input: INPUT }, 97), /request id|conflict/i); assert.equal((await h.call("agon_workflow_validate", { input: INPUT }, 96)).valid, true);
+    assert.ok((await h.request("tools/list")).tools.some((tool) => tool.name === "agon_create"));
     await assert.rejects(() => h.request("resources/read", { uri: "agon://adaptive-workflow/unknown" }), /unknown/i);
-    assert.ok((await h.request("tools/list")).tools.some((tool) => tool.name === "ak_create"));
+    assert.ok((await h.request("tools/list")).tools.some((tool) => tool.name === "agon_create"));
   } finally { await h.close(); }
 });
 
 test("manual guards match the advertised workflow schemas", async () => {
   const h = new Harness(); try {
     await h.init();
-    for (const [name, args] of [["ak_workflow_run", {}], ["ak_workflow_run", { input: INPUT, objective: "conflict" }], ["ak_workflow_run", { objective: " " }], ["ak_workflow_run", { objective: "x", maxModelAttempts: 0 }], ["ak_workflow_run", { objective: "x", maxModelAttempts: 1.5 }], ["ak_workflow_run", { objective: "x", createdAt: "0" }], ["ak_workflow_run", { objective: "x", createdAt: "2026-02-30T00:00:00Z" }], ["ak_workflow_status", {}], ["ak_workflow_status", { runId: " " }], ["ak_workflow_cancel", { runId: "missing", reason: " " }]]) await assert.rejects(() => h.call(name, args), /invalid|missing|requires|input form/i);
-    assert.equal((await h.call("ak_workflow_validate", { objective: "valid", createdAt: "2026-07-13T12:00:00-07:00" }, 701)).valid, true);
+    for (const [name, args] of [["agon_workflow_run", {}], ["agon_workflow_run", { input: INPUT, objective: "conflict" }], ["agon_workflow_run", { objective: " " }], ["agon_workflow_run", { objective: "x", maxModelAttempts: 0 }], ["agon_workflow_run", { objective: "x", maxModelAttempts: 1.5 }], ["agon_workflow_run", { objective: "x", createdAt: "0" }], ["agon_workflow_run", { objective: "x", createdAt: "2026-02-30T00:00:00Z" }], ["agon_workflow_status", {}], ["agon_workflow_status", { runId: " " }], ["agon_workflow_cancel", { runId: "missing", reason: " " }]]) await assert.rejects(() => h.call(name, args), /invalid|missing|requires|input form/i);
+    assert.equal((await h.call("agon_workflow_validate", { objective: "valid", createdAt: "2026-07-13T12:00:00-07:00" }, 701)).valid, true);
   } finally { await h.close(); }
 });
 
 test("concurrent duplicate ids share one side effect while string and numeric ids remain distinct", async () => {
   const h = new Harness(); try {
-    await h.init(); const [first, duplicate] = await Promise.all([h.call("ak_workflow_run", { input: INPUT }, 801), h.call("ak_workflow_run", { input: INPUT }, 801)]);
+    await h.init(); const [first, duplicate] = await Promise.all([h.call("agon_workflow_run", { input: INPUT }, 801), h.call("agon_workflow_run", { input: INPUT }, 801)]);
     assert.deepEqual(duplicate, first); assert.equal(first.executionCalls, 1);
-    const numeric = await h.call("ak_workflow_validate", { objective: "numeric" }, 802); const string = await h.call("ak_workflow_validate", { objective: "string" }, "802");
+    const numeric = await h.call("agon_workflow_validate", { objective: "numeric" }, 802); const string = await h.call("agon_workflow_validate", { objective: "string" }, "802");
     assert.equal(numeric.valid, true); assert.equal(string.valid, true);
-    await assert.rejects(() => h.call("ak_workflow_status", { runId: "missing" }, 803), /missing|unknown/i);
-    assert.equal((await h.call("ak_workflow_validate", { objective: "still alive" }, 804)).valid, true);
-    for (let index = 0; index < 130; index += 1) assert.equal((await h.call("ak_workflow_validate", { objective: `bounded-${index}` }, 1000 + index)).valid, true);
-    assert.equal((await h.call("ak_workflow_validate", { objective: "evicted" }, 1000)).valid, true);
+    await assert.rejects(() => h.call("agon_workflow_status", { runId: "missing" }, 803), /missing|unknown/i);
+    assert.equal((await h.call("agon_workflow_validate", { objective: "still alive" }, 804)).valid, true);
+    for (let index = 0; index < 130; index += 1) assert.equal((await h.call("agon_workflow_validate", { objective: `bounded-${index}` }, 1000 + index)).valid, true);
+    assert.equal((await h.call("agon_workflow_validate", { objective: "evicted" }, 1000)).valid, true);
   } finally { await h.close(); }
 });
 
 test("failed workflow results restore transport capture and process exit state", async () => {
   const h = new Harness(); let exitCode; try {
-    await h.init(); const root = mkdtempSync(join(os.tmpdir(), "ak-mcp-workflow-fail-")); const inputPath = join(root, "input.json"); const input = JSON.parse(readFileSync(INPUT, "utf8")); input.runId = "mcp_workflow_failure"; input.requiredKeys = ["absent"]; writeFileSync(inputPath, JSON.stringify(input));
-    const result = await h.call("ak_workflow_run", { input: inputPath }, 951); assert.equal(result.outcome, "failed"); assert.equal(result.executionCalls, 0);
-    assert.equal((await h.call("ak_workflow_validate", { input: INPUT }, 952)).valid, true);
+    await h.init(); const root = mkdtempSync(join(os.tmpdir(), "agon-mcp-workflow-fail-")); const inputPath = join(root, "input.json"); const input = JSON.parse(readFileSync(INPUT, "utf8")); input.runId = "mcp_workflow_failure"; input.requiredKeys = ["absent"]; writeFileSync(inputPath, JSON.stringify(input));
+    const result = await h.call("agon_workflow_run", { input: inputPath }, 951); assert.equal(result.outcome, "failed"); assert.equal(result.executionCalls, 0);
+    assert.equal((await h.call("agon_workflow_validate", { input: INPUT }, 952)).valid, true);
   } finally { exitCode = await h.close(); }
   assert.equal(exitCode, 0);
 });
 
 test("explicit persistence and validate-only paths preserve MCP resource availability", async () => {
   const h = new Harness(); try {
-    await h.init(); const root = mkdtempSync(join(os.tmpdir(), "ak-mcp-workflow-")); const outDir = join(root, "run"); const validateDir = join(root, "validate-only");
-    assert.equal((await h.call("ak_workflow_validate", { objective: "no writes", outDir: validateDir })).valid, true); assert.equal(existsSync(validateDir), false);
-    await h.call("ak_workflow_validate", { input: INPUT }, 908); const running = h.call("ak_workflow_run", { input: INPUT, outDir }, 901); await new Promise((done) => setTimeout(done, 20));
-    const errors = [h.call("ak_workflow_run", {}, 906), h.request("tools/call", { name: "ak_missing", arguments: {} }, 907), h.call("ak_workflow_validate", { objective: "conflict" }, 908)].map((request) => request.then(() => "", (error) => error.message));
-    const [result, listed, resources, policy, validate, invalid, unknown, conflict] = await Promise.all([running, h.request("tools/list", {}, 902), h.request("resources/list", {}, 903), h.request("resources/read", { uri: "agon://adaptive-workflow/policy" }, 904), h.call("ak_workflow_validate", { input: INPUT }, 905), ...errors]);
-    assert.equal(result.outDir, outDir); assert.ok(listed.tools.some((tool) => tool.name === "ak_create")); assert.equal(resources.resources.length, 4); assert.equal(JSON.parse(policy.contents[0].text).validationAuthority, "deterministic"); assert.equal(validate.valid, true);
+    await h.init(); const root = mkdtempSync(join(os.tmpdir(), "agon-mcp-workflow-")); const outDir = join(root, "run"); const validateDir = join(root, "validate-only");
+    assert.equal((await h.call("agon_workflow_validate", { objective: "no writes", outDir: validateDir })).valid, true); assert.equal(existsSync(validateDir), false);
+    await h.call("agon_workflow_validate", { input: INPUT }, 908); const running = h.call("agon_workflow_run", { input: INPUT, outDir }, 901); await new Promise((done) => setTimeout(done, 20));
+    const errors = [h.call("agon_workflow_run", {}, 906), h.request("tools/call", { name: "agon_missing", arguments: {} }, 907), h.call("agon_workflow_validate", { objective: "conflict" }, 908)].map((request) => request.then(() => "", (error) => error.message));
+    const [result, listed, resources, policy, validate, invalid, unknown, conflict] = await Promise.all([running, h.request("tools/list", {}, 902), h.request("resources/list", {}, 903), h.request("resources/read", { uri: "agon://adaptive-workflow/policy" }, 904), h.call("agon_workflow_validate", { input: INPUT }, 905), ...errors]);
+    assert.equal(result.outDir, outDir); assert.ok(listed.tools.some((tool) => tool.name === "agon_create")); assert.equal(resources.resources.length, 4); assert.equal(JSON.parse(policy.contents[0].text).validationAuthority, "deterministic"); assert.equal(validate.valid, true);
     assert.match(invalid, /input form|requires/i); assert.match(unknown, /unknown tool/i); assert.match(conflict, /request id|conflict/i);
-    assert.equal((await h.call("ak_workflow_status", { runId: result.runId })).phase, "complete");
+    assert.equal((await h.call("agon_workflow_status", { runId: result.runId })).phase, "complete");
   } finally { await h.close(); }
 });
 
@@ -112,18 +112,18 @@ test("invalid payload, terminal cancel, missing replay, and id/payload conflict 
   try {
     await h.init();
     // Invalid tool payload (two mutually exclusive input forms) fails without executing.
-    await assert.rejects(() => h.call("ak_workflow_run", { input: INPUT, objective: "both" }, 601), /input form|invalid|requires/i);
+    await assert.rejects(() => h.call("agon_workflow_run", { input: INPUT, objective: "both" }, 601), /input form|invalid|requires/i);
     // A completed run stays terminal across repeated cancellations.
-    const run = await h.call("ak_workflow_run", { input: INPUT }, 602);
+    const run = await h.call("agon_workflow_run", { input: INPUT }, 602);
     assert.equal(run.outcome, "complete");
-    assert.equal((await h.call("ak_workflow_cancel", { runId: run.runId })).terminal, true);
-    assert.equal((await h.call("ak_workflow_cancel", { runId: run.runId })).terminal, true);
+    assert.equal((await h.call("agon_workflow_cancel", { runId: run.runId })).terminal, true);
+    assert.equal((await h.call("agon_workflow_cancel", { runId: run.runId })).terminal, true);
     // Replay of an unknown run fails without live IO.
-    await assert.rejects(() => h.call("ak_workflow_replay", { runId: "does-not-exist" }, 603), /missing|unknown/i);
+    await assert.rejects(() => h.call("agon_workflow_replay", { runId: "does-not-exist" }, 603), /missing|unknown/i);
     // Duplicate request id with a different payload conflicts; the server stays alive.
-    assert.equal((await h.call("ak_workflow_validate", { input: INPUT }, 604)).valid, true);
-    await assert.rejects(() => h.call("ak_workflow_validate", { objective: "different-payload" }, 604), /request id|conflict/i);
-    assert.equal((await h.call("ak_workflow_validate", { objective: "still alive" }, 605)).valid, true);
+    assert.equal((await h.call("agon_workflow_validate", { input: INPUT }, 604)).valid, true);
+    await assert.rejects(() => h.call("agon_workflow_validate", { objective: "different-payload" }, 604), /request id|conflict/i);
+    assert.equal((await h.call("agon_workflow_validate", { objective: "still alive" }, 605)).valid, true);
   } finally {
     await h.close();
   }

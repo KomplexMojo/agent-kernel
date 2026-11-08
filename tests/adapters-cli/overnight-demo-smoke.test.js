@@ -1,4 +1,4 @@
-// The overnight demo script (scripts/demo/overnight-2026-10-17.sh) drives the game through `ak`.
+// The overnight demo script (scripts/demo/overnight-2026-10-17.sh) drives the game through `agon`.
 // Its quick sections run here so a CLI change that breaks the walkthrough fails the suite.
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -9,7 +9,7 @@ const SCRIPT = resolve(ROOT, "scripts/demo/overnight-2026-10-17.sh");
 
 const demo = (...sections) => spawnSync("bash", [SCRIPT, ...sections], { cwd: ROOT, encoding: "utf8" });
 
-test("the stamina, rename and regen sections run through ak", () => {
+test("the stamina, rename and regen sections run through agon", () => {
   const result = demo("stamina", "rename", "regen");
   assert.equal(result.status, 0, result.stderr);
   // #407: a step costs 1 and regen 1 returns it, so walking never drains the pool.

@@ -52,7 +52,7 @@ export async function solveWithAdapter(adapter, request, options = {}) {
 
 /**
  * #557: the key a recorded solver answer is filed under: a 53-bit hash of the request's problem,
- * so a host that recorded a solver's answers (`AK_SOLVER_RECORD`) and one that replays them
+ * so a host that recorded a solver's answers (`AGON_SOLVER_RECORD`) and one that replays them
  * (the phone app has no solver) agree on which answer belongs to which question.
  */
 export function solverAnswerKey(request) {

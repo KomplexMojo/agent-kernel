@@ -1,4 +1,4 @@
-// #721: `ak create --actors llm` — the model casts the level by recipe from the author's text. Its
+// #721: `agon create --actors llm` — the model casts the level by recipe from the author's text. Its
 // specs go through the spec parser like typed ones, so an unknown recipe is refused, never invented.
 // The recipes configure actors; the seat prompt never sees them. Fixture replies only, no live model.
 const assert = require("node:assert/strict");
@@ -8,17 +8,17 @@ const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const AK_CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AGON_CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const TEXT = "Create a scenario with a shadowblade delver in a dungeon full of lantern-bearers.";
 
 async function create(payload) {
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  const outDir = mkdtempSync(join(tmpdir(), "ak-actor-plan-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-actor-plan-"));
   try {
-    const result = spawnSync(process.execPath, [AK_CLI, "create",
+    const result = spawnSync(process.execPath, [AGON_CLI, "create",
       ...buildArgv({ ...payload, outDir, runId: "actor_plan_probe", createdAt: "2026-11-04T00:00:00.000Z" }, authoringSpec),
-    ], { cwd: ROOT, encoding: "utf8", env: { ...process.env, AK_LLM_LIVE: "" } });
+    ], { cwd: ROOT, encoding: "utf8", env: { ...process.env, AGON_LLM_LIVE: "" } });
     return {
       status: result.status,
       output: `${result.stderr || ""}${result.stdout || ""}`,
@@ -56,7 +56,7 @@ test("a recipe the catalogue does not have is refused, not invented", async () =
 test("--actors llm with no model is an error, and it cannot share a fixture with --tactic llm", async () => {
   const offline = await create({ ...level, actors: "llm" });
   assert.notEqual(offline.status, 0);
-  assert.match(offline.output, /--actors llm needs a model: pass --fixture or set AK_LLM_LIVE=1/);
+  assert.match(offline.output, /--actors llm needs a model: pass --fixture or set AGON_LLM_LIVE=1/);
   const both = await create({ ...level, actors: "llm", tactics: ["llm"], actorFixture: join(ROOT, "tests/fixtures/llm/actor-plan-shadowblade.json") });
   assert.match(both.output, /--actors llm and --tactic llm would share one --fixture/);
 });

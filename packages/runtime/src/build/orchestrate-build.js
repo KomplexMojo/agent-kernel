@@ -475,7 +475,7 @@ export async function orchestrateBuild({
       clock: UNUSED_CLOCK,
     });
     // #276: a spec with no budget is priced against the Allocator's reference budget, as
-    // `ak create` is (#274). A missing input picks the Allocator's default, never skips the
+    // `agon create` is (#274). A missing input picks the Allocator's default, never skips the
     // Allocator. Only a spec that brings its own receipt (already priced) has no budget here.
     if (mapped.budget?.budget || !budgetReceipt) {
       mapped.budget = {

@@ -103,4 +103,4 @@ test("the configuration recipes' suggested strategies are all strategy recipes",
 // ## TODO: Test Permutations
 // - strategy-recipe= beside recipe= (a configuration recipe and its suggested strategy together).
 // - a goals-only recipe adds goal_oriented, and an explicit strategy_focused fits it.
-// - ak recipes --kind strategy text and --json rows; ak_recipe_show for a strategy recipe.
+// - agon recipes --kind strategy text and --json rows; agon_recipe_show for a strategy recipe.

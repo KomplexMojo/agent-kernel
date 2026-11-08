@@ -4,10 +4,10 @@ import { runAuthoringBuild, runPlanBuild } from "../../packages/runtime/src/buil
 import { createConfiguratorPersona } from "../../packages/runtime/src/personas/configurator/controller.js";
 import { createHybridConstraintSolverAdapter } from "../../packages/adapters-cli/src/adapters/z3/index.js";
 
-// #296: `ak create` and the *-plan commands build through runAuthoringBuild/runPlanBuild,
+// #296: `agon create` and the *-plan commands build through runAuthoringBuild/runPlanBuild,
 // which called orchestrateBuild with no `placeObjects` host. The Configurator's object
 // placement then never reached the solver and always took the reading-order fallback,
-// while `ak build` and `ak llm-plan` hosted it -- the same persona question answered two
+// while `agon build` and `agon llm-plan` hosted it -- the same persona question answered two
 // ways depending on the command.
 
 const CREATED_AT = "2026-10-17T00:00:00.000Z";

@@ -21,7 +21,7 @@ function git(cwd, args) {
 }
 
 function setupRepository() {
-  const root = mkdtempSync(join(tmpdir(), "ak-benchmark-agent-"));
+  const root = mkdtempSync(join(tmpdir(), "agon-benchmark-agent-"));
   const remote = join(root, "remote.git");
   const operator = join(root, "operator");
   git(root, ["init", "--bare", remote]);
@@ -287,7 +287,7 @@ const { mkdtempSync: mkTemp, writeFileSync: writeFile, existsSync: exists, rmSyn
 const { tmpdir: tmp } = require("node:os");
 
 function lockDir() {
-  return mkTemp(join(tmp(), "ak-agent-lock-"));
+  return mkTemp(join(tmp(), "agon-agent-lock-"));
 }
 function lockFile(dir) {
   return join(dir, "agent.lock");

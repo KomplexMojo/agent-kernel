@@ -15,7 +15,7 @@ semantic contents produce the execution-suite, seed-set, and tick-profile hashes
 Evidence is explicit:
 
 - `artifact` metrics can be derived from current public run artifacts.
-- `observation` metrics use opt-in `ak run --world-state-checkpoints` output: individual existing
+- `observation` metrics use opt-in `agon run --world-state-checkpoints` output: individual existing
   `agon/WorldStateArtifact` v1 files at the profile-declared ticks.
 
 Unavailable observation evidence must be reported as `evidence_unavailable`; it must never silently

@@ -1,12 +1,12 @@
 /**
- * M8 — ak_sandbox_push_ui MCP tool
+ * M8 — agon_sandbox_push_ui MCP tool
  *
  * Compiles an inline BuildSpec into a gameplay bundle and pushes it to any
  * connected browser UI via the sandbox bridge WebSocket server.
  */
 
 import { createHandlerTool } from "./shared.mjs";
-import { compileBuildSpecToGameplayBundle } from "../../cli/ak-impl.mjs";
+import { compileBuildSpecToGameplayBundle } from "../../cli/agon-impl.mjs";
 import {
   getSandboxBridgeState,
   pushGameplayBundle,
@@ -16,7 +16,7 @@ import {
   SIM_CONFIG_SCHEMA as SCHEMA_SIM_CONFIG,
 } from "../../../../runtime/src/contracts/artifacts.ts";
 
-const DEFAULT_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
+const DEFAULT_BRIDGE_PORT = Number(process.env.AGON_SANDBOX_BRIDGE_PORT) || 38487;
 
 function makeMessageId() {
   return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -24,7 +24,7 @@ function makeMessageId() {
 
 export const sandboxUiTools = [
   createHandlerTool({
-    name: "ak_sandbox_push_ui",
+    name: "agon_sandbox_push_ui",
     description:
       "Compile a BuildSpec and push the resulting gameplay bundle to the connected browser UI via the sandbox WebSocket bridge. " +
       "The UI will display the Design cards and launch the Gameplay Phaser dungeon automatically. " +
@@ -117,7 +117,7 @@ export const sandboxUiTools = [
 
       const messageId = makeMessageId();
       const envelope = {
-        type: "ak.gameplayBundle.v1",
+        type: "agon.gameplayBundle.v1",
         id: messageId,
         ...(correlationId ? { correlationId } : {}),
         createdAt: new Date().toISOString(),
@@ -125,7 +125,7 @@ export const sandboxUiTools = [
         payload: {
           // D1: send full bundle shape { spec, artifacts[] } — not bare { simConfig, resourceBundle }
           bundle,
-          source: { tool: "ak_sandbox_push_ui" },
+          source: { tool: "agon_sandbox_push_ui" },
         },
       };
 

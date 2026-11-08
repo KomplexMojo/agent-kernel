@@ -4,11 +4,11 @@
  * sweep, 2026-07-09).
  *
  * Seam driven (same seam the MCP server uses):
- *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
- *   -> packages/adapters-cli/src/cli/ak-impl.mjs executeCommand("create", argv)
+ *   packages/adapters-cli/src/mcp/tools/authoring.mjs agon_create buildArgs
+ *   -> packages/adapters-cli/src/cli/agon-impl.mjs executeCommand("create", argv)
  *
  * GROUND TRUTH (confirmed by direct invocation during test authoring, and
- * rendered visually by index_c.html via ak_push_to_ui):
+ * rendered visually by index_c.html via agon_push_to_ui):
  *   - Benchmark scenario 24 ("Hazard Gauntlet": 2 rooms + 4 non-blocking hazards
  *     at (1,1),(2,2),(3,3),(4,4)) produces a 30x30 grid where all 4 hazards sit
  *     on a disconnected diagonal of carved floor in the top-left corner —
@@ -40,13 +40,13 @@ const { mkdtempSync, rmSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 let authoringToolsModule;
 
 async function loadModules() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   authoringToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  return { ak_impl, authoringToolsModule };
+  return { agon_impl, authoringToolsModule };
 }
 
 function findTool(tools, name) {
@@ -144,7 +144,7 @@ function reachableFrom(layoutData, start) {
 let permutationOutDir;
 
 beforeAll(() => {
-  permutationOutDir = mkdtempSync(join(os.tmpdir(), "ak-i3-permutations-"));
+  permutationOutDir = mkdtempSync(join(os.tmpdir(), "agon-i3-permutations-"));
 });
 
 afterAll(() => {
@@ -155,7 +155,7 @@ describe("create hazard room containment (I3: explicit hazard coords escape the 
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-i3-hazard-containment-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-i3-hazard-containment-"));
   });
 
   afterAll(() => {
@@ -163,8 +163,8 @@ describe("create hazard room containment (I3: explicit hazard coords escape the 
   });
 
   test("every authored hazard lands inside a declared room and reachable from spawn (FAILS today)", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     // Scenario-24-shaped request: multi-room level with explicit hazard coords.
     // The floorTile spec is load-bearing: WITHOUT it the same hazard coordinates
@@ -173,7 +173,7 @@ describe("create hazard room containment (I3: explicit hazard coords escape the 
     // confirming coordinates are stamped, not mapped into room space.
     const dir = join(outDir, "gauntlet");
     const result = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["count=2;size=large"],
@@ -218,8 +218,8 @@ describe("create hazard room containment (I3: explicit hazard coords escape the 
   });
 
   test("hazard coordinates exceeding the room's interior are rejected with a structured error (FAILS today)", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     // GROUND TRUTH: today this SUCCEEDS and silently inflates the grid to
     // 102x102 so the raw coordinate fits — the level dimensions are driven by
@@ -228,7 +228,7 @@ describe("create hazard room containment (I3: explicit hazard coords escape the 
     // structured rejection, never a silent grid inflation.
     const dir = join(outDir, "oob");
     const result = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["size=medium;count=1"],
@@ -251,12 +251,12 @@ describe("create hazard room containment (I3: explicit hazard coords escape the 
 
 // ## TODO: Test Permutations (expanded 2026-07-11 — M5)
 test("i3 hazard coords beyond grid bounds are rejected with a structured error", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "oob-hazard");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -273,12 +273,12 @@ test("i3 hazard coords beyond grid bounds are rejected with a structured error",
 });
 
 test("i3 single-room level maps hazard coords into the carved interior", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "single-room-map");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -304,12 +304,12 @@ test("i3 single-room level maps hazard coords into the carved interior", async (
 });
 
 test("i3 hazards at the same coordinate are rejected, not stacked silently", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "duplicate-hazards");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -328,12 +328,12 @@ test("i3 hazards at the same coordinate are rejected, not stacked silently", asy
 });
 
 test("i3 positioned and auto-placed hazards obey the same room-containment contract", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "hazard-containment");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=2;size=large"],
@@ -363,12 +363,12 @@ test("i3 push_to_ui bundle renders every hazard inside a room outline", async ()
   // The create-time bundle is the artifact the UI pipeline consumes here, so
   // this pins the same room-contained hazard geometry on the bundle/manifest
   // side rather than inventing a separate render-only seam.
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "bundle-hazards");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=2;size=large"],

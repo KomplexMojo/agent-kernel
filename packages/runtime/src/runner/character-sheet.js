@@ -5,7 +5,7 @@
  * (`pricing.quoteActor`); what is allowed (kinds, expressions, motivations, the viability floor,
  * slot limits) is read from the shared constants. The sheet turns a screen's keys into edits
  * (`apply`), describes what to draw (`view`), and writes the result as the same `--delver` spec
- * `ak create` takes (`spec`), so the level is still authored and priced by the personas.
+ * `agon create` takes (`spec`), so the level is still authored and priced by the personas.
  *
  * A terminal, a browser page and a phone all draw `view()` and send the same intents.
  * The sheet is built for a delver; the row builders take the actor kind so wardens, hazards and
@@ -160,7 +160,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   }
 
   // The minions as the build composes them (the Configurator's retinue for this delver), so the
-  // sheet prices exactly what `ak create` adds.
+  // sheet prices exactly what `agon create` adds.
   function composedMinions() {
     if (choices.minions.length === 0) return { minions: [], roles: [], notes: [] };
     const owned = choices.slots.filter(held);

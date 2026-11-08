@@ -9,7 +9,7 @@ import { ACTOR_EQUIPMENT_FIELDS, DEFAULT_VITALS, RESOURCE_VITAL_KEYS } from "../
  *
  * This is Configurator-owned domain logic (charter — "Persona Model —
  * ENFORCED", Configurator row): configuration assembly. It previously lived
- * inline in the CLI adapter (ak-impl.mjs), which is why authoring reached
+ * inline in the CLI adapter (agon-impl.mjs), which is why authoring reached
  * around the persona. P2.2 relocates it here VERBATIM — the grid arithmetic is
  * the program's most goldens-sensitive code (it feeds sim-config), so every
  * formula and its documented invariant is preserved byte-for-byte and pinned by
@@ -141,7 +141,7 @@ export function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget,
 /**
  * Compose the full authored levelGen input: size the grid to fit the requested
  * rooms/floor tiles/hazards, record the walkable-tiles target, and attach the
- * canonicalized hazards. Mirrors ak-impl's inline prep (create/configure/*-plan)
+ * canonicalized hazards. Mirrors agon-impl's inline prep (create/configure/*-plan)
  * byte-for-byte.
  *
  * Inputs keep the CLI's parsed `{ value: {...} }` wrapper shape so P2.3.1 is a

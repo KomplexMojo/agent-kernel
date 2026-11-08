@@ -3,7 +3,7 @@
  *
  * `allocator/spend-authority`'s registry entry already proves the DENIED half: when the
  * Allocator refuses a receipt, `orchestrateBuild` throws and the build does not happen
- * (`ak-hazard-resource-plan.test.js`, through the real CLI). What it does not prove — the
+ * (`agon-hazard-resource-plan.test.js`, through the real CLI). What it does not prove — the
  * roster's `KNOWN_UNREGISTERED` note names this exact gap — is the APPROVED half, which is
  * the audit-trail claim: is the Allocator the ONLY thing that can mark a receipt
  * `approved`? A denial that only the Allocator can issue is not the same guarantee as an

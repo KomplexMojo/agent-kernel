@@ -6,7 +6,7 @@ const {
   evaluateCollapse,
   resolveBreaker,
 } = require("../../tools/remote-ollama-control/scripts/lib/collapse-breaker");
-const { executeContentGenMatrix } = require("../../tools/remote-ollama-control/scripts/lib/ak-matrix");
+const { executeContentGenMatrix } = require("../../tools/remote-ollama-control/scripts/lib/agon-matrix");
 
 // Attempts carry only the fields the breaker reads, so a shape change upstream fails here loudly
 // rather than being silently absorbed by a permissive fixture.

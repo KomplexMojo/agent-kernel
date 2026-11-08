@@ -2,7 +2,7 @@
  * BUDGET FULFILLMENT — the Allocator's maximize + feasibility surface (P2.3.4).
  *
  * The budget maximizer + feasibility assessors moved out of the CLI
- * (adapters-cli/ak-impl.mjs) into personas/allocator/budget-fulfillment.js,
+ * (adapters-cli/agon-impl.mjs) into personas/allocator/budget-fulfillment.js,
  * fronted by the persona as createAllocatorPersona().maximizeFulfillment /
  * .assessFeasibility (charter: "budget maximization is Allocator policy").
  *

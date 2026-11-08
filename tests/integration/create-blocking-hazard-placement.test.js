@@ -3,8 +3,8 @@
  * position: failing base tests (interface-testing benchmark sweep, 2026-07-09).
  *
  * Seam driven (same seam the MCP server uses):
- *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
- *   -> packages/adapters-cli/src/cli/ak-impl.mjs executeCommand("create", argv)
+ *   packages/adapters-cli/src/mcp/tools/authoring.mjs agon_create buildArgs
+ *   -> packages/adapters-cli/src/cli/agon-impl.mjs executeCommand("create", argv)
  *
  * GROUND TRUTH (confirmed by direct invocation during test authoring):
  *   - `--room "size=medium;count=1" --hazard "x=3;y=2;...;blocking=false"`
@@ -28,13 +28,13 @@ const { mkdtempSync, rmSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 let authoringToolsModule;
 
 async function loadModules() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   authoringToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  return { ak_impl, authoringToolsModule };
+  return { agon_impl, authoringToolsModule };
 }
 
 function findTool(tools, name) {
@@ -96,7 +96,7 @@ const HAZARD_COORD = { x: 3, y: 2 };
 let permutationOutDir;
 
 beforeAll(() => {
-  permutationOutDir = mkdtempSync(join(os.tmpdir(), "ak-i2-permutations-"));
+  permutationOutDir = mkdtempSync(join(os.tmpdir(), "agon-i2-permutations-"));
 });
 
 afterAll(() => {
@@ -107,7 +107,7 @@ describe("create blocking hazard placement (I2: blocking=true always hazard_on_w
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-i2-blocking-hazard-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-i2-blocking-hazard-"));
   });
 
   afterAll(() => {
@@ -115,12 +115,12 @@ describe("create blocking hazard placement (I2: blocking=true always hazard_on_w
   });
 
   test("non-blocking hazard at (3,2) succeeds and (3,2) is a floor tile (contract pin — passes today)", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const dir = join(outDir, "nonblocking");
     const result = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["size=medium;count=1"],
@@ -148,11 +148,11 @@ describe("create blocking hazard placement (I2: blocking=true always hazard_on_w
     // not count toward walkableTilesTarget — previously this shape failed with
     // "level-gen input invalid: walkableTilesTarget:target_mismatch" while the
     // identical non-blocking request succeeded.
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const result = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["size=medium;count=1"],
@@ -171,11 +171,11 @@ describe("create blocking hazard placement (I2: blocking=true always hazard_on_w
   });
 
   test("blocking hazard at the same verified floor tile (3,2) succeeds (FAILS today)", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const result = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["size=medium;count=1"],
@@ -201,12 +201,12 @@ test("i2 blocking hazard on an actual wall coordinate is remapped into the room 
   // Updated 2026-07-11: the stubbed rejection no longer matches current behavior.
   // A blocking hazard authored at (0,0) is accepted and stored at the room's
   // interior origin instead of failing hazard_on_wall.
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "wall-coordinate");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -229,12 +229,12 @@ test("i2 blocking hazard on an actual wall coordinate is remapped into the room 
 });
 
 test("i2 blocking and non-blocking hazards coexist on adjacent floor tiles", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "adjacent-mixed");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -263,13 +263,13 @@ test("i2 blocking and non-blocking hazards coexist on adjacent floor tiles", asy
 });
 
 test("i2 blocking hazard accepted in small and large rooms at interior coordinates", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const smallDir = join(permutationOutDir, "small-blocking");
   const largeDir = join(permutationOutDir, "large-blocking");
   const smallResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=small;count=1"],
@@ -280,7 +280,7 @@ test("i2 blocking hazard accepted in small and large rooms at interior coordinat
     }),
   );
   const largeResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=large;count=1"],
@@ -301,12 +301,12 @@ test("i2 blocking hazard accepted in small and large rooms at interior coordinat
 });
 
 test("i2 two blocking hazards at distinct floor tiles are both accepted", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "two-blocking");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -334,12 +334,12 @@ test("i2 accepted blocking hazards keep the floor target metadata used by downst
   // Downstream pathing is out of scope for the create seam, so this pins the
   // actual persisted metadata the runtime would consume instead of simulating
   // movement through the grid here.
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const dir = join(permutationOutDir, "blocking-metadata");
   const result = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],

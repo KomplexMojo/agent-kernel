@@ -20,7 +20,7 @@ function git(cwd, args) {
 }
 
 function remoteRepository() {
-  const root = mkdtempSync(join(tmpdir(), 'ak-heartbeat-'));
+  const root = mkdtempSync(join(tmpdir(), 'agon-heartbeat-'));
   const remote = join(root, 'remote.git');
   git(root, ['init', '--bare', '--quiet', remote]);
   return { root, remote };
@@ -158,10 +158,10 @@ test('a runner with no install manifest reports null provenance rather than fail
   assert.equal(beat.agent, null);
   assert.equal('agent' in beat, true);
 
-  const empty = mkdtempSync(join(tmpdir(), 'ak-no-manifest-'));
+  const empty = mkdtempSync(join(tmpdir(), 'agon-no-manifest-'));
   assert.equal(readInstallManifest(empty), null);
 
-  const corrupt = mkdtempSync(join(tmpdir(), 'ak-bad-manifest-'));
+  const corrupt = mkdtempSync(join(tmpdir(), 'agon-bad-manifest-'));
   writeFileSync(join(corrupt, INSTALL_MANIFEST_NAME), 'not json at all');
   // An unreadable manifest must not silence the beacon: losing liveness to report staleness is a
   // strictly worse trade than reporting unknown provenance.
@@ -169,7 +169,7 @@ test('a runner with no install manifest reports null provenance rather than fail
 });
 
 test('install provenance is read from the manifest the installer writes', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ak-manifest-'));
+  const dir = mkdtempSync(join(tmpdir(), 'agon-manifest-'));
   writeFileSync(join(dir, INSTALL_MANIFEST_NAME), JSON.stringify({
     schemaVersion: 'agon-install-manifest/v1',
     installedAt: AT,

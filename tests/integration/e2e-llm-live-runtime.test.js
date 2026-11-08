@@ -3,9 +3,9 @@ const { readFileSync, appendFileSync, mkdirSync } = require("node:fs");
 const { resolve, dirname } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const LIVE_ENABLED = ["1", "true"].includes(String(process.env.AK_LLM_LIVE).toLowerCase());
-const CAPTURE_PATH = process.env.AK_LLM_CAPTURE_PATH;
-const STRICT_ENABLED = ["1", "true"].includes(String(process.env.AK_LLM_STRICT).toLowerCase());
+const LIVE_ENABLED = ["1", "true"].includes(String(process.env.AGON_LLM_LIVE).toLowerCase());
+const CAPTURE_PATH = process.env.AGON_LLM_CAPTURE_PATH;
+const STRICT_ENABLED = ["1", "true"].includes(String(process.env.AGON_LLM_STRICT).toLowerCase());
 
 function readJson(relativePath) {
   return JSON.parse(readFileSync(resolve(ROOT, relativePath), "utf8"));
@@ -189,21 +189,21 @@ async function requestLlmResponse({ baseUrl, model, prompt, createLlmAdapter }) 
 
   return {
     ok: false,
-    error: new Error("LLM request failed: no supported endpoint responded. Check AK_LLM_BASE_URL."),
+    error: new Error("LLM request failed: no supported endpoint responded. Check AGON_LLM_BASE_URL."),
   };
 }
 
 test("live llm prompt flows into build + runtime", async (t) => {
   if (!LIVE_ENABLED) {
-    t.skip("Set AK_LLM_LIVE=1 to run live LLM integration test.");
+    t.skip("Set AGON_LLM_LIVE=1 to run live LLM integration test.");
     return;
   }
 
-  const model = process.env.AK_LLM_MODEL;
+  const model = process.env.AGON_LLM_MODEL;
   if (!model) {
-    throw new Error("AK_LLM_MODEL is required when AK_LLM_LIVE=1.");
+    throw new Error("AGON_LLM_MODEL is required when AGON_LLM_LIVE=1.");
   }
-  const baseUrl = process.env.AK_LLM_BASE_URL || "http://localhost:11434";
+  const baseUrl = process.env.AGON_LLM_BASE_URL || "http://localhost:11434";
 
   const scenario = readJson("tests/fixtures/e2e/e2e-scenario-v1-basic.json");
   const catalog = readJson(scenario.catalogPath);

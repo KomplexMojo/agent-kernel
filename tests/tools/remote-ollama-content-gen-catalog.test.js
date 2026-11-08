@@ -9,10 +9,10 @@ const {
   canonicalJson,
   loadScenarioCatalog,
   loadScenarios,
-} = require("../../tools/remote-ollama-control/scripts/lib/ak-scenarios");
-const { scoreRun } = require("../../tools/remote-ollama-control/scripts/lib/ak-compare");
-const { AK_CREATE_TOOL } = require("../../tools/remote-ollama-control/scripts/lib/ak-tool-schema");
-const { normalizeToolArgs } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+} = require("../../tools/remote-ollama-control/scripts/lib/agon-scenarios");
+const { scoreRun } = require("../../tools/remote-ollama-control/scripts/lib/agon-compare");
+const { AGON_CREATE_TOOL } = require("../../tools/remote-ollama-control/scripts/lib/agon-tool-schema");
+const { normalizeToolArgs } = require("../../tools/remote-ollama-control/scripts/lib/agon-runner");
 const {
   pipelineComponents,
   validateRouteManifestDocument,
@@ -20,7 +20,7 @@ const {
 const { loadExecutionCatalog } = require("../../tools/remote-ollama-control/scripts/lib/execution-catalog");
 
 const PRIOR_CATALOG_HASH = "05ee94ac5e5400e3889a67ae9d611af261981179988472d8356a5a85de6b8f72";
-const EXPECTED_HASH = "1e8b6665aa485e8fba34338c7ed784ccb082d84a97ac28b035bead4be40afcc2";
+const EXPECTED_HASH = "fd8fd9d056cc81e3258a5e255c21e4884fe27b6740bb90a585427a7048d29b58";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");
@@ -30,7 +30,7 @@ const BASELINE_GENERATOR = resolve(__dirname, "../../tools/benchmark/generate-ba
 const BENCHMARK_VALIDATOR = resolve(__dirname, "../../tools/benchmark/validate-benchmark.mjs");
 
 function copyCatalog() {
-  const dir = mkdtempSync(join(tmpdir(), "ak-content-gen-catalog-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-content-gen-catalog-"));
   for (const tier of TIERS) {
     cpSync(join(CATALOG_DIR, `${tier}.json`), join(dir, `${tier}.json`));
   }
@@ -74,8 +74,8 @@ function authoredCount(payload, key) {
 async function runCanonicalScenario(scenario, budgetTokens = scenario.payload.budgetTokens) {
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  const cli = resolve(__dirname, "../../packages/adapters-cli/src/cli/ak.mjs");
-  const outDir = mkdtempSync(join(tmpdir(), `ak-constrained-${scenario.index}-`));
+  const cli = resolve(__dirname, "../../packages/adapters-cli/src/cli/agon.mjs");
+  const outDir = mkdtempSync(join(tmpdir(), `agon-constrained-${scenario.index}-`));
   try {
     const result = spawnSync(process.execPath, [cli, "create", ...buildArgv({
       ...scenario.payload,
@@ -95,7 +95,7 @@ async function runCanonicalScenario(scenario, budgetTokens = scenario.payload.bu
 }
 
 function scoringFixture() {
-  const dir = mkdtempSync(join(tmpdir(), "ak-content-gen-score-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-content-gen-score-"));
   const generatedDir = join(dir, "generated");
   const referenceDir = join(dir, "reference");
   mkdirSync(generatedDir, { recursive: true });
@@ -217,10 +217,10 @@ test("named constrained boundaries match the allocator's actual minimum", async 
 });
 
 test("content authoring preserves blocking hazards and V3 affinity resources through the public route", () => {
-  const properties = AK_CREATE_TOOL.function.parameters.properties;
-  assert.ok(properties.hazard.items.properties.blocking, "ak_create must expose blocking hazards");
+  const properties = AGON_CREATE_TOOL.function.parameters.properties;
+  assert.ok(properties.hazard.items.properties.blocking, "agon_create must expose blocking hazards");
   for (const field of ["permanenceMode", "vital", "regen", "affinity", "expression", "stacks", "mana", "manaRegen"]) {
-    assert.ok(properties.resource.items.properties[field], `ak_create resource schema is missing ${field}`);
+    assert.ok(properties.resource.items.properties[field], `agon_create resource schema is missing ${field}`);
   }
 
   const normalized = normalizeToolArgs({
@@ -230,9 +230,9 @@ test("content authoring preserves blocking hazards and V3 affinity resources thr
   assert.equal(normalized.hazard[0].blocking, true);
   assert.equal(normalized.resource[0].affinity, "fire");
 
-  const outDir = mkdtempSync(join(tmpdir(), "ak-content-route-affinity-resource-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-content-route-affinity-resource-"));
   const result = spawnSync(process.execPath, [
-    resolve(__dirname, "../../packages/adapters-cli/src/cli/ak.mjs"), "create",
+    resolve(__dirname, "../../packages/adapters-cli/src/cli/agon.mjs"), "create",
     "--room", "size=medium;count=1",
     "--hazard", "affinity=earth;expression=emit;proximityRadius=1;blocking=true",
     "--resource", "affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0",
@@ -356,10 +356,10 @@ test("generated execution routes bind 26 exact semantic counterparts to the bala
 
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  const cli = resolve(__dirname, "../../packages/adapters-cli/src/cli/ak.mjs");
+  const cli = resolve(__dirname, "../../packages/adapters-cli/src/cli/agon.mjs");
   for (const [key, route] of Object.entries(routes)) {
     const scenario = catalog.scenarios.find((entry) => entry.index === route.scenarioIndex);
-    const outDir = mkdtempSync(join(tmpdir(), `ak-generated-route-${key.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-`));
+    const outDir = mkdtempSync(join(tmpdir(), `agon-generated-route-${key.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-`));
     const result = spawnSync(process.execPath, [cli, "create", ...buildArgv({
       ...scenario.payload,
       outDir,

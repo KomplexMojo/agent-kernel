@@ -8,19 +8,19 @@ import { watchAsciiScripted } from "./cli/play-ascii.mjs";
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 
 // #143 — this always resolved to the canonical <cwd>/artifacts/runs/<runId> layout, ignoring the
-// MCP server's own "remembered outDir per runId" mechanism that ak_create/ak_run/ak_show/
-// ak_runs_list already use when outDir is left to default. A run created via that default (the
-// MCP README's own "most common agent loop") was invisible to ak_show_state/ak_tick_forward/
-// ak_tick_backward, which reported "run directory not found" even though ak_show/ak_runs_list
+// MCP server's own "remembered outDir per runId" mechanism that agon_create/agon_run/agon_show/
+// agon_runs_list already use when outDir is left to default. A run created via that default (the
+// MCP README's own "most common agent loop") was invisible to agon_show_state/agon_tick_forward/
+// agon_tick_backward, which reported "run directory not found" even though agon_show/agon_runs_list
 // found the same run immediately. `runDirOverride`, when supplied, is used verbatim instead of
 // the canonical-layout guess -- the MCP server (server.mjs's resolveRememberedRunDirOverride)
-// passes one through when it has a remembered outDir for this runId; the plain CLI (`ak tick`,
+// passes one through when it has a remembered outDir for this runId; the plain CLI (`agon tick`,
 // which has no session/remembered-run concept at all) never supplies one, so its behavior is
 // unchanged.
 export function resolveRunDir(runId, runDirOverride) {
   if (runDirOverride) return runDirOverride;
-  const artifactsDir = process.env.AK_ARTIFACTS_DIR
-    ? process.env.AK_ARTIFACTS_DIR
+  const artifactsDir = process.env.AGON_ARTIFACTS_DIR
+    ? process.env.AGON_ARTIFACTS_DIR
     : join(process.cwd(), DEFAULT_ARTIFACTS_DIR);
   return join(artifactsDir, "runs", runId);
 }
@@ -68,7 +68,7 @@ export async function writeCursor(runDir, runId, tick, maxTick) {
       id: `cursor_${runId}`,
       runId,
       createdAt: new Date().toISOString(),
-      producedBy: "ak-tick",
+      producedBy: "agon-tick",
     },
     runId,
     tick,
@@ -147,7 +147,7 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, mode) {
       // the session that found this) inlined into the MCP tool result blows the caller's
       // tool-result token limit; `ascii` mode worked at a fraction of the size because it never
       // carries image bytes. Write the PNG to a file instead, the same convention every other
-      // artifact-producing ak_* tool already follows, and hand back the path — a caller reads the
+      // artifact-producing agon_* tool already follows, and hand back the path — a caller reads the
       // file directly rather than receiving its bytes inline.
       snap.visualizationDataUri = null;
       snap.visualizationPath = await writePngToFile(dataUri, runDir, tick);

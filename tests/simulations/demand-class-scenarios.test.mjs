@@ -1,6 +1,6 @@
 // Playability P5 (#623): the sweep catalogue holds scenarios that reward different responses
 // (kite, optional risk, recovery). Balance numbers are metrics in `pnpm run sim:sweep`, not failures
-// here; this only proves they stay in the catalogue and still build and run through `ak create`/`ak run`.
+// here; this only proves they stay in the catalogue and still build and run through `agon create`/`agon run`.
 import { expect, test } from "vitest";
 import { loadScenarios, runScenario } from "../../scripts/testing/simulation-lib.mjs";
 
@@ -14,7 +14,7 @@ test("the sweep catalogue names each demand class and keeps the core set small",
 });
 
 for (const scenario of demand) {
-  test(`${scenario.id} builds through ak create and runs`, async () => {
+  test(`${scenario.id} builds through agon create and runs`, async () => {
     const result = await runScenario(scenario);
     expect(result.createError).toBeUndefined();
     expect(result.runError).toBeUndefined();

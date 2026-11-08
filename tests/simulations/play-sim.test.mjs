@@ -13,7 +13,7 @@ test("the treatment arm is floor(90%) of the scenario budget; the flags select a
   expect(armBudgets(scenario, { treatment: false }).map((entry) => entry.arm)).toEqual(["baseline"]);
 });
 
-test("strategies are orders ak_play_order takes: reach the exit, fight adds a cast tactic", () => {
+test("strategies are orders agon_play_order takes: reach the exit, fight adds a cast tactic", () => {
   expect(strategyFor("dash")).toEqual({ goals: [{ kind: "reach", place: "exit" }] });
   expect(strategyFor("fight").tactics[0].do.params.targetId).toBe("nearest_hostile");
   expect(() => strategyFor("nope")).toThrow(/unknown strategy/);

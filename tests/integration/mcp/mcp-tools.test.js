@@ -5,18 +5,18 @@
 // instance for isolation. Run/replay/narrate coverage uses the in-process core-ts runtime.
 //
 // Tools tested here (22 total):
-//   Simulation: ak_build, ak_budget, ak_configurator
-//   LLM (fixture-backed): ak_llm, ak_ollama
-//   External adapters:    ak_ipfs, ak_ipfs_publish, ak_ipfs_load,
-//                         ak_blockchain, ak_blockchain_mint, ak_blockchain_load
-//   Test handlers:        ak_test_list_suites, ak_test_discover_patterns, ak_test_plan_from_change,
-//                         ak_test_run, ak_test_scaffold_case, ak_test_insert_case,
-//                         ak_test_explain_failure, ak_test_lint_structure
-//   core runtime:     ak_replay, ak_narrate
+//   Simulation: agon_build, agon_budget, agon_configurator
+//   LLM (fixture-backed): agon_llm, agon_ollama
+//   External adapters:    agon_ipfs, agon_ipfs_publish, agon_ipfs_load,
+//                         agon_blockchain, agon_blockchain_mint, agon_blockchain_load
+//   Test handlers:        agon_test_list_suites, agon_test_discover_patterns, agon_test_plan_from_change,
+//                         agon_test_run, agon_test_scaffold_case, agon_test_insert_case,
+//                         agon_test_explain_failure, agon_test_lint_structure
+//   core runtime:     agon_replay, agon_narrate
 //
 // Known limitations (excluded — require on-disk artifacts/runs/<id> structure):
-//   ak_diff     — resolveDiffRunArtifacts reads from artifacts/runs/<id> on the filesystem
-//   ak_scenario — fromRun mode also reads from artifacts/runs/<id> on the filesystem;
+//   agon_diff     — resolveDiffRunArtifacts reads from artifacts/runs/<id> on the filesystem
+//   agon_scenario — fromRun mode also reads from artifacts/runs/<id> on the filesystem;
 //                 text+catalog+dry-run requires a full LLM session even for validation
 
 const assert = require("node:assert/strict");
@@ -196,12 +196,12 @@ function makeTempDir(prefix) {
 
 // ── Simulation tools (no core-ts required) ──────────────────────────────────────
 
-test("mcp ak_build produces a bundle from a build spec with core-ts", async () => {
+test("mcp agon_build produces a bundle from a build spec with core-ts", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-build-");
-    const result = await harness.callTool("ak_build", {
+    const result = await harness.callTool("agon_build", {
       spec: BUILD_SPEC,
       outDir,
     });
@@ -215,12 +215,12 @@ test("mcp ak_build produces a bundle from a build spec with core-ts", async () =
   }
 });
 
-test("mcp ak_budget returns budget receipt envelope from fixture artifacts", async () => {
+test("mcp agon_budget returns budget receipt envelope from fixture artifacts", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-budget-");
-    const result = await harness.callTool("ak_budget", {
+    const result = await harness.callTool("agon_budget", {
       budget: BUDGET,
       priceList: PRICE_LIST,
       receipt: BUDGET_RECEIPT,
@@ -235,12 +235,12 @@ test("mcp ak_budget returns budget receipt envelope from fixture artifacts", asy
   }
 });
 
-test("mcp ak_configurator assembles sim-config and initial-state from fixtures", async () => {
+test("mcp agon_configurator assembles sim-config and initial-state from fixtures", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-configurator-");
-    const result = await harness.callTool("ak_configurator", {
+    const result = await harness.callTool("agon_configurator", {
       levelGen: LEVEL_GEN,
       actors: ACTORS,
       outDir,
@@ -258,12 +258,12 @@ test("mcp ak_configurator assembles sim-config and initial-state from fixtures",
 
 // ── LLM tools (fixture-backed) ────────────────────────────────────────────────
 
-test("mcp ak_llm writes LLM response JSON using fixture adapter", async () => {
+test("mcp agon_llm writes LLM response JSON using fixture adapter", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-llm-");
-    const result = await harness.callTool("ak_llm", {
+    const result = await harness.callTool("agon_llm", {
       prompt: "hello",
       model: "fixture",
       fixture: LLM_FIXTURE,
@@ -277,12 +277,12 @@ test("mcp ak_llm writes LLM response JSON using fixture adapter", async () => {
   }
 });
 
-test("mcp ak_ollama writes LLM response JSON using fixture adapter (ollama alias)", async () => {
+test("mcp agon_ollama writes LLM response JSON using fixture adapter (ollama alias)", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-ollama-");
-    const result = await harness.callTool("ak_ollama", {
+    const result = await harness.callTool("agon_ollama", {
       prompt: "hello",
       model: "fixture",
       fixture: LLM_FIXTURE,
@@ -298,12 +298,12 @@ test("mcp ak_ollama writes LLM response JSON using fixture adapter (ollama alias
 
 // ── External adapter tools (fixture-backed) ───────────────────────────────────
 
-test("mcp ak_ipfs fetches content via fixture without network", async () => {
+test("mcp agon_ipfs fetches content via fixture without network", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-ipfs-");
-    const result = await harness.callTool("ak_ipfs", {
+    const result = await harness.callTool("agon_ipfs", {
       cid: "bafyfixture",
       json: true,
       fixture: IPFS_FIXTURE,
@@ -319,12 +319,12 @@ test("mcp ak_ipfs fetches content via fixture without network", async () => {
   }
 });
 
-test("mcp ak_ipfs_publish publishes via fixture-cid without network", async () => {
+test("mcp agon_ipfs_publish publishes via fixture-cid without network", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-ipfs-publish-");
-    const result = await harness.callTool("ak_ipfs_publish", {
+    const result = await harness.callTool("agon_ipfs_publish", {
       artifactMap: IPFS_ARTIFACT_MAP,
       fixtureCid: "bafypublishfixture",
       outDir,
@@ -341,12 +341,12 @@ test("mcp ak_ipfs_publish publishes via fixture-cid without network", async () =
   }
 });
 
-test("mcp ak_ipfs_load fetches artifact map files via fixture without network", async () => {
+test("mcp agon_ipfs_load fetches artifact map files via fixture without network", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-ipfs-load-");
-    const result = await harness.callTool("ak_ipfs_load", {
+    const result = await harness.callTool("agon_ipfs_load", {
       cid: "bafyfixture",
       fixtureMap: IPFS_ARTIFACT_MAP,
       outDir,
@@ -362,12 +362,12 @@ test("mcp ak_ipfs_load fetches artifact map files via fixture without network", 
   }
 });
 
-test("mcp ak_blockchain returns chainId and balance from fixture files", async () => {
+test("mcp agon_blockchain returns chainId and balance from fixture files", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-blockchain-");
-    const result = await harness.callTool("ak_blockchain", {
+    const result = await harness.callTool("agon_blockchain", {
       rpcUrl: "http://local",
       address: "0xabc",
       fixtureChainId: BLOCKCHAIN_CHAIN_ID,
@@ -385,12 +385,12 @@ test("mcp ak_blockchain returns chainId and balance from fixture files", async (
   }
 });
 
-test("mcp ak_blockchain_mint returns minted token metadata from fixture files", async () => {
+test("mcp agon_blockchain_mint returns minted token metadata from fixture files", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-blockchain-mint-");
-    const result = await harness.callTool("ak_blockchain_mint", {
+    const result = await harness.callTool("agon_blockchain_mint", {
       rpcUrl: "http://local",
       card: CARD_CONFIG,
       owner: "0xabc",
@@ -409,12 +409,12 @@ test("mcp ak_blockchain_mint returns minted token metadata from fixture files", 
   }
 });
 
-test("mcp ak_blockchain_load returns card payload from fixture files", async () => {
+test("mcp agon_blockchain_load returns card payload from fixture files", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-mcp-blockchain-load-");
-    const result = await harness.callTool("ak_blockchain_load", {
+    const result = await harness.callTool("agon_blockchain_load", {
       rpcUrl: "http://local",
       tokenId: "token_fixture_1",
       fixtureChainId: BLOCKCHAIN_CHAIN_ID,
@@ -434,11 +434,11 @@ test("mcp ak_blockchain_load returns card payload from fixture files", async () 
 
 // ── Test handler tools ─────────────────────────────────────────────────────────
 
-test("mcp ak_test_list_suites returns inventory and recipe catalog", async () => {
+test("mcp agon_test_list_suites returns inventory and recipe catalog", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_list_suites");
+    const result = await harness.callTool("agon_test_list_suites");
     assert.equal(result.ok, true);
     assert.ok(typeof result.inventoryPath === "string");
     assert.ok(typeof result.classificationPath === "string");
@@ -450,16 +450,16 @@ test("mcp ak_test_list_suites returns inventory and recipe catalog", async () =>
   }
 });
 
-test("mcp ak_test_discover_patterns returns pattern list filterable by runner", async () => {
+test("mcp agon_test_discover_patterns returns pattern list filterable by runner", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const allResult = await harness.callTool("ak_test_discover_patterns");
+    const allResult = await harness.callTool("agon_test_discover_patterns");
     assert.equal(allResult.ok, true);
     assert.ok(typeof allResult.count === "number" && allResult.count > 0);
     assert.ok(Array.isArray(allResult.files));
 
-    const vitestResult = await harness.callTool("ak_test_discover_patterns", { runner: "vitest" });
+    const vitestResult = await harness.callTool("agon_test_discover_patterns", { runner: "vitest" });
     assert.equal(vitestResult.ok, true);
     assert.ok(vitestResult.files.every((entry) => entry.runner === "vitest"), "filtered result must only contain vitest files");
     assert.ok(vitestResult.count <= allResult.count);
@@ -468,12 +468,12 @@ test("mcp ak_test_discover_patterns returns pattern list filterable by runner", 
   }
 });
 
-test("mcp ak_test_plan_from_change maps changed paths to runner and suite recommendations", async () => {
+test("mcp agon_test_plan_from_change maps changed paths to runner and suite recommendations", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_plan_from_change", {
-      paths: ["packages/adapters-cli/src/cli/ak.mjs", "tests/ui-ascii/ui-ascii-game.test.js"],
+    const result = await harness.callTool("agon_test_plan_from_change", {
+      paths: ["packages/adapters-cli/src/cli/agon.mjs", "tests/ui-ascii/ui-ascii-game.test.js"],
     });
     assert.equal(result.ok, true);
     assert.ok(Array.isArray(result.runners));
@@ -487,11 +487,11 @@ test("mcp ak_test_plan_from_change maps changed paths to runner and suite recomm
   }
 });
 
-test("mcp ak_test_plan_from_change with runtime-only path returns vitest and runtime suite", async () => {
+test("mcp agon_test_plan_from_change with runtime-only path returns vitest and runtime suite", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_plan_from_change", {
+    const result = await harness.callTool("agon_test_plan_from_change", {
       paths: ["packages/runtime/src/personas/allocator/layout-spend.js"],
     });
     assert.equal(result.ok, true);
@@ -502,11 +502,11 @@ test("mcp ak_test_plan_from_change with runtime-only path returns vitest and run
   }
 });
 
-test("mcp ak_test_run inventory mode returns ok status envelope", async () => {
+test("mcp agon_test_run inventory mode returns ok status envelope", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_test_run", { mode: "inventory" });
+    const result = await harness.callToolRaw("agon_test_run", { mode: "inventory" });
     assert.equal(typeof result.ok, "boolean", "ok must be a boolean");
     assert.equal(result.mode, "inventory");
     assert.equal(typeof result.status, "number");
@@ -517,12 +517,12 @@ test("mcp ak_test_run inventory mode returns ok status envelope", async () => {
   }
 });
 
-test("mcp ak_test_scaffold_case writes a cli_success_artifacts scaffold file", async () => {
+test("mcp agon_test_scaffold_case writes a cli_success_artifacts scaffold file", async () => {
   const harness = new McpServerHarness();
   const targetFile = join(os.tmpdir(), `mcp-m9-scaffold-${Date.now()}.js`);
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_scaffold_case", {
+    const result = await harness.callTool("agon_test_scaffold_case", {
       recipe: "cli_success_artifacts",
       targetFile,
       title: "mcp scaffold smoke test",
@@ -540,13 +540,13 @@ test("mcp ak_test_scaffold_case writes a cli_success_artifacts scaffold file", a
   }
 });
 
-test("mcp ak_test_insert_case appends a case to an existing test file without duplication", async () => {
+test("mcp agon_test_insert_case appends a case to an existing test file without duplication", async () => {
   const harness = new McpServerHarness();
   const targetFile = join(os.tmpdir(), `mcp-m9-insert-${Date.now()}.js`);
   try {
     await harness.initialize();
     // First insertion
-    const first = await harness.callTool("ak_test_insert_case", {
+    const first = await harness.callTool("agon_test_insert_case", {
       recipe: "cli_failure_message",
       targetFile,
       title: "mcp insert smoke first",
@@ -558,7 +558,7 @@ test("mcp ak_test_insert_case appends a case to an existing test file without du
     const contentAfterFirst = readFileSync(targetFile, "utf8");
 
     // Second insertion — different title to avoid idempotency concerns
-    await harness.callTool("ak_test_insert_case", {
+    await harness.callTool("agon_test_insert_case", {
       recipe: "cli_failure_message",
       targetFile,
       title: "mcp insert smoke second",
@@ -575,11 +575,11 @@ test("mcp ak_test_insert_case appends a case to an existing test file without du
   }
 });
 
-test("mcp ak_test_explain_failure classifies assertion failures correctly", async () => {
+test("mcp agon_test_explain_failure classifies assertion failures correctly", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_explain_failure", {
+    const result = await harness.callTool("agon_test_explain_failure", {
       text: "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n+ 'foo'\n- 'bar'",
     });
     assert.equal(result.ok, true);
@@ -590,11 +590,11 @@ test("mcp ak_test_explain_failure classifies assertion failures correctly", asyn
   }
 });
 
-test("mcp ak_test_explain_failure classifies module resolution errors correctly", async () => {
+test("mcp agon_test_explain_failure classifies module resolution errors correctly", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_explain_failure", {
+    const result = await harness.callTool("agon_test_explain_failure", {
       text: "Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vitest'",
     });
     assert.equal(result.ok, true);
@@ -604,11 +604,11 @@ test("mcp ak_test_explain_failure classifies module resolution errors correctly"
   }
 });
 
-test("mcp ak_test_explain_failure returns unknown kind for unrecognized output", async () => {
+test("mcp agon_test_explain_failure returns unknown kind for unrecognized output", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_explain_failure", {
+    const result = await harness.callTool("agon_test_explain_failure", {
       text: "some unrecognized failure output without known patterns",
     });
     assert.equal(result.ok, true);
@@ -618,11 +618,11 @@ test("mcp ak_test_explain_failure returns unknown kind for unrecognized output",
   }
 });
 
-test("mcp ak_test_lint_structure returns structural lint envelope", async () => {
+test("mcp agon_test_lint_structure returns structural lint envelope", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_test_lint_structure");
+    const result = await harness.callTool("agon_test_lint_structure");
     assert.equal(result.ok, true);
     assert.equal(typeof result.uncategorizedCount, "number");
     assert.ok(Array.isArray(result.uncategorized));
@@ -639,7 +639,7 @@ test("mcp ak_test_lint_structure returns structural lint envelope", async () => 
 
 // ── core runtime tools ────────────────────────────────────────────────────
 
-test("mcp ak_replay re-executes tick frames deterministically", async () => {
+test("mcp agon_replay re-executes tick frames deterministically", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -648,7 +648,7 @@ test("mcp ak_replay re-executes tick frames deterministically", async () => {
     // disagree on simConfigRef and still store category tiles.
     const runOutDir = makeTempDir("agon-mcp-replay-run-");
     const artifacts = await writeUnifiedRunArtifacts(runOutDir);
-    const runResult = await harness.callTool("ak_run", {
+    const runResult = await harness.callTool("agon_run", {
       simConfig: artifacts.simConfigPath,
       initialState: artifacts.initialStatePath,
       ticks: 1,      outDir: runOutDir,
@@ -657,7 +657,7 @@ test("mcp ak_replay re-executes tick frames deterministically", async () => {
     assert.equal(existsSync(tickFramesPath), true, "run must produce tick-frames.json");
 
     const replayOutDir = makeTempDir("agon-mcp-replay-");
-    const replayResult = await harness.callTool("ak_replay", {
+    const replayResult = await harness.callTool("agon_replay", {
       simConfig: artifacts.simConfigPath,
       initialState: artifacts.initialStatePath,
       tickFrames: tickFramesPath,      outDir: replayOutDir,
@@ -677,7 +677,7 @@ test("mcp ak_replay re-executes tick frames deterministically", async () => {
   }
 });
 
-test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-state", async () => {
+test("mcp agon_narrate produces a narrative artifact from tick-frames and initial-state", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -685,7 +685,7 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
     // Produce tick-frames from a run first. Same leftover-fixture refusal as replay.
     const runOutDir = makeTempDir("agon-mcp-narrate-run-");
     const artifacts = await writeUnifiedRunArtifacts(runOutDir);
-    await harness.callTool("ak_run", {
+    await harness.callTool("agon_run", {
       simConfig: artifacts.simConfigPath,
       initialState: artifacts.initialStatePath,
       ticks: 1,      outDir: runOutDir,
@@ -694,7 +694,7 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
     assert.equal(existsSync(tickFramesPath), true, "run must produce tick-frames.json");
 
     const narrateOutDir = makeTempDir("agon-mcp-narrate-");
-    const narrateResult = await harness.callTool("ak_narrate", {
+    const narrateResult = await harness.callTool("agon_narrate", {
       tickFrames: tickFramesPath,
       initialState: artifacts.initialStatePath,
       outDir: narrateOutDir,
@@ -708,11 +708,11 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
   }
 });
 
-test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a full-dungeon run", async () => {
+test("mcp tick session: agon_tick_forward, agon_show_state, agon_tick_backward after a full-dungeon run", async () => {
   const workDir = makeTempDir("agon-mcp-tick-session-");
   const artifactsDir = join(workDir, "artifacts");
   const runId = "ring_mcp_tick_session";
-  const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+  const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
   // Set up create + run via CLI into workDir so tick tools can navigate on-disk state.
   // No --out-dir: artifacts land under workDir/artifacts/runs/<runId>/ by convention.
@@ -741,23 +741,23 @@ test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a
   assert.equal(existsSync(tickFramesPath), true, "CLI run must produce tick-frames.json");
 
   // MCP harness pointed at the same artifact dir so tick tools resolve the same run dir.
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
 
     // Forward twice — cursor should advance 0→1→2.
-    const fwd1 = await harness.callTool("ak_tick_forward", { runId });
+    const fwd1 = await harness.callTool("agon_tick_forward", { runId });
     assert.equal(fwd1.action, "forward");
     assert.equal(fwd1.tick, 1);
     assert.equal(fwd1.previousTick, 0);
     assert.ok(typeof fwd1.maxTick === "number" && fwd1.maxTick >= 1, "maxTick must be a positive number");
 
-    const fwd2 = await harness.callTool("ak_tick_forward", { runId });
+    const fwd2 = await harness.callTool("agon_tick_forward", { runId });
     assert.equal(fwd2.action, "forward");
     assert.equal(fwd2.tick, 2);
 
     // State at tick 2 — confirm tickFrame is present and consistent.
-    const state = await harness.callTool("ak_show_state", { runId });
+    const state = await harness.callTool("agon_show_state", { runId });
     assert.equal(state.action, "state");
     assert.equal(state.tick, 2, "state must reflect cursor at tick 2");
     assert.ok(state.tickFrame !== undefined, "state must include tickFrame at cursor tick");
@@ -765,7 +765,7 @@ test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a
     assert.equal(state.tickFrame.tick, 2, "tickFrame.tick must match cursor tick");
 
     // Backward once — cursor rewinds 2→1.
-    const bwd = await harness.callTool("ak_tick_backward", { runId });
+    const bwd = await harness.callTool("agon_tick_backward", { runId });
     assert.equal(bwd.action, "backward");
     assert.equal(bwd.tick, 1);
     assert.equal(bwd.previousTick, 2);
@@ -774,10 +774,10 @@ test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a
   }
 });
 
-test.skip("mcp tick ak_tick_forward at maxTick returns ok:false with stable boundary error", () => {});
-test.skip("mcp tick ak_tick_backward at tick 0 returns ok:false with stable boundary error", () => {});
-test.skip("mcp tick ak_show_state before forward returns tick 0 and null tickFrame", () => {});
-test.skip("mcp tick ak_tick_forward with non-existent runId returns ok:false path error", () => {});
-test.skip("mcp tick ak_show_state with non-existent runId returns ok:false", () => {});
+test.skip("mcp tick agon_tick_forward at maxTick returns ok:false with stable boundary error", () => {});
+test.skip("mcp tick agon_tick_backward at tick 0 returns ok:false with stable boundary error", () => {});
+test.skip("mcp tick agon_show_state before forward returns tick 0 and null tickFrame", () => {});
+test.skip("mcp tick agon_tick_forward with non-existent runId returns ok:false path error", () => {});
+test.skip("mcp tick agon_show_state with non-existent runId returns ok:false", () => {});
 test.skip("mcp tick interleaved forward and state calls maintain cursor consistency", () => {});
-test.skip("mcp tick ak_show_state ascii field is non-empty", () => {});
+test.skip("mcp tick agon_show_state ascii field is non-empty", () => {});

@@ -8,7 +8,7 @@ Classifies every area of this repo as **stays** (framework, public), **moves** (
 |---|---|
 | `packages/core-ts` | Pure logic. Its affinity table (`rules/actor-affinity.ts`, `state/affinity.ts`) is content-flavoured: see seams. |
 | `packages/runtime/src/{personas,ports,contracts,runner,commands,build,adaptive-workflow}` | Persona FSMs, effects, artifact schemas, tick orchestration. |
-| `packages/adapters-{cli,test,web}` | `ak`, MCP server, test doubles, browser IO. |
+| `packages/adapters-{cli,test,web}` | `agon`, MCP server, test doubles, browser IO. |
 | `tests/{core-ts,personas,runtime,contracts,architecture,adapters-*,bindings,simulations,integration,llm-suitability,tools,scripts,helpers,fixtures}` | ~1,000 files. The sim suite and `sim:sweep` stay here as framework regression. |
 | `tools/` (benchmarks, remote-ollama-control, adaptive-workflow-benchmark) | Framework/LLM tooling. |
 | `scripts/{setup,testing,affinity,cli-*.sh,*.mjs benchmarks}`, `.githooks`, `.claude/skills` | Framework dev tooling. |
@@ -40,7 +40,7 @@ Classifies every area of this repo as **stays** (framework, public), **moves** (
 | `render/{actor-hud-model,notebook,battle-log-lines,window-size,wall-glyphs,actor-glyphs,ascii-cell-style,affinity-role,visualization-snapshot,inventory-summary-model}` | UI-agnostic view models, consumed by `play-session`, `runtime-fsm`, adapters-cli (`tick-session`, MCP sandbox). | Stay as framework view models; glyph/colour choices become a skin. #741 |
 | `runner/{play-session,character-sheet,legal-commands}` | Game loop and player intents; imported by ui-ascii. | Stay (framework player seam). #739 |
 | `contracts/game-elements.js`, `core-ts` affinity table, `affinity-palette` | The ten affinities and names are game content. | Default content pack in framework, Primordial overrides. #740 |
-| `adapters-cli`: `play-ascii.mjs`, `ak play`, MCP `play.mjs`/`tick.mjs` | `ak play` spawns `packages/ui-ascii/src/cli.mjs` as a child process (no import, by design). | Keep `ak play` pointing at the retained minimal client or a configurable binary. #741 |
+| `adapters-cli`: `play-ascii.mjs`, `agon play`, MCP `play.mjs`/`tick.mjs` | `agon play` spawns `packages/ui-ascii/src/cli.mjs` as a child process (no import, by design). | Keep `agon play` pointing at the retained minimal client or a configurable binary. #741 |
 | Key bindings, message text, level/recipe catalogues (#505) | Live in runtime. | Framework default + game override. #740 |
 | Docs mentioning the ASCII UI (`docs/human-interfaces.md`, persona READMEs, `docs/readme-index.md`) | Will go stale after the move. | Updated in the move PRs. #744 |
 
@@ -53,6 +53,6 @@ Classifies every area of this repo as **stays** (framework, public), **moves** (
 
 ## Findings that change the plan
 
-1. `ak play` is the only adapter link to a UI, and it is already a process boundary, so extraction is cheap.
+1. `agon play` is the only adapter link to a UI, and it is already a process boundary, so extraction is cheap.
 2. 431 of the archive files and ~9.7 MB of art are in `runtime`: moving them shrinks the framework package by most of its size.
 3. `ui-web` imports `runtime/src/render` directly in 7 files, so those imports must be re-pointed to published packages (#742) before the move.

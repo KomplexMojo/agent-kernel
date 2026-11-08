@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Regenerates packages/ui-ascii/levels/ from recipes.json by running `ak create`
+ * Regenerates packages/ui-ascii/levels/ from recipes.json by running `agon create`
  * for each recipe. The bundled levels are its output byte for byte, so the
  * Configurator lays out every room and corridor; nothing is hand-written.
  *
@@ -14,7 +14,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const LEVELS_DIR = join(ROOT, "packages/ui-ascii/levels");
 const OUTPUTS = [
   ["sim-config.json", "sim-config.json"],
@@ -30,7 +30,7 @@ function createLevel({ name, args }, createdAt) {
       { cwd: ROOT, encoding: "utf8" },
     );
     if (result.status !== 0) {
-      throw new Error(`ak create failed for ${name}:\n${result.stderr || result.stdout}`);
+      throw new Error(`agon create failed for ${name}:\n${result.stderr || result.stdout}`);
     }
     return OUTPUTS.map(([from, suffix]) => ({
       path: join(LEVELS_DIR, `${name}.${suffix}`),
@@ -59,10 +59,10 @@ function main(argv = process.argv.slice(2)) {
     }
   }
   if (drifted.length > 0) {
-    console.error(`Bundled levels differ from \`ak create\` output; run \`pnpm run levels:ascii\`:\n${drifted.join("\n")}`);
+    console.error(`Bundled levels differ from \`agon create\` output; run \`pnpm run levels:ascii\`:\n${drifted.join("\n")}`);
     return 1;
   }
-  console.log(check ? "Bundled levels match `ak create`." : `Wrote ${recipes.levels.length} levels to ${LEVELS_DIR}`);
+  console.log(check ? "Bundled levels match `agon create`." : `Wrote ${recipes.levels.length} levels to ${LEVELS_DIR}`);
   return 0;
 }
 

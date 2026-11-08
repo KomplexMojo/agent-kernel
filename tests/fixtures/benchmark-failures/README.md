@@ -44,7 +44,7 @@ by reading its error and `toolArgs`:
   `harness-defect` instead.
 - **`not-replayable`** — `toolArgs` is `null`. The model never produced a usable tool call (a raw
   Ollama transport/parser failure, or the model simply didn't call the tool), so there is nothing
-  to run through `normalizeToolArgs -> buildArgv -> ak.mjs create`. These are still recorded for
+  to run through `normalizeToolArgs -> buildArgv -> agon.mjs create`. These are still recorded for
   completeness (no attempt is silently dropped) but are excluded from the replay assertions.
 
 Only the four symptom families M3's "Observed, from the run" table calls "unambiguously a harness

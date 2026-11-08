@@ -189,7 +189,7 @@
       <p>A browser UI exists for preview and playback of the same artifacts. Adapters for IPFS, chain anchoring, and related distributed storage are part of the intended stack; the core itself stays free of network and clock access.</p>
 
       <h3>MCP through a harness</h3>
-      <p>With <code>pnpm run mcp:serve</code> connected to a harness (Cursor, Claude Code, Codex, and similar), authoring is ordinary language. The harness calls tools such as <code>ak_create</code>, <code>ak_configure</code>, <code>ak_run</code>, and <code>ak_inspect</code>; the Allocator still enforces the token budget.</p>
+      <p>With <code>pnpm run mcp:serve</code> connected to a harness (Cursor, Claude Code, Codex, and similar), authoring is ordinary language. The harness calls tools such as <code>agon_create</code>, <code>agon_configure</code>, <code>agon_run</code>, and <code>agon_inspect</code>; the Allocator still enforces the token budget.</p>
       <p>Examples of prompts that drive scenario creation:</p>
       <div class="affinity-row compact" aria-hidden="true">
         <img src="affinities/icon-affinity-water.png" alt="">
@@ -200,7 +200,7 @@
       <blockquote>Build a small three-room dungeon under 5,000 tokens. One water delver with an attacking motivation, one fire warden defending the exit, and a single fire hazard in the middle room.</blockquote>
       <blockquote>Author a constrained arena: dungeon-side budget 8,000 tokens, delver-side budget 2,000. Dark wardens and dark hazards only. Two fire delvers. Then run 40 ticks and show the outcome.</blockquote>
       <blockquote>Take the last created run, raise the total budget to 20,000 tokens, add a second water delver, and reconfigure without changing the room layout.</blockquote>
-      <p>The harness turns those requests into structured <code>ak_create</code> / <code>ak_configure</code> calls (<code>budgetTokens</code>, <code>delver</code>, <code>warden</code>, <code>hazard</code>, and related fields). Spend that cannot clear a receipt fails; the engine does not soft-override the budget.</p>
+      <p>The harness turns those requests into structured <code>agon_create</code> / <code>agon_configure</code> calls (<code>budgetTokens</code>, <code>delver</code>, <code>warden</code>, <code>hazard</code>, and related fields). Spend that cannot clear a receipt fails; the engine does not soft-override the budget.</p>
 
       <h2 id="design-constraints">Design constraints</h2>
       <ul>

@@ -38,7 +38,7 @@ export function loadBundledLevels(dir = BUNDLED_LEVELS_DIR) {
   return listBundledLevels(dir).map((name) => loadBundledLevel(name, dir));
 }
 
-// #514: the budget receipt and price list an `ak create` build leaves beside its level, for the
+// #514: the budget receipt and price list an `agon create` build leaves beside its level, for the
 // analysis console. Absent for bundled levels; never read for play.
 function readCosting(dir) {
   const read = (file) => (existsSync(join(dir, file)) ? readJson(join(dir, file)) : null);
@@ -59,7 +59,7 @@ export function loadLevelFromFiles({ simConfigPath, initialStatePath, name } = {
 }
 
 /**
- * Where an `ak` output directory keeps its build artifacts: `ak create --out-dir`
+ * Where an `agon` output directory keeps its build artifacts: `agon create --out-dir`
  * writes them at the top level; run directories keep them under one of these
  * subdirectories, depending on which command produced them.
  */
@@ -76,7 +76,7 @@ export function loadLevelFromRunDir(runDir) {
   throw new Error(`No sim-config.json + initial-state.json in ${runDir} or its ${RUN_DIR_BUILD_SUBDIRS.filter(Boolean).join("/, ")}/ subdirectory`);
 }
 
-// A run's own bundle (`ak run` writes one) carries the level it ran and its frames.
+// A run's own bundle (`agon run` writes one) carries the level it ran and its frames.
 function levelFromBundle(bundle, name) {
   const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
   const simConfig = artifacts.find((artifact) => artifact?.schema === SIM_CONFIG_SCHEMA);
@@ -85,7 +85,7 @@ function levelFromBundle(bundle, name) {
 }
 
 /**
- * A recorded run for `--watch`: its level and its tick frames. `ak run --out-dir`
+ * A recorded run for `--watch`: its level and its tick frames. `agon run --out-dir`
  * writes `tick-frames.json` and `bundle.json` at the top level; a run directory
  * under `artifacts/runs/<id>` keeps them under `run/`, beside the build in `create/`.
  */
@@ -101,5 +101,5 @@ export function loadRunFromDir(runDir) {
     const level = levelFromBundle(bundle, name) ?? loadLevelFromRunDir(runDir);
     return { ...level, name, frames };
   }
-  throw new Error(`No recorded run in ${runDir}: expected tick-frames.json there or under run/ (an \`ak run\` output directory)`);
+  throw new Error(`No recorded run in ${runDir}: expected tick-frames.json there or under run/ (an \`agon run\` output directory)`);
 }

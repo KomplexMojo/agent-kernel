@@ -1,5 +1,5 @@
-// #716: the recipe catalogue over MCP. ak_recipe_list and ak_recipe_show read the Configurator's
-// recipes priced by the Allocator; ak_create takes a structured delver/warden with `recipe`.
+// #716: the recipe catalogue over MCP. agon_recipe_list and agon_recipe_show read the Configurator's
+// recipes priced by the Allocator; agon_create takes a structured delver/warden with `recipe`.
 
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
@@ -14,7 +14,7 @@ function startServer() {
   const child = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
     // Port 0: an OS-chosen sandbox bridge port, so parallel servers never collide.
-    env: { ...process.env, AK_SANDBOX_BRIDGE_PORT: "0" },
+    env: { ...process.env, AGON_SANDBOX_BRIDGE_PORT: "0" },
     stdio: ["pipe", "pipe", "pipe"],
   });
   let buffer = "";
@@ -68,19 +68,19 @@ function startServer() {
   };
 }
 
-test("ak_recipe_list lists the recipes with their prices, filtered by role; ak_recipe_show expands one", async () => {
+test("agon_recipe_list lists the recipes with their prices, filtered by role; agon_recipe_show expands one", async () => {
   const server = startServer();
   try {
     await server.initialize();
-    const all = await server.callTool("ak_recipe_list", {});
+    const all = await server.callTool("agon_recipe_list", {});
     assert.equal(all.ok, true);
     const shadowblade = all.recipes.find((row) => row.name === "shadowblade");
     assert.deepEqual(shadowblade.cost, { delver: 391, warden: 328 });
     assert.deepEqual(shadowblade.roles, { attack: 2, defence: 0, support: 1 });
-    const support = await server.callTool("ak_recipe_list", { role: "support" });
+    const support = await server.callTool("agon_recipe_list", { role: "support" });
     assert.ok(support.recipes.every((row) => row.roles.support > 0));
     assert.ok(support.recipes.some((row) => row.name === "cleric"));
-    const ward = await server.callTool("ak_recipe_show", { name: "spellward", role: "warden", kind: "water" });
+    const ward = await server.callTool("agon_recipe_show", { name: "spellward", role: "warden", kind: "water" });
     assert.equal(ward.recipe.expansion.kind, "water");
     assert.deepEqual(ward.recipe.expansion.affinities.map((entry) => `${entry.kind}:${entry.expression}`), ["water:draw", "water:emit"]);
     assert.deepEqual(ward.recipe.expansion.dropped, [{ kind: "water", expression: "push" }]);
@@ -90,12 +90,12 @@ test("ak_recipe_list lists the recipes with their prices, filtered by role; ak_r
   }
 }, 60000);
 
-test("ak_create builds a level from structured recipe specs and returns the warden's trim as a warning", async () => {
+test("agon_create builds a level from structured recipe specs and returns the warden's trim as a warning", async () => {
   const server = startServer();
   const outDir = mkdtempSync(join(tmpdir(), "mcp-recipes-"));
   try {
     await server.initialize();
-    const created = await server.callTool("ak_create", {
+    const created = await server.callTool("agon_create", {
       room: ["size=medium;count=3"],
       delver: [{ recipe: "shadowblade", motivation: ["user_controlled"] }],
       warden: [{ recipe: "lantern-bearer", count: 1 }],

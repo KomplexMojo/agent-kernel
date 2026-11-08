@@ -2,7 +2,7 @@
 // reporting candidates/requested/index) never propagated to actor placement, which had its own
 // near-duplicate "could not place actors: ..." family in orchestrate-build.js reporting nothing.
 // Fixed 11 sites across normalizeActorPositions and its Legacy sibling; two are reproduced here
-// through the real ak create CLI path exactly like M4's own test does. The remaining nine (the
+// through the real agon create CLI path exactly like M4's own test does. The remaining nine (the
 // no-walkable-tiles/spawn-not-walkable/exit-not-walkable/unresolved-strategic-placement family, and
 // the entire Legacy sibling) are defensive backstops: the carving algorithm that runs before actor
 // placement already guarantees a minimum walkable interior and picks spawn/exit from the walkable
@@ -18,15 +18,15 @@ const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const AK_CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AGON_CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 async function create(payload) {
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  const outDir = mkdtempSync(join(tmpdir(), "ak-actor-placement-refusal-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-actor-placement-refusal-"));
   try {
     const result = spawnSync(process.execPath, [
-      AK_CLI, "create",
+      AGON_CLI, "create",
       ...buildArgv({ ...payload, outDir, runId: "actor_placement_refusal_probe" }, authoringSpec),
     ], { cwd: ROOT, encoding: "utf8" });
     return { status: result.status, detail: `${result.stderr || ""}${result.stdout || ""}` };
@@ -98,18 +98,18 @@ test("a budget denial with more than 5 denied lines reports how many were omitte
   assert.match(detail, /\(\+\d+ more\)/, "omitted lines must be counted, not silently dropped");
 });
 
-// The three misc build-guard fixes (SM1) are not reachable through ak create's own parsing --
+// The three misc build-guard fixes (SM1) are not reachable through agon create's own parsing --
 // hasActors is always true because agentAuthoringCommand always constructs an array (even an empty
 // one) from parsed delver/warden entries. Tested two of the three directly against a hand-built spec
 // (orchestrateBuild's other callers -- the UI card-builder path, sandbox flows -- can reach them
-// even though ak create can't). The third (actorsInput.actors not an array, line ~1518) turned out
+// even though agon create can't). The third (actorsInput.actors not an array, line ~1518) turned out
 // to be doubly defensive: mapBuildSpecToArtifacts's OWN schema validation already rejects a
 // non-array configurator.inputs.actors before orchestrateBuild's own check ever runs, for any spec
 // built through the normal validation path -- confirmed by attempting it here and getting
 // "BuildSpec validation failed: configurator.inputs.actors: expected array" instead. The fix is kept
 // (harmless, no downside), but it is not independently testable without bypassing legitimate
 // upstream validation, so no test claims to exercise it.
-describe("orchestrateBuild misc guard detail (not reachable via ak create, tested directly)", () => {
+describe("orchestrateBuild misc guard detail (not reachable via agon create, tested directly)", () => {
   let orchestrateBuild;
   let baseSpec;
 

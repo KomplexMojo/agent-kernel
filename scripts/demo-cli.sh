@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLI="$ROOT/packages/adapters-cli/src/cli/ak.mjs"
+CLI="$ROOT/packages/adapters-cli/src/cli/agon.mjs"
 OUT_DIR="${1:-"$ROOT/artifacts/demo-bundle"}"
 
 mkdir -p "$OUT_DIR"

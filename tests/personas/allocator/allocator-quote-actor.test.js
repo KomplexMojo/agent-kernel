@@ -1,7 +1,7 @@
 /**
  * pricing.quoteActor: the Allocator prices one actor configuration, line by line, so a
  * screen that edits a character can show what each choice costs without pricing anything
- * itself. The same numbers `ak create` charges for that actor.
+ * itself. The same numbers `agon create` charges for that actor.
  */
 const assert = require("node:assert/strict");
 

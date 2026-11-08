@@ -1,4 +1,4 @@
-// #279: a play session reports a level the Allocator never priced. Every level `ak create`
+// #279: a play session reports a level the Allocator never priced. Every level `agon create`
 // makes carries a budget receipt (#274, #276); a hand-written or older level without one is
 // played as written (Darren's rule for hand-written levels) and the session says it is unpriced.
 const assert = require("node:assert/strict");
@@ -24,7 +24,7 @@ test("a level with no Allocator receipt is played and reported as unpriced", asy
   const session = await createPlaySession({ simConfig, initialState });
   assert.equal(session.pricingReport.length, 1);
   assert.equal(session.pricingReport[0].code, "level_unpriced");
-  assert.match(session.pricingReport[0].message, /ak create/);
+  assert.match(session.pricingReport[0].message, /agon create/);
   assert.ok(session.view(), "the level still plays");
 });
 
@@ -39,5 +39,5 @@ test("the ASCII game shows the unpriced-level warning", async () => {
 
 // ## TODO: Test Permutations
 // - play-session start (CLI) on an unpriced level prints the warning in its JSON payload.
-// - ak_play_start (MCP) on an unpriced level returns the warning.
+// - agon_play_start (MCP) on an unpriced level returns the warning.
 // - a level whose receipt ref names a denied receipt.

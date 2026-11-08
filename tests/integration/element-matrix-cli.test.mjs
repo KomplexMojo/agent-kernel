@@ -17,12 +17,12 @@ import {
   GAME_VITAL_KEYS,
   GAME_MOTIVATION_KINDS,
 } from "../../packages/runtime/src/contracts/game-elements.js";
-import { runAk, makeOutDir, readJsonIfExists } from "../helpers/ak-cli.mjs";
+import { runAk, makeOutDir, readJsonIfExists } from "../helpers/agon-cli.mjs";
 
 const CREATED_AT = "2026-04-14T00:00:00.000Z";
 
 function runCreate(args, { runId = "run_matrix" } = {}) {
-  const outDir = makeOutDir("ak-matrix-");
+  const outDir = makeOutDir("agon-matrix-");
   const { status, json } = runAk("create", [
     ...args,
     "--run-id", runId,
