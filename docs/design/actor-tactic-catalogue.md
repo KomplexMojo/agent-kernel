@@ -36,3 +36,23 @@ No entry here is marked `works`: both runs lost, so the catalogue has no demonst
 
 1. `keep-a-step-in-reserve` and `leave-hurting-tile` as `strategy.js` data: if data alone prevents the death spiral, they are list entries and no solver is adopted.
 2. `route-around-a-guards-reach` against a BFS oracle, using the 19/45 and 9/45 baseline.
+
+## Benefit gate result (#674, 2026-11-08)
+
+Domain `actor_tactic_benefit` in `scripts/testing/logic-value-ledger.mjs` (harness: `scripts/testing/logic-tactic-benefit.mjs`, run with `pnpm run logic-sweep -- --domain actor_tactic_benefit`). The verdict rule was fixed before the first run: a horizon is adopted only if the gap no cheap control closes (the residual) is at least 10% of the decision points.
+
+Every mover acts through core's own tick (`createActorTurn`: apply, fields, regen, exit dwell), with real emitting hazards and Allocator-priced resources. The policy is the real Actor persona. The cheap controls are the shipped Actor with its candidates expanded, a safety-first rank reorder, one weighted scalar (best single weight over the domain), the take goal stepped by that scalar, and every catalogue entry's `strategy.js` data. The oracle is every action sequence in the horizon, kept as the Pareto frontier of token value and non-renewable use.
+
+| Profile | Points | Policy beaten | Residual | Route boards (no resource) | Fetch boards (one resource) |
+|---|---|---|---|---|---|
+| gate (1 hazard) | 169 | 144 (85%) | 54 (32%) | 4 of 13 (31%) | 50 of 156 (32%) |
+| sweep (1–2 hazards) | 1,093 | 964 (88%) | 460 (42%) | 36 of 90 (40%) | 424 of 1,003 (42%) |
+
+**Verdict.** `route-around-a-guards-reach`: **adopt a horizon.** The residual boards are the ones where every route crosses the reach and the cheapest crossing needs a detour that makes no progress for a step or two, which no one-step chooser takes. Per the z3 review, a single actor's route is a shortest-path problem, so #676 should start with A*/BFS over field cost and use z3 only for multi-actor or multi-resource trade-offs. `probe-before-entering-a-guarded-corridor`: **unmeasured, so no.** A full-sight oracle cannot value looking. The four `list` entries ask no solver question.
+
+**Findings on the way.**
+1. The shipped Actor runs the deterministic path, and nothing in the runtime sets `runtimeDecisioning`. An `exploring` delver ranks only its motivation's own proposal, which is one step along its route, so field safety has nothing to choose between. The 2026-09 lookahead probe and the `actor_lookahead` gate drove the solver request path instead, whose expanded candidates the game never ranks. Expanding the candidates and keeping the order closes only 25 of the 964 gaps.
+2. No motivation fetches a resource off the route, so the policy acquires no token value on 749 points. The `take` goal fetches, but `strategy.js`'s `stepToward` ignores fields: with the take goal, the delver did worse than with no strategy on 21 of the 169 gate boards.
+3. `leave-hurting-tile` as data (`health below 50 → retreat`) closed no gap and was worse than the policy on 12 gate boards: retreating from the nearest hostile is not leaving the field.
+
+**Bounds.** Small open boards (7×5, horizon 9), hazards always lit (no upkeep table), the delver casts nothing, health has regen 0 (so harm is non-renewable), and stamina regenerates. Kills are zero by construction. The vital-pressure columns are recorded for each run but decide nothing here: health never sits under 25% before defeat at 5 harm per hit.

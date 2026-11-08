@@ -34,6 +34,7 @@ import {
   safetyFirstRun,
   walkable,
 } from "./logic-lookahead.mjs";
+import { runTacticBenefitLedger } from "./logic-tactic-benefit.mjs";
 import {
   allocatorObjectiveRank,
   compareRank,
@@ -855,6 +856,15 @@ export const LEDGER_DOMAINS = Object.freeze({
     bounds: {
       gate: { width: 7, height: 5, maxWalls: 1, hazardCounts: [2], horizon: 6, harm: 5 },
       sweep: { width: 7, height: 5, maxWalls: 2, hazardCounts: [1, 2, 3], horizon: 7, harm: 5 },
+    },
+  },
+  // #674 (AI T2): the benefit gate for the tactic catalogue, scored on the delver's own score
+  // through core's real tick. Like actor_lookahead it is a gate, not an adopted domain.
+  actor_tactic_benefit: {
+    run: runTacticBenefitLedger,
+    bounds: {
+      gate: { width: 7, height: 5, maxWalls: 0, hazardCounts: [1], resourceCounts: [0, 1], horizon: 9, weights: [0.05, 0.1, 0.25, 0.5, 1, 2] },
+      sweep: { width: 7, height: 5, maxWalls: 0, hazardCounts: [1, 2], resourceCounts: [0, 1], horizon: 9, weights: [0.05, 0.1, 0.25, 0.5, 1, 2] },
     },
   },
   actor_action_selection: {
