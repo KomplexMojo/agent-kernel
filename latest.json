@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-08T20-45-37-741Z-6c4ef3512c3a-9a7dfee76e09",
-    "key": "9a7dfee76e09d814dd28530bd4251f65b2287b829c00170d07f9028971b26dc5",
+    "id": "2026-11-08T21-25-42-919Z-e74aaf0dbe73-2cf76652a026",
+    "key": "2cf76652a026f97fca7396cd5d1efa715b8fded9105856f6ee59329fc240d2ae",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-08T20:45:37.741Z",
-    "completedAt": "2026-11-08T20:49:06.064Z",
-    "durationMs": 208323,
+    "startedAt": "2026-11-08T21:25:42.919Z",
+    "completedAt": "2026-11-08T21:29:11.451Z",
+    "durationMs": 208532,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "6c4ef3512c3ab3544dcbd065b1a8122a4ba9300e",
-    "tree": "321d4130b2b1ec249e944140fcf297fd32e2b26e"
+    "commit": "e74aaf0dbe73a5a7e07f57433eee23636f11bd2c",
+    "tree": "de464b5efb173da0e7fa64e28086b060b34c77c9"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -27,16 +27,21 @@
       "relevant_source"
     ],
     "relevantPaths": [
-      "packages/adapters-cli/src/cli/ak-impl.mjs",
-      "packages/adapters-cli/src/cli/ak-persona.mjs",
+      "packages/adapters-cli/src/cli/agon-impl.mjs",
+      "packages/adapters-cli/src/cli/agon-persona.mjs",
+      "packages/adapters-cli/src/cli/agon.mjs",
+      "packages/adapters-cli/src/cli/ak.mjs",
       "packages/adapters-cli/src/cli/play-ascii.mjs",
       "packages/adapters-cli/src/cli/playtest-scenarios.json",
       "packages/adapters-cli/src/cli/playtest-scenarios.mjs",
       "packages/adapters-cli/src/mcp/README.md",
       "packages/adapters-cli/src/mcp/adaptive-workflow-tools.mjs",
+      "packages/adapters-cli/src/mcp/bridge-server.mjs",
       "packages/adapters-cli/src/mcp/server.mjs",
       "packages/adapters-cli/src/mcp/tools/authoring.mjs",
+      "packages/adapters-cli/src/mcp/tools/external.mjs",
       "packages/adapters-cli/src/mcp/tools/inspection.mjs",
+      "packages/adapters-cli/src/mcp/tools/llm.mjs",
       "packages/adapters-cli/src/mcp/tools/play.mjs",
       "packages/adapters-cli/src/mcp/tools/sandbox-ui.mjs",
       "packages/adapters-cli/src/mcp/tools/sandbox.mjs",
@@ -82,6 +87,7 @@
       "packages/runtime/src/commands/author-level.js",
       "packages/runtime/src/commands/authoring-specs.js",
       "packages/runtime/src/commands/card-authoring.js",
+      "packages/runtime/src/commands/director-round.js",
       "packages/runtime/src/commands/kernel.js",
       "packages/runtime/src/commands/manual-movement.js",
       "packages/runtime/src/commands/recipe-catalogue.js",
@@ -188,8 +194,11 @@
       "packages/runtime/src/personas/orchestrator/README.md",
       "packages/runtime/src/personas/orchestrator/actor-prompt.js",
       "packages/runtime/src/personas/orchestrator/controller.js",
+      "packages/runtime/src/personas/orchestrator/llm-round.js",
       "packages/runtime/src/personas/orchestrator/llm-session.js",
+      "packages/runtime/src/personas/orchestrator/post-run-round.js",
       "packages/runtime/src/personas/orchestrator/tactic-prompt.js",
+      "packages/runtime/src/ports/solver-conformance.js",
       "packages/runtime/src/ports/solver.js",
       "packages/runtime/src/render/README.md",
       "packages/runtime/src/render/actor-glyphs.js",
@@ -651,9 +660,10 @@
       "packages/runtime/src/runner/run-viewer.js",
       "packages/runtime/src/runner/runtime-fsm.mjs",
       "tools/benchmark/README.md",
+      "tools/benchmark/REMEDIATION_PLAN.md",
       "tools/benchmark/generate-abstract-parallel.mjs",
       "tools/benchmark/generate-baselines.mjs",
-      "tools/benchmark/survey-ak-create-error-messages.mjs",
+      "tools/benchmark/survey-agon-create-error-messages.mjs",
       "tools/benchmark/validate-benchmark.mjs",
       "tools/remote-ollama-control/benchmarks/content-gen/affinity.json",
       "tools/remote-ollama-control/benchmarks/content-gen/catalog.schema.json",
@@ -674,10 +684,6 @@
       "tools/remote-ollama-control/benchmarks/execution/runtime-build-routes.json",
       "tools/remote-ollama-control/benchmarks/execution/stress.json",
       "tools/remote-ollama-control/benchmarks/execution/traversal.json",
-      "tools/remote-ollama-control/scripts/lib/ak-compare.js",
-      "tools/remote-ollama-control/scripts/lib/ak-runner.js",
-      "tools/remote-ollama-control/scripts/lib/ak-scenarios.js",
-      "tools/remote-ollama-control/scripts/lib/ak-tool-schema.js",
       "tools/remote-ollama-control/scripts/lib/execution-catalog.js",
       "tools/remote-ollama-control/scripts/lib/execution-evaluator.js",
       "tools/remote-ollama-control/scripts/lib/execution-integration.js",
@@ -729,12 +735,12 @@
     "infrastructure": {
       "count": 1,
       "reasons": [
-        "preflight modified tracked source files"
+        "Cannot find module '/home/darren/.local/state/agent-kernel-benchmark/source-worktrees/2cf76652a026f97fca7396cd5d1efa715b8fded9105856f6ee59329fc240d2ae/tools/remote-ollama-control/scripts/lib/ak-compare.js'\nRequire stack:\n- /home/darren/remote-ollama-control/scripts/lib/benchmark-pipeline.js\n- /home/darren/remote-ollama-control/scripts/benchmark-agent.js"
       ]
     }
   },
   "artifacts": {
-    "retentionId": "preflights/9a7dfee76e09d814dd28530bd4251f65b2287b829c00170d07f9028971b26dc5"
+    "retentionId": null
   },
   "qualifies": false
 }
