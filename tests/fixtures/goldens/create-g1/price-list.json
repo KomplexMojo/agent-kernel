@@ -205,6 +205,13 @@
       "description": "Spawn one actor (delver or warden)"
     },
     {
+      "id": "actor_temperament",
+      "kind": "actor",
+      "unitCost": 5,
+      "formula": "quadratic",
+      "description": "Temperament (#675): how adventurous its pick among the tactics that fire is — temperament n costs n² × unit tokens"
+    },
+    {
       "id": "tile_floor",
       "kind": "tile",
       "unitCost": 1,

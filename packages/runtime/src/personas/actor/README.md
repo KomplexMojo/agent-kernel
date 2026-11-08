@@ -384,6 +384,13 @@ record) follows no strategy or order until the bond holds again: its progress is
 and the turn goes to its escort and its own motivations. The play session refuses new orders to it
 (`bond_lapsed`).
 
+**Temperament (#675).** An actor's temperament (`InitialState.temperaments`, authored by the
+Configurator, priced by the Allocator) sets how adventurous its pick among the tactics that fire is. At
+0, the default, the first tactic that fires wins, as before. Above 0 it draws among every tactic that
+fires, the one in place r weighted (t / (t + 1))^r, from a seeded coin (`deterministicRandom` over the
+level's seed, actor and tick): the same seed replays the same draws. Goals and move ranking stay
+deterministic; only which tactic fires is drawn.
+
 **What an order learns (#758).** An actor keeps two things in its progress entry for the whole order.
 An unnamed cast passes over a slot it saw leave that target's health and durability untouched
 (`payload.dealtCasts`, from core's `readActorDealtCasts`: its own casts, as they landed; a mana drain or

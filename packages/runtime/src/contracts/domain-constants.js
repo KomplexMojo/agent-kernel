@@ -512,6 +512,13 @@ export const ACTOR_ESCORT_FIELD = "escort";
 export const ACTOR_LEADER_FIELD = "leader";
 
 /**
+ * #675: the authored actor field that sets how adventurous its pick among the tactics that fire
+ * is (0, the default, takes the first). Not an actor-record field: the Configurator moves it to
+ * `InitialState.temperaments`, and the Allocator prices it.
+ */
+export const ACTOR_TEMPERAMENT_FIELD = "temperament";
+
+/**
  * The least an actor can be and still be worth simulating.
  *
  * DEFAULT_VITALS above is a ZERO, not a floor: health 1 with regen 0 dies to a single point of

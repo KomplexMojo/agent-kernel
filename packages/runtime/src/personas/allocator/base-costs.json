@@ -37,7 +37,8 @@
     "motivation_strategy_focused": 10
   },
   "actor": {
-    "actor_spawn": 5
+    "actor_spawn": 5,
+    "actor_temperament": 5
   },
   "tile": {
     "tile_floor": 1,

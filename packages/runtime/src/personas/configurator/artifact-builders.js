@@ -3,6 +3,7 @@ import { INITIAL_STATE_SCHEMA, SIM_CONFIG_SCHEMA } from '../../contracts/artifac
 import { normalizeActorRoster } from './unified-actors.js';
 import { resolveActorTurnCosts } from './affinity-rules.js';
 import { normalizeActorStrategy } from '../actor/persona.js';
+import { ACTOR_TEMPERAMENT_FIELD } from '../../contracts/domain-constants.js';
 
 const LAYOUT_FIELDS = new Set(['width', 'height', 'terrain', 'rooms', 'connectivity',
   'bounds', 'entryRoomId', 'exitRoomId', 'spawnApproach', 'exitApproach', 'render']);
@@ -149,8 +150,33 @@ function collectLeaders(actors, leaders, stampedActors) {
   return collected;
 }
 
+/**
+ * #675 — how adventurous each actor's pick among the tactics that fire is: 0 (the default) takes
+ * the first, more draws among them. Authored on the actor (`temperament`) or passed by id
+ * (`temperaments`); a whole number, 0 or more, priced by the Allocator. Only the Actor reads it,
+ * so it rides beside the roster like strategies, and a level of calm actors carries none.
+ */
+function collectTemperaments(actors, temperaments) {
+  const collected = {};
+  for (const [id, temperament] of Object.entries(temperaments ?? {})) collected[id] = temperament;
+  for (const actor of Array.isArray(actors) ? actors : []) {
+    if (actor?.[ACTOR_TEMPERAMENT_FIELD] !== undefined && actor[ACTOR_TEMPERAMENT_FIELD] !== null && typeof actor.id === 'string') {
+      collected[actor.id] = actor[ACTOR_TEMPERAMENT_FIELD];
+    }
+  }
+  const ids = new Set((Array.isArray(actors) ? actors : []).map(actor => actor?.id));
+  for (const [id, temperament] of Object.entries(collected)) {
+    if (!ids.has(id)) throw new Error(`temperament for unknown actor: ${id}`);
+    if (!Number.isSafeInteger(temperament) || temperament < 0) {
+      throw new Error(`actor ${id}: temperament must be a whole number, 0 or more (received ${JSON.stringify(temperament)})`);
+    }
+    if (temperament === 0) delete collected[id];
+  }
+  return collected;
+}
+
 export function buildInitialStateArtifact({
-  meta, simConfigRef, actors, dimensions, terrain, strategies, escorts, leaders, ...unsupported
+  meta, simConfigRef, actors, dimensions, terrain, strategies, escorts, leaders, temperaments, ...unsupported
 } = {}) {
   const keys = Object.keys(unsupported);
   if (keys.length) throw new Error(`unsupported initial-state inputs: ${keys.join(', ')}`);
@@ -159,10 +185,12 @@ export function buildInitialStateArtifact({
   const escorting = collectEscorts(actors, escorts);
   const escortedActors = stampEscortOf(roster.actors, escorting);
   const bonds = collectLeaders(actors, leaders, escortedActors);
+  const tempers = collectTemperaments(actors, temperaments);
   const stampedActors = escortedActors.map(actor => bonds[actor.id] ? { ...actor, minionOf: bonds[actor.id] } : actor);
   return structuredClone({ schema: INITIAL_STATE_SCHEMA, schemaVersion: 1,
     meta: stampPersona(meta, PERSONA_IDS.configurator), simConfigRef, actors: stampedActors, presentation: roster.presentation,
     ...(Object.keys(authored).length > 0 ? { strategies: authored } : {}),
     ...(Object.keys(escorting).length > 0 ? { escorts: escorting } : {}),
-    ...(Object.keys(bonds).length > 0 ? { leaders: bonds } : {}) });
+    ...(Object.keys(bonds).length > 0 ? { leaders: bonds } : {}),
+    ...(Object.keys(tempers).length > 0 ? { temperaments: tempers } : {}) });
 }

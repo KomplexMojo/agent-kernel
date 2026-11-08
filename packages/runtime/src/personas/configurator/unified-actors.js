@@ -3,7 +3,7 @@ import { validateActorRecordVitals } from '../../../../core-ts/src/state/actor-v
 import { validateActorInventory } from '../../../../core-ts/src/state/actor-inventory.ts';
 import { validateActorHoldings } from '../../../../core-ts/src/state/actor-holdings.ts';
 import { DEFAULT_MOVEMENT_COST } from './logical-validation.js';
-import { ACTOR_EQUIPMENT_FIELDS, ACTOR_ESCORT_FIELD, ACTOR_LEADER_FIELD, ACTOR_STRATEGY_FIELD, PRESET_AFFINITY_SLOTS } from '../../contracts/domain-constants.js';
+import { ACTOR_EQUIPMENT_FIELDS, ACTOR_ESCORT_FIELD, ACTOR_LEADER_FIELD, ACTOR_STRATEGY_FIELD, ACTOR_TEMPERAMENT_FIELD, PRESET_AFFINITY_SLOTS } from '../../contracts/domain-constants.js';
 
 // affinitySlots: how many affinities each preset can equip at once (PRESET_AFFINITY_SLOTS).
 // Every type has the same affinity capabilities; only this differs.
@@ -56,8 +56,8 @@ export function prepareAuthoredActor(input) {
     if (motivations.length) request.motivations = motivations;
   }
   // A strategy rides with the actor to the level, which keeps it beside the roster.
-  // So does an escort (#251), and a leader (#408).
-  for (const field of [ACTOR_STRATEGY_FIELD, ACTOR_ESCORT_FIELD, ACTOR_LEADER_FIELD]) {
+  // So does an escort (#251), a leader (#408) and a temperament (#675).
+  for (const field of [ACTOR_STRATEGY_FIELD, ACTOR_ESCORT_FIELD, ACTOR_LEADER_FIELD, ACTOR_TEMPERAMENT_FIELD]) {
     if (input[field] !== undefined && input[field] !== null) request[field] = structuredClone(input[field]);
   }
   return request;
@@ -66,7 +66,7 @@ export function prepareAuthoredActor(input) {
 /** Pure authoring helper. Defaults select properties; presentation never selects core rules. */
 export function normalizeActorDefinition(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)
-    || Object.keys(input).some(key => !INPUT_KEYS.has(key) && key !== ACTOR_STRATEGY_FIELD && key !== ACTOR_ESCORT_FIELD && key !== ACTOR_LEADER_FIELD)
+    || Object.keys(input).some(key => !INPUT_KEYS.has(key) && key !== ACTOR_STRATEGY_FIELD && key !== ACTOR_ESCORT_FIELD && key !== ACTOR_LEADER_FIELD && key !== ACTOR_TEMPERAMENT_FIELD)
     || !Object.hasOwn(PRESETS, input.category)) throw new Error('invalid unified actor definition');
   const request = structuredClone(input);
   const preset = PRESETS[request.category];

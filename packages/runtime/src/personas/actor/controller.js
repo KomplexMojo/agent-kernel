@@ -1800,7 +1800,7 @@ export function actorStrategyIgnoredParts(strategy, motivationKinds) {
  * order, kept in the Actor context) or else the level's (`initialState.strategies`).
  * Returns null for an actor with no strategy.
  */
-function resolveStrategyTurn({ entry, payload, observation, observationView, simConfig, actorId, tick, baseTiles, adopted, depth: fixedDepth }) {
+function resolveStrategyTurn({ entry, payload, observation, observationView, simConfig, actorId, tick, baseTiles, adopted, depth: fixedDepth, personaSeed }) {
   const strategy = adopted ?? entry?.order ?? payload?.initialState?.strategies?.[actorId];
   if (!strategy) return null;
   const actor = resolveActor(observationView, actorId, observation);
@@ -1830,6 +1830,13 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     nearestHostile: nearestThreat?.actor ?? null,
     configuredIds: new Set(configured.map((other) => other?.id).filter(Boolean)),
     tick: Number.isFinite(tick) ? tick : 0,
+    // #675: how adventurous its pick among the tactics that fire is (the level's, priced by the
+    // Allocator), and the seeded coin it draws with: same seed, same draws.
+    temperament: payload?.initialState?.temperaments?.[actorId] ?? 0,
+    // The coin is the level's seed unless the actor or the caller names one, so two seeds draw apart.
+    random: () => deterministicRandom(resolveActorRandomSeed(observationView, actorId,
+      { ...payload, seed: payload?.seed ?? payload?.simConfig?.seed }, personaSeed),
+      actorId, Number.isFinite(tick) ? tick : 0, TEMPERAMENT_SALT),
     tileKinds: resolveTileKinds(observationView, payload),
     baseTiles,
     reservedTargets: payload?.reservedTargets,
@@ -1890,6 +1897,9 @@ function resolveCognitionTurn({ entry, payload, observationView, actorId, ...res
   if (!turn) return null;
   return { ...turn, entry: { ...turn.entry, adopted: goal } };
 }
+
+/** #675: the salt of the temperament coin, apart from the actor's other seeded draws. */
+const TEMPERAMENT_SALT = 675;
 
 /** #251 — how close an escort keeps to its ally when no distance is authored. */
 export const ESCORT_DEFAULT_DISTANCE = 2;
@@ -2071,7 +2081,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
         // #408: a minion whose leader could not pay its upkeep follows no strategy or order (kept,
         // where it stood) and runs its own motivations until the bond holds again.
         strategyTurn = resolveStrategyTurn({ entry: progress, payload, observation, observationView, simConfig,
-          actorId: strategyActorId, tick, baseTiles });
+          actorId: strategyActorId, tick, baseTiles, personaSeed });
         if (strategyTurn) strategyEntry = strategyTurn.entry;
       }
     }

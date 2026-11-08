@@ -752,6 +752,10 @@ living minion bound to it: base-costs `upkeep.minion_upkeep_mana` (1). The run l
 on the HUD. It is in-game mana, not tokens: like emit upkeep, it is not a receipt line; the minion's
 own actor price (its motivations, vitals and affinities) is what the level pays for it.
 
+**Temperament (#675).** `actor_temperament` (base-costs `actor`, 5) is quadratic: an actor of
+temperament n pays n² × 5 tokens, on the receipt and in `calculateActorConfigurationUnitCost` alike.
+Temperament 0 costs nothing and is the default, so a level that authors none pays nothing new.
+
 T3.1a exposes this contract through `pricing.runtimeActionCosts()` and
 `issueRuntimeBudgetReceipt({ outcomes, meta })`. T3.1b captures each actual application outcome in the
 runtime, asks that live Allocator instance to issue the receipt, and persists the returned artifact as

@@ -1543,6 +1543,12 @@ export interface InitialStateArtifactV1 {
    * loader refuses a map that disagrees with them.
    */
   leaders?: Record<string, string>;
+  /**
+   * #675: each actor's temperament, keyed by actor ID: how adventurous its pick among the
+   * tactics that fire is. Optional and additive; a whole number above 0 (an actor left out
+   * takes the first tactic that fires). Only the Actor reads it; the Allocator prices it.
+   */
+  temperaments?: Record<string, number>;
 }
 
 /** #251: the ally an `escorting` actor keeps near, and within how many tiles. */

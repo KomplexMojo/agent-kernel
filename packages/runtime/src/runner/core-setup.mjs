@@ -33,7 +33,7 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     || ['hazards', 'resources', 'actors', 'tiles', 'kinds'].some(key => Object.hasOwn(data, key))) {
     throw new Error('expected normalized grid terrain without category storage');
   }
-  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation', 'strategies', 'escorts', 'leaders'].includes(key))) {
+  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation', 'strategies', 'escorts', 'leaders', 'temperaments'].includes(key))) {
     throw new Error('unexpected initial-state fields');
   }
   const registry = createActorRegistry({ dimensions: { width: data.width, height: data.height },
