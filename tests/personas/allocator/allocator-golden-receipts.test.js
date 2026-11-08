@@ -1,7 +1,7 @@
 /**
  * P0.2 — GOLDEN RECEIPTS (Persona Enforcement Program, local-codex/Plan.md)
  *
- * Reruns three canonical `ak create` builds and deep-compares every
+ * Reruns three canonical `agon create` builds and deep-compares every
  * economy-relevant artifact against committed goldens in
  * tests/fixtures/goldens/create-g{1,2,3}/. The builds are fully deterministic
  * (verified byte-identical across runs on 2026-07-18), so ANY diff here means
@@ -28,7 +28,7 @@ const { resolve, join } = require("node:path");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const GOLDENS = resolve(ROOT, "tests/fixtures/goldens");
 const CREATED_AT = "2026-07-18T00:00:00.000Z";
 
@@ -64,7 +64,7 @@ const SPECS = {
 };
 
 function runGolden(name) {
-  const dir = mkdtempSync(join(os.tmpdir(), `ak-golden-${name}-`));
+  const dir = mkdtempSync(join(os.tmpdir(), `agon-golden-${name}-`));
   const result = spawnSync(
     process.execPath,
     [CLI, ...SPECS[name], "--created-at", CREATED_AT, "--out-dir", dir],

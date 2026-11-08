@@ -1,8 +1,8 @@
 /**
  * #422 — level difficulty grades H (easiest) to S (ultra hard). The Allocator owns the
  * table (base-costs.json): each grade is a budget and a dungeon/delver split, applied to
- * the build's pools so the delver pool holds the delver share. `ak create --grade` (and
- * `grade` on ak_create) sets both; an explicit --budget-tokens wins and is reported.
+ * the build's pools so the delver pool holds the delver share. `agon create --grade` (and
+ * `grade` on agon_create) sets both; an explicit --budget-tokens wins and is reported.
  */
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -11,7 +11,7 @@ const { join, resolve } = require("node:path");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const CREATED_AT = "2026-10-24T00:00:00.000Z";
 
 async function pricing() {
@@ -20,7 +20,7 @@ async function pricing() {
 }
 
 function create(args) {
-  const dir = mkdtempSync(join(os.tmpdir(), "ak-grade-"));
+  const dir = mkdtempSync(join(os.tmpdir(), "agon-grade-"));
   const result = spawnSync(process.execPath, [CLI, "create", "--created-at", CREATED_AT, "--out-dir", dir, ...args], { encoding: "utf8" });
   const line = result.stdout.trim().split("\n").at(-1) || "{}";
   let parsed = {};
@@ -115,5 +115,5 @@ test("grade S gives the dungeon side at least 75% of the budget", () => {
 
 // ## TODO: Test Permutations
 // - each grade x each affinity (the rotation above covers every grade and every kind once)
-// - ak_create's `grade` field maps to --grade and returns the same result
+// - agon_create's `grade` field maps to --grade and returns the same result
 // - a playtest built with --grade records the grade in its report and rebuilds with it (--open)

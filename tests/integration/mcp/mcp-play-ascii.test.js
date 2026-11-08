@@ -1,7 +1,7 @@
-// ak_play_ascii — the harness path from a request to the ASCII UI.
+// agon_play_ascii — the harness path from a request to the ASCII UI.
 //
-// "Create an ascii UI filled with water affinity traps" is two MCP calls: ak_create
-// with water hazards, then ak_play_ascii with that call's runId. These tests run
+// "Create an ascii UI filled with water affinity traps" is two MCP calls: agon_create
+// with water hazards, then agon_play_ascii with that call's runId. These tests run
 // the real MCP server over stdio and drive exactly that sequence.
 
 const assert = require("node:assert/strict");
@@ -15,7 +15,7 @@ function startServer() {
   const child = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
     // Port 0: an OS-chosen sandbox bridge port, so parallel servers never collide.
-    env: { ...process.env, AK_SANDBOX_BRIDGE_PORT: "0" },
+    env: { ...process.env, AGON_SANDBOX_BRIDGE_PORT: "0" },
     stdio: ["pipe", "pipe", "pipe"],
   });
   let buffer = "";
@@ -66,16 +66,16 @@ function startServer() {
 
 const WATER_TRAP = { affinity: "water", expression: "emit", proximityRadius: 1, mana: "one-time:30" };
 
-test("ak_create with water traps, then ak_play_ascii by runId, shows the board with its traps", async () => {
+test("agon_create with water traps, then agon_play_ascii by runId, shows the board with its traps", async () => {
   const server = startServer();
   try {
     await server.initialize();
     const { tools } = await server.request("tools/list", {});
-    const tool = tools.find((entry) => entry.name === "ak_play_ascii");
-    assert.ok(tool, "ak_play_ascii is listed");
-    assert.match(tool.description, /ak_create/);
+    const tool = tools.find((entry) => entry.name === "agon_play_ascii");
+    assert.ok(tool, "agon_play_ascii is listed");
+    assert.match(tool.description, /agon_create/);
 
-    const created = await server.callTool("ak_create", {
+    const created = await server.callTool("agon_create", {
       text: "Create an ascii UI filled with water affinity traps",
       room: ["size=small;count=3"],
       delver: ["count=1;affinity=wind;motivation=exploring"],
@@ -86,12 +86,12 @@ test("ak_create with water traps, then ak_play_ascii by runId, shows the board w
     assert.equal(created.ok, true, JSON.stringify(created));
 
     // Fog of war is on by default; fog: false shows the whole level that was made.
-    const fogged = await server.callTool("ak_play_ascii", { runId: "water-traps-mcp" });
+    const fogged = await server.callTool("agon_play_ascii", { runId: "water-traps-mcp" });
     assert.equal(fogged.ok, true, JSON.stringify(fogged));
     assert.match(fogged.screen, /\?{5}/, "unseen cells are ?");
     assert.match(tool.description, /fog: false/);
 
-    const shown = await server.callTool("ak_play_ascii", { runId: "water-traps-mcp", fog: false });
+    const shown = await server.callTool("agon_play_ascii", { runId: "water-traps-mcp", fog: false });
     assert.equal(shown.ok, true, JSON.stringify(shown));
     assert.equal(shown.command, "play");
     assert.equal(shown.turns, 0);
@@ -100,29 +100,29 @@ test("ak_create with water traps, then ak_play_ascii by runId, shows the board w
     assert.match(shown.screen, /@/);
     assert.match(shown.screen, /Mind the traps \(☼\)/);
     assert.doesNotMatch(shown.screen, /\u001b\[/, "plain text unless colour is asked for");
-    assert.match(shown.launch, /ak\.mjs play --sim-config .*sim-config\.json --initial-state .*initial-state\.json$/);
+    assert.match(shown.launch, /agon\.mjs play --sim-config .*sim-config\.json --initial-state .*initial-state\.json$/);
 
-    const moved = await server.callTool("ak_play_ascii", { runId: "water-traps-mcp", keys: "w." });
+    const moved = await server.callTool("agon_play_ascii", { runId: "water-traps-mcp", keys: "w." });
     assert.equal(moved.ok, true, JSON.stringify(moved));
     assert.equal(moved.turns, 2);
     assert.equal(moved.status.tick, 2);
 
-    const colored = await server.callTool("ak_play_ascii", { runId: "water-traps-mcp", color: true });
+    const colored = await server.callTool("agon_play_ascii", { runId: "water-traps-mcp", color: true });
     assert.match(colored.screen, /\u001b\[48;2;/);
   } finally {
     await server.close();
   }
 });
 
-test("ak_play_ascii shows a bundled level, and refuses a directory with no level", async () => {
+test("agon_play_ascii shows a bundled level, and refuses a directory with no level", async () => {
   const server = startServer();
   try {
     await server.initialize();
-    const bundled = await server.callTool("ak_play_ascii", { level: "trap-rooms" });
+    const bundled = await server.callTool("agon_play_ascii", { level: "trap-rooms" });
     assert.equal(bundled.ok, true, JSON.stringify(bundled));
     assert.equal(bundled.level, "trap-rooms");
     await assert.rejects(
-      server.callTool("ak_play_ascii", { dir: resolve(ROOT, "no-such-run-dir") }),
+      server.callTool("agon_play_ascii", { dir: resolve(ROOT, "no-such-run-dir") }),
       /No sim-config\.json/,
     );
   } finally {
@@ -130,11 +130,11 @@ test("ak_play_ascii shows a bundled level, and refuses a directory with no level
   }
 });
 
-test("ak_play_ascii watches an ak_run run by runId, tick by tick, with every actor drawn", async () => {
+test("agon_play_ascii watches an agon_run run by runId, tick by tick, with every actor drawn", async () => {
   const server = startServer();
   try {
     await server.initialize();
-    const created = await server.callTool("ak_create", {
+    const created = await server.callTool("agon_create", {
       room: ["size=small;count=2"],
       delver: ["count=1;motivation=exploring"],
       warden: ["count=1;affinity=light;motivation=random"],
@@ -142,10 +142,10 @@ test("ak_play_ascii watches an ak_run run by runId, tick by tick, with every act
       createdAt: "2026-10-13T00:00:00.000Z",
     });
     assert.equal(created.ok, true, JSON.stringify(created));
-    const ran = await server.callTool("ak_run", { fromRun: "watch-mcp", runId: "watch-mcp-run", ticks: 4 });
+    const ran = await server.callTool("agon_run", { fromRun: "watch-mcp", runId: "watch-mcp-run", ticks: 4 });
     assert.equal(ran.ok, true, JSON.stringify(ran));
 
-    const start = await server.callTool("ak_play_ascii", { runId: "watch-mcp-run", watch: true });
+    const start = await server.callTool("agon_play_ascii", { runId: "watch-mcp-run", watch: true });
     assert.equal(start.ok, true, JSON.stringify(start));
     assert.equal(start.tick, 0);
     assert.equal(start.maxTick, 4);
@@ -154,10 +154,10 @@ test("ak_play_ascii watches an ak_run run by runId, tick by tick, with every act
     assert.doesNotMatch(start.screen, /\?{3}/);
     assert.match(start.launch, /play --dir .* --watch --tick 0$/);
 
-    const later = await server.callTool("ak_play_ascii", { runId: "watch-mcp-run", watch: true, tick: 4 });
+    const later = await server.callTool("agon_play_ascii", { runId: "watch-mcp-run", watch: true, tick: 4 });
     assert.equal(later.tick, 4);
     assert.notEqual(later.screen, start.screen, "the run moved someone");
-    const stepped = await server.callTool("ak_play_ascii", { runId: "watch-mcp-run", watch: true, tick: 4, keys: ",,[" });
+    const stepped = await server.callTool("agon_play_ascii", { runId: "watch-mcp-run", watch: true, tick: 4, keys: ",,[" });
     assert.equal(stepped.tick, 0);
     assert.equal(stepped.screen, start.screen);
   } finally {
@@ -165,8 +165,8 @@ test("ak_play_ascii watches an ak_run run by runId, tick by tick, with every act
   }
 });
 
-// #204 over MCP: the same record/replay `ak play` has.
-test("ak_play_ascii records a game and replays it to the same result", async () => {
+// #204 over MCP: the same record/replay `agon play` has.
+test("agon_play_ascii records a game and replays it to the same result", async () => {
   const { mkdtempSync, rmSync } = require("node:fs");
   const { tmpdir } = require("node:os");
   const { join } = require("node:path");
@@ -175,9 +175,9 @@ test("ak_play_ascii records a game and replays it to the same result", async () 
   try {
     await server.initialize();
     const capture = join(dir, "game.json");
-    const played = await server.callTool("ak_play_ascii", { level: "first-steps", keys: "dds.", record: capture });
+    const played = await server.callTool("agon_play_ascii", { level: "first-steps", keys: "dds.", record: capture });
     assert.equal(played.ok, true, JSON.stringify(played));
-    const replayed = await server.callTool("ak_play_ascii", { replay: capture });
+    const replayed = await server.callTool("agon_play_ascii", { replay: capture });
     assert.equal(replayed.ok, true, JSON.stringify(replayed));
     assert.equal(replayed.level, played.level);
     assert.equal(replayed.turns, played.turns);
@@ -189,8 +189,8 @@ test("ak_play_ascii records a game and replays it to the same result", async () 
 });
 
 // ## TODO: Test Permutations
-// - ak_play_ascii with dir set to an ak_create outDir
-// - ak_play_ascii with simConfig/initialState paths, and with only one of them
-// - ak_play_ascii runId of an ak_run call (run directory layout)
+// - agon_play_ascii with dir set to an agon_create outDir
+// - agon_play_ascii with simConfig/initialState paths, and with only one of them
+// - agon_play_ascii runId of an agon_run call (run directory layout)
 // - keys that reach the exit and step through (status.exited)
-// - watch with dir set to an ak_run outDir, and a tick past the run's last
+// - watch with dir set to an agon_run outDir, and a tick past the run's last

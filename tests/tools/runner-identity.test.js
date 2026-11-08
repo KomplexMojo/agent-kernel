@@ -37,7 +37,7 @@ test("a machine's identity is stable across calls, so its own runs stay comparab
 test("identity is derived, not configured, so a second runner cannot collide by omission", () => {
   // The failure being prevented is one of forgetting. An unset environment must still be distinct.
   const withoutEnv = runnerIdentity({}, APPLE_MAC);
-  const withEnv = runnerIdentity({ AK_BENCHMARK_RUNNER_LABEL: "m3-pro" }, APPLE_MAC);
+  const withEnv = runnerIdentity({ AGON_BENCHMARK_RUNNER_LABEL: "m3-pro" }, APPLE_MAC);
   assert.equal(withoutEnv.id, withEnv.id, "a label must not change which machine this is");
   assert.equal(withoutEnv.label, null);
   assert.equal(withEnv.label, "m3-pro");
@@ -45,7 +45,7 @@ test("identity is derived, not configured, so a second runner cannot collide by 
 
 test("the published identity carries no hostname, address, port or route", () => {
   // This lands on a branch of a PUBLIC repository, under the same rule as the heartbeat.
-  const serialized = JSON.stringify(runnerIdentity({ AK_BENCHMARK_RUNNER_LABEL: "box" }, LINUX_BOX));
+  const serialized = JSON.stringify(runnerIdentity({ AGON_BENCHMARK_RUNNER_LABEL: "box" }, LINUX_BOX));
   for (const leak of ["darren-LLM", "darren-mac", "11434", "127.0.0.1", "192.168"]) {
     assert.ok(!serialized.includes(leak), `runner identity leaked ${leak}: ${serialized}`);
   }

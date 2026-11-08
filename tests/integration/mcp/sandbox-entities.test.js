@@ -1,7 +1,7 @@
 // M3 — Sandbox entity placement MCP contract tests.
 //
 // Tools tested:
-//   ak_sandbox_place — place and configure entities in an existing sandbox session
+//   agon_sandbox_place — place and configure entities in an existing sandbox session
 //
 // Placement rules tested:
 //   - Valid hazard placement → ok: true, sim-config.json + initial-state.json written
@@ -11,7 +11,7 @@
 //   - Multiple placements accumulate actors in InitialState
 //
 // Regression:
-//   - ak_sandbox_create must still work (sanity)
+//   - agon_sandbox_create must still work (sanity)
 
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
@@ -173,15 +173,15 @@ function makeTempDir(prefix) {
 // Tool discovery
 // ---------------------------------------------------------------------------
 
-test("mcp tools/list includes ak_sandbox_place", async () => {
+test("mcp tools/list includes agon_sandbox_place", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const listing = await harness.listTools();
     const names = listing.tools.map((t) => t.name);
     assert.ok(
-      names.includes("ak_sandbox_place"),
-      `Expected ak_sandbox_place in tools/list, got: ${names.join(", ")}`,
+      names.includes("agon_sandbox_place"),
+      `Expected agon_sandbox_place in tools/list, got: ${names.join(", ")}`,
     );
   } finally {
     await harness.close();
@@ -192,19 +192,19 @@ test("mcp tools/list includes ak_sandbox_place", async () => {
 // Happy path — single entity placement
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_place places a hazard entity and returns ok: true", async () => {
+test("mcp agon_sandbox_place places a hazard entity and returns ok: true", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-hazard-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    const placeResult = await harness.callTool("ak_sandbox_place", {
+    const placeResult = await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "hazard",
       spec: "id=hazard_fire;x=4;y=4;affinity=fire;expression=emit;stacks=2",
@@ -219,19 +219,19 @@ test("mcp ak_sandbox_place places a hazard entity and returns ok: true", async (
   }
 });
 
-test("mcp ak_sandbox_place places a delver entity", async () => {
+test("mcp agon_sandbox_place places a delver entity", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-delver-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -245,19 +245,19 @@ test("mcp ak_sandbox_place places a delver entity", async () => {
   }
 });
 
-test("mcp ak_sandbox_place places a warden entity", async () => {
+test("mcp agon_sandbox_place places a warden entity", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-warden-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "warden",
       spec: "id=warden_1;x=2;y=1;affinity=fire;motivation=defending",
@@ -271,19 +271,19 @@ test("mcp ak_sandbox_place places a warden entity", async () => {
   }
 });
 
-test("mcp ak_sandbox_place places a hazard entity", async () => {
+test("mcp agon_sandbox_place places a hazard entity", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-hazard-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "hazard",
       spec: "id=hazard_1;x=3;y=2;affinity=dark;expression=emit;stacks=1;blocking=false",
@@ -296,19 +296,19 @@ test("mcp ak_sandbox_place places a hazard entity", async () => {
   }
 });
 
-test("mcp ak_sandbox_place places a resource entity", async () => {
+test("mcp agon_sandbox_place places a resource entity", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-resource-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "resource",
       spec: "id=res_1;x=3;y=3;permanenceMode=level;vital=stamina;delta=1",
@@ -325,19 +325,19 @@ test("mcp ak_sandbox_place places a resource entity", async () => {
 // Artifact persistence
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_place writes sim-config.json and initial-state.json", async () => {
+test("mcp agon_sandbox_place writes sim-config.json and initial-state.json", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-files-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -354,26 +354,26 @@ test("mcp ak_sandbox_place writes sim-config.json and initial-state.json", async
   }
 });
 
-test("mcp ak_sandbox_place writes a bundle.json sibling so a later ak_run can reach the UI", async () => {
-  // ak_run's M7-gap-3 stitching only carries a post-run GameplayBundle forward when the
-  // run's --sim-config path has a sibling bundle.json (ak-impl.mjs ~line 2165) — otherwise
-  // it's treated as a bare fixture run and stays bundle-free. ak_create writes that sibling;
+test("mcp agon_sandbox_place writes a bundle.json sibling so a later agon_run can reach the UI", async () => {
+  // agon_run's M7-gap-3 stitching only carries a post-run GameplayBundle forward when the
+  // run's --sim-config path has a sibling bundle.json (agon-impl.mjs ~line 2165) — otherwise
+  // it's treated as a bare fixture run and stays bundle-free. agon_create writes that sibling;
   // the sandbox tools never did, so nothing placed/moved in a sandbox session could ever
-  // reach ak_push_to_ui. This is the fix: ak_sandbox_place now writes a minimal (spec-less —
+  // reach agon_push_to_ui. This is the fix: agon_sandbox_place now writes a minimal (spec-less —
   // sandbox sessions have no BuildSpec/cardSet to offer) bundle.json placeholder alongside
-  // sim-config.json, which is enough for ak_run's existing detection to pick up unmodified.
+  // sim-config.json, which is enough for agon_run's existing detection to pick up unmodified.
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-bundle-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    const placeResult = await harness.callTool("ak_sandbox_place", {
+    const placeResult = await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -390,11 +390,11 @@ test("mcp ak_sandbox_place writes a bundle.json sibling so a later ak_run can re
     assert.equal(bundle.artifacts.length, 1);
     assert.equal(bundle.artifacts[0].schema, "agon/ResourceBundleArtifact");
 
-    // A second placement must not clobber a bundle.json ak_run may have already upgraded
-    // in place (ak-impl.mjs's own "upgrade that sibling bundle.json in place" comment) —
+    // A second placement must not clobber a bundle.json agon_run may have already upgraded
+    // in place (agon-impl.mjs's own "upgrade that sibling bundle.json in place" comment) —
     // simulate that by writing a marker and confirming a further place call leaves it alone.
     writeFileSync(join(outDir, "bundle.json"), JSON.stringify({ marker: "upgraded-by-run" }));
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "warden",
       spec: "id=warden_1;x=5;y=5;affinity=dark;motivation=defending",
@@ -406,19 +406,19 @@ test("mcp ak_sandbox_place writes a bundle.json sibling so a later ak_run can re
   }
 });
 
-test("mcp ak_sandbox_place updates session artifacts index with all refs", async () => {
+test("mcp agon_sandbox_place updates session artifacts index with all refs", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-refs-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "hazard",
       spec: "id=hazard_fire;x=4;y=4;affinity=fire;expression=emit;stacks=2",
@@ -441,25 +441,25 @@ test("mcp ak_sandbox_place updates session artifacts index with all refs", async
   }
 });
 
-test("mcp ak_sandbox_place second placement appends actor in InitialState", async () => {
+test("mcp agon_sandbox_place second placement appends actor in InitialState", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-multi-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
 
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
     });
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "warden",
       spec: "id=warden_1;x=2;y=1;affinity=fire;motivation=defending",
@@ -480,19 +480,19 @@ test("mcp ak_sandbox_place second placement appends actor in InitialState", asyn
 // Error: out-of-bounds placement
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_place rejects out-of-bounds position (999,999 in 10x10 room)", async () => {
+test("mcp agon_sandbox_place rejects out-of-bounds position (999,999 in 10x10 room)", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-oob-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
 
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: sessionPath,
       entityType: "hazard",
       spec: "id=bad_hazard;x=999;y=999;affinity=fire;expression=emit;stacks=1",
@@ -506,13 +506,13 @@ test("mcp ak_sandbox_place rejects out-of-bounds position (999,999 in 10x10 room
   }
 });
 
-test("mcp ak_sandbox_place prior session is not corrupted by rejected out-of-bounds placement", async () => {
+test("mcp agon_sandbox_place prior session is not corrupted by rejected out-of-bounds placement", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-oob-safe-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
@@ -521,7 +521,7 @@ test("mcp ak_sandbox_place prior session is not corrupted by rejected out-of-bou
     const sessionBefore = readFileSync(sessionPath, "utf8");
 
     // Attempt out-of-bounds placement
-    await harness.callToolRaw("ak_sandbox_place", {
+    await harness.callToolRaw("agon_sandbox_place", {
       session: sessionPath,
       entityType: "hazard",
       spec: "id=bad_hazard;x=999;y=999;affinity=fire;expression=emit;stacks=1",
@@ -540,13 +540,13 @@ test("mcp ak_sandbox_place prior session is not corrupted by rejected out-of-bou
 // If session validation fails, no artifact files should be written to disk.
 // ---------------------------------------------------------------------------
 
-test("mcp ak_sandbox_place does not write artifact files when session validation fails", async () => {
+test("mcp agon_sandbox_place does not write artifact files when session validation fails", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-validate-order-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
@@ -559,7 +559,7 @@ test("mcp ak_sandbox_place does not write artifact files when session validation
     writeFileSync(sessionPath, JSON.stringify(session, null, 2), "utf8");
 
     // Attempt placement — validation must fail because of invalid entityCategories
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring",
@@ -595,8 +595,8 @@ test("mcp ak_sandbox_place does not write artifact files when session validation
   }
 });
 
-test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-authored scene can actually reach the UI", async () => {
-  // The end-to-end point of the bundle.json fix above: ak_sandbox_create's own tool
+test("mcp sandbox_create -> sandbox_place -> agon_run -> agon_push_to_ui: a sandbox-authored scene can actually reach the UI", async () => {
+  // The end-to-end point of the bundle.json fix above: agon_sandbox_create's own tool
   // description says "the foundation for Phaser rendering" — this asserts that promise is
   // actually true via the documented MCP tool chain, not just that a file gets written.
   const harness = new McpServerHarness();
@@ -604,20 +604,20 @@ test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-
     await harness.initialize();
     const sandboxDir = makeTempDir("agon-sandbox-e2e-");
 
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir: sandboxDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
 
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
     });
 
     const runOutDir = makeTempDir("agon-sandbox-e2e-run-");
-    const runResult = await harness.callTool("ak_run", {
+    const runResult = await harness.callTool("agon_run", {
       simConfig: join(sandboxDir, "sim-config.json"),
       initialState: join(sandboxDir, "initial-state.json"),
       ticks: 1,
@@ -625,7 +625,7 @@ test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-
     });
 
     const runBundlePath = join(runOutDir, "bundle.json");
-    assert.equal(existsSync(runBundlePath), true, "ak_run must stitch a bundle.json now that its sim-config input has a bundle.json sibling");
+    assert.equal(existsSync(runBundlePath), true, "agon_run must stitch a bundle.json now that its sim-config input has a bundle.json sibling");
     const bundle = JSON.parse(readFileSync(runBundlePath, "utf8"));
     assert.equal(bundle.schema, "agon/GameplayBundle");
     assert.equal(Array.isArray(bundle.tickFrames), true);
@@ -633,7 +633,7 @@ test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-
 
     // Finding #9: the room grid alone rendering (it only needs simConfig) was not proof the
     // scene was actually visible — actor sprites separately need a ResourceBundleArtifact,
-    // which ak_run only carries forward from a create-bundle sibling that already has one.
+    // which agon_run only carries forward from a create-bundle sibling that already has one.
     // Confirmed by direct instrumentation of the browser's actor draw loop that a bundle
     // missing this artifact resolves every actor's sprite asset to null with no error, so
     // this is the one thing standing between "delivered" and "actually visible."
@@ -654,12 +654,12 @@ test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-
       "actor.delver must be a real, loadable asset entry, not just a mapping key",
     );
 
-    // callToolRaw, not callTool: ak_push_to_ui can legitimately return ok:false for reasons
+    // callToolRaw, not callTool: agon_push_to_ui can legitimately return ok:false for reasons
     // unrelated to this test (e.g. SANDBOX_BRIDGE_START_FAILED if another concurrently-
     // spawned server.mjs already holds port 38487 — an accepted, honestly-reported class of
     // flakiness under vitest's parallelism, not a bug). What this test actually asserts is
     // narrower: whatever the outcome, it must not be "no bundle found here."
-    const pushResult = await harness.callToolRaw("ak_push_to_ui", {
+    const pushResult = await harness.callToolRaw("agon_push_to_ui", {
       outDir: runOutDir,
       targetTab: "gameplay",
       requireClient: false,
@@ -668,23 +668,23 @@ test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-
     assert.notEqual(
       pushResult.bundleNotFound,
       true,
-      `ak_push_to_ui must find the stitched bundle, not report bundleNotFound: ${JSON.stringify(pushResult)}`,
+      `agon_push_to_ui must find the stitched bundle, not report bundleNotFound: ${JSON.stringify(pushResult)}`,
     );
   } finally {
     await harness.close();
   }
 });
 
-test("mcp ak_sandbox_place rejects leftover wall-rim occupancy at 0,0", async () => {
+test("mcp agon_sandbox_place rejects leftover wall-rim occupancy at 0,0", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-corner-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_corner;x=0;y=0;affinity=water;motivation=exploring",
@@ -696,22 +696,22 @@ test("mcp ak_sandbox_place rejects leftover wall-rim occupancy at 0,0", async ()
   }
 });
 
-test("mcp ak_sandbox_place replaces existing actor by id", async () => {
+test("mcp agon_sandbox_place replaces existing actor by id", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-replace-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
     });
-    await harness.callTool("ak_sandbox_place", {
+    await harness.callTool("agon_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
       spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring",
@@ -725,16 +725,16 @@ test("mcp ak_sandbox_place replaces existing actor by id", async () => {
   }
 });
 
-test("mcp ak_sandbox_place writes presentation category matching entityType", async () => {
+test("mcp agon_sandbox_place writes presentation category matching entityType", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-category-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "hazard",
       spec: "id=hazard_1;x=3;y=3;affinity=fire;expression=emit;stacks=1",
@@ -746,16 +746,16 @@ test("mcp ak_sandbox_place writes presentation category matching entityType", as
   }
 });
 
-test("mcp ak_sandbox_place writes SimConfig terrain walls on the border", async () => {
+test("mcp agon_sandbox_place writes SimConfig terrain walls on the border", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-terrain-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -771,16 +771,16 @@ test("mcp ak_sandbox_place writes SimConfig terrain walls on the border", async 
   }
 });
 
-test("mcp ak_sandbox_place writes ResourceBundle schemaVersion 2", async () => {
+test("mcp agon_sandbox_place writes ResourceBundle schemaVersion 2", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-bundle-ver-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -792,16 +792,16 @@ test("mcp ak_sandbox_place writes ResourceBundle schemaVersion 2", async () => {
   }
 });
 
-test("mcp ak_sandbox_place rejects wall-rim occupancy at 9,9 in 10x10", async () => {
+test("mcp agon_sandbox_place rejects wall-rim occupancy at 9,9 in 10x10", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-max-rim-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_rim;x=9;y=9;affinity=water;motivation=exploring",
@@ -813,16 +813,16 @@ test("mcp ak_sandbox_place rejects wall-rim occupancy at 9,9 in 10x10", async ()
   }
 });
 
-test("mcp ak_sandbox_place rejects x=10 in 10x10 as out of bounds", async () => {
+test("mcp agon_sandbox_place rejects x=10 in 10x10 as out of bounds", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-x10-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_oob;x=10;y=1;affinity=water;motivation=exploring",
@@ -834,16 +834,16 @@ test("mcp ak_sandbox_place rejects x=10 in 10x10 as out of bounds", async () => 
   }
 });
 
-test("mcp ak_sandbox_place rejects spec missing x or y", async () => {
+test("mcp agon_sandbox_place rejects spec missing x or y", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-missing-xy-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_1;y=1;affinity=water;motivation=exploring",
@@ -855,16 +855,16 @@ test("mcp ak_sandbox_place rejects spec missing x or y", async () => {
   }
 });
 
-test("mcp ak_sandbox_place rejects non-integer x or y", async () => {
+test("mcp agon_sandbox_place rejects non-integer x or y", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-nonint-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_1;x=1.5;y=2;affinity=water;motivation=exploring",
@@ -876,16 +876,16 @@ test("mcp ak_sandbox_place rejects non-integer x or y", async () => {
   }
 });
 
-test("mcp ak_sandbox_place handles missing id deterministically", async () => {
+test("mcp agon_sandbox_place handles missing id deterministically", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-noid-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "x=1;y=1;affinity=water;motivation=exploring",
@@ -897,16 +897,16 @@ test("mcp ak_sandbox_place handles missing id deterministically", async () => {
   }
 });
 
-test("mcp ak_sandbox_place rejects unsupported entityType with structured error", async () => {
+test("mcp agon_sandbox_place rejects unsupported entityType with structured error", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-bad-type-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "ambulatory",
       spec: "id=actor_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -918,11 +918,11 @@ test("mcp ak_sandbox_place rejects unsupported entityType with structured error"
   }
 });
 
-test("mcp ak_sandbox_place rejects missing session path with structured error", async () => {
+test("mcp agon_sandbox_place rejects missing session path with structured error", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: "",
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -934,11 +934,11 @@ test("mcp ak_sandbox_place rejects missing session path with structured error", 
   }
 });
 
-test("mcp ak_sandbox_place rejects non-existent session file with structured error", async () => {
+test("mcp agon_sandbox_place rejects non-existent session file with structured error", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(os.tmpdir(), "agon-missing-sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
@@ -950,18 +950,18 @@ test("mcp ak_sandbox_place rejects non-existent session file with structured err
   }
 });
 
-test("mcp ak_sandbox_place supports non-default room dimensions 20x15", async () => {
+test("mcp agon_sandbox_place supports non-default room dimensions 20x15", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-wide-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
       width: 20,
       height: 15,
     });
-    const result = await harness.callTool("ak_sandbox_place", {
+    const result = await harness.callTool("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "id=delver_wide;x=10;y=7;affinity=water;motivation=exploring",
@@ -983,16 +983,16 @@ test("mcp ak_sandbox_place supports non-default room dimensions 20x15", async ()
   }
 });
 
-test("mcp ak_sandbox_place handles malformed spec string deterministically", async () => {
+test("mcp agon_sandbox_place handles malformed spec string deterministically", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
     const outDir = makeTempDir("agon-sandbox-place-malformed-");
-    const createResult = await harness.callTool("ak_sandbox_create", {
+    const createResult = await harness.callTool("agon_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
       outDir,
     });
-    const result = await harness.callToolRaw("ak_sandbox_place", {
+    const result = await harness.callToolRaw("agon_sandbox_place", {
       session: join(createResult.outDir, "sandbox-session.json"),
       entityType: "delver",
       spec: "not-a-spec",

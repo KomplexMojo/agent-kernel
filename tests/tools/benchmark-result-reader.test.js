@@ -62,7 +62,7 @@ test('published result validation refuses schema, scenario, matrix, and executio
 });
 
 test('reader distinguishes the latest attempt from the latest qualifying result', () => {
-  const repo = mkdtempSync(join(tmpdir(), 'ak-result-reader-'));
+  const repo = mkdtempSync(join(tmpdir(), 'agon-result-reader-'));
   git(repo, ['init']);
   git(repo, ['config', 'user.email', 'benchmark@example.invalid']);
   git(repo, ['config', 'user.name', 'Benchmark Fixture']);
@@ -88,7 +88,7 @@ test('reader distinguishes the latest attempt from the latest qualifying result'
 });
 
 test('legacy v1 remains readable only as historical incomparable evidence', () => {
-  const repo = mkdtempSync(join(tmpdir(), 'ak-result-reader-v1-'));
+  const repo = mkdtempSync(join(tmpdir(), 'agon-result-reader-v1-'));
   git(repo, ['init']);
   git(repo, ['config', 'user.email', 'benchmark@example.invalid']);
   git(repo, ['config', 'user.name', 'Benchmark Fixture']);
@@ -105,7 +105,7 @@ test('legacy v1 remains readable only as historical incomparable evidence', () =
 });
 
 test('missing latest success reports no qualifying evidence', () => {
-  const repo = mkdtempSync(join(tmpdir(), 'ak-result-reader-empty-success-'));
+  const repo = mkdtempSync(join(tmpdir(), 'agon-result-reader-empty-success-'));
   git(repo, ['init']);
   git(repo, ['config', 'user.email', 'benchmark@example.invalid']);
   git(repo, ['config', 'user.name', 'Benchmark Fixture']);

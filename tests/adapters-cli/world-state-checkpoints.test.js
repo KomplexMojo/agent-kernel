@@ -7,7 +7,7 @@ const os = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 function runCli(args) {
   return spawnSync(process.execPath, [CLI, ...args], { cwd: ROOT, encoding: "utf8" });
@@ -98,8 +98,8 @@ function flameMana(checkpoint) {
   return checkpoint.actors.find((actor) => actor.id === "flame").vitals.mana.current;
 }
 
-test("ak run emits only requested WorldStateArtifact checkpoints", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoints-"));
+test("agon run emits only requested WorldStateArtifact checkpoints", async () => {
+  const root = mkdtempSync(join(os.tmpdir(), "agon-world-state-checkpoints-"));
   try {
     const paths = await writeArtifacts(root);
     const outDir = join(root, "with-checkpoints");
@@ -143,7 +143,7 @@ test("ak run emits only requested WorldStateArtifact checkpoints", async () => {
 });
 
 test("run dry-run validates and reports normalized checkpoint ticks", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-dry-run-"));
+  const root = mkdtempSync(join(os.tmpdir(), "agon-world-state-checkpoint-dry-run-"));
   try {
     const paths = await writeArtifacts(root);
     const result = runCli([...runArgs(join(root, "out"), "0,1,3", paths), "--dry-run"]);
@@ -178,7 +178,7 @@ test("the checkpoint source reports live equipment and holdings", async () => {
 });
 
 test("world-state checkpoints are opt-in and deterministic after metadata normalization", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-determinism-"));
+  const root = mkdtempSync(join(os.tmpdir(), "agon-world-state-checkpoint-determinism-"));
   try {
     const paths = await writeArtifacts(root);
     const ordinaryDir = join(root, "ordinary");
@@ -210,7 +210,7 @@ test("world-state checkpoints are opt-in and deterministic after metadata normal
 // its own clock: the run's seeded clock times every tick frame, and drawing from it per
 // checkpoint would make asking for checkpoints change every other output.
 test("world-state checkpoints are byte-identical across runs and leave other outputs untouched", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-bytes-"));
+  const root = mkdtempSync(join(os.tmpdir(), "agon-world-state-checkpoint-bytes-"));
   try {
     const paths = await writeArtifacts(root);
     const firstDir = join(root, "first");
@@ -243,7 +243,7 @@ test("world-state checkpoints are byte-identical across runs and leave other out
 });
 
 test("world-state checkpoint validation fails closed", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-invalid-"));
+  const root = mkdtempSync(join(os.tmpdir(), "agon-world-state-checkpoint-invalid-"));
   try {
     const paths = await writeArtifacts(root);
     const invalid = [

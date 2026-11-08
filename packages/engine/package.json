@@ -1,6 +1,6 @@
 {
   "name": "@agon-engine/engine",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Agon, a deterministic simulation engine where players and AI agents contest under one rule set. Built bundle of the public API.",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -20,7 +20,7 @@
   },
   "exports": {
     "./package.json": "./package.json",
-    "./adapters-cli/cli/ak.mjs": "./dist/adapters-cli/cli/ak.mjs",
+    "./adapters-cli/cli/agon.mjs": "./dist/adapters-cli/cli/agon.mjs",
     "./adapters-cli/cli/playtest-scenarios.js": "./dist/adapters-cli/cli/playtest-scenarios.js",
     "./adapters-web/adapters/solver-recorded/index.js": "./dist/adapters-web/adapters/solver-recorded/index.js",
     "./runtime/commands/author-level.js": "./dist/runtime/commands/author-level.js",

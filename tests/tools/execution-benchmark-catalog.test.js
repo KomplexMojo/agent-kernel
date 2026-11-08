@@ -18,7 +18,7 @@ function collectPredicateLeaves(predicate) {
 }
 
 function copyCatalog() {
-  const dir = mkdtempSync(join(tmpdir(), "ak-execution-catalog-"));
+  const dir = mkdtempSync(join(tmpdir(), "agon-execution-catalog-"));
   for (const file of ["contract.json", ...FAMILIES.map((family) => `${family}.json`)]) {
     cpSync(join(EXECUTION_CATALOG_DIR, file), join(dir, file));
   }

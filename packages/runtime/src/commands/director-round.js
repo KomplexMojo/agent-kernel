@@ -28,7 +28,7 @@ import { INTENT_ENVELOPE_SCHEMA } from "../contracts/artifacts.ts";
  * ⚠️ **THE DERIVATION IS NOT A CONVENIENCE — IT IS WHAT LET THE LAST BOUNDARY ROWS CLOSE.**
  * This function required `createdAt` outright while `buildspec-assembler.js`, the module it
  * fronts, has always stamped `createdAt || requireClock(clock, "director")()`. So the round
- * opener refused inputs the assembler accepts, and routing `ui-flow.js` and `ak-impl.mjs`
+ * opener refused inputs the assembler accepts, and routing `ui-flow.js` and `agon-impl.mjs`
  * through the persona would have THROWN where they work today —
  * `ui-web/card-builder-controller.js` passes a live clock with `createdAt: undefined`, and
  * `cli-worker/shared.js` forwards an opaque payload. The two allowlist rows were blocked on
@@ -97,7 +97,7 @@ export function beginDirectorBuildCapabilities(options = {}) {
 /**
  * The same capability set, taken from a round the caller ALREADY has open.
  *
- * Split out 2026-08-12 (P5.1 item D): `ak-impl.mjs`'s llm-plan path now opens one round for
+ * Split out 2026-08-12 (P5.1 item D): `agon-impl.mjs`'s llm-plan path now opens one round for
  * the whole build — the loop's capabilities, the cardSet builder, and the BuildSpec
  * assembly that closes it — where each branch used to open its own. A caller in that
  * position must not call `beginDirectorBuildCapabilities`: that opens a SECOND round for one

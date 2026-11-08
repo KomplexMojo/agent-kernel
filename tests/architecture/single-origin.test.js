@@ -298,8 +298,8 @@ const SINGLE_ORIGIN_GUARDS = [
     forbiddenPattern: PRICE_OR_BUDGET_CONSTANT,
     // ⚠️ SCOPE IS `packages`, NOT `packages/runtime/src` — widened at CR.9 M5 after the
     // narrow scope hid a live violation through the entire milestone that closed CR.1.
-    // `adapters-cli/src/cli/ak-impl.mjs` held AUTHORING_POOL_WEIGHT_DEFAULTS, a fourth
-    // copy of the budget split, and it is the one that actually drives `ak create` — so a
+    // `adapters-cli/src/cli/agon-impl.mjs` held AUTHORING_POOL_WEIGHT_DEFAULTS, a fourth
+    // copy of the budget split, and it is the one that actually drives `agon create` — so a
     // retune of the canonical split in base-costs.json changed nothing on the real path
     // and the guard reported clean. The economy does not stop at the runtime package, and
     // neither may the guard that protects it.

@@ -60,7 +60,7 @@ import {
 } from "./candidate-authoring.js";
 import { maximizeActorBudget } from "./budget-maximizer.js";
 // configurator/actors (2026-08-18) — defaulting, enum validation and assembly of a
-// build/run request's delver roster entry, moved out of ak-impl.mjs's CLI glue.
+// build/run request's delver roster entry, moved out of agon-impl.mjs's CLI glue.
 import { authorActorEquipment, authorDelverCandidate, authorMotivations, composeStrategyRecipeMotivations, equipOmissionWarnings } from "./actor-authoring.js";
 import { configurationRecipe, configurationRecipeNames, describeConfigurationRecipes, expandConfigurationRecipe } from "./recipes.js";
 /**
@@ -434,7 +434,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     assessFeasibility,
     authorCandidates,
     // configurator/actors — a build/run request's delver roster entry, published so
-    // ak-impl.mjs stops defaulting/validating/assembling it inline.
+    // agon-impl.mjs stops defaulting/validating/assembling it inline.
     authorDelverCandidate,
     // Playable vs companion — an actor's motivations, one per family, user_controlled
     // only when asked for. The warden spec parser reaches it here.

@@ -378,7 +378,7 @@ export function partyLine(party) {
 
 /**
  * One plain line about the seated actor (who, vitals, tick), for a status line outside
- * the game such as Claude Code's (`ak play-session` writes it to a file).
+ * the game such as Claude Code's (`agon play-session` writes it to a file).
  */
 export function hudLine(view, { turns } = {}) {
   const player = view.player;

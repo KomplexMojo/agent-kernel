@@ -24,7 +24,7 @@ if [[ -z "$OUT_DIR" ]]; then
   OUT_DIR="$RUN_DIR/replay"
 fi
 
-node "$ROOT/packages/adapters-cli/src/cli/ak.mjs" replay \
+node "$ROOT/packages/adapters-cli/src/cli/agon.mjs" replay \
   --sim-config "$SIM_CONFIG" \
   --initial-state "$INITIAL_STATE" \
   --tick-frames "$TICK_FRAMES" \

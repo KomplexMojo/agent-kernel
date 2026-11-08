@@ -2,7 +2,7 @@
  * run-viewer.js — a recorded run, tick by tick, in the play session's view shape.
  *
  * `createPlaySession` drives a live game; this reads a run that already happened
- * (`ak run`'s tick frames) so the same UI (`packages/ui-ascii`) can show it. Every
+ * (`agon run`'s tick frames) so the same UI (`packages/ui-ascii`) can show it. Every
  * `apply` tick frame carries the actor registry as core left it at the end of that
  * tick (`emittedSnapshot.view.registry`), so a tick's view is that recorded
  * snapshot drawn through `buildPlayView`. Nothing is re-simulated or re-decided

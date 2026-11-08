@@ -1,7 +1,7 @@
 # Legacy Deepward brand kit
 
 > **Legacy.** These assets were made for the game when it was called Deepward. The game is now **Primordial**, and its
-> brand art belongs in the Primordial repository (Primordial#7). **Agon** is the engine's name (packages, `ak`, the MCP
+> brand art belongs in the Primordial repository (Primordial#7). **Agon** is the engine's name (packages, `agon`, the MCP
 > server, schema ids). The README no longer uses the banner or progress badge. Remove this folder once the art has moved.
 
 ## Voice

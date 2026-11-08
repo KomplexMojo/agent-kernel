@@ -19,8 +19,8 @@
  * and level-gen enforces it with structured element_on_wall errors.
  *
  * Seam driven (same seam the MCP server uses):
- *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
- *   -> packages/adapters-cli/src/cli/ak-impl.mjs executeCommand("create", argv)
+ *   packages/adapters-cli/src/mcp/tools/authoring.mjs agon_create buildArgs
+ *   -> packages/adapters-cli/src/cli/agon-impl.mjs executeCommand("create", argv)
  */
 "use strict";
 
@@ -29,13 +29,13 @@ const { mkdtempSync, rmSync, readFileSync, existsSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 let authoringToolsModule;
 
 async function loadModules() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   authoringToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  return { ak_impl, authoringToolsModule };
+  return { agon_impl, authoringToolsModule };
 }
 
 function findTool(tools, name) {
@@ -207,7 +207,7 @@ describe("universal element placement invariant (walkable tile under every game 
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-element-placement-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-element-placement-"));
   });
 
   afterAll(() => {
@@ -216,12 +216,12 @@ describe("universal element placement invariant (walkable tile under every game 
 
   for (const [index, shape] of SHAPES.entries()) {
     test(`${shape.name}: every positioned element sits on a walkable tile`, async () => {
-      const { ak_impl, authoringToolsModule } = await loadModules();
-      const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+      const { agon_impl, authoringToolsModule } = await loadModules();
+      const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
       const dir = join(outDir, `shape-${index}`);
       const result = await runCliCommand(
-        ak_impl.executeCommand,
+        agon_impl.executeCommand,
         createTool.command,
         createTool.buildArgs({
           ...shape.args,

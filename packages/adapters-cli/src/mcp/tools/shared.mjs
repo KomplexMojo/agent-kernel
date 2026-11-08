@@ -41,7 +41,7 @@ export const entitySpecSchema = (description) => ({
 });
 
 // Canonical serializer: converts a structured entity spec object into the
-// semicolon-delimited key=value string that ak.mjs CLI flags expect.
+// semicolon-delimited key=value string that agon.mjs CLI flags expect.
 // Passes plain strings through unchanged so the function is idempotent.
 export function specObjectToString(spec) {
   if (typeof spec === "string") return spec;

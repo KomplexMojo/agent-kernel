@@ -201,9 +201,9 @@ run `python3 scripts/setup/patch-serena-ignored-dirs.py` yourself and restart th
 
 # Agon CLI & MCP under Cursor
 
-The repo ships its own tool surface: the `ak` CLI and the `agon-cli` MCP server (the
-structured-tool version of the CLI — 49 `ak_*` tools for authoring, simulation, inspection, LLM
-planning, IPFS, blockchain, and the `ak_test_*` harness). Full tool reference:
+The repo ships its own tool surface: the `agon` CLI and the `agon-cli` MCP server (the
+structured-tool version of the CLI — 49 `agon_*` tools for authoring, simulation, inspection, LLM
+planning, IPFS, blockchain, and the `agon_test_*` harness). Full tool reference:
 `packages/adapters-cli/src/mcp/README.md`.
 
 Both import `.ts` modules directly, so they need **Node ≥ 22.18** (native type stripping) — the same
@@ -216,7 +216,7 @@ also meet. Run `pnpm install` once so the MCP server's deps (`@modelcontextproto
 The CLI is plain shell; a Cursor agent runs it the same way you would:
 
 ```bash
-node packages/adapters-cli/src/cli/ak.mjs create \
+node packages/adapters-cli/src/cli/agon.mjs create \
   --room "size=small;count=1" \
   --delver "count=1;affinity=fire;motivation=attacking" \
   --warden "count=1;affinity=dark;motivation=defending"
@@ -224,8 +224,8 @@ pnpm run demo:cli     # fixture-driven CLI walkthrough
 pnpm run mcp:serve    # start the MCP server manually (stdio)
 ```
 
-The package also exposes `ak-persona` and `ak-mcp` bins:
-`pnpm --dir packages/adapters-cli exec ak-persona --help`.
+The package also exposes `agon-persona` and `agon-mcp` bins:
+`pnpm --dir packages/adapters-cli exec agon-persona --help`.
 
 ## MCP — register `agon-cli`
 
@@ -243,10 +243,10 @@ surfaces and `mcp.json` is gitignored, so nothing is committed as the live confi
    `/workspace/packages/adapters-cli/src/mcp/server.mjs`, and env
    `NODE_OPTIONS=--experimental-strip-types --disable-warning=ExperimentalWarning` (guards against the
    VM's default older `node` shim). `.cursor/install.sh` already makes the VM ready (`pnpm install`
-   + native-TS node). Until this dashboard step is done, cloud agents won't see the `ak_*` tools.
+   + native-TS node). Until this dashboard step is done, cloud agents won't see the `agon_*` tools.
 
 Verify a registration by listing tools — the server reports `name: "agon-cli"` and 49 tools;
-`tools/call ak_create {…, "dryRun": true}` returns a validated result without writing artifacts. The
+`tools/call agon_create {…, "dryRun": true}` returns a validated result without writing artifacts. The
 `tools/list` handshake snippet is in `packages/adapters-cli/src/mcp/README.md`.
 
 ---

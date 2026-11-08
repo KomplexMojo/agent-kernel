@@ -1,6 +1,6 @@
 /**
  * The run viewer shows a recorded run in the play session's view shape, so the
- * terminal UI can draw `ak run` output the way it draws a live game. Each tick's
+ * terminal UI can draw `agon run` output the way it draws a live game. Each tick's
  * view must be what the run recorded at that tick, never a re-simulation.
  */
 import assert from "node:assert/strict";

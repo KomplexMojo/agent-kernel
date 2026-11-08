@@ -22,6 +22,6 @@ if [[ -f "$EFFECTS_LOG" ]]; then
   ARGS+=(--effects-log "$EFFECTS_LOG")
 fi
 
-node "$ROOT/packages/adapters-cli/src/cli/ak.mjs" inspect "${ARGS[@]}"
+node "$ROOT/packages/adapters-cli/src/cli/agon.mjs" inspect "${ARGS[@]}"
 
 echo "inspect: wrote $OUT_DIR"

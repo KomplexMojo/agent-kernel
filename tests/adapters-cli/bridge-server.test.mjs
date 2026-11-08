@@ -19,7 +19,7 @@ import {
 // Uses browser-style addEventListener (Node 22 built-in WebSocket API)
 function createTestClient(port) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ak-sandbox`);
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/agon-sandbox`);
     ws.addEventListener("open", () => resolve(ws));
     ws.addEventListener("error", (e) => reject(e.error ?? new Error("ws error")));
   });
@@ -68,13 +68,13 @@ test("bridge-server: rejects non-loopback host", async () => {
   );
 });
 
-test("bridge-server: client sends ak.uiReady.v1 and is tracked", async () => {
+test("bridge-server: client sends agon.uiReady.v1 and is tracked", async () => {
   const { port, stop } = await startSandboxBridgeServer({ port: 0 });
   let ws;
   try {
     ws = await createTestClient(port);
     ws.send(JSON.stringify({
-      type: "ak.uiReady.v1",
+      type: "agon.uiReady.v1",
       clientId: "test-client-1",
       createdAt: new Date().toISOString(),
       capabilities: { loadGameplayBundle: true, setActiveTab: true },
@@ -97,7 +97,7 @@ test("bridge-server: pushGameplayBundle delivers exact envelope to connected cli
 
     // Announce ready
     ws.send(JSON.stringify({
-      type: "ak.uiReady.v1",
+      type: "agon.uiReady.v1",
       clientId: "test-client-2",
       createdAt: new Date().toISOString(),
       capabilities: {},
@@ -105,26 +105,26 @@ test("bridge-server: pushGameplayBundle delivers exact envelope to connected cli
     await new Promise((r) => setTimeout(r, 30));
 
     const envelope = {
-      type: "ak.gameplayBundle.v1",
+      type: "agon.gameplayBundle.v1",
       id: "msg_test_001",
       createdAt: new Date().toISOString(),
       targetTab: "gameplay",
       payload: {
         bundle: { simConfig: { schema: "agon/SimConfigArtifact", schemaVersion: 1, meta: { id: "sc1" } } },
-        source: { tool: "ak_sandbox_push_ui" },
+        source: { tool: "agon_sandbox_push_ui" },
       },
     };
 
     // Set up ACK + message capture before push
-    const receivePromise = waitForMessage(ws, (m) => m.type === "ak.gameplayBundle.v1");
+    const receivePromise = waitForMessage(ws, (m) => m.type === "agon.gameplayBundle.v1");
 
     // Push with ACK timeout — client won't ACK so expect timedOut
     const pushPromise = pushGameplayBundle(envelope);
 
     const received = await receivePromise;
-    assert.equal(received.type, "ak.gameplayBundle.v1");
+    assert.equal(received.type, "agon.gameplayBundle.v1");
     assert.equal(received.id, "msg_test_001");
-    assert.deepEqual(received.payload.source, { tool: "ak_sandbox_push_ui" });
+    assert.deepEqual(received.payload.source, { tool: "agon_sandbox_push_ui" });
 
     // Let push finish (it will time out waiting for ACK since our test client doesn't ACK)
     const result = await pushPromise;
@@ -146,7 +146,7 @@ test("bridge-server: pushGameplayBundle with ACK returns deliveredClientIds", as
     ws = await createTestClient(port);
 
     ws.send(JSON.stringify({
-      type: "ak.uiReady.v1",
+      type: "agon.uiReady.v1",
       clientId: "test-ack-client",
       createdAt: new Date().toISOString(),
       capabilities: {},
@@ -155,7 +155,7 @@ test("bridge-server: pushGameplayBundle with ACK returns deliveredClientIds", as
 
     const messageId = "msg_ack_test";
     const envelope = {
-      type: "ak.gameplayBundle.v1",
+      type: "agon.gameplayBundle.v1",
       id: messageId,
       createdAt: new Date().toISOString(),
       targetTab: "gameplay",
@@ -166,9 +166,9 @@ test("bridge-server: pushGameplayBundle with ACK returns deliveredClientIds", as
     ws.addEventListener("message", (event) => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
-      if (msg?.type === "ak.gameplayBundle.v1") {
+      if (msg?.type === "agon.gameplayBundle.v1") {
         ws.send(JSON.stringify({
-          type: "ak.bundleLoaded.v1",
+          type: "agon.bundleLoaded.v1",
           clientId: "test-ack-client",
           messageId: msg.id,
           loadedAt: new Date().toISOString(),
@@ -190,7 +190,7 @@ test("bridge-server: replay window sends latest bundle to late-connecting client
   const { port, stop } = await startSandboxBridgeServer({ port: 0 });
   try {
     const envelope = {
-      type: "ak.gameplayBundle.v1",
+      type: "agon.gameplayBundle.v1",
       id: "msg_replay_001",
       createdAt: new Date().toISOString(),
       targetTab: "gameplay",
@@ -203,10 +203,10 @@ test("bridge-server: replay window sends latest bundle to late-connecting client
 
     // Now a late-connecting client should receive the replay
     const ws = await createTestClient(port);
-    const receivePromise = waitForMessage(ws, (m) => m.type === "ak.gameplayBundle.v1");
+    const receivePromise = waitForMessage(ws, (m) => m.type === "agon.gameplayBundle.v1");
 
     ws.send(JSON.stringify({
-      type: "ak.uiReady.v1",
+      type: "agon.uiReady.v1",
       clientId: "late-client",
       createdAt: new Date().toISOString(),
       capabilities: {},

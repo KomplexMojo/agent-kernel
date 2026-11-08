@@ -10,11 +10,11 @@
 - Tool count: `57`
 - Tool source: `packages/adapters-cli/src/mcp/tools/*.mjs`
 
-The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/ak-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
+The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/agon-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
 
 ## Mental Model
 
-The MCP server is the structured-tool version of `ak.mjs`. It does not create a separate runtime path:
+The MCP server is the structured-tool version of `agon.mjs`. It does not create a separate runtime path:
 
 ```text
 MCP client -> agon-cli MCP server -> adapters-cli command -> runtime -> core-ts
@@ -40,16 +40,16 @@ Use the CLI directly when you want:
 
 | Workflow | MCP tools | Typical result |
 | --- | --- | --- |
-| Author content | `ak_create`, `ak_configure`, `ak_room_plan`, `ak_delver_plan`, `ak_warden_plan`, `ak_hazard_plan`, `ak_resource_plan` | BuildSpec, bundle, manifest, runtime inputs |
-| Build and execute | `ak_build`, `ak_configurator`, `ak_run`, `ak_replay`, `ak_budget`, `ak_scenario` | Run artifacts, TickFrames, budget receipts |
-| Inspect outputs | `ak_show`, `ak_diff`, `ak_runs_list`, `ak_inspect`, `ak_narrate`, `ak_schemas` | Summaries, schema catalog, narrative output |
-| LLM planning | `ak_llm`, `ak_ollama`, `ak_llm_plan` | Captured LLM responses and generated artifacts |
-| External adapters | `ak_ipfs`, `ak_ipfs_publish`, `ak_ipfs_load`, `ak_blockchain`, `ak_blockchain_mint`, `ak_blockchain_load` | Adapter response artifacts |
-| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`, `ak_play_ascii`, `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`, `ak_play_tick`, `ak_play_end` | Sandbox session, action sequence, tick/ASCII/image state, the terminal UI board |
-| Test authoring | `ak_test_list_suites`, `ak_test_discover_patterns`, `ak_test_plan_from_change`, `ak_test_run`, `ak_test_scaffold_case`, `ak_test_insert_case`, `ak_test_explain_failure`, `ak_test_lint_structure` | Inventory summaries, scaffolded test files, run results |
-| Workflow | `ak_workflow_run`, `ak_workflow_status`, `ak_workflow_replay`, `ak_workflow_cancel`, `ak_workflow_validate` | Durable AdaptiveWorkflowAgent run state |
+| Author content | `agon_create`, `agon_configure`, `agon_room_plan`, `agon_delver_plan`, `agon_warden_plan`, `agon_hazard_plan`, `agon_resource_plan` | BuildSpec, bundle, manifest, runtime inputs |
+| Build and execute | `agon_build`, `agon_configurator`, `agon_run`, `agon_replay`, `agon_budget`, `agon_scenario` | Run artifacts, TickFrames, budget receipts |
+| Inspect outputs | `agon_show`, `agon_diff`, `agon_runs_list`, `agon_inspect`, `agon_narrate`, `agon_schemas` | Summaries, schema catalog, narrative output |
+| LLM planning | `agon_llm`, `agon_ollama`, `agon_llm_plan` | Captured LLM responses and generated artifacts |
+| External adapters | `agon_ipfs`, `agon_ipfs_publish`, `agon_ipfs_load`, `agon_blockchain`, `agon_blockchain_mint`, `agon_blockchain_load` | Adapter response artifacts |
+| Sandbox / interactive | `agon_sandbox_create`, `agon_sandbox_place`, `agon_sandbox_move`, `agon_push_to_ui`, `agon_show_state`, `agon_tick_forward`, `agon_tick_backward`, `agon_play_ascii`, `agon_play_start`, `agon_play_act`, `agon_play_view`, `agon_play_switch`, `agon_play_order`, `agon_play_advance`, `agon_play_tick`, `agon_play_end` | Sandbox session, action sequence, tick/ASCII/image state, the terminal UI board |
+| Test authoring | `agon_test_list_suites`, `agon_test_discover_patterns`, `agon_test_plan_from_change`, `agon_test_run`, `agon_test_scaffold_case`, `agon_test_insert_case`, `agon_test_explain_failure`, `agon_test_lint_structure` | Inventory summaries, scaffolded test files, run results |
+| Workflow | `agon_workflow_run`, `agon_workflow_status`, `agon_workflow_replay`, `agon_workflow_cancel`, `agon_workflow_validate` | Durable AdaptiveWorkflowAgent run state |
 
-The most common agent loop is: `ak_create` or `ak_llm_plan` -> `ak_run` -> `ak_show`/`ak_inspect` -> `ak_narrate` or `ak_diff`.
+The most common agent loop is: `agon_create` or `agon_llm_plan` -> `agon_run` -> `agon_show`/`agon_inspect` -> `agon_narrate` or `agon_diff`.
 
 ## Quick Start
 
@@ -64,7 +64,7 @@ node packages/adapters-cli/src/mcp/server.mjs
 Alternative package-bin entrypoint:
 
 ```bash
-pnpm --dir packages/adapters-cli exec ak-mcp
+pnpm --dir packages/adapters-cli exec agon-mcp
 ```
 
 ### Verify with `tools/list`
@@ -129,7 +129,7 @@ function request(method, params) {
 EOF
 ```
 
-`delver` and `warden` specs also take `slots` and `equip`, as `ak create` does: `"count=1;affinity=earth;affinities=earth:push:3,growth:emit:1;slots=3;equip=earth:push:2,growth:emit"`, or as an object `{ "affinity": "earth", "slots": 3, "equip": [{ "kind": "earth", "expression": "push", "stacks": 2 }, "growth:emit"] }`. Slots run from 1 to the preset (delver 3, warden 2); buying more is retired (2026-10-30), and affinities past the slots are carried as a pack.
+`delver` and `warden` specs also take `slots` and `equip`, as `agon create` does: `"count=1;affinity=earth;affinities=earth:push:3,growth:emit:1;slots=3;equip=earth:push:2,growth:emit"`, or as an object `{ "affinity": "earth", "slots": 3, "equip": [{ "kind": "earth", "expression": "push", "stacks": 2 }, "growth:emit"] }`. Slots run from 1 to the preset (delver 3, warden 2); buying more is retired (2026-10-30), and affinities past the slots are carried as a pack.
 
 Expected output shape:
 
@@ -141,11 +141,11 @@ Expected output shape:
   },
   "toolCount": 50,
   "firstTools": [
-    "ak_create",
-    "ak_configure",
-    "ak_room_plan",
-    "ak_delver_plan",
-    "ak_warden_plan"
+    "agon_create",
+    "agon_configure",
+    "agon_room_plan",
+    "agon_delver_plan",
+    "agon_warden_plan"
   ]
 }
 ```
@@ -157,7 +157,7 @@ Expected output shape:
 The repository root carries a project-scoped `.mcp.json` that registers this server as
 `agon-cli`. It starts from the repository root whatever directory Claude Code was
 opened in, and `.claude/settings.json` enables it and pre-allows the game tools
-(`ak_play_ascii`, `ak_create`, `ak_run`, `ak_show`, the tick tools and the other read-only
+(`agon_play_ascii`, `agon_create`, `agon_run`, `agon_show`, the tick tools and the other read-only
 inspection tools), so a session in this repository needs no setup. Check it with:
 
 ```bash
@@ -197,7 +197,7 @@ If your Claude harness accepts a JSON `mcpServers` block, use:
 For prompt-level steering in `CLAUDE.md`, add:
 
 ```md
-Use the `agon-cli` MCP server for Agon authoring, simulation, inspection, LLM planning, and external adapter operations. Prefer the `ak_*` MCP tools over shelling out to the CLI when the MCP server is available.
+Use the `agon-cli` MCP server for Agon authoring, simulation, inspection, LLM planning, and external adapter operations. Prefer the `agon_*` MCP tools over shelling out to the CLI when the MCP server is available.
 ```
 
 #### Codex
@@ -230,7 +230,7 @@ In `AGENTS.md`, add an instruction block so Codex actually uses the configured s
 ```md
 ## MCP
 
-Use the `agon-cli` MCP server when working in this repository. Prefer the `ak_*` tools over shell commands for authoring, simulation, inspection, LLM planning, IPFS, and blockchain operations.
+Use the `agon-cli` MCP server when working in this repository. Prefer the `agon_*` tools over shell commands for authoring, simulation, inspection, LLM planning, IPFS, and blockchain operations.
 ```
 
 #### Ollama via Claude/Codex harness
@@ -240,70 +240,70 @@ Ollama is not a separate MCP harness here. It inherits whichever harness is host
 - Claude Code + Ollama-backed planning: use the Claude Code config above
 - Codex + Ollama-backed planning: use the Codex config above
 
-The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollama`, `ak_llm_plan`, and `ak_scenario` depend on the local Ollama endpoint.
+The MCP server stays the same. Only LLM-backed tools such as `agon_llm`, `agon_ollama`, `agon_llm_plan`, and `agon_scenario` depend on the local Ollama endpoint.
 
 ## Tool Index
 
 | Tool name | Group | Description | Key input parameters |
 | --- | --- | --- | --- |
-| ak_create | Authoring | Create a level from structured object specs; text alone authors nothing (use ak_llm_plan or ak_scenario for natural language). | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList, dryRun |
-| ak_configure | Authoring | Configure authored build artifacts from structured object specs. | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
-| ak_room_plan | Authoring | Build a room-only authoring plan. | room[], goal, dungeonAffinity, budgetTokens, budget, priceList |
-| ak_delver_plan | Authoring | Build a delver-only authoring plan. | delver[], goal, dungeonAffinity, budgetTokens, budget, priceList |
-| ak_warden_plan | Authoring | Build a warden-only authoring plan. | warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
-| ak_hazard_plan | Authoring | Build a hazard-only authoring plan. | hazard[], goal, dungeonAffinity, budgetTokens, budget, priceList |
-| ak_resource_plan | Authoring | Build a resource-only authoring plan. | resource[], goal, dungeonAffinity, budgetTokens, budget, priceList |
-| ak_build | Simulation | Build artifacts from a build spec. | spec |
-| ak_solve | Simulation | Pose a scenario to the constraint solver; `solved` says whether it answered. | scenario, plan, intent, options |
-| ak_run | Simulation | Run a simulation from artifacts or from an existing run. | simConfig, initialState, fromRun, executionPolicy, ticks, seed, actor[], vital[], vitalDefault[], tileWall[], tileBarrier[], tileFloor[], actions, affinityPresets, affinityLoadouts, affinitySummary, progress, dryRun |
-| ak_configurator | Simulation | Assemble simulation config and initial state inputs. | levelGen, actors, plan, budgetReceipt, budget, priceList, receiptOut, affinityPresets, affinityLoadouts |
-| ak_budget | Simulation | Compute a budget receipt from budget and price list artifacts. | budget, priceList, receipt, receiptOut |
-| ak_replay | Simulation | Replay a run deterministically from recorded tick frames. | simConfig, initialState, tickFrames, executionPolicy, ticks, seed |
-| ak_scenario | Simulation | Run llm-plan plus run plus inspect as a single scenario pipeline. | text, fromRun, simConfig, initialState, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve, ticks, seed, dryRun |
-| ak_schemas | Inspection | List the schema catalog used by the runtime. | outDir |
-| ak_inspect | Inspection | Inspect recorded tick frames and summarize effects. | tickFrames, effectsLog |
-| ak_narrate | Inspection | Generate a narrative artifact from frames and initial state. | tickFrames, initialState |
-| ak_show | Inspection | Show the indexed artifacts for an existing run. | runId |
-| ak_diff | Inspection | Diff two existing runs. | runA, runB |
-| ak_runs_list | Inspection | List indexed runs from the artifacts directory. | none |
-| ak_llm | LLM Planning | Run a single LLM prompt against the configured adapter. | model, prompt, baseUrl, fixture, out, outDir |
-| ak_ollama | LLM Planning | Alias for ak_llm using the Ollama-backed CLI command. | model, prompt, baseUrl, fixture, out, outDir |
-| ak_llm_plan | LLM Planning | Generate runnable artifacts from a scenario or freeform text via the LLM planner. | scenario, text, prompt, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve |
-| ak_ipfs | External Adapters | Fetch IPFS content through the CLI adapter. | cid, path, gateway, json, fixture, out, outDir |
-| ak_ipfs_publish | External Adapters | Publish artifact maps through the IPFS adapter. | artifactMap, path, gateway, fixtureCid, out, outDir |
-| ak_ipfs_load | External Adapters | Load artifact files from IPFS through the CLI adapter. | cid, path, file[], gateway, fixtureMap, out, outDir |
-| ak_blockchain | External Adapters | Inspect blockchain adapter state. | rpcUrl, address, fixtureChainId, fixtureBalance, out, outDir |
-| ak_blockchain_mint | External Adapters | Mint a card through the blockchain adapter. | rpcUrl, card, owner, contract, tokenId, fixtureChainId, fixtureMint, out, outDir |
-| ak_blockchain_load | External Adapters | Load a minted card through the blockchain adapter. | rpcUrl, tokenId, owner, contract, fixtureChainId, fixtureLoad, out, outDir |
-| ak_sandbox_create | Sandbox / Interactive | Create a standalone Phaser sandbox session with budget enforcement. | budgetReceipt, budget, width, height, entityCategories |
-| ak_sandbox_place | Sandbox / Interactive | Place and configure an entity in an existing sandbox session. | session, entityType, spec |
-| ak_sandbox_move | Sandbox / Interactive | Compose a single-tile move for an actor in a sandbox session. | session, actorId, direction, actionsOut |
-| ak_push_to_ui | Sandbox / Interactive | Deliver a compiled GameplayBundle to the connected browser UI over the sandbox bridge. | outDir, bundlePath, bundle, targetTab, requireClient, openBrowser, correlationId |
-| ak_show_state | Sandbox / Interactive | Show current dungeon state for a run at the session cursor tick. | runId, visualization |
-| ak_tick_forward | Sandbox / Interactive | Advance the interactive session cursor forward by one tick. | runId, visualization |
-| ak_tick_backward | Sandbox / Interactive | Rewind the interactive session cursor back by one tick. | runId, visualization |
-| ak_play_ascii | Sandbox / Interactive | Show (and optionally play) a level in the ASCII terminal UI, or watch a recorded run in it; returns the screen text and the command to open it interactively. | runId, dir, simConfig, initialState, level, keys, color, fog, record, replay, watch, tick |
-| ak_play_start | Sandbox / Interactive | Start a live game on a level, kept between calls, for turn-by-turn play. | session, runId, dir, simConfig, initialState, level, load, actor, commands, keys |
-| ak_play_act | Sandbox / Interactive | Play turns in a live game: a seat change, structured commands (labels allowed), keys. | session, actor, commands, keys, save |
-| ak_play_view | Sandbox / Interactive | Show a live game's board without playing; optionally save a copy. | session, save |
-| ak_play_switch | Sandbox / Interactive | Seat another party member (a user_controlled actor) for free. | session, actor |
-| ak_play_order | Sandbox / Interactive | Give a party member or friendly companion a new strategy (goals, tactics); one turn. | session, actor, strategy |
-| ak_play_advance | Sandbox / Interactive | Let a live game run up to n turns, or until orders are done or a hostile is in sight. | session, ticks, until |
-| ak_play_tick | Sandbox / Interactive | Run one tick commanding several ai_controlled actors at once (`{ id|label: command }`); refused entries are named, the rest run. | session, actorCommands, save |
-| ak_play_end | Sandbox / Interactive | End a live game, returning its final board. | session, save |
-| ak_test_list_suites | Test Authoring | List discovered test suites and current runner ownership. | none |
-| ak_test_discover_patterns | Test Authoring | Discover repo test recipes and matching files, optionally filtered. | runner, suite, recipe |
-| ak_test_plan_from_change | Test Authoring | Recommend runner scopes from changed paths. | paths[] |
-| ak_test_run | Test Authoring | Run the test harness inventory, Vitest, legacy, or combined matrix scripts. | mode, args[] |
-| ak_test_scaffold_case | Test Authoring | Scaffold a new test file from a limited structured recipe set. | recipe, targetFile, title, (recipe-specific fields) |
-| ak_test_insert_case | Test Authoring | Append a scaffolded case to an existing test file. | recipe, targetFile, title, (recipe-specific fields) |
-| ak_test_explain_failure | Test Authoring | Classify a test failure from runner output into migration-focused categories. | text |
-| ak_test_lint_structure | Test Authoring | Report structural migration gaps: uncategorized recipes and codemod exceptions. | none |
-| ak_workflow_run | Workflow | Run AdaptiveWorkflowAgent through the controlled CLI adapter. | input or objective, policy, runtimeProfile, model, maxModelAttempts |
-| ak_workflow_status | Workflow | Read durable workflow status. | outDir or runId |
-| ak_workflow_replay | Workflow | Replay a workflow run from recorded model content without live IO. | outDir or runId |
-| ak_workflow_cancel | Workflow | Request cancellation through durable workflow state. | outDir or runId, reason |
-| ak_workflow_validate | Workflow | Validate workflow input without model or execution calls. | input or objective, policy, runtimeProfile, model, maxModelAttempts |
+| agon_create | Authoring | Create a level from structured object specs; text alone authors nothing (use agon_llm_plan or agon_scenario for natural language). | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList, dryRun |
+| agon_configure | Authoring | Configure authored build artifacts from structured object specs. | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| agon_room_plan | Authoring | Build a room-only authoring plan. | room[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| agon_delver_plan | Authoring | Build a delver-only authoring plan. | delver[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| agon_warden_plan | Authoring | Build a warden-only authoring plan. | warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| agon_hazard_plan | Authoring | Build a hazard-only authoring plan. | hazard[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| agon_resource_plan | Authoring | Build a resource-only authoring plan. | resource[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| agon_build | Simulation | Build artifacts from a build spec. | spec |
+| agon_solve | Simulation | Pose a scenario to the constraint solver; `solved` says whether it answered. | scenario, plan, intent, options |
+| agon_run | Simulation | Run a simulation from artifacts or from an existing run. | simConfig, initialState, fromRun, executionPolicy, ticks, seed, actor[], vital[], vitalDefault[], tileWall[], tileBarrier[], tileFloor[], actions, affinityPresets, affinityLoadouts, affinitySummary, progress, dryRun |
+| agon_configurator | Simulation | Assemble simulation config and initial state inputs. | levelGen, actors, plan, budgetReceipt, budget, priceList, receiptOut, affinityPresets, affinityLoadouts |
+| agon_budget | Simulation | Compute a budget receipt from budget and price list artifacts. | budget, priceList, receipt, receiptOut |
+| agon_replay | Simulation | Replay a run deterministically from recorded tick frames. | simConfig, initialState, tickFrames, executionPolicy, ticks, seed |
+| agon_scenario | Simulation | Run llm-plan plus run plus inspect as a single scenario pipeline. | text, fromRun, simConfig, initialState, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve, ticks, seed, dryRun |
+| agon_schemas | Inspection | List the schema catalog used by the runtime. | outDir |
+| agon_inspect | Inspection | Inspect recorded tick frames and summarize effects. | tickFrames, effectsLog |
+| agon_narrate | Inspection | Generate a narrative artifact from frames and initial state. | tickFrames, initialState |
+| agon_show | Inspection | Show the indexed artifacts for an existing run. | runId |
+| agon_diff | Inspection | Diff two existing runs. | runA, runB |
+| agon_runs_list | Inspection | List indexed runs from the artifacts directory. | none |
+| agon_llm | LLM Planning | Run a single LLM prompt against the configured adapter. | model, prompt, baseUrl, fixture, out, outDir |
+| agon_ollama | LLM Planning | Alias for agon_llm using the Ollama-backed CLI command. | model, prompt, baseUrl, fixture, out, outDir |
+| agon_llm_plan | LLM Planning | Generate runnable artifacts from a scenario or freeform text via the LLM planner. | scenario, text, prompt, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve |
+| agon_ipfs | External Adapters | Fetch IPFS content through the CLI adapter. | cid, path, gateway, json, fixture, out, outDir |
+| agon_ipfs_publish | External Adapters | Publish artifact maps through the IPFS adapter. | artifactMap, path, gateway, fixtureCid, out, outDir |
+| agon_ipfs_load | External Adapters | Load artifact files from IPFS through the CLI adapter. | cid, path, file[], gateway, fixtureMap, out, outDir |
+| agon_blockchain | External Adapters | Inspect blockchain adapter state. | rpcUrl, address, fixtureChainId, fixtureBalance, out, outDir |
+| agon_blockchain_mint | External Adapters | Mint a card through the blockchain adapter. | rpcUrl, card, owner, contract, tokenId, fixtureChainId, fixtureMint, out, outDir |
+| agon_blockchain_load | External Adapters | Load a minted card through the blockchain adapter. | rpcUrl, tokenId, owner, contract, fixtureChainId, fixtureLoad, out, outDir |
+| agon_sandbox_create | Sandbox / Interactive | Create a standalone Phaser sandbox session with budget enforcement. | budgetReceipt, budget, width, height, entityCategories |
+| agon_sandbox_place | Sandbox / Interactive | Place and configure an entity in an existing sandbox session. | session, entityType, spec |
+| agon_sandbox_move | Sandbox / Interactive | Compose a single-tile move for an actor in a sandbox session. | session, actorId, direction, actionsOut |
+| agon_push_to_ui | Sandbox / Interactive | Deliver a compiled GameplayBundle to the connected browser UI over the sandbox bridge. | outDir, bundlePath, bundle, targetTab, requireClient, openBrowser, correlationId |
+| agon_show_state | Sandbox / Interactive | Show current dungeon state for a run at the session cursor tick. | runId, visualization |
+| agon_tick_forward | Sandbox / Interactive | Advance the interactive session cursor forward by one tick. | runId, visualization |
+| agon_tick_backward | Sandbox / Interactive | Rewind the interactive session cursor back by one tick. | runId, visualization |
+| agon_play_ascii | Sandbox / Interactive | Show (and optionally play) a level in the ASCII terminal UI, or watch a recorded run in it; returns the screen text and the command to open it interactively. | runId, dir, simConfig, initialState, level, keys, color, fog, record, replay, watch, tick |
+| agon_play_start | Sandbox / Interactive | Start a live game on a level, kept between calls, for turn-by-turn play. | session, runId, dir, simConfig, initialState, level, load, actor, commands, keys |
+| agon_play_act | Sandbox / Interactive | Play turns in a live game: a seat change, structured commands (labels allowed), keys. | session, actor, commands, keys, save |
+| agon_play_view | Sandbox / Interactive | Show a live game's board without playing; optionally save a copy. | session, save |
+| agon_play_switch | Sandbox / Interactive | Seat another party member (a user_controlled actor) for free. | session, actor |
+| agon_play_order | Sandbox / Interactive | Give a party member or friendly companion a new strategy (goals, tactics); one turn. | session, actor, strategy |
+| agon_play_advance | Sandbox / Interactive | Let a live game run up to n turns, or until orders are done or a hostile is in sight. | session, ticks, until |
+| agon_play_tick | Sandbox / Interactive | Run one tick commanding several ai_controlled actors at once (`{ id|label: command }`); refused entries are named, the rest run. | session, actorCommands, save |
+| agon_play_end | Sandbox / Interactive | End a live game, returning its final board. | session, save |
+| agon_test_list_suites | Test Authoring | List discovered test suites and current runner ownership. | none |
+| agon_test_discover_patterns | Test Authoring | Discover repo test recipes and matching files, optionally filtered. | runner, suite, recipe |
+| agon_test_plan_from_change | Test Authoring | Recommend runner scopes from changed paths. | paths[] |
+| agon_test_run | Test Authoring | Run the test harness inventory, Vitest, legacy, or combined matrix scripts. | mode, args[] |
+| agon_test_scaffold_case | Test Authoring | Scaffold a new test file from a limited structured recipe set. | recipe, targetFile, title, (recipe-specific fields) |
+| agon_test_insert_case | Test Authoring | Append a scaffolded case to an existing test file. | recipe, targetFile, title, (recipe-specific fields) |
+| agon_test_explain_failure | Test Authoring | Classify a test failure from runner output into migration-focused categories. | text |
+| agon_test_lint_structure | Test Authoring | Report structural migration gaps: uncategorized recipes and codemod exceptions. | none |
+| agon_workflow_run | Workflow | Run AdaptiveWorkflowAgent through the controlled CLI adapter. | input or objective, policy, runtimeProfile, model, maxModelAttempts |
+| agon_workflow_status | Workflow | Read durable workflow status. | outDir or runId |
+| agon_workflow_replay | Workflow | Replay a workflow run from recorded model content without live IO. | outDir or runId |
+| agon_workflow_cancel | Workflow | Request cancellation through durable workflow state. | outDir or runId, reason |
+| agon_workflow_validate | Workflow | Validate workflow input without model or execution calls. | input or objective, policy, runtimeProfile, model, maxModelAttempts |
 
 ## Tool Groups
 
@@ -322,13 +322,13 @@ Many tools accept these shared output controls:
 
 Purpose: turn freeform or structured dungeon/card requests into the canonical persisted handoff: `spec.json`, the budget triplet when present, `sim-config.json`, `initial-state.json`, `resource-bundle.json`, `bundle.json`, `manifest.json`, and `telemetry.json`. Use `emitIntermediates=true` to also persist non-canonical sidecars such as `request.json`, `intent.json`, `plan.json`, and captured inputs.
 
-#### `ak_create`
+#### `agon_create`
 
 Creates a level from structured object specs: rooms joined by corridors, hazards, resources,
 delvers and wardens. `text` is a label recorded with them and authors nothing on its own, so a
-call needs at least one object spec; a natural-language request goes to `ak_llm_plan` or
-`ak_scenario`. Supports dry-run validation: a dry run answers `ok: true` whenever the check
-ran, and `valid` (with `errors`) says whether the inputs pass. `ak_run` and `ak_scenario`
+call needs at least one object spec; a natural-language request goes to `agon_llm_plan` or
+`agon_scenario`. Supports dry-run validation: a dry run answers `ok: true` whenever the check
+ran, and `valid` (with `errors`) says whether the inputs pass. `agon_run` and `agon_scenario`
 dry runs answer the same way.
 
 Schema:
@@ -384,9 +384,9 @@ Expected output shape:
 }
 ```
 
-#### `ak_configure`
+#### `agon_configure`
 
-Same surface as `ak_create`, but runs the `configure` CLI command and does not expose `dryRun`.
+Same surface as `agon_create`, but runs the `configure` CLI command and does not expose `dryRun`.
 
 Schema:
 
@@ -438,7 +438,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_room_plan`
+#### `agon_room_plan`
 
 Room-only authoring flow.
 
@@ -485,7 +485,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_delver_plan`
+#### `agon_delver_plan`
 
 Delver-only authoring flow.
 
@@ -531,7 +531,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_warden_plan`
+#### `agon_warden_plan`
 
 Warden-only authoring flow.
 
@@ -577,7 +577,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_hazard_plan`
+#### `agon_hazard_plan`
 
 Hazard-only authoring flow.
 
@@ -623,7 +623,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_resource_plan`
+#### `agon_resource_plan`
 
 Resource-only authoring flow.
 
@@ -673,7 +673,7 @@ Expected output shape:
 
 Purpose: turn plans and artifacts into runnable configurations, execute deterministic runs, compute budgets, and chain planning plus execution.
 
-#### `ak_build`
+#### `agon_build`
 
 Schema:
 
@@ -709,7 +709,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_solve`
+#### `agon_solve`
 
 Schema:
 
@@ -755,7 +755,7 @@ serves only the `allocator_budget_fit` and `configurator_satisfiability` domains
 free-text scenario carries no domain, so it comes back `solved: false` with status
 `deferred`. A `--solver-fixture` replay reports the fixture's status.
 
-#### `ak_run`
+#### `agon_run`
 
 Schema:
 
@@ -815,7 +815,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_configurator`
+#### `agon_configurator`
 
 Schema:
 
@@ -859,7 +859,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_budget`
+#### `agon_budget`
 
 Schema:
 
@@ -896,7 +896,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_replay`
+#### `agon_replay`
 
 Schema:
 
@@ -935,7 +935,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_scenario`
+#### `agon_scenario`
 
 Schema:
 
@@ -997,7 +997,7 @@ Expected output shape:
 
 Purpose: inspect generated schemas and prior runs, summarize outputs, produce narratives, and compare or index historical runs.
 
-#### `ak_schemas`
+#### `agon_schemas`
 
 Schema:
 
@@ -1023,7 +1023,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_inspect`
+#### `agon_inspect`
 
 Schema:
 
@@ -1057,7 +1057,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_narrate`
+#### `agon_narrate`
 
 Schema:
 
@@ -1091,7 +1091,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_show`
+#### `agon_show`
 
 Schema:
 
@@ -1131,10 +1131,10 @@ Expected output shape:
 }
 ```
 
-#### `ak_diff`
+#### `agon_diff`
 
 Compares two runs. Runs made earlier in the same MCP session are read where the server wrote
-them; others come from `artifacts/runs/<runId>`. A run played with `ak_run {fromRun}` is
+them; others come from `artifacts/runs/<runId>`. A run played with `agon_run {fromRun}` is
 compared against the level embedded in its GameplayBundle.
 
 Schema:
@@ -1173,7 +1173,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_runs_list`
+#### `agon_runs_list`
 
 Schema:
 
@@ -1213,7 +1213,7 @@ Default values in this group:
 - `model`: `phi4`
 - `baseUrl`: `http://localhost:11434`
 
-#### `ak_llm`
+#### `agon_llm`
 
 Schema:
 
@@ -1251,9 +1251,9 @@ Expected output shape:
 }
 ```
 
-#### `ak_ollama`
+#### `agon_ollama`
 
-Alias for the Ollama-backed CLI command. Input schema matches `ak_llm`.
+Alias for the Ollama-backed CLI command. Input schema matches `agon_llm`.
 
 Schema:
 
@@ -1290,7 +1290,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_llm_plan`
+#### `agon_llm_plan`
 
 Schema:
 
@@ -1347,7 +1347,7 @@ Expected output shape:
 
 Purpose: expose IPFS and blockchain adapters behind the same MCP surface used by the CLI. These are adapter-layer tools only.
 
-#### `ak_ipfs`
+#### `agon_ipfs`
 
 Default gateway: `https://ipfs.io/ipfs`
 
@@ -1388,7 +1388,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_ipfs_publish`
+#### `agon_ipfs_publish`
 
 Schema:
 
@@ -1425,7 +1425,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_ipfs_load`
+#### `agon_ipfs_load`
 
 Schema:
 
@@ -1462,7 +1462,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_blockchain`
+#### `agon_blockchain`
 
 Schema:
 
@@ -1501,7 +1501,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_blockchain_mint`
+#### `agon_blockchain_mint`
 
 Schema:
 
@@ -1544,7 +1544,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_blockchain_load`
+#### `agon_blockchain_load`
 
 Schema:
 
@@ -1589,7 +1589,7 @@ Expected output shape:
 
 Purpose: drive the interactive Phaser sandbox (session creation, entity placement, actor movement, pushing a compiled bundle to a connected browser UI) and step/inspect a run's tick cursor for a live harness session.
 
-#### `ak_sandbox_create`
+#### `agon_sandbox_create`
 
 Creates a standalone sandbox session with budget enforcement. Requires `budgetReceipt` or `budget`. Returns `ok: false` with `budgetInsufficient: true` if the budget is denied or zero-token.
 
@@ -1631,7 +1631,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_sandbox_place`
+#### `agon_sandbox_place`
 
 Places and configures an entity in an existing sandbox session. Returns `ok: false` with `outOfBounds: true` when the position exceeds room dimensions.
 
@@ -1639,7 +1639,7 @@ Schema:
 
 | Parameter | Type | Required | Notes |
 | --- | --- | --- | --- |
-| session | string | yes | Path to the sandbox-session.json file created by `ak_sandbox_create` |
+| session | string | yes | Path to the sandbox-session.json file created by `agon_sandbox_create` |
 | entityType | string | yes | One of delver, warden, hazard, resource |
 | spec | string | yes | Semicolon-delimited key=value spec; required fields id, x, y, plus entity-specific fields |
 
@@ -1665,7 +1665,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_sandbox_move`
+#### `agon_sandbox_move`
 
 Composes a single-tile move for an actor and appends it to the ActionSequence at `actionsOut` (created if absent). Returns `ok: false` with `blockedByWall: true`, `actorNotFound: true`, or `outOfBounds: true` for the corresponding failure.
 
@@ -1701,11 +1701,11 @@ Expected output shape:
 }
 ```
 
-#### `ak_push_to_ui`
+#### `agon_push_to_ui`
 
-Delivers a compiled `agon/GameplayBundle` (produced by `ak_create` + `ak_run`) to the connected browser UI over the sandbox WebSocket bridge. Accepts an explicit `bundlePath`, an `outDir` containing `bundle.json`, or an inline `bundle` object. Returns `ok: false` with `bundleNotFound: true`, `SANDBOX_UI_NOT_CONNECTED`, or `SANDBOX_BRIDGE_START_FAILED` for the corresponding failure.
+Delivers a compiled `agon/GameplayBundle` (produced by `agon_create` + `agon_run`) to the connected browser UI over the sandbox WebSocket bridge. Accepts an explicit `bundlePath`, an `outDir` containing `bundle.json`, or an inline `bundle` object. Returns `ok: false` with `bundleNotFound: true`, `SANDBOX_UI_NOT_CONNECTED`, or `SANDBOX_BRIDGE_START_FAILED` for the corresponding failure.
 
-> The bridge is a raw WebSocket port opened directly by the MCP server process and requires the browser loading the UI to reach that same port on the same machine. If the MCP server runs in a different network namespace than the calling harness's own browser/preview surface, prefer `ak_show_state` / `ak_tick_forward` / `ak_tick_backward` with a `visualization` mode instead — those return state over the MCP response itself, with no second network hop.
+> The bridge is a raw WebSocket port opened directly by the MCP server process and requires the browser loading the UI to reach that same port on the same machine. If the MCP server runs in a different network namespace than the calling harness's own browser/preview surface, prefer `agon_show_state` / `agon_tick_forward` / `agon_tick_backward` with a `visualization` mode instead — those return state over the MCP response itself, with no second network hop.
 
 Schema:
 
@@ -1739,26 +1739,26 @@ Expected output shape:
 }
 ```
 
-#### `ak_play_ascii`
+#### `agon_play_ascii`
 
-Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`. This is how a harness answers "create an ascii UI filled with <affinity> traps" (any affinity): `ak_create` with `hazard` specs of that affinity, then `ak_play_ascii` with that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`). Pass `dir` for any directory holding `sim-config.json` + `initial-state.json`, or `level` for a bundled one.
+Shows a level in the terminal UI (`packages/ui-ascii`) through `agon play --json`. This is how a harness answers "create an ascii UI filled with <affinity> traps" (any affinity): `agon_create` with `hazard` specs of that affinity, then `agon_play_ascii` with that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`). Pass `dir` for any directory holding `sim-config.json` + `initial-state.json`, or `level` for a bundled one.
 
 ```json
 { "ok": true, "command": "play", "level": "trap-rooms-mcp", "turns": 0,
   "status": { "tick": 0, "exited": false, "atExit": false, "defeated": false },
   "screen": "Agon maze — ...\n  ####H.@..#\n...",
-  "launch": "node packages/adapters-cli/src/cli/ak.mjs play --sim-config ... --initial-state ..." }
+  "launch": "node packages/adapters-cli/src/cli/agon.mjs play --sim-config ... --initial-state ..." }
 ```
 
 Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`. Fog of war is on, so a fresh board is mostly `?`; the player sees only what `@` sees. `fog: false` is a debug view of the whole level (every actor and trap), not a way to play. A level whose delvers or wardens sit below the viability floor still plays as written; the result then carries `warnings`, one line per vital below the floor.
 
-`record` saves the played commands to a path as a `CapturedInputArtifact`, and `replay` re-runs a saved game (on the bundled level it names, unless a level source is given) before `keys`, the same as `ak play --record/--replay`.
+`record` saves the played commands to a path as a `CapturedInputArtifact`, and `replay` re-runs a saved game (on the bundled level it names, unless a level source is given) before `keys`, the same as `agon play --record/--replay`.
 
-`watch: true` shows a run an `ak_run` call recorded instead of a level: pass that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`) or its `outDir` as `dir`, and `tick` (default 0). Every actor and trap is drawn where the run recorded it, with no fog, and the result is `{ ok, tick, maxTick, level, status, screen, launch }`; `keys` takes the watch keys (`.` next tick, `,` previous, `[`/`]` first/last).
+`watch: true` shows a run an `agon_run` call recorded instead of a level: pass that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`) or its `outDir` as `dir`, and `tick` (default 0). Every actor and trap is drawn where the run recorded it, with no fog, and the result is `{ ok, tick, maxTick, level, status, screen, launch }`; `keys` takes the watch keys (`.` next tick, `,` previous, `[`/`]` first/last).
 
-#### `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`, `ak_play_tick`, `ak_play_end`
+#### `agon_play_start`, `agon_play_act`, `agon_play_view`, `agon_play_switch`, `agon_play_order`, `agon_play_advance`, `agon_play_tick`, `agon_play_end`
 
-A live game, played a few turns per call, through `ak play-session` (see `packages/adapters-cli/README.md`). The game is saved to `artifacts/play-sessions/<session>.json` after every call (`session` defaults to `game`), so it survives a server restart; each call replays it, so nothing is held in the server's memory. `ak_play_start` takes a level like `ak_play_ascii` (a remembered `runId`, `dir`, `simConfig` + `initialState`, or a bundled `level`) or `load`, a copy kept with `save`.
+A live game, played a few turns per call, through `agon play-session` (see `packages/adapters-cli/README.md`). The game is saved to `artifacts/play-sessions/<session>.json` after every call (`session` defaults to `game`), so it survives a server restart; each call replays it, so nothing is held in the server's memory. `agon_play_start` takes a level like `agon_play_ascii` (a remembered `runId`, `dir`, `simConfig` + `initialState`, or a bundled `level`) or `load`, a copy kept with `save`.
 
 ```json
 { "ok": true, "command": "play-session", "action": "act", "name": "game", "turns": 3, "active": "hero-2",
@@ -1769,13 +1769,13 @@ A live game, played a few turns per call, through `ak play-session` (see `packag
   "screen": "..." }
 ```
 
-The party is every actor authored `user_controlled`; `ak_play_switch` (or `actor` on `ak_play_act`) seats another one for free, and fog follows the seat. `commands` are structured play commands (`move`, `wait`, `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`, or `switch`), each with an optional `actorId` to command a member without seating it; ids and targets may be the labels in `party` and `inSight`. Commands run before `keys`, and each one but a switch is a turn for the whole level.
+The party is every actor authored `user_controlled`; `agon_play_switch` (or `actor` on `agon_play_act`) seats another one for free, and fog follows the seat. `commands` are structured play commands (`move`, `wait`, `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`, or `switch`), each with an optional `actorId` to command a member without seating it; ids and targets may be the labels in `party` and `inSight`. Commands run before `keys`, and each one but a switch is a turn for the whole level.
 
-**Orders (Phase 2b).** `ak_play_order {actor, strategy}` gives a party member, or a companion (a `friendly` actor on the seated actor's side), a new strategy: `{ goals, tactics? }`, followed on that actor's own turns. Goals run in order (`reach`, `defeat`, `take`, `guard`, `follow`, `lead`, `hold`, `survive`); tactics are `{ when, do }` rules checked first each turn. Its thinking motivation sets how much it follows: `goal_oriented` the goals, `strategy_focused` and `user_controlled` the tactics too, any other actor nothing. Giving the order is the seated actor's turn and taking it the ordered actor's: one turn. `orders` in every result lists each actor following a strategy, with the goal it is on and its status (`active`, `searching`, `stalled` with a reason, `done`, `ignored`). `ak_play_advance {ticks, until}` lets the level run for orders to play out, the seated actor following its own strategy or waiting, and stops early at `orders_done` or `contact`. `ak_play_tick {actorCommands}` (#680) runs one tick commanding several `ai_controlled` actors at once, `{ "W1": {kind, params?}, "H2": {...} }` by id or label, so an AI driving a dungeon side does not advance the world once per actor; actors left out play their own motivations. An entry for anyone not `ai_controlled` (`not_playable`; the player's party goes through `ak_play_act`), an unknown, exited or defeated actor, or `inspect`/`watch`/`switch`/`order`/`advance` (`single_actor_only`) is refused in `results[].rejected` and the rest still run; no valid entry means no tick. `ak_create` takes a `strategy` (an object, or compact goals such as `"follow:hero-1:2"`) on a delver or warden spec and returns `strategyReport` for parts an actor will not follow.
+**Orders (Phase 2b).** `agon_play_order {actor, strategy}` gives a party member, or a companion (a `friendly` actor on the seated actor's side), a new strategy: `{ goals, tactics? }`, followed on that actor's own turns. Goals run in order (`reach`, `defeat`, `take`, `guard`, `follow`, `lead`, `hold`, `survive`); tactics are `{ when, do }` rules checked first each turn. Its thinking motivation sets how much it follows: `goal_oriented` the goals, `strategy_focused` and `user_controlled` the tactics too, any other actor nothing. Giving the order is the seated actor's turn and taking it the ordered actor's: one turn. `orders` in every result lists each actor following a strategy, with the goal it is on and its status (`active`, `searching`, `stalled` with a reason, `done`, `ignored`). `agon_play_advance {ticks, until}` lets the level run for orders to play out, the seated actor following its own strategy or waiting, and stops early at `orders_done` or `contact`. `agon_play_tick {actorCommands}` (#680) runs one tick commanding several `ai_controlled` actors at once, `{ "W1": {kind, params?}, "H2": {...} }` by id or label, so an AI driving a dungeon side does not advance the world once per actor; actors left out play their own motivations. An entry for anyone not `ai_controlled` (`not_playable`; the player's party goes through `agon_play_act`), an unknown, exited or defeated actor, or `inspect`/`watch`/`switch`/`order`/`advance` (`single_actor_only`) is refused in `results[].rejected` and the rest still run; no valid entry means no tick. `agon_create` takes a `strategy` (an object, or compact goals such as `"follow:hero-1:2"`) on a delver or warden spec and returns `strategyReport` for parts an actor will not follow.
 
-#### `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`
+#### `agon_show_state`, `agon_tick_forward`, `agon_tick_backward`
 
-Step and inspect a run's interactive tick cursor. `ak_tick_forward`/`ak_tick_backward` return `ok: false` with an error message when already at `maxTick`/tick 0. `ak_show_state`'s `ascii` is the terminal UI's screen at the cursor tick (the board with every actor and trap, then the followed actor's HUD), the same screen `ak_play_ascii` with `watch: true` returns. All three accept an optional `visualization` mode: `ascii` returns the `VisualizationSnapshot` artifact (a layered grid with a coordinate legend and actor details); `image` writes a PNG and returns its path.
+Step and inspect a run's interactive tick cursor. `agon_tick_forward`/`agon_tick_backward` return `ok: false` with an error message when already at `maxTick`/tick 0. `agon_show_state`'s `ascii` is the terminal UI's screen at the cursor tick (the board with every actor and trap, then the followed actor's HUD), the same screen `agon_play_ascii` with `watch: true` returns. All three accept an optional `visualization` mode: `ascii` returns the `VisualizationSnapshot` artifact (a layered grid with a coordinate legend and actor details); `image` writes a PNG and returns its path.
 
 Schema:
 
@@ -1793,7 +1793,7 @@ Example call:
 }
 ```
 
-Expected output shape (`ak_show_state`):
+Expected output shape (`agon_show_state`):
 
 ```json
 {
@@ -1812,7 +1812,7 @@ Expected output shape (`ak_show_state`):
 
 Purpose: inventory, discover, scaffold, run, and lint the repo's structured test recipes (see `AGENTS.md` and `tests/README.md`). Reach for these instead of hand-writing test files — the `structured-test-authoring` skill covers the workflow.
 
-#### `ak_test_list_suites`
+#### `agon_test_list_suites`
 
 Lists discovered test suites and current runner ownership from the inventory report. No input parameters.
 
@@ -1829,7 +1829,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_test_discover_patterns`
+#### `agon_test_discover_patterns`
 
 Discovers repo test recipes and matching files, optionally filtered.
 
@@ -1852,7 +1852,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_test_plan_from_change`
+#### `agon_test_plan_from_change`
 
 Recommends runner scopes from changed repository-relative paths.
 
@@ -1880,7 +1880,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_test_run`
+#### `agon_test_run`
 
 Runs the test harness inventory, Vitest, legacy, or combined matrix scripts.
 
@@ -1903,9 +1903,9 @@ Expected output shape:
 }
 ```
 
-#### `ak_test_scaffold_case` / `ak_test_insert_case`
+#### `agon_test_scaffold_case` / `agon_test_insert_case`
 
-Scaffold a new test file, or append a scaffolded case to an existing one, from a limited structured recipe set. `recipe`, `targetFile`, and `title` are always required; every other field is recipe-specific (e.g. `commandArgs`/`expectedArtifacts` for `cli_success_artifacts`, `modulePath`/`exportName`/`inputJson` for `budget_policy_invariant`) — see `packages/adapters-cli/src/mcp/tools/testing.mjs` for the full per-recipe field list, or call `ak_test_list_suites` for the current `scaffoldableRecipes`.
+Scaffold a new test file, or append a scaffolded case to an existing one, from a limited structured recipe set. `recipe`, `targetFile`, and `title` are always required; every other field is recipe-specific (e.g. `commandArgs`/`expectedArtifacts` for `cli_success_artifacts`, `modulePath`/`exportName`/`inputJson` for `budget_policy_invariant`) — see `packages/adapters-cli/src/mcp/tools/testing.mjs` for the full per-recipe field list, or call `agon_test_list_suites` for the current `scaffoldableRecipes`.
 
 Example call:
 
@@ -1913,7 +1913,7 @@ Example call:
 {
   "recipe": "cli_success_artifacts",
   "targetFile": "tests/adapters-cli/example-new-case.test.js",
-  "title": "ak_create writes the canonical artifact set",
+  "title": "agon_create writes the canonical artifact set",
   "commandArgs": ["create", "--text", "Create one fire delver.", "--dry-run"],
   "expectedArtifacts": ["spec.json"]
 }
@@ -1929,7 +1929,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_test_explain_failure`
+#### `agon_test_explain_failure`
 
 Classifies a test failure from runner output into a small set of migration-focused categories.
 
@@ -1951,7 +1951,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_test_lint_structure`
+#### `agon_test_lint_structure`
 
 Reports structural migration gaps: uncategorized recipes and codemod exceptions. No input parameters.
 
@@ -1971,9 +1971,9 @@ Expected output shape:
 
 ### Workflow
 
-Purpose: run and manage `AdaptiveWorkflowAgent` through the controlled CLI adapter, and read/replay/cancel its durable run state. Every `ak_workflow_*` tool maps to the `workflow <action>` CLI command; `status`/`replay`/`cancel` require either `outDir` or `runId` (a remembered workflow run id resolves to its outDir automatically).
+Purpose: run and manage `AdaptiveWorkflowAgent` through the controlled CLI adapter, and read/replay/cancel its durable run state. Every `agon_workflow_*` tool maps to the `workflow <action>` CLI command; `status`/`replay`/`cancel` require either `outDir` or `runId` (a remembered workflow run id resolves to its outDir automatically).
 
-#### `ak_workflow_run`
+#### `agon_workflow_run`
 
 Runs `AdaptiveWorkflowAgent`. Requires exactly one of `input` or `objective`.
 
@@ -2012,7 +2012,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_workflow_status` / `ak_workflow_replay`
+#### `agon_workflow_status` / `agon_workflow_replay`
 
 Read durable workflow status, or replay a run from recorded model content without live IO. Requires `outDir` or `runId`.
 
@@ -2035,7 +2035,7 @@ Expected output shape:
 }
 ```
 
-#### `ak_workflow_cancel`
+#### `agon_workflow_cancel`
 
 Requests cancellation through durable workflow state. Requires `outDir` or `runId`.
 
@@ -2059,9 +2059,9 @@ Expected output shape:
 }
 ```
 
-#### `ak_workflow_validate`
+#### `agon_workflow_validate`
 
-Validates workflow input without making model or execution calls. Same schema as `ak_workflow_run`.
+Validates workflow input without making model or execution calls. Same schema as `agon_workflow_run`.
 
 Expected output shape:
 
@@ -2106,7 +2106,7 @@ Important nuances:
 - The MCP wrapper always returns structured JSON in `structuredContent`.
 - If the CLI emits a JSON object, the MCP server forwards it directly.
 - If the CLI emits plain text only, the server wraps it as `{ ok, command, stdout }`.
-- Query-style tools such as `ak_show`, `ak_diff`, and `ak_runs_list` return command-specific summary objects rather than a uniform `artifactPaths` map.
+- Query-style tools such as `agon_show`, `agon_diff`, and `agon_runs_list` return command-specific summary objects rather than a uniform `artifactPaths` map.
 - When stderr exists and the JSON payload does not already include `stderr`, the MCP server adds it.
 
 ## Configuration
@@ -2126,14 +2126,14 @@ Supported environment variables come from the CLI/runtime layer that the MCP ser
 
 | Variable | Effect |
 | --- | --- |
-| AK_LLM_MODEL | Default model for LLM commands when model is omitted |
-| AK_LLM_BASE_URL | Default base URL for LLM commands when baseUrl is omitted |
-| AK_LLM_FORMAT | Format override passed into the LLM command layer |
-| AK_LLM_LIVE | Enables live LLM planning flows that otherwise require fixtures |
-| AK_LLM_STRICT | Enables stricter LLM validation in CLI/runtime flows |
-| AK_LLM_BUDGET_LOOP | Default-enable budget loop behavior in planner flows |
-| AK_ALLOW_NETWORK | Allows live network-backed adapter calls instead of fixture-only mode |
-| AK_SCHEMA_CATALOG_TIME | Overrides schema catalog generation time for deterministic output |
+| AGON_LLM_MODEL | Default model for LLM commands when model is omitted |
+| AGON_LLM_BASE_URL | Default base URL for LLM commands when baseUrl is omitted |
+| AGON_LLM_FORMAT | Format override passed into the LLM command layer |
+| AGON_LLM_LIVE | Enables live LLM planning flows that otherwise require fixtures |
+| AGON_LLM_STRICT | Enables stricter LLM validation in CLI/runtime flows |
+| AGON_LLM_BUDGET_LOOP | Default-enable budget loop behavior in planner flows |
+| AGON_ALLOW_NETWORK | Allows live network-backed adapter calls instead of fixture-only mode |
+| AGON_SCHEMA_CATALOG_TIME | Overrides schema catalog generation time for deterministic output |
 
 Notes:
 

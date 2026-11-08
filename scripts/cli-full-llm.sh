@@ -2,30 +2,30 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLI="$ROOT/packages/adapters-cli/src/cli/ak.mjs"
+CLI="$ROOT/packages/adapters-cli/src/cli/agon.mjs"
 
 RUN_ID="${RUN_ID:-run_cli_live_$(date +%Y%m%d_%H%M%S)}"
 CREATED_AT="${CREATED_AT:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
 TICKS="${TICKS:-3}"
-AK_LLM_FORMAT="${AK_LLM_FORMAT:-json}"
-export AK_LLM_FORMAT
+AGON_LLM_FORMAT="${AGON_LLM_FORMAT:-json}"
+export AGON_LLM_FORMAT
 
 SCENARIO="${SCENARIO:-$ROOT/tests/fixtures/e2e/e2e-scenario-v1-basic.json}"
-MODEL="${MODEL:-${AK_LLM_MODEL:-}}"
-BASE_URL="${BASE_URL:-${AK_LLM_BASE_URL:-http://localhost:11434}}"
+MODEL="${MODEL:-${AGON_LLM_MODEL:-}}"
+BASE_URL="${BASE_URL:-${AGON_LLM_BASE_URL:-http://localhost:11434}}"
 
 BASE="$ROOT/artifacts/runs/$RUN_ID"
 SIM_CONFIG="$BASE/llm-plan/sim-config.json"
 INITIAL_STATE="$BASE/llm-plan/initial-state.json"
 
 if [[ -z "$MODEL" ]]; then
-  echo "MODEL is required (set MODEL or AK_LLM_MODEL)." >&2
+  echo "MODEL is required (set MODEL or AGON_LLM_MODEL)." >&2
   exit 1
 fi
 
 echo "RUN_ID=$RUN_ID"
 
-AK_LLM_LIVE=1 node "$CLI" llm-plan \
+AGON_LLM_LIVE=1 node "$CLI" llm-plan \
   --scenario "$SCENARIO" \
   --model "$MODEL" \
   --base-url "$BASE_URL" \

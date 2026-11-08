@@ -29,14 +29,14 @@ describe("engine bundle", () => {
     }
   }, 60000);
 
-  it("the playtest module finds its data file and a working ak command line (#796)", async () => {
+  it("the playtest module finds its data file and a working agon command line (#796)", async () => {
     const outDir = path.join(mkdtempSync(path.join(tmpdir(), "agon-engine-")), "dist");
     await buildEngine({ outDir });
     const mod = await import(pathToFileURL(path.join(outDir, "adapters-cli/cli/playtest-scenarios.js")).href);
-    expect(existsSync(mod.AK_CLI), mod.AK_CLI).toBe(true);
+    expect(existsSync(mod.AGON_CLI), mod.AGON_CLI).toBe(true);
     expect(mod.loadPlaytestScenarios().scenarios.length).toBeGreaterThan(0);
     const work = mkdtempSync(path.join(tmpdir(), "agon-engine-run-"));
-    const out = execFileSync(process.execPath, [mod.AK_CLI, "create", "--room", "size=small;count=1", "--delver", "count=1;affinity=fire;motivation=attacking", "--warden", "count=1;affinity=dark;motivation=defending", "--out-dir", work], { encoding: "utf8" });
+    const out = execFileSync(process.execPath, [mod.AGON_CLI, "create", "--room", "size=small;count=1", "--delver", "count=1;affinity=fire;motivation=attacking", "--warden", "count=1;affinity=dark;motivation=defending", "--out-dir", work], { encoding: "utf8" });
     expect(out.match(/"command":"create"/g)).toHaveLength(1); // the command ran once, not twice
     expect(JSON.parse(out).ok).toBe(true);
   }, 60000);

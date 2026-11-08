@@ -19,15 +19,15 @@ const boundary = JSON.parse(readFileSync(path.join(root, "tests/architecture/fra
  * self-contained `.mjs` file and keeps its name; every other module is a library `.js`.
  */
 export const EXECUTABLES = new Set([
-  "packages/adapters-cli/src/cli/ak.mjs",
+  "packages/adapters-cli/src/cli/agon.mjs",
   "packages/ui-ascii/src/character-cli.mjs",
 ]);
 
 /**
- * `ak.mjs` is a two-line shim that awaits `main()`, and `ak-impl.mjs` also runs `main()` when it
- * is the entry file. Bundled together they would run twice, so the built `ak.mjs` is `ak-impl.mjs`.
+ * `agon.mjs` is a two-line shim that awaits `main()`, and `agon-impl.mjs` also runs `main()` when it
+ * is the entry file. Bundled together they would run twice, so the built `agon.mjs` is `agon-impl.mjs`.
  */
-const EXECUTABLE_SOURCE = { "packages/adapters-cli/src/cli/ak.mjs": "packages/adapters-cli/src/cli/ak-impl.mjs" };
+const EXECUTABLE_SOURCE = { "packages/adapters-cli/src/cli/agon.mjs": "packages/adapters-cli/src/cli/agon-impl.mjs" };
 
 /** Data files the built modules read from beside themselves, copied next to them. */
 const DATA_FILES = ["packages/adapters-cli/src/cli/playtest-scenarios.json"];

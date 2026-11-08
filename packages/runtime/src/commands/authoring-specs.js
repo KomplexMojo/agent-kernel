@@ -1,5 +1,5 @@
 /**
- * The authoring grammar and request assembly behind `ak create` and `ak configure`: the
+ * The authoring grammar and request assembly behind `agon create` and `agon configure`: the
  * `--room` / `--delver` / `--warden` / `--hazard` / `--resource` / `--floor-tile` spec
  * tokenizers, budget resolution, and the summary and request the authoring build takes.
  *
@@ -27,7 +27,7 @@ import { createDirectorPersona } from "../personas/director/persona.js";
 import { actorStrategyRecipe, actorStrategyRecipeNames } from "../personas/actor/persona.js";
 import { createRecipeCatalogue } from "./recipe-catalogue.js";
 
-/** The `ak` argument grammar: `--key value`, `--key=value`, bare `--flag`; repeatable keys collect. */
+/** The `agon` argument grammar: `--key value`, `--key=value`, bare `--flag`; repeatable keys collect. */
 export function parseArgs(argv) {
   const args = { _: [] };
   const repeatable = new Set([
@@ -1689,7 +1689,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
    *
    * ⚠️ CR.1, found again at CR.9 M5 and this time in glue. This was a hardcoded object
    * (`rooms: 0.44, hazards: 0.12, wardens: 0.16, resources: 0.08, delver: 0.20`) — a FOURTH
-   * copy of the split, in an adapter, and the one that actually drives `ak create`. It hid
+   * copy of the split, in an adapter, and the one that actually drives `agon create`. It hid
    * through the whole milestone that closed CR.1 because the single-origin guard was scoped
    * to `packages/runtime/src` and stopped at the runtime package boundary. The proof it was
    * load-bearing: retuning the canonical split in `base-costs.json` (hazard 12 -> 15) changed
@@ -1730,7 +1730,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
   }
 
   /**
-   * Everything `ak create` / `ak configure` decide before the build: arguments checked, specs
+   * Everything `agon create` / `agon configure` decide before the build: arguments checked, specs
    * parsed, budgets resolved, the request and summary assembled. Its IO is the host's: reading a
    * budget or price-list file, drawing a seed, an LLM tactic plan, the clock and ids.
    */

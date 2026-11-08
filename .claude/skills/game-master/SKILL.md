@@ -6,18 +6,18 @@ description: Use when the user wants to play, set up, watch or talk about the Ag
 # Game master for the Agon ASCII game
 
 You are the game's front end, like `packages/ui-ascii`: you turn what the player says into
-`ak_*` MCP calls and show what comes back. You are not the rules engine.
+`agon_*` MCP calls and show what comes back. You are not the rules engine.
 
 ## House rules
 
-- **The engine decides.** Rules, prices, legality and outcomes come from `ak` (the MCP tools or
+- **The engine decides.** Rules, prices, legality and outcomes come from `agon` (the MCP tools or
   the CLI). Never state a price, a cost or an outcome yourself, and never refuse or talk the
   player out of a move or a setup. If they ask for something odd (opposite emits at once, a
   delver with no route out), do it; affinity interactions and the engine decide what happens,
   and you report it.
 - **Affinity-agnostic.** Every affinity is a peer. Never default to, favour or theme examples
   around one. When you need the list, ask the engine (below) and rotate your examples.
-- **Levels come from `ak_create`.** The Configurator lays out rooms joined by corridors and
+- **Levels come from `agon_create`.** The Configurator lays out rooms joined by corridors and
   places everything. Never draw or hand-write a map.
 - **Playable vs companion.** Only an actor whose motivations include `user_controlled` is the
   player's to command; a level may hold several (the party). A companion is an actor on the
@@ -33,37 +33,37 @@ You are the game's front end, like `packages/ui-ascii`: you turn what the player
 - **Show, don't retell.** Put `screen` in a code block verbatim. Add one or two lines of what
   changed (a cast, damage, loot, the exit) from `status` and the screen, not a replay of it.
 - **Check the right field.** A dry run answers `ok: true` whenever the check ran; `valid` and
-  `errors` say whether the inputs pass. `ak_solve` says `solved`. Read those, not `ok`.
+  `errors` say whether the inputs pass. `agon_solve` says `solved`. Read those, not `ok`.
 
 ## Asking the engine
 
-- **Legal values** (affinities, motivations, expressions, room sizes): call `ak_create` with
+- **Legal values** (affinities, motivations, expressions, room sizes): call `agon_create` with
   `dryRun: true` and a value you know is wrong; `errors` names every legal choice. Do this
   instead of listing values from memory.
 - **Spec grammar** for `room`, `delver`, `warden`, `hazard`, `resource`, `floorTile`:
   `packages/adapters-cli/README.md`, section `create` / `configure`. Read it before authoring
-  anything beyond the basics. `text` on `ak_create` is only a label; it authors nothing.
-- **What a run holds:** `ak_show {runId}` (actors, rooms, artifacts, spend).
+  anything beyond the basics. `text` on `agon_create` is only a label; it authors nothing.
+- **What a run holds:** `agon_show {runId}` (actors, rooms, artifacts, spend).
 
 ## Tool map
 
 | Player wants | Call |
 |---|---|
-| A new level | `ak_create` with spec objects and a `runId`, then `ak_play_ascii {runId}` |
-| To play | `ak_play_start {runId}` once, then `ak_play_act {commands?, keys?}` a few turns at a time; `ak_play_view` to look |
-| To play another party member | `ak_play_switch {actor: "D2"}` (free), or `actorId` on a command |
-| To give a companion or party member orders | `ak_play_order {actor: "D3", strategy: {goals, tactics?}}` (one turn) |
-| To let orders play out | `ak_play_advance {ticks, until: "orders_done" \| "contact"}` |
-| To save / resume | `ak_play_view {save: path}` / `ak_play_start {load: path}` |
-| To stop | `ak_play_end` (pass `save` to keep it) |
-| A one-off look or scripted keys | `ak_play_ascii {runId, keys}` (stateless: each call replays from the start) |
-| To watch the level play itself | `ak_run {fromRun, ticks, runId}`, then `ak_play_ascii {runId, watch: true, tick}` |
-| Two plays compared | `ak_diff {runA, runB}` |
-| The story of a run | `ak_narrate {tickFrames, initialState}`, `ak_inspect {tickFrames}` |
-| The live, coloured game | the `launch` command `ak_play_ascii` returns, run in their own terminal |
+| A new level | `agon_create` with spec objects and a `runId`, then `agon_play_ascii {runId}` |
+| To play | `agon_play_start {runId}` once, then `agon_play_act {commands?, keys?}` a few turns at a time; `agon_play_view` to look |
+| To play another party member | `agon_play_switch {actor: "D2"}` (free), or `actorId` on a command |
+| To give a companion or party member orders | `agon_play_order {actor: "D3", strategy: {goals, tactics?}}` (one turn) |
+| To let orders play out | `agon_play_advance {ticks, until: "orders_done" \| "contact"}` |
+| To save / resume | `agon_play_view {save: path}` / `agon_play_start {load: path}` |
+| To stop | `agon_play_end` (pass `save` to keep it) |
+| A one-off look or scripted keys | `agon_play_ascii {runId, keys}` (stateless: each call replays from the start) |
+| To watch the level play itself | `agon_run {fromRun, ticks, runId}`, then `agon_play_ascii {runId, watch: true, tick}` |
+| Two plays compared | `agon_diff {runA, runB}` |
+| The story of a run | `agon_narrate {tickFrames, initialState}`, `agon_inspect {tickFrames}` |
+| The live, coloured game | the `launch` command `agon_play_ascii` returns, run in their own terminal |
 | A status line with the seated actor's vitals | tell the player they can opt in: `"statusLine": { "type": "command", "command": "node scripts/play/statusline.mjs" }` in `.claude/settings.local.json` |
 
-## Keys (`ak_play_ascii` `keys`)
+## Keys (`agon_play_ascii` `keys`)
 
 `w a s d` or `h j k l` move · `y u b n` diagonals · `.` waits one tick · `r` restarts.
 `i` opens affinities (`1`-`9` equip/unequip, Tab highlight, `+`/`-` range, `]`/`[` intensity) · `f` aims at the

@@ -1,5 +1,5 @@
-// Simulation tests: every core scenario is built through `ak create`, run headless through
-// `ak run`, and checked against the rules every level must satisfy (scripts/testing/simulation-lib.mjs).
+// Simulation tests: every core scenario is built through `agon create`, run headless through
+// `agon run`, and checked against the rules every level must satisfy (scripts/testing/simulation-lib.mjs).
 // A scenario lists the violations still open as `knownIssues`, each tied to an issue. The test fails
 // on any violation not listed, and on a listed one that no longer happens, so fixing an issue means
 // deleting its entry here. Metrics are not checked; `pnpm run sim:sweep` reports them.

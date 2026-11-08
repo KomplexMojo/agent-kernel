@@ -1315,10 +1315,10 @@ function runBenchmarkStatus(options) {
 }
 
 async function runContentGen(options) {
-  const { loadScenarioCatalog } = require('./lib/ak-scenarios');
-  const { classifyExecutionOutcome, classifyFailureClass, runScenario, authoringPolicy } = require('./lib/ak-runner');
-  const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/ak-compare');
-  const { executeContentGenMatrix } = require('./lib/ak-matrix');
+  const { loadScenarioCatalog } = require('./lib/agon-scenarios');
+  const { classifyExecutionOutcome, classifyFailureClass, runScenario, authoringPolicy } = require('./lib/agon-runner');
+  const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/agon-compare');
+  const { executeContentGenMatrix } = require('./lib/agon-matrix');
   const { CollapseError, resolveBreaker } = require('./lib/collapse-breaker');
   const {
     assertResumable, latestResultDir, readPriorRecords, readRunManifest, writeRunManifest
@@ -1385,10 +1385,10 @@ async function runContentGen(options) {
   // Environment overrides exist for the nightly service, which spawns this CLI and cannot pass
   // flags. Explicit flags win over them.
   const envBreaker = {};
-  if (process.env.AK_BENCHMARK_COLLAPSE_BREAKER === '0') envBreaker.enabled = false;
-  if (process.env.AK_BENCHMARK_COLLAPSE_SCORE_FLOOR) envBreaker.averageScoreFloor = Number(process.env.AK_BENCHMARK_COLLAPSE_SCORE_FLOOR);
-  if (process.env.AK_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR) envBreaker.toolCallFloor = Number(process.env.AK_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR);
-  if (process.env.AK_BENCHMARK_COLLAPSE_MIN_ATTEMPTS) envBreaker.minimumAttempts = Number(process.env.AK_BENCHMARK_COLLAPSE_MIN_ATTEMPTS);
+  if (process.env.AGON_BENCHMARK_COLLAPSE_BREAKER === '0') envBreaker.enabled = false;
+  if (process.env.AGON_BENCHMARK_COLLAPSE_SCORE_FLOOR) envBreaker.averageScoreFloor = Number(process.env.AGON_BENCHMARK_COLLAPSE_SCORE_FLOOR);
+  if (process.env.AGON_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR) envBreaker.toolCallFloor = Number(process.env.AGON_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR);
+  if (process.env.AGON_BENCHMARK_COLLAPSE_MIN_ATTEMPTS) envBreaker.minimumAttempts = Number(process.env.AGON_BENCHMARK_COLLAPSE_MIN_ATTEMPTS);
   let breaker;
   try {
     breaker = resolveBreaker({ ...envBreaker, ...options.breakerOverrides });

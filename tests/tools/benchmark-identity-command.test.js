@@ -44,9 +44,9 @@ test("--env emits exactly the three variables the installed agent requires", () 
   }));
 
   assert.deepEqual([...pairs.keys()].sort(), [
-    "AK_BENCHMARK_EXECUTION_SUITE_HASH",
-    "AK_BENCHMARK_MATRIX_HASH",
-    "AK_BENCHMARK_SCENARIO_HASH",
+    "AGON_BENCHMARK_EXECUTION_SUITE_HASH",
+    "AGON_BENCHMARK_MATRIX_HASH",
+    "AGON_BENCHMARK_SCENARIO_HASH",
   ]);
   for (const [key, value] of pairs) {
     assert.match(value, SHA256, `${key} must be a lowercase sha256, received ${value}`);
@@ -85,11 +85,11 @@ test("the runbook's deployment commands exist as written", () => {
   assert.ok(pkg.scripts[scriptName], `runbook names "${scriptName}", which package.json does not define`);
 
   // Only the deployment section tells the operator what to set; elsewhere the
-  // runbook reads values the pipeline provides itself (AK_BENCHMARK_SOURCE_WORKTREE).
+  // runbook reads values the pipeline provides itself (AGON_BENCHMARK_SOURCE_WORKTREE).
   const template = readFileSync(join(TOOL_ROOT, "config/benchmark-agent.env.example"), "utf8");
   const deployment = /## 6\. First standalone deployment[\s\S]*?\n## /.exec(runbook)?.[0];
   assert.ok(deployment, "the runbook must carry a first-deployment section");
-  for (const name of new Set(deployment.match(/AK_BENCHMARK_[A-Z_]+/g) || [])) {
+  for (const name of new Set(deployment.match(/AGON_BENCHMARK_[A-Z_]+/g) || [])) {
     assert.match(template, new RegExp(`^#?\\s*${name}=`, "m"), `runbook names ${name}, absent from the template`);
   }
 });

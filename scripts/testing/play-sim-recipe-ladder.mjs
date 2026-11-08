@@ -4,7 +4,7 @@
  * so a recipe's win rate and tokens per win sit beside the scenario's own delver.
  *
  * The delver is `recipe=<name>;motivation=user_controlled`, priced by the Allocator through
- * `ak create` like any spec (a delver the arm cannot afford is rebuilt at a doubled budget; the
+ * `agon create` like any spec (a delver the arm cannot afford is rebuilt at a doubled budget; the
  * map is unchanged). It is played by the T0 driver, not a model: the delver is ordered
  * `{ goals: [reach exit], tactics: <the strategy recipe's tactics> }` (the recipe's own goals when
  * it has any), so the run is deterministic and needs no model. A seat driver would ignore the
@@ -53,7 +53,7 @@ export async function runRecipeLadder({ scenarioId = "first-look", seeds = [0], 
   const scenario = catalog.scenarios.find((entry) => entry.id === scenarioId);
   if (!scenario) throw new Error(`no playtest scenario "${scenarioId}"`);
   mkdirSync(outDir, { recursive: true });
-  const workDir = mkdtempSync(join(tmpdir(), "ak-recipe-ladder-"));
+  const workDir = mkdtempSync(join(tmpdir(), "agon-recipe-ladder-"));
   const runs = [];
   const play = async (label, character, strategy, seed) => {
     let budgetTokens = scenario.budgetTokens;

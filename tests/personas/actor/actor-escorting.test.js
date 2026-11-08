@@ -1,7 +1,7 @@
 /**
  * #251 — `escorting`: a mobility motivation that keeps an actor near one ally and follows
  * it as it moves (Darren, 2026-10-17). The ally is authored per actor (`escorts` beside the
- * roster, `escort=<id>` in `ak create`); with none, it is the playable delver. The escort
+ * roster, `escort=<id>` in `agon create`); with none, it is the playable delver. The escort
  * keeps within 2 tiles unless another distance is authored. It runs the Actor's `follow`
  * goal, so out of sight it walks to where it last saw the ally, and with the ally gone it
  * plays its other motivations. It must behave the same whatever its affinity, or none.

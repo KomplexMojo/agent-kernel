@@ -1,14 +1,14 @@
 // M5 — Sandbox tick navigation MCP contract tests.
 //
 // Tools tested:
-//   ak_tick_forward  — advance the session cursor one tick on a sandbox-produced run
-//   ak_tick_backward — rewind the session cursor one tick on a sandbox-produced run
-//   ak_show_state    — return current state at the cursor tick for a sandbox-produced run
+//   agon_tick_forward  — advance the session cursor one tick on a sandbox-produced run
+//   agon_tick_backward — rewind the session cursor one tick on a sandbox-produced run
+//   agon_show_state    — return current state at the cursor tick for a sandbox-produced run
 //
 // Setup:
 //   The sandbox CLI pipeline (sandbox-create → sandbox-place → run) produces a real
 //   tick-frames.json under {artifactsDir}/runs/{runId}/run/.  The MCP server is spawned
-//   with AK_ARTIFACTS_DIR pointing at that same tree so resolveRunDir resolves correctly.
+//   with AGON_ARTIFACTS_DIR pointing at that same tree so resolveRunDir resolves correctly.
 //
 // Also verified:
 //   - The cli `run` command succeeds on sandbox-produced sim-config + initial-state
@@ -23,7 +23,7 @@ const os = require("node:os");
 
 const ROOT   = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
-const CLI    = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI    = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 const BUDGET_RECEIPT_APPROVED = resolve(
   ROOT,
@@ -32,12 +32,12 @@ const BUDGET_RECEIPT_APPROVED = resolve(
 
 // Deferred controls the plan explicitly excludes from this milestone.
 const FORBIDDEN_TICK_TOOLS = [
-  "ak_autoplay",
-  "ak_pause",
-  "ak_tick_jump",
-  "ak_jump_to_tick",
-  "ak_create_with_tick_count",
-  "ak_tick_autoplay",
+  "agon_autoplay",
+  "agon_pause",
+  "agon_tick_jump",
+  "agon_jump_to_tick",
+  "agon_create_with_tick_count",
+  "agon_tick_autoplay",
 ];
 
 // ---------------------------------------------------------------------------
@@ -68,8 +68,8 @@ function makeTempDir(prefix) {
 // ---------------------------------------------------------------------------
 
 function setupSandboxRun(runId, { ticks = 3 } = {}) {
-  const sandboxDir   = makeTempDir("ak-sb-nav-sandbox-");
-  const artifactsDir = makeTempDir("ak-sb-nav-artifacts-");
+  const sandboxDir   = makeTempDir("agon-sb-nav-sandbox-");
+  const artifactsDir = makeTempDir("agon-sb-nav-artifacts-");
   const runOutDir    = join(artifactsDir, "runs", runId, "run");
 
   mkdirSync(runOutDir, { recursive: true });
@@ -111,7 +111,7 @@ function setupSandboxRun(runId, { ticks = 3 } = {}) {
   ]);
   assert.equal(
     runResult.status, 0,
-    `ak run failed:\n${runResult.stderr}\n${runResult.stdout}`,
+    `agon run failed:\n${runResult.stderr}\n${runResult.stdout}`,
   );
 
   return { sandboxDir, artifactsDir, runId, runOutDir };
@@ -263,12 +263,12 @@ test("cli run with sandbox artifacts produces tick-frames.json and run-summary.j
   assert.equal(
     existsSync(join(runOutDir, "tick-frames.json")),
     true,
-    "tick-frames.json must exist after ak run on sandbox artifacts",
+    "tick-frames.json must exist after agon run on sandbox artifacts",
   );
   assert.equal(
     existsSync(join(runOutDir, "run-summary.json")),
     true,
-    "run-summary.json must exist after ak run on sandbox artifacts",
+    "run-summary.json must exist after agon run on sandbox artifacts",
   );
 
   const summary = JSON.parse(readFileSync(join(runOutDir, "run-summary.json"), "utf8"));
@@ -276,15 +276,15 @@ test("cli run with sandbox artifacts produces tick-frames.json and run-summary.j
 });
 
 // ---------------------------------------------------------------------------
-// ak_tick_forward — advance cursor on sandbox run
+// agon_tick_forward — advance cursor on sandbox run
 // ---------------------------------------------------------------------------
 
-test("mcp ak_tick_forward advances cursor from tick 0 to tick 1 on sandbox run", async () => {
+test("mcp agon_tick_forward advances cursor from tick 0 to tick 1 on sandbox run", async () => {
   const { artifactsDir, runId } = setupSandboxRun("sb_fwd_basic", { ticks: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_tick_forward", { runId });
+    const result = await harness.callTool("agon_tick_forward", { runId });
 
     assert.equal(result.command, "tick");
     assert.equal(result.action, "forward");
@@ -297,14 +297,14 @@ test("mcp ak_tick_forward advances cursor from tick 0 to tick 1 on sandbox run",
   }
 });
 
-test("mcp ak_tick_forward advances cursor across multiple steps on sandbox run", async () => {
+test("mcp agon_tick_forward advances cursor across multiple steps on sandbox run", async () => {
   const { artifactsDir, runId } = setupSandboxRun("sb_fwd_multi", { ticks: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
 
-    await harness.callTool("ak_tick_forward", { runId }); // 0→1
-    const result = await harness.callTool("ak_tick_forward", { runId }); // 1→2
+    await harness.callTool("agon_tick_forward", { runId }); // 0→1
+    const result = await harness.callTool("agon_tick_forward", { runId }); // 1→2
 
     assert.equal(result.previousTick, 1);
     assert.equal(result.tick, 2);
@@ -314,16 +314,16 @@ test("mcp ak_tick_forward advances cursor across multiple steps on sandbox run",
   }
 });
 
-test("mcp ak_tick_forward at max tick returns structured error", async () => {
+test("mcp agon_tick_forward at max tick returns structured error", async () => {
   const { artifactsDir, runId } = setupSandboxRun("sb_fwd_max", { ticks: 2 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
     // Advance to maxTick
-    await harness.callTool("ak_tick_forward", { runId }); // 0→1
-    await harness.callTool("ak_tick_forward", { runId }); // 1→2 (=maxTick)
+    await harness.callTool("agon_tick_forward", { runId }); // 0→1
+    await harness.callTool("agon_tick_forward", { runId }); // 1→2 (=maxTick)
 
-    const result = await harness.callToolRaw("ak_tick_forward", { runId });
+    const result = await harness.callToolRaw("agon_tick_forward", { runId });
     assert.equal(result.ok, false);
     assert.ok(result.error, "error message must be present when at max tick");
     assert.equal(result.tick, 2);
@@ -334,17 +334,17 @@ test("mcp ak_tick_forward at max tick returns structured error", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// ak_tick_backward — rewind cursor on sandbox run
+// agon_tick_backward — rewind cursor on sandbox run
 // ---------------------------------------------------------------------------
 
-test("mcp ak_tick_backward rewinds cursor from tick 1 to tick 0 on sandbox run", async () => {
+test("mcp agon_tick_backward rewinds cursor from tick 1 to tick 0 on sandbox run", async () => {
   const { artifactsDir, runId } = setupSandboxRun("sb_bwd_basic", { ticks: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    await harness.callTool("ak_tick_forward", { runId }); // 0→1
+    await harness.callTool("agon_tick_forward", { runId }); // 0→1
 
-    const result = await harness.callTool("ak_tick_backward", { runId });
+    const result = await harness.callTool("agon_tick_backward", { runId });
     assert.equal(result.command, "tick");
     assert.equal(result.action, "backward");
     assert.equal(result.runId, runId);
@@ -356,12 +356,12 @@ test("mcp ak_tick_backward rewinds cursor from tick 1 to tick 0 on sandbox run",
   }
 });
 
-test("mcp ak_tick_backward at tick 0 returns structured error", async () => {
+test("mcp agon_tick_backward at tick 0 returns structured error", async () => {
   const { artifactsDir, runId } = setupSandboxRun("sb_bwd_zero", { ticks: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callToolRaw("ak_tick_backward", { runId });
+    const result = await harness.callToolRaw("agon_tick_backward", { runId });
 
     assert.equal(result.ok, false);
     assert.ok(result.error, "error message must be present when rewinding past tick 0");
@@ -372,15 +372,15 @@ test("mcp ak_tick_backward at tick 0 returns structured error", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// ak_show_state — return state at cursor tick
+// agon_show_state — return state at cursor tick
 // ---------------------------------------------------------------------------
 
-test("mcp ak_show_state returns tick 0 and maxTick for a fresh sandbox run", async () => {
+test("mcp agon_show_state returns tick 0 and maxTick for a fresh sandbox run", async () => {
   const { artifactsDir, runId } = setupSandboxRun("sb_show_init", { ticks: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    const result = await harness.callTool("ak_show_state", { runId });
+    const result = await harness.callTool("agon_show_state", { runId });
 
     assert.equal(result.command, "tick");
     assert.equal(result.action, "state");
@@ -392,14 +392,14 @@ test("mcp ak_show_state returns tick 0 and maxTick for a fresh sandbox run", asy
   }
 });
 
-test("mcp ak_show_state at tick 1 includes tickFrame from sandbox run", async () => {
+test("mcp agon_show_state at tick 1 includes tickFrame from sandbox run", async () => {
   const { artifactsDir, runId } = setupSandboxRun("sb_show_frame", { ticks: 3 });
-  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  const harness = new McpServerHarness({ AGON_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    await harness.callTool("ak_tick_forward", { runId }); // cursor → tick 1
+    await harness.callTool("agon_tick_forward", { runId }); // cursor → tick 1
 
-    const result = await harness.callTool("ak_show_state", { runId });
+    const result = await harness.callTool("agon_show_state", { runId });
     assert.equal(result.tick, 1);
     assert.ok(result.tickFrame !== null && result.tickFrame !== undefined,
       "tickFrame must be present at tick 1");
@@ -435,13 +435,13 @@ test("deferred tick controls not exposed in tools/list", async () => {
 test.skip("mcp sandbox tick forward backward forward keeps cursor idempotent", () => {});
 test.skip("mcp sandbox tick advances to maxTick with every forward step ok:true", () => {});
 test.skip("mcp sandbox tick rewinds from maxTick to 0 with every backward step ok:true", () => {});
-test.skip("mcp ak_show_state at each tick has tickFrame for tick greater than zero", () => {});
-test.skip("mcp ak_tick_forward with invalid runId returns ok:false with error", () => {});
-test.skip("mcp ak_tick_backward with invalid runId returns ok:false with error", () => {});
-test.skip("mcp ak_show_state with invalid runId returns ok:false with error", () => {});
+test.skip("mcp agon_show_state at each tick has tickFrame for tick greater than zero", () => {});
+test.skip("mcp agon_tick_forward with invalid runId returns ok:false with error", () => {});
+test.skip("mcp agon_tick_backward with invalid runId returns ok:false with error", () => {});
+test.skip("mcp agon_show_state with invalid runId returns ok:false with error", () => {});
 test.skip("mcp sandbox run with delver warden and hazard succeeds", () => {});
 test.skip("mcp sandbox run with no placed actors completes with zero accepted actions per tick", () => {});
-test.skip("mcp ak_show_state ascii visualization on sandbox run returns ascii grid", () => {});
+test.skip("mcp agon_show_state ascii visualization on sandbox run returns ascii grid", () => {});
 test.skip("mcp sandbox run-summary metrics ticks matches tick-frames length", () => {});
-test.skip("mcp AK_ARTIFACTS_DIR isolation keeps concurrent sandbox runs separate", () => {});
-test.skip("mcp sandbox run with actions file respects ak_sandbox_move sequence", () => {});
+test.skip("mcp AGON_ARTIFACTS_DIR isolation keeps concurrent sandbox runs separate", () => {});
+test.skip("mcp sandbox run with actions file respects agon_sandbox_move sequence", () => {});

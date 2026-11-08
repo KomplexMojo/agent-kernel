@@ -1,5 +1,5 @@
 /**
- * A level from `ak create` arguments, by the code `ak create` runs, wherever it runs (#557):
+ * A level from `agon create` arguments, by the code `agon create` runs, wherever it runs (#557):
  * the authoring grammar and request (authoring-specs.js), then the authoring build with the
  * Configurator's placement posed to the host's solver adapter. The CLI writes the result to
  * disk; the phone app plays it in the browser. Nothing here reads a file or the clock.
@@ -26,7 +26,7 @@ function refuse(what) {
 }
 
 /**
- * Build a level from `ak create`'s argv. `argv` must name `--run-id` and `--created-at` (and
+ * Build a level from `agon create`'s argv. `argv` must name `--run-id` and `--created-at` (and
  * `--seed` for a tactic), since no clock, id or randomness is read here. Budget and price-list
  * files, `--tactic llm` and `--actors llm` are refused: they need the host's IO.
  * @returns {Promise<{ buildResult: object, prepared: object }>}

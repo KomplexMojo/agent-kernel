@@ -2,7 +2,7 @@
  * Party control in the terminal UI (Phase 2). Tab outside a panel plays the next party
  * member (an actor authored user_controlled); the screen lists the party and, by label,
  * everyone in sight. `--session <file>` keeps one game across calls, so a caller that is
- * not at a terminal (`ak play-session`, the MCP tools) can play it a few turns at a time.
+ * not at a terminal (`agon play-session`, the MCP tools) can play it a few turns at a time.
  */
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");

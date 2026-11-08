@@ -250,7 +250,7 @@ function evaluateExpression(node, assignments) {
  * why this was never noticed: it fails by exhausting memory, not by slowing down, and
  * every test in the repo solves too few times to reach it. `runLlmBudgetLoop` calls the
  * hosted layout fitter from inside its round loop, so a long budget loop under
- * AK_SOLVER_ENGINE=z3-real grew without limit.
+ * AGON_SOLVER_ENGINE=z3-real grew without limit.
  *
  * ONE CONTEXT FOREVER also fails, just later and harder. A context's ast_manager
  * accumulates every expression node built against it, and past a few thousand solves the
@@ -389,7 +389,7 @@ export function createHybridConstraintSolverAdapter(options = {}) {
   };
 }
 
-/** @deprecated Compatibility alias for AK_SOLVER_ENGINE=z3-real call sites. */
+/** @deprecated Compatibility alias for AGON_SOLVER_ENGINE=z3-real call sites. */
 export function createRealZ3SolverAdapter(options = {}) {
   return createHybridConstraintSolverAdapter(options);
 }

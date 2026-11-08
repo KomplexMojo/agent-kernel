@@ -100,7 +100,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // Z9.1 — object assignment and path-preserving placement are Configurator policy.
     prepareObjectPlacement: services.prepareObjectPlacement,
     completeObjectPlacement: services.completeObjectPlacement,
-    // #300 — a built level's hazards and resources as placement requests, for `ak solve`.
+    // #300 — a built level's hazards and resources as placement requests, for `agon solve`.
     levelObjectRequests: services.levelObjectRequests,
     // #301 — relational placement constraints: the `--place` spec grammar and its canonical shape.
     parsePlacementConstraint: services.parsePlacementConstraint,

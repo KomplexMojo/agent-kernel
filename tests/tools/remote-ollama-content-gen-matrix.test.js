@@ -9,12 +9,12 @@ const {
   validateContentResult,
   writeContentResult,
   writeContentSummary,
-} = require("../../tools/remote-ollama-control/scripts/lib/ak-compare");
+} = require("../../tools/remote-ollama-control/scripts/lib/agon-compare");
 const {
   createFixtureAttemptWriter,
   executeContentGenMatrix,
-} = require("../../tools/remote-ollama-control/scripts/lib/ak-matrix");
-const { classifyExecutionOutcome, classifyFailureClass } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+} = require("../../tools/remote-ollama-control/scripts/lib/agon-matrix");
+const { classifyExecutionOutcome, classifyFailureClass } = require("../../tools/remote-ollama-control/scripts/lib/agon-runner");
 const {
   combineBenchmarkQualification,
   createGeneratedBuildResolver,
@@ -118,7 +118,7 @@ test("fixture matrix preserves model/profile groups, denials, early stop, and mi
   assert.equal(cheapPass.historicalContentGen.avgScore, 80);
   assert.equal(Object.values(cheapPass.perTier).reduce((sum, tier) => sum + tier.attempts, 0), 4);
 
-  const outputDir = mkdtempSync(join(tmpdir(), "ak-matrix-result-"));
+  const outputDir = mkdtempSync(join(tmpdir(), "agon-matrix-result-"));
   const resultPath = join(outputDir, "result.json");
   const summaryPath = join(outputDir, "summary.md");
   writeContentResult(resultPath, result);
@@ -258,7 +258,7 @@ function passingExecutionSchedule() {
 }
 
 test("generated build handoff requires an explicit successful authoring artifact mapping", async () => {
-  const root = mkdtempSync(join(tmpdir(), "ak-generated-handoff-"));
+  const root = mkdtempSync(join(tmpdir(), "agon-generated-handoff-"));
   const buildDir = join(root, "create");
   mkdirSync(buildDir);
   writeFileSync(join(buildDir, "sim-config.json"), "{}\n");

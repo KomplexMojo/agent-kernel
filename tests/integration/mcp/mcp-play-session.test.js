@@ -1,6 +1,6 @@
-// ak_play_start / ak_play_act / ak_play_view / ak_play_switch / ak_play_end (Phase 2):
+// agon_play_start / agon_play_act / agon_play_view / agon_play_switch / agon_play_end (Phase 2):
 // a live game Claude plays a few turns at a time. These tests run the real MCP server
-// over stdio: make a level with ak_create, start a game on it by runId, switch between
+// over stdio: make a level with agon_create, start a game on it by runId, switch between
 // the two playable delvers, play structured commands by label, and end it.
 
 const assert = require("node:assert/strict");
@@ -19,7 +19,7 @@ function startServer() {
   const child = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
     // Port 0: an OS-chosen sandbox bridge port, so parallel servers never collide.
-    env: { ...process.env, AK_SANDBOX_BRIDGE_PORT: "0", AK_PLAY_SESSIONS_DIR: SESSIONS },
+    env: { ...process.env, AGON_SANDBOX_BRIDGE_PORT: "0", AGON_PLAY_SESSIONS_DIR: SESSIONS },
     stdio: ["pipe", "pipe", "pipe"],
   });
   let buffer = "";
@@ -73,11 +73,11 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
   try {
     await server.initialize();
     const { tools } = await server.request("tools/list", {});
-    for (const name of ["ak_play_start", "ak_play_act", "ak_play_view", "ak_play_legal", "ak_play_switch", "ak_play_order", "ak_play_advance", "ak_play_tick", "ak_play_end"]) {
+    for (const name of ["agon_play_start", "agon_play_act", "agon_play_view", "agon_play_legal", "agon_play_switch", "agon_play_order", "agon_play_advance", "agon_play_tick", "agon_play_end"]) {
       assert.ok(tools.some((tool) => tool.name === name), `${name} is listed`);
     }
 
-    const created = await server.callTool("ak_create", {
+    const created = await server.callTool("agon_create", {
       room: ["size=medium;count=2"],
       delver: [
         { count: 2, id: "hero", affinity: "earth", motivation: ["user_controlled", "exploring"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1" },
@@ -89,28 +89,28 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
     });
     assert.equal(created.ok, true, JSON.stringify(created));
 
-    const started = await server.callTool("ak_play_start", { session: "mcp-party", runId: "party-mcp" });
+    const started = await server.callTool("agon_play_start", { session: "mcp-party", runId: "party-mcp" });
     assert.equal(started.ok, true, JSON.stringify(started));
     assert.equal(started.active, "hero-1");
     assert.deepEqual(started.party.map((member) => member.label), ["D1", "D2"]);
     assert.ok(existsSync(join(SESSIONS, "mcp-party.json")));
 
     // #653: the seat's legal commands, ordered by id, playable as listed.
-    const legalView = await server.callTool("ak_play_legal", { session: "mcp-party" });
+    const legalView = await server.callTool("agon_play_legal", { session: "mcp-party" });
     assert.equal(legalView.ok, true, JSON.stringify(legalView));
     assert.equal(legalView.turns, 0);
     const ids = legalView.legal.map((entry) => entry.id);
     assert.ok(ids.includes("wait"));
     assert.deepEqual(ids, [...ids].sort());
     assert.deepEqual(started.legal.map((entry) => entry.id), ids);
-    const playedLegal = await server.callTool("ak_play_act", { session: "mcp-party", commands: [legalView.legal.find((entry) => entry.id === "wait").command] });
+    const playedLegal = await server.callTool("agon_play_act", { session: "mcp-party", commands: [legalView.legal.find((entry) => entry.id === "wait").command] });
     assert.equal(playedLegal.turns, 1);
 
-    const switched = await server.callTool("ak_play_switch", { session: "mcp-party", actor: "D2" });
+    const switched = await server.callTool("agon_play_switch", { session: "mcp-party", actor: "D2" });
     assert.equal(switched.active, "hero-2");
     assert.equal(switched.turns, 1);
 
-    const acted = await server.callTool("ak_play_act", {
+    const acted = await server.callTool("agon_play_act", {
       session: "mcp-party",
       commands: [{ kind: "wait" }, { kind: "wait", actorId: "D1" }],
       keys: ".",
@@ -119,11 +119,11 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
     assert.equal(acted.turns, 4);
     assert.deepEqual(acted.results.map((result) => result.accepted[0]?.actorId), ["hero-2", "hero-1"]);
 
-    const viewed = await server.callTool("ak_play_view", { session: "mcp-party" });
+    const viewed = await server.callTool("agon_play_view", { session: "mcp-party" });
     assert.equal(viewed.turns, 4);
     assert.match(viewed.screen, /Party: D1 hero-1 \(exploring\) {2}\[D2 hero-2 \(exploring\)\]/);
 
-    const ended = await server.callTool("ak_play_end", { session: "mcp-party" });
+    const ended = await server.callTool("agon_play_end", { session: "mcp-party" });
     assert.equal(ended.ended, true);
     assert.equal(existsSync(join(SESSIONS, "mcp-party.json")), false);
   } finally {
@@ -131,11 +131,11 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
   }
 });
 
-test("orders: ak_create authors a strategy, ak_play_order replaces it, ak_play_advance plays it out", async () => {
+test("orders: agon_create authors a strategy, agon_play_order replaces it, agon_play_advance plays it out", async () => {
   const server = startServer();
   try {
     await server.initialize();
-    const created = await server.callTool("ak_create", {
+    const created = await server.callTool("agon_create", {
       room: ["size=medium;count=2"],
       delver: [
         { count: 1, id: "hero", affinity: "earth", motivation: ["user_controlled"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1" },
@@ -148,8 +148,8 @@ test("orders: ak_create authors a strategy, ak_play_order replaces it, ak_play_a
     });
     assert.equal(created.ok, true, JSON.stringify(created));
 
-    await server.callTool("ak_play_start", { session: "mcp-orders", runId: "orders-mcp" });
-    const ordered = await server.callTool("ak_play_order", {
+    await server.callTool("agon_play_start", { session: "mcp-orders", runId: "orders-mcp" });
+    const ordered = await server.callTool("agon_play_order", {
       session: "mcp-orders", actor: "D2", strategy: { goals: [{ kind: "hold", place: { x: 1, y: 1 }, ticks: 1 }] },
     });
     assert.equal(ordered.ok, true, JSON.stringify(ordered));
@@ -157,20 +157,20 @@ test("orders: ak_create authors a strategy, ak_play_order replaces it, ak_play_a
     assert.equal(ordered.orders[0].id, "pal-1");
     assert.equal(ordered.orders[0].doing.kind, "hold");
 
-    const advanced = await server.callTool("ak_play_advance", { session: "mcp-orders", ticks: 2 });
+    const advanced = await server.callTool("agon_play_advance", { session: "mcp-orders", ticks: 2 });
     assert.equal(advanced.ok, true, JSON.stringify(advanced));
     assert.equal(advanced.turns, 3);
     assert.equal(advanced.results[0].ticks, 2);
-    await server.callTool("ak_play_end", { session: "mcp-orders" });
+    await server.callTool("agon_play_end", { session: "mcp-orders" });
   } finally {
     await server.close();
   }
 });
 
 // ## TODO: Test Permutations
-// - ak_play_order to a warden answers not_yours; a malformed strategy answers invalid_strategy with the reason.
-// - ak_play_advance with until "contact" stops when a hostile comes into sight.
-// - ak_play_start with dir, with simConfig + initialState, and with a bundled level.
-// - ak_play_switch to a companion answers not_playable and keeps the seat.
-// - ak_play_act on a name that was never started answers ok: false with the reason.
+// - agon_play_order to a warden answers not_yours; a malformed strategy answers invalid_strategy with the reason.
+// - agon_play_advance with until "contact" stops when a hostile comes into sight.
+// - agon_play_start with dir, with simConfig + initialState, and with a bundled level.
+// - agon_play_switch to a companion answers not_playable and keeps the seat.
+// - agon_play_act on a name that was never started answers ok: false with the reason.
 // - a game survives a server restart: start, close the server, act from a new server.

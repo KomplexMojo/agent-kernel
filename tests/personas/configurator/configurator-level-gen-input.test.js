@@ -201,7 +201,7 @@ assert.ok(invalid.errors.find((entry) => entry.code === "invalid_target_type"));
 });
 
 // #340: a placed hazard keeps its intensity through level-gen; before #345 it was dropped,
-// so every placed hazard ran at intensity 1 whatever `ak create --hazard ...;intensity=` said.
+// so every placed hazard ran at intensity 1 whatever `agon create --hazard ...;intensity=` said.
 test("normalizeLevelGenInput keeps a placed hazard's intensity and refuses a bad one", async () => {const { normalizeLevelGenInput } = await import("../../../packages/runtime/src/personas/configurator/level-gen.js");
 
 const hazard = (intensity) => ({ width: 8, height: 8,

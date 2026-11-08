@@ -4,7 +4,7 @@
  * The scenario's own playable delver is scaled rung by rung (×1, ×1.5, ×2, ...) and each rung is
  * played by the seat driver (a model choosing from the legal list, as `play-sim --driver seat`).
  * The map, the wardens and the rest of the level stay the scenario's: only the delver changes,
- * and the Allocator prices every rung through `ak create` (a rung whose delver the arm cannot
+ * and the Allocator prices every rung through `agon create` (a rung whose delver the arm cannot
  * afford is rebuilt at a doubled budget, which leaves the map unchanged; its receipt is recorded).
  *
  *   node scripts/testing/play-sim-power-ladder.mjs --model qwen3.8:27b [--scenario first-look]
@@ -159,7 +159,7 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
   const ladders = recipes?.length ? recipes : [null];
   for (const name of ladders) if (name) recipeDelverSpec(playerDelverSpec(scenario, seeds[0] ?? 0), name);
   mkdirSync(outDir, { recursive: true });
-  const workDir = mkdtempSync(join(tmpdir(), "ak-power-ladder-"));
+  const workDir = mkdtempSync(join(tmpdir(), "agon-power-ladder-"));
   const runs = [];
   // report.md and summary.json are rewritten after every play, so a run in progress can be read
   // (`watch -n 10 cat .../report.md`); the last write is the final report.

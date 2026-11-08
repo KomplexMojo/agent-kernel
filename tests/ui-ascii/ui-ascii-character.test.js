@@ -1,6 +1,6 @@
 /**
  * The character screen: draws the runtime character sheet, maps keys to its intents, and the
- * spec it writes builds a level through `ak create` with exactly that delver. The screen
+ * spec it writes builds a level through `agon create` with exactly that delver. The screen
  * prices nothing; the Allocator does (tests/runtime/character-sheet.test.js).
  */
 const assert = require("node:assert/strict");
@@ -13,7 +13,7 @@ const ROOT = join(__dirname, "../..");
 const SCREEN = "../../packages/ui-ascii/src/character-screen.js";
 const SHEET = "../../packages/runtime/src/runner/character-sheet.js";
 const CLI = join(ROOT, "packages/ui-ascii/src/character-cli.mjs");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const HERO = "count=1;id=hero;affinity=fire;affinities=fire:emit:2:1,fire:push:3:1;equip=fire:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1";
 
 test("the screen shows every row with its price, the budget, and the keys", async () => {
@@ -53,7 +53,7 @@ test("keys map to sheet intents, the same names every surface sends", async () =
   assert.equal(sheetIntentForKey("%"), null);
 });
 
-test("the scripted CLI applies keys and the confirmed spec builds that delver through ak create", () => {
+test("the scripted CLI applies keys and the confirmed spec builds that delver through agon create", () => {
   const dir = mkdtempSync(join(tmpdir(), "character-screen-"));
   try {
     const specFile = join(dir, "spec.txt");

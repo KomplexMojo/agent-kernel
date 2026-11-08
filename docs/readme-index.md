@@ -79,5 +79,5 @@ behaviors have a passing G1 test and which do not. Those blocks mirror
 | `tests/fixtures/artifacts/README.md` | Schema-valid JSON artifact fixtures (`invalid/` holds the negative cases). |
 | `tests/llm-suitability/README.md` | Scenarios that measure whether a local model can write useful Vitests for this repo. |
 | `tools/remote-ollama-control/README.md` | SSH control of the remote GPU host and the `run-content-gen` benchmark. |
-| `tools/benchmark/README.md` | The `ak_create` scenario suite used to compare models and detect baseline drift. |
+| `tools/benchmark/README.md` | The `agon_create` scenario suite used to compare models and detect baseline drift. |
 | `tools/adaptive-workflow-benchmark/README.md` | Scenario driver for `runAdaptiveWorkflow` against a live model endpoint. |

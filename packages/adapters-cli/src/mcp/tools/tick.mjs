@@ -32,7 +32,7 @@ async function resolveTickState(runId, runDirOverride) {
 }
 
 const tickForwardTool = createHandlerTool({
-  name: "ak_tick_forward",
+  name: "agon_tick_forward",
   description:
     "Advance the interactive session cursor forward by one tick for the given run. Returns the previous and new tick positions along with the maxTick boundary.",
   inputSchema: {
@@ -82,7 +82,7 @@ const tickForwardTool = createHandlerTool({
 });
 
 const tickBackwardTool = createHandlerTool({
-  name: "ak_tick_backward",
+  name: "agon_tick_backward",
   description:
     "Rewind the interactive session cursor back by one tick for the given run. Returns a structured error when already at tick 0.",
   inputSchema: {
@@ -132,9 +132,9 @@ const tickBackwardTool = createHandlerTool({
 });
 
 const showStateTool = createHandlerTool({
-  name: "ak_show_state",
+  name: "agon_show_state",
   description:
-    "Return the current dungeon state for the given run at the session cursor tick. `ascii` is the terminal UI's screen at that tick (packages/ui-ascii, as ak_play_ascii with watch: true shows it): the board with every actor and trap, then the followed actor's HUD.",
+    "Return the current dungeon state for the given run at the session cursor tick. `ascii` is the terminal UI's screen at that tick (packages/ui-ascii, as agon_play_ascii with watch: true shows it): the board with every actor and trap, then the followed actor's HUD.",
   inputSchema: {
     properties: {
       runId: stringSchema("Run ID to show the current state for."),

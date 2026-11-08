@@ -10,7 +10,7 @@ const {
   writeRunManifest,
   readRunManifest,
 } = require("../../tools/remote-ollama-control/scripts/lib/content-gen-checkpoint");
-const { executeContentGenMatrix } = require("../../tools/remote-ollama-control/scripts/lib/ak-matrix");
+const { executeContentGenMatrix } = require("../../tools/remote-ollama-control/scripts/lib/agon-matrix");
 
 const MATRIX = {
   sha256: "matrix-hash",

@@ -6,7 +6,7 @@
  * execution are recorded, and the Orchestrator fulfils them AFTER the run, capturing the
  * results as artifacts so a future run can be deterministic. None of it existed.
  * `dispatchEffect` marked effects `deferred`, the Moderator's fulfilment plan recorded the
- * disposition, and the only thing downstream was `ak inspect`, which COUNTED them. The
+ * disposition, and the only thing downstream was `agon inspect`, which COUNTED them. The
  * records then went nowhere, which is indistinguishable in every output test from a run
  * that had nothing to coordinate.
  *

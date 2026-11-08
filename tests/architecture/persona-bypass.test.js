@@ -14,7 +14,7 @@ const { tmpdir } = require("node:os");
 const { extname, join, relative, resolve, sep } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const ALLOWLIST = JSON.parse(readFileSync(resolve(__dirname, "persona-bypass-allowlist.json"), "utf8"));
 
 const GLUE_ROOTS = [
@@ -24,7 +24,7 @@ const GLUE_ROOTS = [
 ];
 const BUDGET_GATE = /(if \(|\? |&& )[^;]*\b(budget|priceList|budgetTokens|budgetArtifact|priceListArtifact|resolvedPriceList|budgetLoopEnabled)\b/;
 
-function ak(args, dir, { stamp = true } = {}) {
+function agon(args, dir, { stamp = true } = {}) {
   return spawnSync(process.execPath, [CLI, ...args, ...(stamp ? ["--created-at", "2026-10-15T00:00:00.000Z"] : []), "--out-dir", dir],
     { cwd: ROOT, encoding: "utf8" });
 }
@@ -48,7 +48,7 @@ const AUTHORING = [
 test.each(AUTHORING.map((args) => [args[0], args]))("%s with no budget is priced by the Allocator", (_name, args) => {
   const dir = mkdtempSync(join(tmpdir(), "persona-bypass-"));
   try {
-    const result = ak(args, dir);
+    const result = agon(args, dir);
     assert.equal(result.status, 0, result.stderr);
     assert.ok(priced(dir), `${args[0]} wrote no Allocator receipt and price list: a parallel path around the Allocator`);
   } finally {
@@ -59,11 +59,11 @@ test.each(AUTHORING.map((args) => [args[0], args]))("%s with no budget is priced
 test("build --spec with no budget is priced by the Allocator (#276)", () => {
   const dir = mkdtempSync(join(tmpdir(), "persona-bypass-build-"));
   try {
-    assert.equal(ak(AUTHORING[0], join(dir, "create")).status, 0);
+    assert.equal(agon(AUTHORING[0], join(dir, "create")).status, 0);
     const spec = JSON.parse(readFileSync(join(dir, "create", "spec.json"), "utf8"));
     delete spec.budget;
     writeFileSync(join(dir, "spec.json"), JSON.stringify(spec));
-    const result = ak(["build", "--spec", join(dir, "spec.json")], join(dir, "build"), { stamp: false });
+    const result = agon(["build", "--spec", join(dir, "spec.json")], join(dir, "build"), { stamp: false });
     assert.equal(result.status, 0, result.stderr);
     assert.ok(priced(join(dir, "build")), "build --spec wrote no Allocator receipt and price list");
   } finally {
@@ -113,5 +113,5 @@ test("budget-gated conditionals in glue only go down", () => {
 
 // ## TODO: Test Permutations
 // - bridge compile (--push-ui) with a spec that has no budget writes a receipt.
-// - MCP ak_create and ak_build with no budget behave as their CLI commands.
+// - MCP agon_create and agon_build with no budget behave as their CLI commands.
 // - a play session on a level with no receipt (#279).

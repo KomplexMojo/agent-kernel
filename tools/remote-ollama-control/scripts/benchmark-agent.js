@@ -303,38 +303,38 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const home = process.env.HOME;
   if (!home) throw new Error('HOME is required');
-  const sourceRemote = envValue(args, 'source-remote', 'AK_BENCHMARK_SOURCE_REMOTE');
-  const sourceRef = envValue(args, 'source-ref', 'AK_BENCHMARK_SOURCE_REF', 'main');
-  const dryRun = Boolean(args['dry-run']) || envValue(args, 'dry-run', 'AK_BENCHMARK_DRY_RUN', '0') === '1';
-  const liveEnabled = Boolean(args.live) || envValue(args, 'live', 'AK_BENCHMARK_LIVE', '0') === '1';
-  const fixturePath = envValue(args, 'fixture-result', 'AK_BENCHMARK_FIXTURE_RESULT');
-  if (!sourceRemote) throw new Error('AK_BENCHMARK_SOURCE_REMOTE or --source-remote is required');
+  const sourceRemote = envValue(args, 'source-remote', 'AGON_BENCHMARK_SOURCE_REMOTE');
+  const sourceRef = envValue(args, 'source-ref', 'AGON_BENCHMARK_SOURCE_REF', 'main');
+  const dryRun = Boolean(args['dry-run']) || envValue(args, 'dry-run', 'AGON_BENCHMARK_DRY_RUN', '0') === '1';
+  const liveEnabled = Boolean(args.live) || envValue(args, 'live', 'AGON_BENCHMARK_LIVE', '0') === '1';
+  const fixturePath = envValue(args, 'fixture-result', 'AGON_BENCHMARK_FIXTURE_RESULT');
+  if (!sourceRemote) throw new Error('AGON_BENCHMARK_SOURCE_REMOTE or --source-remote is required');
   if (!dryRun && !fixturePath && !liveEnabled) {
-    throw new Error('Live pipeline execution is operator-gated; set AK_BENCHMARK_LIVE=1 or use dry-run/fixture evidence');
+    throw new Error('Live pipeline execution is operator-gated; set AGON_BENCHMARK_LIVE=1 or use dry-run/fixture evidence');
   }
   const mirrorDir = envValue(
     args,
     'source-mirror',
-    'AK_BENCHMARK_SOURCE_MIRROR',
+    'AGON_BENCHMARK_SOURCE_MIRROR',
     path.join(home, '.local/share/agon-benchmark/source.git'),
   );
   const stateDir = envValue(
     args,
     'state-dir',
-    'AK_BENCHMARK_STATE_DIR',
+    'AGON_BENCHMARK_STATE_DIR',
     path.join(home, '.local/state/agon-benchmark'),
   );
   const sourceRepo = ensureSourceMirror(sourceRemote, sourceRef, mirrorDir);
   const fixture = fixturePath ? JSON.parse(fs.readFileSync(fixturePath, 'utf8')) : null;
-  const scenarioSetHash = envValue(args, 'scenario-hash', 'AK_BENCHMARK_SCENARIO_HASH');
-  const matrixHash = envValue(args, 'matrix-hash', 'AK_BENCHMARK_MATRIX_HASH');
-  const executionSuiteHash = envValue(args, 'execution-suite-hash', 'AK_BENCHMARK_EXECUTION_SUITE_HASH');
+  const scenarioSetHash = envValue(args, 'scenario-hash', 'AGON_BENCHMARK_SCENARIO_HASH');
+  const matrixHash = envValue(args, 'matrix-hash', 'AGON_BENCHMARK_MATRIX_HASH');
+  const executionSuiteHash = envValue(args, 'execution-suite-hash', 'AGON_BENCHMARK_EXECUTION_SUITE_HASH');
   const result = await runBenchmarkAgent({
     sourceRepo,
     sourceRef,
-    sourceRepository: envValue(args, 'source-repository', 'AK_BENCHMARK_SOURCE_REPOSITORY', 'agon'),
-    resultsRemote: envValue(args, 'results-remote', 'AK_BENCHMARK_RESULTS_REMOTE'),
-    resultBranch: envValue(args, 'result-branch', 'AK_BENCHMARK_RESULT_BRANCH', 'benchmark-results'),
+    sourceRepository: envValue(args, 'source-repository', 'AGON_BENCHMARK_SOURCE_REPOSITORY', 'agon'),
+    resultsRemote: envValue(args, 'results-remote', 'AGON_BENCHMARK_RESULTS_REMOTE'),
+    resultBranch: envValue(args, 'result-branch', 'AGON_BENCHMARK_RESULT_BRANCH', 'benchmark-results'),
     stateDir,
     scenarioSetHash,
     matrixHash,

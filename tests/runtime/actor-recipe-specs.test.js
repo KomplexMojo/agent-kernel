@@ -8,7 +8,7 @@ const { join, resolve } = require("node:path");
 const { tmpdir } = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 async function specs() {
   const { createAuthoringSpecs } = await import("../../packages/runtime/src/commands/authoring-specs.js");
@@ -53,8 +53,8 @@ test("kind= sets a {K} recipe's kind and needs recipe=; an unknown recipe names 
   assert.throws(() => parseDelverSpecs(["recipe=necromancer"]), /delver\[1\]: unknown recipe "necromancer" \(known: shadowblade,/);
 });
 
-test("ak create builds the design's example level and reports the warden's trimmed slot", () => {
-  const outDir = mkdtempSync(join(tmpdir(), "ak-recipe-"));
+test("agon create builds the design's example level and reports the warden's trimmed slot", () => {
+  const outDir = mkdtempSync(join(tmpdir(), "agon-recipe-"));
   try {
     const result = spawnSync(process.execPath, [AK, "create", "--grade", "F", "--room", "size=medium;count=3",
       "--delver", "recipe=shadowblade;motivation=user_controlled", "--warden", "recipe=lantern-bearer",

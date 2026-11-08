@@ -7,7 +7,7 @@ const { resolve, join, dirname } = require("node:path");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 function runCli(args, cwd) {
   return spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8" });
@@ -81,7 +81,7 @@ async function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
 // ---------------------------------------------------------------------------
 
 test("cursor schema and meta fields are complete after tick forward", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-schema-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-schema-"));
   const runId = "run_rp_schema";
   await scaffoldRun(workDir, runId, { maxTick: 5 });
 
@@ -102,7 +102,7 @@ test("cursor schema and meta fields are complete after tick forward", async () =
 });
 
 test("cursor maxTick is unchanged by rewind", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-maxtick-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-maxtick-"));
   const runId = "run_rp_maxtick";
   await scaffoldRun(workDir, runId, { maxTick: 5 });
 
@@ -118,7 +118,7 @@ test("cursor maxTick is unchanged by rewind", async () => {
 
 test("forward after rewind lands at the same tick as direct forward", async () => {
   // Path A: forward×3, backward×1, forward×1 → tick 3
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-path-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-path-"));
   const runId = "run_rp_path";
   await scaffoldRun(workDir, runId, { maxTick: 5 });
 
@@ -129,7 +129,7 @@ test("forward after rewind lands at the same tick as direct forward", async () =
   const pathA = JSON.parse(runCli(["tick", "forward", "--run-id", runId], workDir).stdout);
 
   // Path B: direct forward×3 in a fresh run → tick 3
-  const workDir2 = mkdtempSync(join(os.tmpdir(), "ak-rp-path2-"));
+  const workDir2 = mkdtempSync(join(os.tmpdir(), "agon-rp-path2-"));
   const runId2 = "run_rp_path2";
   await scaffoldRun(workDir2, runId2, { maxTick: 5 });
   runCli(["tick", "forward", "--run-id", runId2], workDir2);
@@ -149,7 +149,7 @@ test("forward after rewind lands at the same tick as direct forward", async () =
 // M4 will add tickFrame: <the TickFrame at cursor tick> so agents can read accepted actions,
 // actor positions, and events at any tick without parsing tick-frames.json directly.
 test("tick state response includes tickFrame data at cursor tick", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-frame-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-frame-"));
   const runId = "run_rp_frame";
   await scaffoldRun(workDir, runId, { maxTick: 5 });
 
@@ -173,7 +173,7 @@ test("tick state response includes tickFrame data at cursor tick", async () => {
 // ---------------------------------------------------------------------------
 
 test("consecutive rewinds from maxTick to tick 0 each succeed and decrement cursor", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-consec-bwd-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-consec-bwd-"));
   const runId = "run_rp_consec";
   const maxTick = 3;
   await scaffoldRun(workDir, runId, { maxTick });
@@ -198,7 +198,7 @@ test("consecutive rewinds from maxTick to tick 0 each succeed and decrement curs
 // ---------------------------------------------------------------------------
 
 test("tick state at tick 0 before any forward has null tickFrame", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-tick0-frame-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-tick0-frame-"));
   const runId = "run_rp_zero";
   await scaffoldRun(workDir, runId, { maxTick: 5 });
 
@@ -215,7 +215,7 @@ test("tick state at tick 0 before any forward has null tickFrame", async () => {
 // ---------------------------------------------------------------------------
 
 test("tickFrame.acceptedActions match scaffold fixture data at tick 2", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-actions-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-actions-"));
   const runId = "run_rp_tick2";
   await scaffoldRun(workDir, runId, { maxTick: 5 });
 
@@ -238,7 +238,7 @@ test("tickFrame.acceptedActions match scaffold fixture data at tick 2", async ()
 // ---------------------------------------------------------------------------
 
 test("tickFrame at maxTick is present and tickFrame.tick equals maxTick", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-maxtick-bound-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-maxtick-bound-"));
   const runId = "run_rp_max";
   const maxTick = 4;
   await scaffoldRun(workDir, runId, { maxTick });
@@ -262,7 +262,7 @@ test("tickFrame at maxTick is present and tickFrame.tick equals maxTick", async 
 // ---------------------------------------------------------------------------
 
 test("tick state with missing tick-frames.json but run-summary.json present returns ok with null tickFrame", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-missing-tf-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-rp-missing-tf-"));
   const runId = "run_rp_missing";
   const buildDir = join(workDir, "artifacts", "runs", runId, "build");
   const runDir = join(workDir, "artifacts", "runs", runId, "run");

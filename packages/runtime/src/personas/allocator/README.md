@@ -32,7 +32,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 |---|---|---|---|
 | `allocator/pricing-single-origin` — every token cost has one author, inside the Allocator | A1 | ✅ owned (CR.1, closed at CR.9 M5) | `tests/architecture/single-origin.test.js` |
 | `allocator/judges-not-authors` — it prices a config it did not author, from the artifact's published fields | A1 | ✅ owned (CR.9 M3) | `tests/personas/allocator/allocator-judges-not-authors.test.js` |
-| `allocator/spend-authority` — a build it will not fund does not happen: the receipt gates production | A2 | ✅ owned (P1 / CR.1) | `tests/adapters-cli/ak-hazard-resource-plan.test.js` |
+| `allocator/spend-authority` — a build it will not fund does not happen: the receipt gates production | A2 | ✅ owned (P1 / CR.1) | `tests/adapters-cli/agon-hazard-resource-plan.test.js` |
 | `allocator/budget-maximization` — maximizing against a budget spends its prices, never an assumed one | A1 | ✅ owned (CR.7 / WP-5 D10) | `tests/personas/configurator/configurator-maximizer-prices-from-allocator.test.js` |
 | `allocator/reconciliation` — reconciling actual spend against the issued budget | A1, A2 | ✅ owned (P5.5) | `tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js` |
 | `allocator/base-costs` — base costs: the tunable numbers every formula prices from | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/allocator-base-costs-authority.test.js` |
@@ -50,12 +50,12 @@ missing key instead of defaults.
 **`allocator/spend-authority` is the A2 row, and it runs through the real CLI:** when this persona
 denies the receipt, the build throws `Budget receipt denied: …` and the command exits non-zero.
 
-⚠️ **The citation on that row is itself a finding.** It first named `ak-warden-plan.test.js` — the
+⚠️ **The citation on that row is itself a finding.** It first named `agon-warden-plan.test.js` — the
 obvious candidate, which mentions the denial string and asserts a non-zero exit. Perturb the refusal
 away and that test stays **green**: its regex accepts three different messages
 (`/budget|minimum_cost_exceeds_budget|Budget receipt denied/i`) and its scenario actually fails at an
 earlier gate. *A test that mentions a behavior is not a test that pins it.* The proof that does fail
-is `ak-hazard-resource-plan.test.js`, and finding it required neutralizing **both** throw sites in
+is `agon-hazard-resource-plan.test.js`, and finding it required neutralizing **both** throw sites in
 `orchestrate-build.js` — one is a superset of the other, so removing one left the entire suite green
 and briefly read as "nothing guards this at all".
 
@@ -132,7 +132,7 @@ returns `{ ok: false, error }` (with `budgetInsufficient` for a non-approved or 
 `--budget` spends the budget on the room's floor with `evaluateConfiguratorSpend`, writing the
 issued `budget-receipt.json` and `price-list.json` beside the session.
 
-### It re-prices `ak run` overrides (#278)
+### It re-prices `agon run` overrides (#278)
 
 `priceLevelOverrides({ simConfig, initialState, levelReceipt, priceList, ... })` prices an
 overridden level's layout and actors with `evaluateConfiguratorSpend`, against the level's own
@@ -314,7 +314,7 @@ Auditing against that rule found four free surfaces, none of which failed anythi
 
 | Free surface | Now |
 |---|---|
-| A hazard's **affinity payload** cost nothing on the real `ak create` path. The pricer tested `typeof affinity === "object"`, but the CLI writes `affinity: "fire"` beside `affinityStacks: [...]` — the branch never matched | charged: base + stacks + expression, the same as a delver's. In the g1 golden the delver's fire/emit affinity cost 46 tokens and the hazard's identical one cost **0**; a hazard is now 42 rather than 5 |
+| A hazard's **affinity payload** cost nothing on the real `agon create` path. The pricer tested `typeof affinity === "object"`, but the CLI writes `affinity: "fire"` beside `affinityStacks: [...]` — the branch never matched | charged: base + stacks + expression, the same as a delver's. In the g1 golden the delver's fire/emit affinity cost 46 tokens and the hazard's identical one cost **0**; a hazard is now 42 rather than 5 |
 | A hazard's **vitals** likewise: the pricer read `{ max, current, regen }`, the CLI writes `{ kind: "one-time", amount }` | charged as vital points |
 | `motivation_stationary` was priced at **0** | 1 — a level of stationary wardens is no longer free behavior |
 | `hazard_base` (10) was published and charged by nothing | deleted; `hazard_basic` (5) is the enforced base every hazard pays |
@@ -351,8 +351,8 @@ follows the prices, not the other way around.
 **It is one number in one place now, and that took three deletions.** The same percentages
 were also declared as `DEFAULT_POOLS` and `REFERENCE_TARGETS` in `budget-allocation.js`
 (numbers in code, tied to the JSON only by a comment) and — the one that mattered — as
-`AUTHORING_POOL_WEIGHT_DEFAULTS` in `adapters-cli/src/cli/ak-impl.mjs`, which is the copy
-`ak create` actually used. All three now derive from `base-costs.json`.
+`AUTHORING_POOL_WEIGHT_DEFAULTS` in `adapters-cli/src/cli/agon-impl.mjs`, which is the copy
+`agon create` actually used. All three now derive from `base-costs.json`.
 
 ⚠️ **That fourth copy is why the single-origin guard's scope is now `packages`, not
 `packages/runtime/src`.** It sat in an adapter, outside the guard's reach, through the
@@ -431,7 +431,7 @@ Resource items (`resource_*`) are **derived in code** from the ids they mirror a
 `round(freeFloatingPremium × base)`, inheriting the mirrored id's linear/quadratic shape — the
 premium changes price, never scaling. Hazards pay no premium: a hazard threatens, a resource grants.
 
-A resource placed by `ak create` reaches the Allocator as an actor, and its loot is a holding.
+A resource placed by `agon create` reaches the Allocator as an actor, and its loot is a holding.
 The actor loop prices each holding through the same extractors as the resource-spec path, so no
 second formula exists. Slot-unlock loot and slots bought above the preset are retired (Darren,
 2026-10-30; removed in #577, with `resource_affinity_slot` and the `affinity_slot` line): an actor
@@ -449,7 +449,7 @@ holding (#242) is charged its delta at the permanence tier and its regen as
 > file does not exist** — it was renamed or absorbed and the citation was never updated, so the doc
 > pointed at a guard nobody could run. Verified 2026-08-12 against the code, not the citation.
 
-> **Known bug — `ak create` does not charge affinity-only resources.** Found 2026-07-18 while
+> **Known bug — `agon create` does not charge affinity-only resources.** Found 2026-07-18 while
 > building P0.2 goldens: `create` charges an affinity-only resource **zero tokens** (empty receipt)
 > while `resource-plan` charges the identical payload 538. The two commands assemble spend
 > proposals through different glue paths and only resource-plan's extracts the affinity payload.

@@ -15,13 +15,13 @@ wall-clock-meta-stamp bug, unconfirmed — no scenario exercises them yet) and *
 README's Tool Index is stale — 27 documented vs. ~45 actual tools).
 
 **Audience:** an agent with no memory of the session that produced it.
-**Source of evidence:** live MCP tool calls (`ak_create`, `ak_run`, `ak_push_to_ui`, `ak_show_state`,
-`ak_tick_forward`, `ak_show`, `ak_runs_list`) against `packages/adapters-cli/src/mcp/server.mjs` on
+**Source of evidence:** live MCP tool calls (`agon_create`, `agon_run`, `agon_push_to_ui`, `agon_show_state`,
+`agon_tick_forward`, `agon_show`, `agon_runs_list`) against `packages/adapters-cli/src/mcp/server.mjs` on
 branch `chore/mcp-session-run-through` (parent `main` @ `9611ad7`), plus reads of
 `packages/adapters-cli/src/tick-session.mjs` and `packages/adapters-cli/src/mcp/README.md`, and one
 root-cause pass with Serena's semantic tools (see finding 5).
 
-**Session goal, restated:** run the app via MCP tools only (no shelling out to `ak.mjs` directly for
+**Session goal, restated:** run the app via MCP tools only (no shelling out to `agon.mjs` directly for
 the app-driving steps), get a visual/state result rendered inside the Claude Code harness (Browser
 pane or an inline image), and file each piece of friction as a standalone `gh issue`, back-linked to
 this file.
@@ -32,14 +32,14 @@ this file.
 
 | # | Title | Status | Fix commit | Context |
 |---|---|---|---|---|
-| [#142](https://github.com/KomplexMojo/agon/issues/142) | `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness | **Closed** — documented, not code-fixable (environment constraint) | `1a79486` | Finding 1 |
-| [#143](https://github.com/KomplexMojo/agon/issues/143) | `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` | **Closed** — fixed | `f2f8de6` | Finding 2 |
-| [#144](https://github.com/KomplexMojo/agon/issues/144) | `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit | **Closed** — fixed | `b1dd21d` | Finding 3 |
-| [#145](https://github.com/KomplexMojo/agon/issues/145) | `ak_create` budget denial doesn't say what budget would have worked | **Closed** — fixed | `65b9173` | Finding 4 |
-| [#146](https://github.com/KomplexMojo/agon/issues/146) | Open question: does plain `ak_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
-| [#147](https://github.com/KomplexMojo/agon/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | **Closed** — fixed | `a4e1287` | Finding 5 |
+| [#142](https://github.com/KomplexMojo/agon/issues/142) | `agon_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness | **Closed** — documented, not code-fixable (environment constraint) | `1a79486` | Finding 1 |
+| [#143](https://github.com/KomplexMojo/agon/issues/143) | `agon_show_state`/`agon_tick_forward`/`agon_tick_backward` resolve runs from a different root than `agon_create`/`agon_run`/`agon_show` | **Closed** — fixed | `f2f8de6` | Finding 2 |
+| [#144](https://github.com/KomplexMojo/agon/issues/144) | `agon_show_state`'s `image` visualization mode blows the MCP tool-result size limit | **Closed** — fixed | `b1dd21d` | Finding 3 |
+| [#145](https://github.com/KomplexMojo/agon/issues/145) | `agon_create` budget denial doesn't say what budget would have worked | **Closed** — fixed | `65b9173` | Finding 4 |
+| [#146](https://github.com/KomplexMojo/agon/issues/146) | Open question: does plain `agon_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
+| [#147](https://github.com/KomplexMojo/agon/issues/147) | `agon_tick_forward`/`agon_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | **Closed** — fixed | `a4e1287` | Finding 5 |
 | [#148](https://github.com/KomplexMojo/agon/issues/148) | level-gen error formatter in `orchestrate-build.js` bakes literal `"undefined"` into messages for 4 of 5 error codes | **Closed** — fixed | `453d278` | Finding 6 |
-| [#149](https://github.com/KomplexMojo/agon/issues/149) | `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has | **Closed** — fixed | `4efffe7` | Finding 7 |
+| [#149](https://github.com/KomplexMojo/agon/issues/149) | `agon run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has | **Closed** — fixed | `4efffe7` | Finding 7 |
 | [#150](https://github.com/KomplexMojo/agon/issues/150) | `affinity-summary.json`/`deferred-coordination.json` likely share #149's bug (unconfirmed) | Open | — | Found while fixing #149; different files, not exercised by any scenario yet |
 | [#151](https://github.com/KomplexMojo/agon/issues/151) | MCP README's Tool Index is stale (27 documented vs. ~45 actual tools) | Open | — | Found while fixing #142 |
 
@@ -54,14 +54,14 @@ for the original seven are in the numbered findings below; each now also carries
 ## Reproduction baseline
 
 ```
-ak_create   text="A fire dungeon with one fire delver exploring past a fire hazard."
+agon_create   text="A fire dungeon with one fire delver exploring past a fire hazard."
             room=["size=small;count=1"]
             delver=["count=1;affinity=fire;motivation=exploring;goals=max_mana,mana_regen"]
             hazard=["x=3;y=3;affinity=fire;expression=emit;stacks=1"]
             budgetTokens=1000  runId=run_mcp_session_demo2
             outDir=artifacts/runs/run_mcp_session_demo2/create
 
-ak_run      simConfig=.../create/sim-config.json  initialState=.../create/initial-state.json
+agon_run      simConfig=.../create/sim-config.json  initialState=.../create/initial-state.json
             ticks=5  seed=0  runId=run_mcp_session_demo2
             outDir=artifacts/runs/run_mcp_session_demo2/run
 ```
@@ -71,32 +71,32 @@ result of that run through MCP tools alone.
 
 ---
 
-## 1. `ak_push_to_ui`'s WebSocket bridge is unreachable from the harness that is meant to host it
+## 1. `agon_push_to_ui`'s WebSocket bridge is unreachable from the harness that is meant to host it
 
-**What's failing:** `ak_push_to_ui` starts a sandbox bridge WebSocket server on a port it picks
+**What's failing:** `agon_push_to_ui` starts a sandbox bridge WebSocket server on a port it picks
 (`38487` in this run) inside the MCP server's own process, and the browser UI (`packages/ui-web`,
 served via `serve:ui`) connects to that port directly (`packages/ui-web/src/main.js:520-521`,
-`AK_BRIDGE_PORT = globalThis.__ak_sandboxBridgePort ?? 38487`). In this Claude Code harness:
+`AGON_BRIDGE_PORT = globalThis.__ak_sandboxBridgePort ?? 38487`). In this Claude Code harness:
 
 - `curl http://127.0.0.1:38487/` from the harness's own Bash tool: **connection refused**, and the
   port doesn't appear in `lsof -i :38487` at all.
 - The harness's Browser pane (opened via `preview_start`, which *did* successfully reach the
   `serve:ui` dev server on `:8001` through the harness's own tunnel) logs repeated
-  `WebSocket connection to 'ws://127.0.0.1:38487/ak-sandbox' failed` — the UI loads, but never
+  `WebSocket connection to 'ws://127.0.0.1:38487/agon-sandbox' failed` — the UI loads, but never
   receives the pushed bundle.
 
 **Why:** the MCP server process and the harness's Bash/Browser-pane tools do not share a network
 namespace here. Only ports the harness itself provisions (via `preview_start`) get tunneled through
 to the Browser pane; a raw port opened directly by a tool the MCP server spawns is invisible to both
-`curl` from Bash and the Browser pane. `openBrowser: true` on `ak_push_to_ui` would fare no better —
+`curl` from Bash and the Browser pane. `openBrowser: true` on `agon_push_to_ui` would fare no better —
 it opens the *host's* default browser, which is a different surface than the harness's Browser pane
 and isn't what "display in the Claude harness" means for this task.
 
 **Impact:** the entire live "push a run to the gameplay UI and watch it play" path that
-`ak_push_to_ui` exists for is unusable end-to-end when the MCP server and the driving harness are
+`agon_push_to_ui` exists for is unusable end-to-end when the MCP server and the driving harness are
 this kind of sandboxed pair — not a fixture/data problem, an environment-reachability one.
 
-**Workaround used this session:** `ak_show_state` / `ak_tick_forward` / `ak_tick_backward` return
+**Workaround used this session:** `agon_show_state` / `agon_tick_forward` / `agon_tick_backward` return
 state inline over the MCP response itself (ASCII or a PNG data URI) — no second network hop needed.
 That's the channel that actually works here; see finding 3 for its own limitation.
 
@@ -105,48 +105,48 @@ the MCP server can't see into (it only knows "no client connected," never "no cl
 `requireClient: true` (default) already surfaces the honest signal it's capable of
 (`SANDBOX_UI_NOT_CONNECTED`); this session's repro used `requireClient: false`, which intentionally
 suppresses that signal to tolerate a not-yet-connected client — that's what made the failure silent.
-Fixed by making `ak_push_to_ui`'s own tool description state the constraint plainly and point to the
-`ak_show_state`/`ak_tick_forward`/`ak_tick_backward` workaround above.
+Fixed by making `agon_push_to_ui`'s own tool description state the constraint plainly and point to the
+`agon_show_state`/`agon_tick_forward`/`agon_tick_backward` workaround above.
 
-## 2. `ak_show_state` / `ak_tick_forward` / `ak_tick_backward` resolve runs from a different root than `ak_create` / `ak_run` / `ak_show` / `ak_runs_list`
+## 2. `agon_show_state` / `agon_tick_forward` / `agon_tick_backward` resolve runs from a different root than `agon_create` / `agon_run` / `agon_show` / `agon_runs_list`
 
-**What's failing:** after a clean `ak_create` → `ak_run` with `outDir` omitted (the default —
-"MCP server uses a writable temp folder and remembers it"), `ak_show_state` returns:
+**What's failing:** after a clean `agon_create` → `agon_run` with `outDir` omitted (the default —
+"MCP server uses a writable temp folder and remembers it"), `agon_show_state` returns:
 
 ```
 {"ok":false,"command":"tick","action":"state","runId":"run_mcp_session_demo","error":"run directory not found: run_mcp_session_demo"}
 ```
 
-even though `ak_show` and `ak_runs_list`, called with the same `runId` right after, both report the
+even though `agon_show` and `agon_runs_list`, called with the same `runId` right after, both report the
 run indexed and `status: "success"` — because they read from the MCP server's own remembered temp
 root (`/var/folders/.../agon-mcp-<id>/<runId>/...`).
 
 **Root cause:** `resolveRunDir()` in
 [`packages/adapters-cli/src/tick-session.mjs:9-14`](packages/adapters-cli/src/tick-session.mjs#L9-L14)
-is hardcoded to `process.env.AK_ARTIFACTS_DIR ?? join(process.cwd(), "artifacts")` + `runs/<runId>` —
+is hardcoded to `process.env.AGON_ARTIFACTS_DIR ?? join(process.cwd(), "artifacts")` + `runs/<runId>` —
 it never consults the MCP server's "remembered outDir per runId" mechanism that every other run-aware
-tool in this same server (`ak_show`, `ak_runs_list`, and `ak_create`/`ak_run`'s own follow-up calls)
+tool in this same server (`agon_show`, `agon_runs_list`, and `agon_create`/`agon_run`'s own follow-up calls)
 uses. `packages/adapters-cli/src/mcp/tools/tick.mjs` calls `resolveRunDir(runId)` directly.
 
 **Impact:** the documented "most common agent loop" in `packages/adapters-cli/src/mcp/README.md`
-(`ak_create` or `ak_llm_plan` → `ak_run` → `ak_show`/`ak_inspect` → `ak_narrate` or `ak_diff`) works
+(`agon_create` or `agon_llm_plan` → `agon_run` → `agon_show`/`agon_inspect` → `agon_narrate` or `agon_diff`) works
 fine end-to-end with default temp `outDir`s — but the moment you want to *step through or visualize*
-that same run with `ak_show_state`/`ak_tick_forward`/`ak_tick_backward`, it silently can't find it,
+that same run with `agon_show_state`/`agon_tick_forward`/`agon_tick_backward`, it silently can't find it,
 with no hint that the fix is "pass `outDir=artifacts/runs/<runId>/<command>` explicitly on every call
-instead." Confirmed as the fix: re-running `ak_create`/`ak_run` with `outDir` pinned under
-`<repo>/artifacts/runs/<runId>/{create,run}` made `ak_show_state`/`ak_tick_forward` work immediately.
+instead." Confirmed as the fix: re-running `agon_create`/`agon_run` with `outDir` pinned under
+`<repo>/artifacts/runs/<runId>/{create,run}` made `agon_show_state`/`agon_tick_forward` work immediately.
 
 **Fix (`f2f8de6`):** `resolveRunDir()` now accepts an optional override; `server.mjs`'s dispatch
 layer supplies one for the three tick tools when it has a remembered "run" outDir for that `runId`
 (the same internal-field-injection pattern `resolveDefaultOutDir`/`maybeResolveRememberedInputs`
-already use elsewhere in that file). The plain CLI (`ak tick`, no session/remembered-run concept) is
+already use elsewhere in that file). The plain CLI (`agon tick`, no session/remembered-run concept) is
 unaffected. Verified end-to-end against the real MCP server with the exact repro above — both
-`ak_show_state` and `ak_tick_forward` now succeed immediately after `ak_create`+`ak_run` with `outDir`
+`agon_show_state` and `agon_tick_forward` now succeed immediately after `agon_create`+`agon_run` with `outDir`
 left to default.
 
-## 3. `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit
+## 3. `agon_show_state`'s `image` visualization mode blows the MCP tool-result size limit
 
-**What's failing:** `ak_show_state({runId, visualization: "image"})` on the same run that answered
+**What's failing:** `agon_show_state({runId, visualization: "image"})` on the same run that answered
 fine in `ascii` mode returned a 443,790-character JSON payload (a `visualizationDataUri` PNG,
 base64-inlined) and hit this harness's tool-result token ceiling — the harness caught it and spilled
 the raw result to a scratch file rather than delivering it as a normal tool result.
@@ -155,8 +155,8 @@ the raw result to a scratch file rather than delivering it as a normal tool resu
 harness like this, and it's the one that doesn't fit through the channel. `ascii` mode worked cleanly
 at a fraction of the size and is what this session used to confirm tick-by-tick state. Two independent
 paths to a fix, not mutually exclusive: (a) MCP image results should use the protocol's native image
-content-block type instead of embedding a data URI inside the JSON text result, or (b) `ak_show_state`
-should support writing the PNG to a file and returning its path, the way every artifact-producing `ak_*`
+content-block type instead of embedding a data URI inside the JSON text result, or (b) `agon_show_state`
+should support writing the PNG to a file and returning its path, the way every artifact-producing `agon_*`
 tool already does, instead of always inlining bytes.
 
 **Fix (`b1dd21d`):** took path (b). `visualizationDataUri` is now always `null` in image mode; a new
@@ -164,9 +164,9 @@ tool already does, instead of always inlining bytes.
 disk instead. Verified end-to-end against the real MCP server: overall tool-result text dropped from
 443,790 to 1,716 characters; the 332,157-byte PNG file was confirmed on disk and renders correctly.
 
-## 4. `ak_create`'s budget denial doesn't say what budget would have worked
+## 4. `agon_create`'s budget denial doesn't say what budget would have worked
 
-**What's failing:** `ak_create` with `budgetTokens=200` for one small room + one fire delver +
+**What's failing:** `agon_create` with `budgetTokens=200` for one small room + one fire delver +
 one hazard was denied:
 
 ```
@@ -182,7 +182,7 @@ and the category split isn't derivable from the `budgetTokens` input alone.
 that would clear it without trial and error — the error reports what was denied, not the shortfall
 size or the total that would resolve it. This is the same family of "comprehensive error message"
 work already tracked in `error-message-quality-sweep.md` (SM0–SM3, merged) but for a category that
-sweep's own scope note (`budget receipt denial` is a distinct code path from the `ak_create` field
+sweep's own scope note (`budget receipt denial` is a distinct code path from the `agon_create` field
 validators it audited) didn't cover.
 
 **Fix (`65b9173`):** `deniedPools` entries now append the shortfall —
@@ -191,10 +191,10 @@ computation: `capTokens`' relationship to the overall budget isn't a simple prop
 receipt's `scenarioSpendReport.categories` carries a different "target" number for the same
 category), so guessing that formula risked being subtly wrong. Verified against the exact repro above.
 
-## 5. RESOLVED — root-caused with Serena: the actor did act; `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn
+## 5. RESOLVED — root-caused with Serena: the actor did act; `agon_tick_forward`/`agon_show_state` render every actor frozen at spawn
 
 **Original observation (now known to be a misdiagnosis):** `run_mcp_session_demo2`'s `action-log.json`
-showed `"actions": []`, and `ak_tick_forward` at ticks 1, 2, 3 all showed the delver at the identical
+showed `"actions": []`, and `agon_tick_forward` at ticks 1, 2, 3 all showed the delver at the identical
 `{x:3,y:2}`, which read as "the actor never decided or moved." That premise was wrong on both counts:
 
 - `action-log.json` is populated **only from the `--actions` input file** (deterministic-replay input),
@@ -206,7 +206,7 @@ showed `"actions": []`, and `ak_tick_forward` at ticks 1, 2, 3 all showed the de
   exit tile (`E` at `(1,1)`). Zero further proposals from tick 3 onward is then the *correct* behavior
   for an `exploring` motivation that has reached its goal, not a stall.
 
-**The real, confirmed bug:** `ak_tick_forward`/`ak_show_state`'s `visualization.ascii` /
+**The real, confirmed bug:** `agon_tick_forward`/`agon_show_state`'s `visualization.ascii` /
 `visualization.visualizationDataUri` fields render every actor frozen at its `initial-state.json`
 spawn position for the entire run, regardless of tick or accepted moves. Root cause, traced with
 Serena (`find_referencing_symbols` on `createActorPersona`, then the `run` command in `kernel.js`,
@@ -218,12 +218,12 @@ then the two tick-frame readers in `tick-session.mjs`):
    that tick's `apply` phase-frame (confirmed: tick 1 and 2's `apply` frames carry the moves above,
    their `summarize` frames carry `[]`).
 3. [`computeActorPositions()`](packages/runtime/src/render/visualization-snapshot.js#L36-L49) (used by
-   `buildVisualizationSnapshot`, which is what `ak_tick_forward`/`ak_show_state`'s `visualization.*`
+   `buildVisualizationSnapshot`, which is what `agon_tick_forward`/`agon_show_state`'s `visualization.*`
    fields come from) starts from `initialState.actors[].position` and overlays only the **single**
    passed-in `tickFrame.acceptedActions` — never a history. Fed an always-empty `summarize` frame, the
    overlay never applies, so every actor renders at spawn forever.
 
-**Proof, same run, same call:** `ak_show_state({runId, visualization:"ascii"})` at cursor tick 3
+**Proof, same run, same call:** `agon_show_state({runId, visualization:"ascii"})` at cursor tick 3
 returns *both* renderings in one response — top-level `ascii` (built by the sibling function
 [`renderAscii()`](packages/adapters-cli/src/tick-session.mjs#L213-L262), via
 [`resolveActorPositionsAtTick()`](packages/adapters-cli/src/tick-session.mjs#L181-L202), which
@@ -242,8 +242,8 @@ visualization path.
 the image path) both now replay every accepted move cumulatively from the full `tick-frames.json`
 history instead of overlaying one always-empty frame; `buildPngDataUri()` reuses the already-correct
 `resolveActorPositionsAtTick()` instead of a third duplicate. Also found and fixed the identical bug
-independently present in `ak-impl.mjs`'s `tickCommand` (the CLI `ak tick` command) — not covered by
-the original diagnosis above. Verified against the original repro: `ak tick forward --visualization
+independently present in `agon-impl.mjs`'s `tickCommand` (the CLI `agon tick` command) — not covered by
+the original diagnosis above. Verified against the original repro: `agon tick forward --visualization
 ascii`/`image` now both show the delver actually moving (3,2)→(2,2)→(1,1) across ticks instead of
 frozen at spawn.
 
@@ -282,7 +282,7 @@ static hazard:
 Axis E's diagonal sub-sweep can't reuse axis C's approach directly — `create`/`configure` has no
 x/y field for `--delver`/`--warden` (level-gen auto-places actors; only hazards/resources take
 authoring-time positions). Instead it reuses `E1-warden-basic`'s exact authored config and
-repositions the auto-placed warden at **run time** via `ak run --actor <id>,<x>,<y>` — a CLI flag
+repositions the auto-placed warden at **run time** via `agon run --actor <id>,<x>,<y>` — a CLI flag
 meant for deterministic-replay overrides, now doing double duty as this sweep's actor-placement
 mechanism. The warden's id (`card_warden_1-1`) is fixed and confirmed from E1's own
 `initial-state.json` (single warden, `count=1`). Corners are absolute grid coordinates — the room's
@@ -297,13 +297,13 @@ is called out elsewhere in this codebase (`packages/runtime/src/personas/actor/R
 line-of-sight section) as a distinct code path from cardinal placement, which the baseline's
 near-center `(3,3)` hazard never exercised.
 
-**Methodology:** shells out to the real CLI (`node packages/adapters-cli/src/cli/ak.mjs`) directly
+**Methodology:** shells out to the real CLI (`node packages/adapters-cli/src/cli/agon.mjs`) directly
 rather than through MCP tool calls — this is scripted batch automation, which
 `packages/adapters-cli/src/mcp/README.md`'s own "Mental Model" section calls out as the right case for
 using the CLI directly ("ad hoc shell usage... scripting outside an MCP client"), not a departure from
-the MCP-first approach the rest of this doc uses. Each scenario runs `ak create` (no `--dry-run`) into
+the MCP-first approach the rest of this doc uses. Each scenario runs `agon create` (no `--dry-run`) into
 its own `outDir`, and on success feeds the resulting `sim-config.json`/`initial-state.json` into
-`ak run --ticks 5 --seed 0`. Results are classified: `PASS`, `EXPECTED_BUDGET_DENIAL`,
+`agon run --ticks 5 --seed 0`. Results are classified: `PASS`, `EXPECTED_BUDGET_DENIAL`,
 `VALIDATION_REJECTION`, or `ANOMALY_*` (crash / malformed output / unrecognized failure shape) —
 anything not cleanly explained by a known, expected rejection pattern gets triaged by hand before
 being written up as a finding.
@@ -319,9 +319,9 @@ G2's out-of-bounds hazard is left in the matrix deliberately as a standing regre
 
 **Results (re-run 2026-09-01 after widening axis D, then B, then C, then E — 50 scenarios):**
 
-- `ak create --dry-run` only (authoring-layer validation, no artifacts written, no `ak run`):
+- `agon create --dry-run` only (authoring-layer validation, no artifacts written, no `agon run`):
   **50/50 PASS.** No anomalies.
-- `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **49/50 PASS** on create,
+- `agon create` (real artifacts) + `agon run --ticks 5 --seed 0` per scenario: **49/50 PASS** on create,
   **49/49 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple` —
   see finding 6. All 10 axis-D hazard affinities, all 4 axis-C diagonal-corner hazard positions, and
   all 4 new axis-E diagonal-corner warden placements passed clean on both create and run — verified
@@ -331,7 +331,7 @@ G2's out-of-bounds hazard is left in the matrix deliberately as a standing regre
   (`defending` doesn't move without an adjacent hostile — same documented behavior already noted for
   axis B). `B-delver-motivation-user_controlled` also passed clean on both: `create=PASS`,
   `run=PASS`, `actions=0, effects=5` — inert at the run layer as expected (player-controlled actors
-  need streamed simulation playback per the Actor persona README; a plain `ak_run` pass has no
+  need streamed simulation playback per the Actor persona README; a plain `agon_run` pass has no
   player input to stream), informational only, not a failure.
 
 **Step-level assertions (added 2026-09-01).** Everything above only classified the *whole run* —
@@ -341,7 +341,7 @@ aggregate, wrong at every individual tick) would have been invisible to it. `ste
 `run-configuration-permutation-sweep.mjs` closes that gap with zero extra CLI/MCP calls — it
 post-processes `tick-frames.json`/`initial-state.json`/`sim-config.json`, which the `run` step
 already writes, replaying `acceptedActions` cumulatively tick-by-tick (the same approach
-`ak_show_state`'s own correct `resolveActorPositionsAtTick()` uses) and asserting, at every tick:
+`agon_show_state`'s own correct `resolveActorPositionsAtTick()` uses) and asserting, at every tick:
 every accepted move landed in-bounds and off a wall tile, no two actors ever occupy the same tile
 after a tick's moves are applied, and every requested tick produced exactly one `apply` phase-frame
 (no skipped or duplicated ticks).
@@ -375,13 +375,13 @@ directly on top of, a `stacks=3 fire/emit` hazard, run 5 ticks with `--world-sta
 capturing vitals every tick. Result: **zero change, bit-for-bit, at every tick, in both placements.**
 That sent the investigation into `core-ts`'s own test suite
 (`tests/core-ts/affinity-environment-effects.test.mts`, `tests/runtime/hazard-vitals-in-observation.test.js`),
-which settled why: hazards authored via `ak_create`/`ak_run` are wired through
+which settled why: hazards authored via `agon_create`/`agon_run` are wired through
 `core.armStaticHazardAt` into a **static affinity field**
 (`core.computeStaticHazardAffinityField`/`getAffinityFieldIntensityAt`) — a radius/intensity
 projection (with a documented zero-intensity buffer ring at distance 1 specifically for `emit`) that
 feeds an actor's **observation** (what it perceives, read by the Actor persona at decide-time), not an
 automatic vital-damage tick. That field is internal to `core-ts` and is never written to any file
-`ak_create`/`ak_run` produces, so its exact effect isn't assertable from this sweep's black-box
+`agon_create`/`agon_run` produces, so its exact effect isn't assertable from this sweep's black-box
 vantage point without a `core-ts`-level test — a different tool than this one.
 
 What *is* assertable from here, and is the real prerequisite for any interaction-specific assertion to
@@ -391,9 +391,9 @@ it answered its own question cleanly — while also surfacing a real, unrelated 
 have made the check useless if left unhandled.
 
 **Determinism/reproducibility check.** `checkDeterminism()` in `run-configuration-permutation-sweep.mjs`
-re-runs `ak run` a second time against the exact same `sim-config.json`/`initial-state.json` (same
+re-runs `agon run` a second time against the exact same `sim-config.json`/`initial-state.json` (same
 `run-id`, a separate `--out-dir`) and deep-compares every artifact the first run produced. The clock
-`ak run` injects into the simulation is seeded from `sim-config.json`'s own `meta.createdAt`
+`agon run` injects into the simulation is seeded from `sim-config.json`'s own `meta.createdAt`
 (`createDeterministicClock`/`resolveClockSeed` in `run-helpers.js`), not the wall clock, so a
 genuinely deterministic simulation should match exactly.
 
@@ -403,7 +403,7 @@ every time in exactly the same three files (`action-log.json`, `run-summary.json
 — which matched byte-for-byte, every scenario, every field. Root cause, filed as
 **[#149](https://github.com/KomplexMojo/agon/issues/149)**: those three artifacts stamp
 `meta.id`/`meta.createdAt` via the host's wall-clock `createMeta()`/`makeId()`
-(`packages/adapters-cli/src/cli/ak-impl.mjs:1597-1611`), completely bypassing the seeded clock the
+(`packages/adapters-cli/src/cli/agon-impl.mjs:1597-1611`), completely bypassing the seeded clock the
 simulation itself uses — the same failure mode a `visualization-snapshot.js` comment (PX.3) already
 documents fixing at the render layer, unfixed here at the command layer. Confirmed as the *only*
 difference by inspecting the raw diffs (e.g. `action-log.json`'s `createdAt` and `id` differed between
@@ -420,7 +420,7 @@ the only non-reproducibility in the whole matrix was #149's wall-clock metadata 
 ## 6. `orchestrate-build.js`'s level-gen error formatter produces literal "undefined" text for 4 of 5 error codes
 
 **What's failing:** `G2-multi-hazard-triple` (3 hazards, one placed at a room-relative position
-outside the room's bounds) failed `ak create` with:
+outside the room's bounds) failed `agon create` with:
 
 ```
 {"ok":false,"command":"create","error":"level-gen input invalid: hazards[2].position:hazard_outside_room (requested undefined, need at least undefined for undefined rooms)"}
@@ -460,15 +460,15 @@ missing the fields it expects) falls back to no parenthetical instead of guessin
 against the exact G2 repro — the message now reads `(position 5,1 is outside the target room — room
 R1's interior is 5x5)` instead of the `undefined`-polluted text.
 
-## 7. `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has
+## 7. `agon run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has
 
 Full writeup is in "Hazard interaction — what this sweep found" above (this is where the
-determinism/reproducibility check that found it lives). Summary: `ak run`'s actual simulation trace
+determinism/reproducibility check that found it lives). Summary: `agon run`'s actual simulation trace
 (`tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`) is fully deterministic —
 confirmed byte-for-byte across 49 scenarios given the same seed and inputs — but three other artifacts
 the same command writes (`action-log.json`, `run-summary.json`, `world-state.json`) stamp
 `meta.id`/`meta.createdAt` from the host's wall-clock `createMeta()`/`makeId()`
-([`ak-impl.mjs:1597-1611`](packages/adapters-cli/src/cli/ak-impl.mjs#L1597-L1611)) instead of the
+([`agon-impl.mjs:1597-1611`](packages/adapters-cli/src/cli/agon-impl.mjs#L1597-L1611)) instead of the
 run's own seeded clock, so those two fields — and only those two fields — differ every time, even
 given byte-identical input. Filed as
 **[#149](https://github.com/KomplexMojo/agon/issues/149)**.
@@ -478,7 +478,7 @@ given byte-identical input. Filed as
 branches, run-summary, world-state). Two same-pattern-but-unconfirmed sites (`affinity-summary.json`,
 `deferred-coordination.json`) weren't touched — filed separately as
 **[#150](https://github.com/KomplexMojo/agon/issues/150)** rather than bundled in, since no
-scenario in the matrix exercises them. Verified: re-ran `ak run` twice against identical
+scenario in the matrix exercises them. Verified: re-ran `agon run` twice against identical
 `sim-config.json`/`initial-state.json` with a 1s sleep between — all three files now byte-identical.
 
 ---

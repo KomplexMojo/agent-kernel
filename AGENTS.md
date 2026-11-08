@@ -13,7 +13,7 @@ How the solo developer and the agent team work together on this repo. Short, str
 
 | Tool | Owns, and writes | Never writes |
 |---|---|---|
-| **Claude** (and the agents it drives) | **Agon**: architecture and design of the framework (core-ts, runtime and personas, contracts, adapters, `ak`, the MCP server, the reference terminal client, the API surface the game consumes) | **Primordial**, not even a one-line fix |
+| **Claude** (and the agents it drives) | **Agon**: architecture and design of the framework (core-ts, runtime and personas, contracts, adapters, `agon`, the MCP server, the reference terminal client, the API surface the game consumes) | **Primordial**, not even a one-line fix |
 | **Cursor** | **Primordial**: UI/UX (the phone app and graphical clients, playtest launcher, skin, art, audio, content) | **Agon** |
 
 - **Each tool asks the other through GitHub issues**, never by editing the other's repo. Claude opens issues in KomplexMojo/Primordial labelled `ui-request`, and Cursor opens issues here labelled `api-request`. An issue says what is needed and why, and names the module or API involved.
@@ -39,9 +39,9 @@ How the solo developer and the agent team work together on this repo. Short, str
 
 > **Model names, not versions** — see the note in `CLAUDE.md`. **The effort level (high / medium) is the load-bearing part of each row** and must be preserved when a tier is updated.
 
-**Repo-owned skills** (canonical `.claude/skills/`, mirrored into `.cursor/skills/` for local Cursor discovery): `agentic-change-planning` (Plan/milestone routing onto a focused owner skill), `local-test-gen` (Ollama permutation expansion), `structured-test-authoring` (use the `ak_test_*` MCP tools before hand-writing a test), `tiered-test-optimizer` (the fast-pass → fix-pass recipe), persona-scoped change skills (`persona-orchestrator`, `persona-director`, `persona-configurator`, `persona-allocator`, `persona-actor`, `persona-moderator`, `persona-annotator`), ports-and-adapters skills (`architecture-dependency-direction`, `architecture-effects-routing`, `architecture-artifacts-contracts`, `architecture-adapter-io`), `farm-remote` (run a benchmark or sweep on the remote Ollama GPU box; `disable-model-invocation: true`, so it is user-invoked only and never picked up automatically), and the player-facing game skills: `game-master` (the house rules and tool map for playing the ASCII game through the `ak_*` MCP tools; model-invoked when someone talks about playing) and the user-invoked `/game-new`, `/game-play`, `/game-watch`, `/game-save`, `/game-load`, `/game-recap` and `/game-terminal` (all `disable-model-invocation: true`). The game skills drive the game; they never change code. ⚠️ `farm-remote` lived only under `.cursor/skills/` as a real directory until 2026-09-05 — Cursor could see it and Claude Code could not, and edits to it would have reached one harness and not the other, which is exactly the drift the symlink mirror exists to prevent. Every skill's canonical home is `.claude/skills/`; a real directory under `.cursor/skills/` is a defect, not a variant. Always-on Cursor rule `.cursor/rules/agentic-skill-routing.mdc` requires loading the matching skill when planning or implementing. Escalations from `fix-pass` reach the maintainer verbatim; the orchestrator never approves a boundary change itself.
+**Repo-owned skills** (canonical `.claude/skills/`, mirrored into `.cursor/skills/` for local Cursor discovery): `agentic-change-planning` (Plan/milestone routing onto a focused owner skill), `local-test-gen` (Ollama permutation expansion), `structured-test-authoring` (use the `agon_test_*` MCP tools before hand-writing a test), `tiered-test-optimizer` (the fast-pass → fix-pass recipe), persona-scoped change skills (`persona-orchestrator`, `persona-director`, `persona-configurator`, `persona-allocator`, `persona-actor`, `persona-moderator`, `persona-annotator`), ports-and-adapters skills (`architecture-dependency-direction`, `architecture-effects-routing`, `architecture-artifacts-contracts`, `architecture-adapter-io`), `farm-remote` (run a benchmark or sweep on the remote Ollama GPU box; `disable-model-invocation: true`, so it is user-invoked only and never picked up automatically), and the player-facing game skills: `game-master` (the house rules and tool map for playing the ASCII game through the `agon_*` MCP tools; model-invoked when someone talks about playing) and the user-invoked `/game-new`, `/game-play`, `/game-watch`, `/game-save`, `/game-load`, `/game-recap` and `/game-terminal` (all `disable-model-invocation: true`). The game skills drive the game; they never change code. ⚠️ `farm-remote` lived only under `.cursor/skills/` as a real directory until 2026-09-05 — Cursor could see it and Claude Code could not, and edits to it would have reached one harness and not the other, which is exactly the drift the symlink mirror exists to prevent. Every skill's canonical home is `.claude/skills/`; a real directory under `.cursor/skills/` is a defect, not a variant. Always-on Cursor rule `.cursor/rules/agentic-skill-routing.mdc` requires loading the matching skill when planning or implementing. Escalations from `fix-pass` reach the maintainer verbatim; the orchestrator never approves a boundary change itself.
 
-**MCP surfaces:** `agon-cli` (`ak_*` — authoring, simulation, inspection, LLM planning, IPFS, blockchain, and the `ak_test_*` test harness; `pnpm run mcp:serve`) and `serena` (structural code queries). Prefer `ak_*` tools over shelling out to `ak.mjs`. Registration for both harnesses is documented in `packages/adapters-cli/src/mcp/README.md`.
+**MCP surfaces:** `agon-cli` (`agon_*` — authoring, simulation, inspection, LLM planning, IPFS, blockchain, and the `agon_test_*` test harness; `pnpm run mcp:serve`) and `serena` (structural code queries). Prefer `agon_*` tools over shelling out to `agon.mjs`. Registration for both harnesses is documented in `packages/adapters-cli/src/mcp/README.md`.
 
 ---
 
@@ -99,7 +99,7 @@ Claude (docs in the SAME diff as the code — Sonnet/medium descriptive, Opus/hi
 ### Ollama — permutation expansion
 
 - Triggered by `/local-test-gen`; auto-detects the warm model, `--model` overrides, remote GPU via `remote-ollama-mac run-local --profile dual`.
-- Must read `tests/README.md` first. Uses the `ak_test_*` MCP tools to discover patterns, scaffold or insert cases, and run narrow scopes.
+- Must read `tests/README.md` first. Uses the `agon_test_*` MCP tools to discover patterns, scaffold or insert cases, and run narrow scopes.
 - May run bounded CLI argument/option permutations around one command family at a time, then build tests from the distinct failure classes it finds.
 - Does not make architecture decisions and does not modify production code.
 
@@ -259,7 +259,7 @@ the confident register of a finding is the failure this section exists to stop.
 - Artifacts and schemas follow `packages/runtime/src/contracts/artifacts.ts`.
 - Fixture files: `<schema>-v1-<label>.json` (e.g. `intent-envelope-v1-basic.json`).
 - Persona behavior tests: `tests/personas/<persona>/<persona>-<behavior>.test.*`.
-- CLI flags mirror `packages/adapters-cli/src/cli/ak.mjs` and its README examples.
+- CLI flags mirror `packages/adapters-cli/src/cli/agon.mjs` and its README examples.
 
 ## UI development
 
@@ -278,7 +278,7 @@ the confident register of a finding is the failure this section exists to stop.
 
 Unit tests check the code; benchmarks probe the non-deterministic LLM surface; **simulations check what levels do when they play**. The kernel is deterministic, so a simulation is as repeatable as a unit test and runs on every change.
 
-- A scenario is a level built through `ak create` (so the Allocator prices it and every persona builds it as for a player) and run headless with `ak run`. Never hand-write a level for one.
+- A scenario is a level built through `agon create` (so the Allocator prices it and every persona builds it as for a player) and run headless with `agon run`. Never hand-write a level for one.
 - Catalogues: `tests/simulations/scenarios/core.json` (small levels, 40 ticks, run by `pnpm run test`) and `sweep.json` (everything else worth watching, run only by the sweep). Logic: `scripts/testing/simulation-lib.mjs`.
 - **Rules** are properties every level must satisfy (no refused-proposal streaks, no silent mobile actor, no free casts, nothing defeated on tick 1, no touching objects, authored vitals kept, expected exits happen, an attacking actor with a hostile in sight and cast reach lands a cast within 10 turns). A rule violation in the core set fails the suite. An open violation is listed on its scenario as `knownIssues` with an issue number; the suite also fails when a listed one stops happening, so **fixing that issue includes deleting its entry**.
 - **Metrics** (first exit, exits, defeats, health lost, casts, moves, accept rate) are reported, never asserted: balance changes move them on purpose. `pnpm run sim:sweep` runs both catalogues, writes `report.md`/`report.json` and compares with the previous report. Pass `--out-dir /mnt/project-files/simulations` where that shared folder exists so each run compares with the last one.
@@ -312,7 +312,7 @@ genuinely required a model:
 So: when a run surfaces a failure, the question is *which property should have caught this*, and the
 answer belongs in `pnpm run test` where it fails in seconds. A recorded `toolArgs` that broke
 something is a free, non-synthetic fixture — replay it through
-`normalizeToolArgs → buildArgv → ak create` with no LLM. Do not hand-write such a case: a
+`normalizeToolArgs → buildArgv → agon create` with no LLM. Do not hand-write such a case: a
 hand-written sample passes against a defective schema too, which makes it a mirror of the defect
 rather than a guard on it.
 
@@ -354,7 +354,7 @@ changes, never inside the loop. It is where comparison and qualification happen.
   artifacts, and telemetry remain local. Result-branch commits cannot trigger source benchmarks.
 - Results are **offline evidence** (charter: they "cannot rewrite routing policy without an explicit,
   versioned promotion"). A regression is a signal to read and investigate, not routing policy.
-- **The one obligation:** if a change touches the `ak_create` tool schema, `buildArgv`, entity normalization, or CLI arg mapping, say so in the commit message so a nightly result can be attributed to it.
+- **The one obligation:** if a change touches the `agon_create` tool schema, `buildArgv`, entity normalization, or CLI arg mapping, say so in the commit message so a nightly result can be attributed to it.
 
 **Where the benchmarks live (verified 2026-08-21):**
 
@@ -388,7 +388,7 @@ committing its loose working-tree changes, moving files into git, or tidying. Re
 - `pnpm run test` and `pnpm run typecheck` pass, or a documented reason for skipping. Perturbation check run and reported.
 - Any measured claim in the commit message or PR names the domain it was measured over, and the widest profile run — not the narrowest that agreed.
 - Docs updated IN THIS DIFF if behavior or boundaries changed — a doc that now contradicts the code is a blocking defect.
-- If `ak_create` schema, CLI arg mapping, or entity normalization changed: noted in the commit message. **Do not run a benchmark.**
+- If `agon_create` schema, CLI arg mapping, or entity normalization changed: noted in the commit message. **Do not run a benchmark.**
 - Anything noticed outside the spec (dead code, stale docs, an open disposition, a design direction) is logged as a `gh issue`, not fixed inline and not left as a comment or a plan-doc aside — see `## Working agreement`.
 
 ---

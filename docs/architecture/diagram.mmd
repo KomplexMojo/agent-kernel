@@ -8,8 +8,8 @@ flowchart LR
 
   subgraph Interfaces["Interfaces"]
     UIAscii["ui-ascii (reference terminal client + run viewer)\nkeys -> intents; no core imports"]
-    CLI["CLI (ak.mjs)"]
-    MCP["MCP server (ak_* tools)"]
+    CLI["CLI (agon.mjs)"]
+    MCP["MCP server (agon_* tools)"]
   end
 
   subgraph Runtime["Runtime (TypeScript)"]
@@ -71,8 +71,8 @@ flowchart LR
   RunViewer --> PlaySession
   CLI --> ACli
   MCP --> ACli
-  ACli -- "ak workflow / ak_workflow_*\nmodel + store + exec ports" --> AdaptiveRunner
-  MCP -- "ak_push_to_ui\nGameplayBundle" --> BridgeServer
+  ACli -- "agon workflow / agon_workflow_*\nmodel + store + exec ports" --> AdaptiveRunner
+  MCP -- "agon_push_to_ui\nGameplayBundle" --> BridgeServer
   BridgeServer -- "WebSocket (a game client connects)" --> GameClients
   AWeb --> CommandKernel
   ACli --> CommandKernel

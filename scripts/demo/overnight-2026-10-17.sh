@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Walk through everything merged overnight on 2026-10-16/17 (#285, #293-#330), each part
-# through `ak` and the personas: levels come from `ak create`, prices from the Allocator.
+# through `agon` and the personas: levels come from `agon create`, prices from the Allocator.
 # Usage: bash scripts/demo/overnight-2026-10-17.sh [section ...]
 #   sections: rules blind corrode stamina rename regen motivations pricing solver hygiene orders
 #   (no section runs them all, in that order; takes a few minutes)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-AK="node packages/adapters-cli/src/cli/ak.mjs"
+AK="node packages/adapters-cli/src/cli/agon.mjs"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 SESSION="overnight-demo"
@@ -29,7 +29,7 @@ section() { printf '\n\n######## %s ########\n' "$1"; }
 step() { printf '\n=== %s ===\n' "$1"; }
 say() { printf '%s\n' "$@"; }
 
-# Read the last JSON line of an ak result on stdin and print what the expression picks.
+# Read the last JSON line of an agon result on stdin and print what the expression picks.
 pick() {
   node -e '
     const r = JSON.parse(require("fs").readFileSync(0, "utf8").trim().split("\n").at(-1));
@@ -46,7 +46,7 @@ quiet() { "$@" >"$WORK/quiet.log" 2>&1 || { cat "$WORK/quiet.log" >&2; return 1;
 create() { quiet $AK create --created-at 2026-10-17T00:00:00.000Z "$@"; }
 session() { $AK play-session "$@" --session "$SESSION"; }
 # A run stopped part way leaves its session behind with its level gone; drop that file.
-end_session() { session end >/dev/null 2>&1 || rm -f "${AK_PLAY_SESSIONS_DIR:-artifacts/play-sessions}/$SESSION.json"; }
+end_session() { session end >/dev/null 2>&1 || rm -f "${AGON_PLAY_SESSIONS_DIR:-artifacts/play-sessions}/$SESSION.json"; }
 
 # A playable delver emitting $1 at intensity 3, a trap beside it emitting $2 at intensity $3,
 # both at range 3 (since #342, stacks is range and intensity is strength).
@@ -118,10 +118,10 @@ stamina() {
 
 rename() {
   section "5. life is now growth, everywhere, with no alias (#285)"
-  step "ak create --delver \"...;affinity=life\""
+  step "agon create --delver \"...;affinity=life\""
   $AK create --out-dir "$WORK/life" --room "size=small;count=1" \
     --delver "count=1;affinity=life;motivation=user_controlled" 2>/dev/null | pick 'r.error' || true
-  step "ak create --delver \"...;affinity=growth\""
+  step "agon create --delver \"...;affinity=growth\""
   $AK create --out-dir "$WORK/growth" --room "size=small;count=1" \
     --delver "count=1;affinity=growth;motivation=user_controlled" | pick '"ok, priced " + r.cost.totalSpend + " of " + r.cost.budgetTokens'
 }
@@ -140,7 +140,7 @@ motivations() {
     --delver "count=1;id=hero;affinity=wind;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
     --delver "count=1;id=pal;affinity=earth;motivation=exploring+goal_oriented;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
     --warden "count=1;id=guard;affinity=fire;motivation=stationary"
-  step "ak play --no-fog: the In sight line"
+  step "agon play --no-fog: the In sight line"
   $AK play --dir "$WORK/party" --no-fog --no-color --keys . | grep '^In sight'
   step "play-session start, with fog: inSight[].motivations (what /game-play reads)"
   end_session
@@ -151,12 +151,12 @@ motivations() {
 pricing() {
   section "8. No parallel paths: every level is priced by the Allocator (#275)"
 
-  step "ak build --spec with no budget gets the Allocator's 2,500 reference budget (#293)"
+  step "agon build --spec with no budget gets the Allocator's 2,500 reference budget (#293)"
   quiet $AK build --spec tests/fixtures/artifacts/build-spec-v1-configurator.json --out-dir "$WORK/build"
   json "$WORK/build/budget-receipt.json" '"receipt " + r.status + ": " + r.totalCost + " spent, " + r.remaining + " left"'
   json "$WORK/build/sim-config.json" '"sim-config names it: " + r.budgetReceiptRef.id'
 
-  step "ak configurator with no --budget prices too, and writes price-list.json (#293)"
+  step "agon configurator with no --budget prices too, and writes price-list.json (#293)"
   quiet $AK configurator --level-gen tests/fixtures/configurator/level-gen-input-v1-hazard.json \
     --actors tests/fixtures/configurator/actors-v1-affinity-base.json --out-dir "$WORK/configurator"
   ls "$WORK/configurator" | tr '\n' ' '; echo
@@ -193,7 +193,7 @@ pricing() {
   json "$WORK/party/sim-config.json" 'JSON.stringify({ ...r, budgetReceiptRef: undefined })' > "$WORK/hand/sim-config.json"
   $AK play --sim-config "$WORK/hand/sim-config.json" --initial-state "$WORK/hand/initial-state.json" --no-color --keys . 2>&1 | grep "^warning"
 
-  step "ak run overrides of a built level are re-priced against its own budget (#278)"
+  step "agon run overrides of a built level are re-priced against its own budget (#278)"
   quiet $AK run --sim-config "$WORK/party/sim-config.json" --initial-state "$WORK/party/initial-state.json" --ticks 0 \
     --actor extra_1,4,4,delver --out-dir "$WORK/override"
   json "$WORK/party/budget-receipt.json" '"built level:      " + r.totalCost + " spent of " + (r.totalCost + r.remaining)'
@@ -215,10 +215,10 @@ pricing() {
 
 solver() {
   section "9. Z3 in the decision stack (#295)"
-  step "ak solve --question place-objects: the Configurator re-solves where a level's traps and caches go (#300)"
+  step "agon solve --question place-objects: the Configurator re-solves where a level's traps and caches go (#300)"
   $AK solve --dir "$WORK/objects" --question place-objects --out-dir "$WORK/solve-place" 2>/dev/null \
     | pick '"status " + r.status + ", source " + r.answer.source + ": " + r.answer.placements.map((p) => p.id + "@" + p.x + "," + p.y).join(" ")'
-  step "ak solve --question budget-fit: which floor fits 50 tokens? (#300)"
+  step "agon solve --question budget-fit: which floor fits 50 tokens? (#300)"
   $AK solve --dir "$WORK/objects" --question budget-fit --budget-tokens 50 --out-dir "$WORK/solve-fit" 2>/dev/null \
     | pick '"status " + r.status + ": asked " + r.answer.requestedLayout.floorTiles + " tiles, fits " + r.answer.layout.floorTiles + ", " + r.answer.layoutSpend.remainingBudgetTokens + " left"'
   $AK solve --dir "$WORK/objects" --question budget-fit --budget-tokens 3000 --out-dir "$WORK/solve-fit-easy" 2>/dev/null \
@@ -249,7 +249,7 @@ hygiene() {
 
 orders() {
   section "11. Game commands: a party, free seat switches and standing orders (#267-#270)"
-  say "Every command here is ak play-session; the ak_play_* MCP tools take the same arguments."
+  say "Every command here is agon play-session; the agon_play_* MCP tools take the same arguments."
   create --budget-tokens 12000 --out-dir "$WORK/orders" --room "size=medium;count=2" \
     --delver "count=1;id=hero;affinity=wind;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
     --delver "count=1;id=scout;affinity=earth;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
@@ -299,4 +299,4 @@ for name in "${SECTIONS[@]}"; do
   "$name"
 done
 end_session
-printf '\nDone. Play it yourself: node packages/adapters-cli/src/cli/ak.mjs play --level first-steps\n'
+printf '\nDone. Play it yourself: node packages/adapters-cli/src/cli/agon.mjs play --level first-steps\n'

@@ -11,8 +11,8 @@
  *   - room + resource (no hazard): ok
  *
  * Seam driven (same seam the MCP server uses):
- *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
- *   -> packages/adapters-cli/src/cli/ak-impl.mjs executeCommand("create", argv)
+ *   packages/adapters-cli/src/mcp/tools/authoring.mjs agon_create buildArgs
+ *   -> packages/adapters-cli/src/cli/agon-impl.mjs executeCommand("create", argv)
  */
 "use strict";
 
@@ -21,13 +21,13 @@ const { mkdtempSync, rmSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 let authoringToolsModule;
 
 async function loadModules() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   authoringToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  return { ak_impl, authoringToolsModule };
+  return { agon_impl, authoringToolsModule };
 }
 
 function findTool(tools, name) {
@@ -72,10 +72,10 @@ async function runCliCommand(executeCommand, command, argv) {
 }
 
 async function createShape(outDir, name, args) {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
   return runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({ ...args, runId: `no_hazard_${name}`, outDir: join(outDir, name) }),
   );
@@ -94,7 +94,7 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-no-hazard-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-no-hazard-"));
   });
 
   afterAll(() => {
@@ -179,7 +179,7 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
 });
 
 test("hazard-free multi-room dungeon with resources creates approved resource lines", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "ak-no-hazard-multi-room-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-no-hazard-multi-room-"));
   try {
     const result = await createShape(outDir, "multi-room", {
       room: ["size=medium;count=2"],
@@ -201,7 +201,7 @@ test("hazard-free multi-room dungeon with resources creates approved resource li
 });
 
 test("room with resources, a hazard, and actors approves every requested pool", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "ak-no-hazard-mixed-pools-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-no-hazard-mixed-pools-"));
   try {
     const result = await createShape(outDir, "mixed-pools", {
       room: ["size=medium;count=1"],
@@ -226,7 +226,7 @@ test("room with resources, a hazard, and actors approves every requested pool", 
 });
 
 test("resource-only request without a room uses the default layout and approves", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "ak-resource-default-layout-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-resource-default-layout-"));
   try {
     const result = await createShape(outDir, "resource-only", {
       resource: [RESOURCE_SPECS[0]],

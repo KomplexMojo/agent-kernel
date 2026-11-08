@@ -17,7 +17,7 @@
   },
   "evidence": {
     "runs": {
-      "haiku-first-look-s0": "Haiku 5.5 via ak play-session, scenario first-look, seed 0, fog on, 2026-11-02 (issues #670, #671, #672). Defeated tick 74.",
+      "haiku-first-look-s0": "Haiku 5.5 via agon play-session, scenario first-look, seed 0, fog on, 2026-11-02 (issues #670, #671, #672). Defeated tick 74.",
       "qwen-first-look-s0": "qwen3.8:27b seat driver, scenario first-look, seed 0, run 20261102-173839 (issue #670). Defeated tick 159, in water."
     },
     "limits": "Raw run records are not in the repo (artifacts/ is ignored). Entries cite the turn logs quoted in #670-#672. Token value and the three vital-pressure numbers were not recorded by the seat driver, so they are null unless the issue text gives them."

@@ -1,5 +1,5 @@
 /**
- * The playtest scenario catalogue: named levels for `ak create`, with seed-filled affinities.
+ * The playtest scenario catalogue: named levels for `agon create`, with seed-filled affinities.
  *
  * Framework content (Darren, 2026-11-06, #744): the LLM sims, the power and recipe ladders and
  * the scenario sim suite run on these scenarios, and the game's playtest launcher and phone app
@@ -17,8 +17,8 @@ import { affinityRole, affinityTraitKinds } from "../../../runtime/src/render/af
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCENARIOS_PATH = join(HERE, "playtest-scenarios.json");
-/** The `ak` entry point the scenarios are built and played with. */
-export const AK_CLI = join(HERE, "ak.mjs");
+/** The `agon` entry point the scenarios are built and played with. */
+export const AGON_CLI = join(HERE, "agon.mjs");
 
 export function loadPlaytestScenarios() {
   return JSON.parse(readFileSync(SCENARIOS_PATH, "utf8"));
@@ -128,14 +128,14 @@ export function scenarioArgs(scenario, seed, grade, character) {
 
 /**
  * A grade (#422) takes the place of the scenario's own budget. Either way the Allocator prices the
- * level: this only chooses which `ak create` flag carries the caller's input.
+ * level: this only chooses which `agon create` flag carries the caller's input.
  */
 function budgetArgs(scenario, grade) {
   if (grade) return ["--grade", grade];
   return ["--budget-tokens", String(scenario.budgetTokens)];
 }
 
-/** The full `ak create` arguments: the same scenario, seed and createdAt always build the same level. */
+/** The full `agon create` arguments: the same scenario, seed and createdAt always build the same level. */
 export function createArgs(scenario, seed, createdAt, grade, character) {
   return ["--run-id", `playtest-${scenario.id}-s${seed}`, "--created-at", createdAt, ...scenarioArgs(scenario, seed, grade, character)];
 }

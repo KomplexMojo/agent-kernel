@@ -50,14 +50,14 @@ Do not brute-force the entire repo.
 
 Start from the existing structured tools:
 
-- `ak_test_list_suites`
-- `ak_test_discover_patterns`
-- `ak_test_plan_from_change`
-- `ak_test_scaffold_case`
-- `ak_test_insert_case`
-- `ak_test_run`
-- `ak_test_explain_failure`
-- `ak_test_lint_structure`
+- `agon_test_list_suites`
+- `agon_test_discover_patterns`
+- `agon_test_plan_from_change`
+- `agon_test_scaffold_case`
+- `agon_test_insert_case`
+- `agon_test_run`
+- `agon_test_explain_failure`
+- `agon_test_lint_structure`
 
 ## What The Local Model Is Good At
 
@@ -80,11 +80,11 @@ Do not use the local model for:
 ## Canonical Flow
 
 1. Read `AGENTS.md`, `CLAUDE.md`, and this file.
-2. Run `ak_test_discover_patterns` for the target area.
-3. If a scaffoldable recipe exists, use `ak_test_scaffold_case` or `ak_test_insert_case`.
+2. Run `agon_test_discover_patterns` for the target area.
+3. If a scaffoldable recipe exists, use `agon_test_scaffold_case` or `agon_test_insert_case`.
 4. If the work is a permutation expansion, extend an existing file rather than creating a brand new style.
-5. Run `ak_test_run` on the narrowest relevant scope.
-6. If failures occur, use `ak_test_explain_failure`.
+5. Run `agon_test_run` on the narrowest relevant scope.
+6. If failures occur, use `agon_test_explain_failure`.
 7. Return:
    - the file changed
    - the permutation cases added
@@ -137,7 +137,7 @@ loop contributes no runtime cases.
 | **Unwritten permutation stubs** (the large majority) | `test.skip("name", () => {});` — **empty body** | Nothing manual. These are named permutations awaiting `/local-test-gen`; the file also carries a `## TODO: Test Permutations` marker. Un-skipping one creates a **vacuously passing empty test**. |
 | **Aspirational tests** | `test.skip(...)` with a **real body**, tagged `// STAYS SKIPPED — …` | Leave until the behavior exists. These describe features the code does not implement (patrolling routes, `user_controlled` motivation, `resource_captured`/`hazard_triggered` frame events, a defeated-actor gate). They were added **already skipped** in `d1a2b6e2`, so none of them is a disabled regression. |
 | **G1 authority backlog** | generated `test.skip` in `tests/architecture/persona-authority.test.js` | Leave. One skip per *unowned* persona behavior, each naming the finding that blocks it (DECISION D-k). The count IS the backlog metric — it drops when a finding closes, not when someone enables a test. |
-| **Opt-in external integration** | a running test calls `t.skip(...)` unless its explicit environment flag is set | Leave out of the deterministic default suite. `e2e-llm-live-runtime.test.js` requires `AK_LLM_LIVE=1` and a configured live provider. |
+| **Opt-in external integration** | a running test calls `t.skip(...)` unless its explicit environment flag is set | Leave out of the deterministic default suite. `e2e-llm-live-runtime.test.js` requires `AGON_LLM_LIVE=1` and a configured live provider. |
 
 **If you skip a test, say why on the line above it.** Every skip added from 2026-08-01
 carries a `// STAYS SKIPPED — <reason> (checked <date>)` comment. Before that they were
@@ -211,10 +211,10 @@ The local model should use the MCP to build tests, not just suggest them.
 
 Preferred workflow:
 
-1. `ak_test_discover_patterns`
-2. `ak_test_scaffold_case` or `ak_test_insert_case`
-3. `ak_test_run`
-4. `ak_test_explain_failure`
+1. `agon_test_discover_patterns`
+2. `agon_test_scaffold_case` or `agon_test_insert_case`
+3. `agon_test_run`
+4. `agon_test_explain_failure`
 
 If no scaffold exists:
 

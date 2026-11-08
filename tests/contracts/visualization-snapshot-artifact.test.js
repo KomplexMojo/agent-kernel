@@ -83,7 +83,7 @@ test("VisualizationSnapshot ascii shape satisfies contract", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs1", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs1", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "ascii",
     tick: 1,
     runId: "run1",
@@ -114,7 +114,7 @@ test("VisualizationSnapshot image shape satisfies contract", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs2", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs2", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "image",
     tick: 2,
     runId: "run1",
@@ -128,7 +128,7 @@ test("VisualizationSnapshot image shape also satisfies contract via visualizatio
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs2b", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs2b", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "image",
     tick: 2,
     runId: "run1",
@@ -144,7 +144,7 @@ test("VisualizationSnapshot rejects unknown mode", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs3", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs3", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "video",
     tick: 1,
     runId: "run1",
@@ -156,7 +156,7 @@ test("ascii snapshot rejects missing layers", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs4", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs4", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "ascii",
     tick: 1,
     runId: "run1",
@@ -169,7 +169,7 @@ test("image snapshot rejects file path instead of data URI", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs5", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs5", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "image",
     tick: 1,
     runId: "run1",
@@ -194,7 +194,7 @@ test("ascii snapshot with empty actorDetails array is valid", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs6", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs6", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "ascii",
     tick: 1,
     runId: "run1",
@@ -216,7 +216,7 @@ test("ascii snapshot with identical empty layers is valid", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs7", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs7", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "ascii",
     tick: 1,
     runId: "run1",
@@ -237,7 +237,7 @@ test("image snapshot permits null ascii field", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs8", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs8", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "image",
     tick: 1,
     runId: "run1",
@@ -286,7 +286,7 @@ test("actorDetail accepts fractional position", () => {
 test("VisualizationSnapshot rejects schemaVersion 0 or undefined", () => {
   const base = {
     schema: "agon/VisualizationSnapshot",
-    meta: { id: "vs9", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs9", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "ascii",
     tick: 1,
     runId: "run1",
@@ -299,7 +299,7 @@ test("VisualizationSnapshot rejects meta missing runId", () => {
   const snap = {
     schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
-    meta: { id: "vs10", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    meta: { id: "vs10", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "agon-tick" },
     mode: "ascii",
     tick: 1,
     runId: "run1",

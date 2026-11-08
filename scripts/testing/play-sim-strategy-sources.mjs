@@ -3,12 +3,12 @@
  * Strategy sources compared by play-sim outcome (#677, tracker #611, AI S1).
  *
  * "Strategy" here is the dungeon configuration. The same scenario, seed and token budget are
- * built twice through `ak create`, differing only in who picked the placement tactics:
+ * built twice through `agon create`, differing only in who picked the placement tactics:
  *
  *   catalogue   `--tactic auto`: the Director's seeded pick from the tactic catalogue (#395)
- *   llm         `--tactic llm`: a model's plan (--fixture, or AK_LLM_LIVE=1 with --model / --base-url)
+ *   llm         `--tactic llm`: a model's plan (--fixture, or AGON_LLM_LIVE=1 with --model / --base-url)
  *
- * Every level goes through `ak create` and the Allocator; nothing is hand-priced. Both are played
+ * Every level goes through `agon create` and the Allocator; nothing is hand-priced. Both are played
  * by the same T0 driver (the seated delver is ordered to the exit) and compared on progress
  * (exits and ticks to exit), deaths, and loops (a timeout: the delver never reached the exit,
  * which is what a stall or a loop looks like to a fixed order). Read-only analysis: no engine
@@ -19,7 +19,7 @@
  * reported as `fellBack` and left out of the comparison, so "llm" never silently means "catalogue".
  *
  *   node scripts/testing/play-sim-strategy-sources.mjs --scenarios first-look,duel --seeds 0,1
- *     [--model <id> --base-url <url>]   (sets AK_LLM_LIVE=1 for the llm source)
+ *     [--model <id> --base-url <url>]   (sets AGON_LLM_LIVE=1 for the llm source)
  *     [--fixture <tactic-plan.json>]    (a recorded reply instead of a model)
  *     [--strategy dash|fight] [--max-ticks N] [--out-dir dir]
  */
@@ -32,14 +32,14 @@ import { loadPlaytestScenarios, scenarioArgs } from "../../packages/adapters-cli
 import { DEFAULT_MAX_TICKS, DEFAULT_SEEDS, playArm } from "./play-sim.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 export const SOURCES = Object.freeze(["catalogue", "llm"]);
 
 /** `--tactic` pairs make a level's tactics the scenario's own; a source's pick only replaces none. */
 export const hasOwnTactic = (scenario) => scenario.args.includes("--tactic");
 
-/** The `ak create` arguments that differ by source. */
+/** The `agon create` arguments that differ by source. */
 export function sourceArgs(source, { fixture, model, baseUrl } = {}) {
   if (source === "catalogue") return ["--tactic", "auto"];
   if (source === "llm") {
@@ -62,7 +62,7 @@ export async function runSource(scenario, seed, source, { workDir, createdAt, st
   const dir = join(workDir, `${scenario.id}-s${seed}-${source}`);
   const args = ["--run-id", `strategy-${scenario.id}-s${seed}-${source}`, "--created-at", createdAt,
     ...scenarioArgs(scenario, seed), "--seed", String(seed), ...sourceArgs(source, { fixture, model, baseUrl }), "--out-dir", dir];
-  const built = create(args, source === "llm" && !fixture ? { AK_LLM_LIVE: "1" } : {});
+  const built = create(args, source === "llm" && !fixture ? { AGON_LLM_LIVE: "1" } : {});
   if (!built.ok) return { ...base, outcome: "create_failed", ticks: 0, error: built.error };
   const plan = built.result.tacticPlan ?? null;
   const tactics = (built.result.tactics ?? []).map((entry) => entry.tactic);
@@ -157,7 +157,7 @@ export async function runStrategySources({ scenarios, seeds = DEFAULT_SEEDS, out
   const own = picked.filter(hasOwnTactic);
   if (own.length) log(`skipping ${own.map((entry) => entry.id).join(", ")}: the scenario fixes its own --tactic`);
   mkdirSync(outDir, { recursive: true });
-  const workDir = mkdtempSync(join(tmpdir(), "ak-strategy-sources-"));
+  const workDir = mkdtempSync(join(tmpdir(), "agon-strategy-sources-"));
   const runs = [];
   try {
     for (const scenario of picked.filter((entry) => !hasOwnTactic(entry))) {

@@ -38,7 +38,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const stateDir = process.env.AK_BENCHMARK_STATE_DIR
+const stateDir = process.env.AGON_BENCHMARK_STATE_DIR
   || path.join(os.homedir(), '.local/state/agon-benchmark');
 
 const MAX_ATTEMPT_RECORDS = 4000;

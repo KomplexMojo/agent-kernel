@@ -132,7 +132,7 @@ Feasibility, cost, and validation are delegated to other personas.
 - Outputs: data-only planning artifacts; no IO and no direct state mutation.
 - `currentRound()` returns the open round as `{ intent, plan }` (null before `beginBuild`). A build passes
   it to `orchestrateBuild` as `directorRound`, so the persisted plan is the one this round drafted (#280;
-  `ak llm-plan` and `ak scenario` used to drop it). A build with only a spec (`ak build --spec`, the sandbox
+  `agon llm-plan` and `agon scenario` used to drop it). A build with only a spec (`agon build --spec`, the sandbox
   bridge) has no earlier round, so `map-build-spec.js` opens the Director's round from the spec's intent.
 
 ---

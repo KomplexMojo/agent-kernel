@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const {
   UNCONSTRAINED_SENTINEL,
   scenarioBudgetMode,
-} = require("../../tools/remote-ollama-control/scripts/lib/ak-scenarios");
+} = require("../../tools/remote-ollama-control/scripts/lib/agon-scenarios");
 
 test("an explicit budget below the sentinel is a constrained budget test", () => {
   assert.deepEqual(scenarioBudgetMode({ budgetTokens: 250 }), {
@@ -38,7 +38,7 @@ test("a missing payload is unconstrained rather than throwing", () => {
   assert.deepEqual(scenarioBudgetMode(undefined), { budgetMode: "unconstrained", budget: null });
 });
 
-// Guards the boundary the scorer depends on: ak-compare only compares spend
+// Guards the boundary the scorer depends on: agon-compare only compares spend
 // against the reference for constrained scenarios, so a non-integer budget must
 // never be reported as constrained with a bogus cap.
 test("non-integer budgets are unconstrained", () => {

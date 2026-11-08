@@ -7,7 +7,7 @@ const { join, resolve } = require("node:path");
 const { tmpdir } = require("node:os");
 
 const ROOT = resolve(__dirname, "../../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 async function warnings(args) {
   const { createConfiguratorPersona } = await import("../../../packages/runtime/src/personas/configurator/persona.js");
@@ -44,8 +44,8 @@ test("no warning when every attack is equipped, when no equip order is given, or
     equip: [{ kind: "dark", expression: "emit" }] }))[0].startsWith("warden[2] holds fire:push"), true);
 });
 
-test("ak create prints the warning and carries it in its JSON result, and still builds the level", () => {
-  const outDir = mkdtempSync(join(tmpdir(), "ak-equip-omission-"));
+test("agon create prints the warning and carries it in its JSON result, and still builds the level", () => {
+  const outDir = mkdtempSync(join(tmpdir(), "agon-equip-omission-"));
   try {
     const run = (delver) => {
       const result = spawnSync(process.execPath, [AK, "create", "--budget-tokens", "4000",

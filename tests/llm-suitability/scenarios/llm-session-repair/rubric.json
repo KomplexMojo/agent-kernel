@@ -21,7 +21,7 @@
   ],
   "forbiddenTerms": [
     "fetch(",
-    "AK_LLM_LIVE",
+    "AGON_LLM_LIVE",
     "localhost:11434"
   ],
   "oracleTerms": [

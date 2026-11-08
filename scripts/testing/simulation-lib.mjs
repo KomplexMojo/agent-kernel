@@ -1,12 +1,12 @@
 /**
- * Simulation tests: build a level through `ak create`, run it headless through `ak run`,
+ * Simulation tests: build a level through `agon create`, run it headless through `agon run`,
  * and read what happened from the run's own artifacts.
  *
  * Two outputs per scenario:
  *   rules    properties that must hold on every level (a violation fails the gate)
  *   metrics  numbers that describe the run (reported and compared, never a failure)
  *
- * Levels always come from `ak create`, so the Allocator prices them and every persona
+ * Levels always come from `agon create`, so the Allocator prices them and every persona
  * builds them as it would for a player; nothing here hand-writes a level.
  */
 import { spawn } from "node:child_process";
@@ -21,7 +21,7 @@ import { createActorRegistry } from "../../packages/core-ts/src/state/actor-regi
 import { affinityTableRow } from "../../packages/core-ts/src/state/affinity-table.ts";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 export const SCENARIO_DIR = join(ROOT, "tests/simulations/scenarios");
 
 /** Longest run of turns an actor may spend proposing only actions core refuses. */
@@ -36,8 +36,8 @@ export const WAIT_REGEN_LIMIT = 10;
 export const FREE_CAST_LIMIT = 10;
 
 export const RULES = Object.freeze({
-  create_failed: "ak create refused the level",
-  run_failed: "ak run failed",
+  create_failed: "agon create refused the level",
+  run_failed: "agon run failed",
   refused_streak: `an actor proposed only refused actions for ${REFUSED_STREAK_LIMIT}+ turns in a row`,
   silent_actor: `a mobile or fighting actor proposed nothing for ${SILENT_STREAK_LIMIT}+ turns in a row`,
   cast_without_cost: `an actor cast ${FREE_CAST_LIMIT}+ times without its mana ever dropping below max`,
@@ -69,7 +69,7 @@ export function loadScenarios(name) {
 
 /** Build and run one scenario; returns its analysis (rules are checked separately). */
 export async function runScenario(scenario, { keep = false } = {}) {
-  const outRoot = mkdtempSync(join(tmpdir(), `ak-sim-${scenario.id}-`));
+  const outRoot = mkdtempSync(join(tmpdir(), `agon-sim-${scenario.id}-`));
   const createDir = join(outRoot, "create");
   const runDir = join(outRoot, "run");
   const result = { id: scenario.id, outRoot };

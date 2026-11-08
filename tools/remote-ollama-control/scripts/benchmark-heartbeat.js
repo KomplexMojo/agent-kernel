@@ -46,11 +46,11 @@ function inFlightProgress(stateDir, inFlight) {
 function main() {
   // Must match benchmark-agent.js exactly. A heartbeat pointed at a different directory would
   // report "idle" with total confidence while a run was underway three directories over.
-  const stateDir = process.env.AK_BENCHMARK_STATE_DIR
+  const stateDir = process.env.AGON_BENCHMARK_STATE_DIR
     || path.join(os.homedir(), '.local/state/agon-benchmark');
-  const remote = requiredEnv('AK_BENCHMARK_RESULTS_REMOTE');
-  const branch = process.env.AK_BENCHMARK_HEARTBEAT_BRANCH || DEFAULT_BRANCH;
-  const dryRun = process.env.AK_BENCHMARK_DRY_RUN === '1';
+  const remote = requiredEnv('AGON_BENCHMARK_RESULTS_REMOTE');
+  const branch = process.env.AGON_BENCHMARK_HEARTBEAT_BRANCH || DEFAULT_BRANCH;
+  const dryRun = process.env.AGON_BENCHMARK_DRY_RUN === '1';
 
   let state;
   let error = null;
@@ -71,12 +71,12 @@ function main() {
     status,
     dryRun,
     sourceCommit: state.inFlight?.sourceCommit ?? state.lastEvaluatedCommit ?? null,
-    sourceRef: process.env.AK_BENCHMARK_SOURCE_REF || null,
+    sourceRef: process.env.AGON_BENCHMARK_SOURCE_REF || null,
     runKey: state.inFlight?.runKey ?? null,
     identity: {
-      scenarioSetHash: process.env.AK_BENCHMARK_SCENARIO_HASH || null,
-      matrixHash: process.env.AK_BENCHMARK_MATRIX_HASH || null,
-      executionSuiteHash: process.env.AK_BENCHMARK_EXECUTION_SUITE_HASH || null,
+      scenarioSetHash: process.env.AGON_BENCHMARK_SCENARIO_HASH || null,
+      matrixHash: process.env.AGON_BENCHMARK_MATRIX_HASH || null,
+      executionSuiteHash: process.env.AGON_BENCHMARK_EXECUTION_SUITE_HASH || null,
     },
     // Resolved from this file's own location, so it describes the copy that is actually executing
     // rather than whatever a configured path might point at.

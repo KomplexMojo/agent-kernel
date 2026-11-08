@@ -65,11 +65,11 @@ Agent, CLI, and UI share the same BuildSpec (`agon/BuildSpec`). The agent writes
 
 ## LLM Pipeline
 
-- `AK_LLM_LIVE=1`: enable LLM-guided planning flows.
-- `AK_LLM_MODEL`: model name for live LLM requests.
-- `AK_LLM_BASE_URL`: LLM API base URL.
-- `AK_LLM_CAPTURE_PATH`: optional JSONL capture path.
-- `AK_LLM_STRICT=1`: disable repair/sanitization.
-- `AK_ALLOW_NETWORK=1`: allow non-local adapter network access.
+- `AGON_LLM_LIVE=1`: enable LLM-guided planning flows.
+- `AGON_LLM_MODEL`: model name for live LLM requests.
+- `AGON_LLM_BASE_URL`: LLM API base URL.
+- `AGON_LLM_CAPTURE_PATH`: optional JSONL capture path.
+- `AGON_LLM_STRICT=1`: disable repair/sanitization.
+- `AGON_ALLOW_NETWORK=1`: allow non-local adapter network access.
 
 Fixture-driven runs remain preferred for deterministic tests and replay.

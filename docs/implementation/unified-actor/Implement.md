@@ -9,14 +9,14 @@ October 11: runMvpMovement records params.target. Shared mvp-to-exit stores
 that shape. Replay derives the packed step. adaptActionToCore still reads
 from/to. Wiring stays 36 vs 13.
 Validation:
-`pnpm run test:vitest -- tests/runtime/mvp-movement.test.js tests/runtime/replay-mvp.test.js tests/bindings/movement.test.js tests/fixtures/basic-mvp-actor-movement.test.js tests/runtime/actor-proposal-replay.test.js tests/adapters-cli/ak-actor-determinism.test.js`.
+`pnpm run test:vitest -- tests/runtime/mvp-movement.test.js tests/runtime/replay-mvp.test.js tests/bindings/movement.test.js tests/fixtures/basic-mvp-actor-movement.test.js tests/runtime/actor-proposal-replay.test.js tests/adapters-cli/agon-actor-determinism.test.js`.
 
 Accepted decision 1: attacking selections without an actor type are delvers;
 explicit pool lists that omit wardens drop warden actors. llm-plan 14 passed.
 Next: measured delver budgets. DropRate, benchmark host, bf-036, and wiring
 stay red.
 Validation:
-`pnpm run test:vitest -- tests/personas/director/director-build-spec-card-set-roundtrip.test.js tests/adapters-cli/ak-llm-plan.test.js`.
+`pnpm run test:vitest -- tests/personas/director/director-build-spec-card-set-roundtrip.test.js tests/adapters-cli/agon-llm-plan.test.js`.
 
 Suite recount 4206/4003/22/181. Remaining failures are the leave-red list.
 The 10-minute loop stopped. Row 9 later reviewer.
@@ -45,34 +45,34 @@ Validation:
 `pnpm run test:vitest -- tests/integration/e2e-llm-pool-runtime.test.js tests/ui-web/gameplay-view-tick-navigation.test.mjs tests/ui-web/gameplay-flow.test.mjs tests/ui-web/gameplay-discard.test.mjs tests/ui-web/gameplay-selection.test.mjs tests/ui-web/gameplay-selection-playback-state.test.mjs tests/integration/mcp/sandbox-movement.test.js tests/runtime/manual-movement.test.js tests/architecture/dependency-direction.test.js tests/architecture/ports-and-adapters-boundary.test.js`.
 
 Leftover MCP run/replay/narrate Configurator artifacts; preview Actors 3;
-motivations/presentation oracles; sandbox planRef schema constant; ak_create
+motivations/presentation oracles; sandbox planRef schema constant; agon_create
 drift lines; stationary stamina denials. Leave invent-required pool denials
 red. Row 9 later reviewer.
 Validation:
-`pnpm run test:vitest -- tests/integration/mcp/mcp-tools.test.js tests/integration/mcp/mcp-server.test.js tests/integration/mcp/sandbox-movement.test.js tests/integration/mcp-cli-ui-random-scenario.test.js tests/integration/cli-run-multi-actor-movement.test.js tests/integration/agent-authoring-ui-flow.test.js tests/architecture/schema-declaration-origin.test.js tests/architecture/ak-create-error-message-drift.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/integration/mcp/mcp-tools.test.js tests/integration/mcp/mcp-server.test.js tests/integration/mcp/sandbox-movement.test.js tests/integration/mcp-cli-ui-random-scenario.test.js tests/integration/cli-run-multi-actor-movement.test.js tests/integration/agent-authoring-ui-flow.test.js tests/architecture/schema-declaration-origin.test.js tests/architecture/agon-create-error-message-drift.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
 
 Leftover demo-cli Configurator artifacts; resource-plan denial budget 5;
 catalog unified resource oracle. Leave invent-required pool denials red. Row 9
 later reviewer.
 Validation:
-`pnpm run test:vitest -- tests/adapters-cli/demo-smoke.test.js tests/adapters-cli/ak-hazard-resource-plan.test.js tests/tools/remote-ollama-content-gen-catalog.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/adapters-cli/demo-smoke.test.js tests/adapters-cli/agon-hazard-resource-plan.test.js tests/tools/remote-ollama-content-gen-catalog.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
 
 Leftover ActionV1 target params, delver/warden affinities oracles, and
 configurator terrain floor billing (9). Leave invent-required pool denials
 red. Row 9 later reviewer.
 Validation:
-`pnpm run test:vitest -- tests/runtime/actor-proposal-replay.test.js tests/adapters-cli/ak-delver-plan.test.js tests/adapters-cli/ak-warden-plan.test.js tests/adapters-cli/ak-configurator.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/runtime/actor-proposal-replay.test.js tests/adapters-cli/agon-delver-plan.test.js tests/adapters-cli/agon-warden-plan.test.js tests/adapters-cli/agon-configurator.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
 
 Leftover gameplay-surface-ingestion uses Configurator run bundles; shared
 delver-warden-battle tiles stay leftover-red. Leave invent-required pool
 denials red. Row 9 later reviewer.
 Validation:
-`pnpm run test:vitest -- tests/ui-web/gameplay-surface-ingestion.test.js tests/adapters-cli/ak-golden.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/ui-web/gameplay-surface-ingestion.test.js tests/adapters-cli/agon-golden.test.js` and `pnpm run typecheck`.
 
-Leftover ak-golden run/replay/inspect uses Configurator boxed terrain plus
+Leftover agon-golden run/replay/inspect uses Configurator boxed terrain plus
 delver. Leave llm-plan/pool denials, occupancy, proximityRadius, V1 red.
 Validation:
-`pnpm run test:vitest -- tests/adapters-cli/ak-golden.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/adapters-cli/agon-golden.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
 
 Row 8 suite recount: 4202/3935/86/181; typecheck 0. Wiring 36 vs 13. Leave
 invent-required pool denials, occupancy, proximityRadius, V1 red. Row 9 later
@@ -119,14 +119,14 @@ Leftover sandbox-tick S1/S2/S3, MCP tick-control, tick-visualization,
 spawn/exit occupancy, auto-place without radius, dry-run invalid
 permanenceMode, VSR vault V1 resources, and pool denials red.
 Validation:
-`pnpm run test:vitest -- tests/adapters-cli/ak-mcp-sandbox-tick.test.mjs tests/integration/mcp/mcp-tick-control.test.js tests/integration/mcp/tick-visualization.test.js tests/integration/cli-verification.test.js tests/adapters-cli/ak-cost-summary.test.js tests/adapters-cli/ak-resource-affinity-spec.test.js tests/runtime/world-state-resources.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/adapters-cli/agon-mcp-sandbox-tick.test.mjs tests/integration/mcp/mcp-tick-control.test.js tests/integration/mcp/tick-visualization.test.js tests/integration/cli-verification.test.js tests/adapters-cli/agon-cost-summary.test.js tests/adapters-cli/agon-resource-affinity-spec.test.js tests/runtime/world-state-resources.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
 
 Leftover `--tile-barrier` becomes Configurator barrier actors. Leftover CLI
 V1 `tier`/`stat`/`dropRate` is rejected at parse. Leave llm-plan/warden-pool
 0, t1-medium rooms pool, overlay string-affinity, and leftover MCP skipped
 stubs red.
 Validation:
-`pnpm run test:vitest -- tests/adapters-cli/ak-errors.test.js tests/integration/ak-create-hazard-resource.test.js tests/integration/element-matrix-cli.test.mjs tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/persona-boundary.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/adapters-cli/agon-errors.test.js tests/integration/agon-create-hazard-resource.test.js tests/integration/element-matrix-cli.test.mjs tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/persona-boundary.test.js` and `pnpm run typecheck`.
 
 Leftover `--vital-default` uses Configurator DEFAULT_VITALS. Phaser/preview
 draw presentation hazard/resource actors. Actor geometry and visualization
@@ -134,25 +134,25 @@ use terrain. Kernel affinity-summary does not read leftover layout.hazards.
 Leave llm-plan/warden-pool 0, t1-medium rooms pool, overlay string-affinity,
 leftover `--tile-barrier`, and leftover MCP skipped stubs red.
 Validation:
-`pnpm run test:vitest -- tests/ui-web/gameplay-phaser-renderer.test.mjs tests/runtime/affinity-aura-lifecycle.test.js tests/adapters-cli/ak-affinity-summary.test.js tests/personas/actor/actor-decision-inputs.test.js tests/architecture/persona-boundary.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/ui-web/gameplay-phaser-renderer.test.mjs tests/runtime/affinity-aura-lifecycle.test.js tests/adapters-cli/agon-affinity-summary.test.js tests/personas/actor/actor-decision-inputs.test.js tests/architecture/persona-boundary.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
 
 Leftover sandbox MCP place rebuilds through Configurator terrain + roster.
 No leftover tiles/legend/traits/loot. V1 dropRate stays rejected.
-`ak run --tile-wall/--tile-floor` mutate terrain; leftover `--tile-barrier`
+`agon run --tile-wall/--tile-floor` mutate terrain; leftover `--tile-barrier`
 stays rejected. `--actor` requires a unified category.
 Leave llm-plan/warden-pool 0, t1-medium rooms pool, overlay string-affinity,
 and leftover `--vital-default` glue table red.
 Validation:
-`pnpm run test:vitest -- tests/adapters-cli/ak-mcp-sandbox-tick.test.mjs tests/integration/mcp/sandbox-entities.test.js tests/adapters-cli/ak-errors.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/persona-boundary.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/adapters-cli/agon-mcp-sandbox-tick.test.mjs tests/integration/mcp/sandbox-entities.test.js tests/adapters-cli/agon-errors.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/persona-boundary.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
 
 Leftover affinity-summary and CLI/MCP 10-tick creates use Configurator
 artifacts and V3 resources. Leave llm-plan/warden-pool 0, t1-medium rooms
 pool, overlay string-affinity red.
 Validation:
-`pnpm run test:vitest -- tests/adapters-cli/ak-affinity-summary.test.js tests/integration/cli-verification.test.js tests/integration/mcp/mcp-tools.test.js` and `pnpm run typecheck`.
+`pnpm run test:vitest -- tests/adapters-cli/agon-affinity-summary.test.js tests/integration/cli-verification.test.js tests/integration/mcp/mcp-tools.test.js` and `pnpm run typecheck`.
 Session refresh ran with --no-pull to preserve the approved base. Serena activated on this worktree and CodeContext regenerated. The maintainer authorized committing and pushing the UA.1/UA.2 cloud handoff. Future commits/pushes follow the active cloud task instructions.
 
-Contract test discovery used ak_test_discover_patterns(suite=contracts). Its scaffoldable recipe tests runtime validators; UA.1 tests TypeScript declarations, so use a compiler-backed positive/negative fixture instead. The MCP tool server is attached to the original repo: do not use its mutating scaffold/run tools for this worktree. Use local pnpm commands with explicit cwd.
+Contract test discovery used agon_test_discover_patterns(suite=contracts). Its scaffoldable recipe tests runtime validators; UA.1 tests TypeScript declarations, so use a compiler-backed positive/negative fixture instead. The MCP tool server is attached to the original repo: do not use its mutating scaffold/run tools for this worktree. Use local pnpm commands with explicit cwd.
 
 UA.1 command: pnpm run test:vitest -- tests/contracts/unified-actor-contract.test.js
 Owner gates: pnpm run test:vitest -- tests/contracts/ tests/architecture/schema-declaration-origin.test.js tests/architecture/schema-catalog-coverage.test.js

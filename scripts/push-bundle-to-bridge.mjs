@@ -20,7 +20,7 @@ const PORT = 38487;
 
 console.log(`[bridge] Starting on port ${PORT}…`);
 const { port } = await startSandboxBridgeServer({ port: PORT });
-console.log(`[bridge] Listening on ws://127.0.0.1:${port}/ak-sandbox`);
+console.log(`[bridge] Listening on ws://127.0.0.1:${port}/agon-sandbox`);
 console.log(`[bridge] Waiting for UI to connect (reload your browser)…`);
 
 // Poll until a client connects, then push the bundle.
@@ -30,7 +30,7 @@ async function waitAndPush() {
     if (connectedClients > 0) {
       console.log(`[bridge] ${connectedClients} client(s) connected — pushing bundle…`);
       const envelope = {
-        type: "ak.gameplayBundle.v1",
+        type: "agon.gameplayBundle.v1",
         id: `push_${Date.now().toString(36)}`,
         targetTab: "gameplay",
         payload: { bundle },

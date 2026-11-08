@@ -25,7 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { DEFAULT_THRESHOLDS, canStillQualify } = require('./ak-compare');
+const { DEFAULT_THRESHOLDS, canStillQualify } = require('./agon-compare');
 const { DEFAULT_BREAKER } = require('./collapse-breaker');
 
 const SCHEMA_VERSION = 'agon-benchmark-progress/v1';

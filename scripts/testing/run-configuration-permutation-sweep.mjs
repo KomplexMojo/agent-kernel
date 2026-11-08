@@ -1,14 +1,14 @@
 // Runs the configuration-permutation-matrix.mjs scenarios through the real CLI and classifies
-// each result. Shells out to `node packages/adapters-cli/src/cli/ak.mjs` directly rather than
+// each result. Shells out to `node packages/adapters-cli/src/cli/agon.mjs` directly rather than
 // through MCP tool calls — this is scripted batch automation, which
 // packages/adapters-cli/src/mcp/README.md's own "Mental Model" section calls out as the right
 // case for using the CLI directly ("ad hoc shell usage... scripting outside an MCP client").
 //
 // Two modes:
-//   --dry-run    `ak create --dry-run` only (authoring-layer validation, no artifacts written,
-//                no `ak run` follow-on). Fast; good for a quick check after touching authoring
+//   --dry-run    `agon create --dry-run` only (authoring-layer validation, no artifacts written,
+//                no `agon run` follow-on). Fast; good for a quick check after touching authoring
 //                code.
-//   (default)    `ak create` (real artifacts) + `ak run --ticks <N> --seed <N>` per scenario that
+//   (default)    `agon create` (real artifacts) + `agon run --ticks <N> --seed <N>` per scenario that
 //                created successfully. Reaches the layer where the real bugs this matrix has found
 //                so far actually live (see mcp-harness-run-through.md, "Configuration-permutation
 //                sweep").
@@ -28,7 +28,7 @@
 // "did the run complete." It cannot see a defect present at tick 2 and gone by tick 5 — which is
 // exactly the shape #147 was (every tick individually wrong, in a way no aggregate summary would
 // ever flag). stepLevelCheck() replays acceptedActions cumulatively tick-by-tick against
-// initial-state.json/sim-config.json — the same data ak_show_state's own (correct)
+// initial-state.json/sim-config.json — the same data agon_show_state's own (correct)
 // resolveActorPositionsAtTick() replay is built on — and asserts, at every tick: every accepted
 // move landed in-bounds and off a wall tile, no two actors ever occupy the same tile after a
 // tick's moves are applied, and every requested tick actually produced exactly one `apply`
@@ -37,12 +37,12 @@
 //
 // Determinism/reproducibility check (added investigating whether hazard interaction could be
 // tested this way — see mcp-harness-run-through.md, "Hazard interaction — what this sweep found").
-// Hazards authored via ak_create/ak_run turned out to be wired through a static affinity FIELD
+// Hazards authored via agon_create/agon_run turned out to be wired through a static affinity FIELD
 // (core.armStaticHazardAt / computeStaticHazardAffinityField) that feeds an actor's OBSERVATION —
 // internal to core-ts, never written to any file this sweep reads, so its exact effect isn't
 // assertable from outside without a core-ts-level test (a different layer than this sweep). What
 // *is* assertable from here, and is the real prerequisite for any interaction-specific assertion
-// to mean anything: is the simulation reproducible at all. checkDeterminism() re-runs `ak run`
+// to mean anything: is the simulation reproducible at all. checkDeterminism() re-runs `agon run`
 // a second time against the SAME create output (same sim-config.json/initial-state.json, same
 // run-id, a separate --out-dir) and deep-compares every artifact the first run produced. The clock
 // is seeded from sim-config's own meta.createdAt (createDeterministicClock/resolveClockSeed in
@@ -63,7 +63,7 @@ import { MATRIX } from "./configuration-permutation-matrix.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const OUT_ROOT = resolve(ROOT, "artifacts/matrix-sweep");
 
 const args = process.argv.slice(2);
@@ -193,7 +193,7 @@ function stepLevelCheck(createOutDir, runOutDir, ticksRequested) {
     violations.push(`tick continuity: expected apply phases [${expectedTicks.join(",")}], got [${applyTicks.join(",")}]`);
   }
 
-  // Cumulative position replay, tick by tick — the same approach ak_show_state's own (correct)
+  // Cumulative position replay, tick by tick — the same approach agon_show_state's own (correct)
   // resolveActorPositionsAtTick() uses, applied here as an assertion instead of a rendering.
   const positions = new Map();
   const solid = new Set();
@@ -261,7 +261,7 @@ function deepEqual(a, b) {
 }
 
 // #149: action-log.json/run-summary.json/world-state.json stamp meta.id/meta.createdAt from the
-// host's wall-clock createMeta()/makeId() (ak-impl.mjs:1597-1611) instead of the run's own seeded
+// host's wall-clock createMeta()/makeId() (agon-impl.mjs:1597-1611) instead of the run's own seeded
 // clock, so those two fields legitimately differ between two runs of identical input — confirmed
 // as the ONLY thing that ever differs; every other field, including every field in tick-frames.json/
 // effects-log.json/runtime-decision-captures.json (which use the seeded clock throughout), matched
@@ -283,7 +283,7 @@ function stripKnownNondeterministicMeta(value) {
   return value;
 }
 
-// Re-runs `ak run` a second time against the SAME create output (see the file-header comment for
+// Re-runs `agon run` a second time against the SAME create output (see the file-header comment for
 // why this is the meaningful reproducibility boundary) and deep-compares every artifact it wrote
 // the first time, after stripping the one known-nondeterministic field pair (see #149 above) — so
 // this checks what it's meant to check, whether the SIMULATION is reproducible, without a known,

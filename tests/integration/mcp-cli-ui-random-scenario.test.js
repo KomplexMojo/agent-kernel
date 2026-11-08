@@ -8,24 +8,24 @@
  * surface via the sandbox bridge.
  *
  * Seam driven (exact same seam the MCP server itself uses):
- *   - packages/adapters-cli/src/mcp/tools/authoring.mjs  authoringTools[0]  (ak_create),
+ *   - packages/adapters-cli/src/mcp/tools/authoring.mjs  authoringTools[0]  (agon_create),
  *     authoringSpec/buildArgv -> argv
- *   - packages/adapters-cli/src/mcp/tools/simulation.mjs simulationTools "ak_run" tool,
+ *   - packages/adapters-cli/src/mcp/tools/simulation.mjs simulationTools "agon_run" tool,
  *     buildArgv -> argv
- *   - packages/adapters-cli/src/cli/ak-impl.mjs  executeCommand(command, argv)
+ *   - packages/adapters-cli/src/cli/agon-impl.mjs  executeCommand(command, argv)
  *     (packages/adapters-cli/src/mcp/server.mjs:213 calls this exact function
  *     inside invokeCliTool() when a tool has no custom `handler`)
  *
  * Research findings that shape this file (see PR/task notes):
- *   - There is no `ak_create` MCP tool that accepts room/warden/delver COUNTS
- *     via freeform scenario text. `ak_scenario` (packages/adapters-cli/src/cli/ak-impl.mjs
+ *   - There is no `agon_create` MCP tool that accepts room/warden/delver COUNTS
+ *     via freeform scenario text. `agon_scenario` (packages/adapters-cli/src/cli/agon-impl.mjs
  *     scenarioCommand, ~line 6199) only accepts --text (LLM/fixture-driven) or
  *     --from-run; it does not parse structured entity counts from text itself.
- *   - The deterministic, structured-count path is `ak_create` (authoring.mjs,
+ *   - The deterministic, structured-count path is `agon_create` (authoring.mjs,
  *     command "create") with --room "count=5", --warden "count=10;motivation=random",
- *     --delver "count=1;motivation=random" followed by `ak_run --ticks 100`
+ *     --delver "count=1;motivation=random" followed by `agon_run --ticks 100`
  *     (simulation.mjs, command "run"). This is the seam this file drives.
- *   - "random" is a recognized motivation: ak-impl.mjs hasNonStationaryMobilityMotivation
+ *   - "random" is a recognized motivation: agon-impl.mjs hasNonStationaryMobilityMotivation
  *     (~line 1322-1324) special-cases "random"/"exploring"/"patrolling" for movement
  *     stamina; parseDelverSpec (~1120-1219) / parseWardenSpec (~1231-1310) validate
  *     `motivation=` against ALLOWED_MOTIVATIONS (imported from
@@ -38,11 +38,11 @@
  *     writes tick-frames.json / run-summary.json / effects-log.json /
  *     resolved-sim-config.json / resolved-initial-state.json under outDir
  *     (packages/runtime/src/commands/kernel.js `run()`, called via
- *     commandKernel.run in ak-impl.mjs runCommand ~line 4813-4843).
+ *     commandKernel.run in agon-impl.mjs runCommand ~line 4813-4843).
  *   - The bundle shape consumable by the UI (`window.__ak_loadGameplayBundle`)
  *     is `{ schema: "agon/GameplayBundle", schemaVersion: 1, meta, artifacts: [simConfig, initialState], spec, tickFrames }`
  *     per packages/runtime/src/runner/core-facade.js compileScenarioPlaybackBundle.
- *     There is currently no MCP tool (`ak_push_to_ui` or otherwise) that goes
+ *     There is currently no MCP tool (`agon_push_to_ui` or otherwise) that goes
  *     from a `create`+`run` CLI outDir to this bundle shape and pushes it over
  *     the sandbox bridge (packages/adapters-cli/src/mcp/bridge-server.mjs
  *     pushGameplayBundle) — that stitching is the expected M7 gap this file
@@ -58,15 +58,15 @@ const { mkdtempSync, existsSync, readFileSync, rmSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 let authoringToolsModule;
 let simulationToolsModule;
 
 async function loadModules() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   authoringToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
   simulationToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/simulation.mjs");
-  return { ak_impl, authoringToolsModule, simulationToolsModule };
+  return { agon_impl, authoringToolsModule, simulationToolsModule };
 }
 
 function readJson(filePath) {
@@ -110,7 +110,7 @@ async function runCliCommand(executeCommand, command, argv) {
 }
 
 /**
- * Find the ak_create / ak_run MCP tool definitions and build argv exactly as
+ * Find the agon_create / agon_run MCP tool definitions and build argv exactly as
  * the MCP server would via tool.buildArgs(args) — this is the real MCP tool
  * surface, not a hand-rolled argv array.
  */
@@ -125,7 +125,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
   let runOutDir;
 
   beforeAll(async () => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-cli-ui-random-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-cli-ui-random-"));
     runOutDir = join(outDir, "run");
   });
 
@@ -135,9 +135,9 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     }
   });
 
-  test("ak_create MCP tool produces sim-config + initial-state with 1 delver, 10 wardens, motivation.kind random", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  test("agon_create MCP tool produces sim-config + initial-state with 1 delver, 10 wardens, motivation.kind random", async () => {
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const createArgs = {
       room: ["count=5;size=medium"],
@@ -149,15 +149,15 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     };
     const argv = createTool.buildArgs(createArgs);
 
-    const createResult = await runCliCommand(ak_impl.executeCommand, createTool.command, argv);
+    const createResult = await runCliCommand(agon_impl.executeCommand, createTool.command, argv);
 
-    assert.equal(createResult.ok, true, `ak_create must succeed: ${JSON.stringify(createResult)}`);
+    assert.equal(createResult.ok, true, `agon_create must succeed: ${JSON.stringify(createResult)}`);
 
     // Locate the produced sim-config / initial-state artifacts. The exact
     // artifact file names/paths are the "create" command's contract; assert
     // loosely on discoverability via the result payload first, then fall back
     // to the conventional outDir file names used elsewhere in this repo
-    // (see ak-impl.mjs summarizeRunOutput / tests/fixtures/scenarios/*.json).
+    // (see agon-impl.mjs summarizeRunOutput / tests/fixtures/scenarios/*.json).
     const simConfigPath = createResult.artifactPaths?.sim_config
       || createResult.simConfigPath
       || join(outDir, "sim-config.json");
@@ -167,11 +167,11 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
 
     assert.ok(
       existsSync(simConfigPath),
-      `ak_create must produce a discoverable SimConfigArtifact (looked at ${simConfigPath}); result=${JSON.stringify(createResult)}`,
+      `agon_create must produce a discoverable SimConfigArtifact (looked at ${simConfigPath}); result=${JSON.stringify(createResult)}`,
     );
     assert.ok(
       existsSync(initialStatePath),
-      `ak_create must produce a discoverable InitialStateArtifact (looked at ${initialStatePath}); result=${JSON.stringify(createResult)}`,
+      `agon_create must produce a discoverable InitialStateArtifact (looked at ${initialStatePath}); result=${JSON.stringify(createResult)}`,
     );
 
     const simConfig = readJson(simConfigPath);
@@ -185,7 +185,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     // 5 rooms requested via --room "count=5;size=medium".
     //
     // GROUND TRUTH (confirmed by direct invocation during test authoring):
-    // ak_create's room-generation path currently produces only 4 rooms for a
+    // agon_create's room-generation path currently produces only 4 rooms for a
     // count=5 request (observed rooms: R1-R4). This looks like an off-by-one
     // or budget/space-capped-fulfillment gap in the room layout generator
     // reachable from agentAuthoringCommand -> orchestrateBuild — not a typo
@@ -219,7 +219,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     assert.equal(new Set(ids).size, ids.length, "all actor ids must be unique");
 
     // GROUND TRUTH GAP: motivation=random passed on --delver/--warden is used
-    // by ak-impl.mjs only for authoring-time cost calculation
+    // by agon-impl.mjs only for authoring-time cost calculation
     // (hasNonStationaryMobilityMotivation / requiresMovementStamina, ~line
     // 1322-1329) — it is never written onto the actor record in
     // InitialStateArtifact. Actors produced by `create` today have NO
@@ -243,10 +243,10 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     }
   });
 
-  test("ak_run MCP tool runs 100 ticks against the created sim-config/initial-state and produces tick-frames covering all 100 ticks", async () => {
-    const { ak_impl, authoringToolsModule, simulationToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
-    const runTool = findTool(simulationToolsModule.simulationTools, "ak_run");
+  test("agon_run MCP tool runs 100 ticks against the created sim-config/initial-state and produces tick-frames covering all 100 ticks", async () => {
+    const { agon_impl, authoringToolsModule, simulationToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
+    const runTool = findTool(simulationToolsModule.simulationTools, "agon_run");
 
     // Recreate deterministically in an isolated outDir (independent from the
     // previous test so this test can be run/read in isolation).
@@ -258,8 +258,8 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
       runId: "mcp_random_scenario_run",
       outDir,
     });
-    const createResult = await runCliCommand(ak_impl.executeCommand, createTool.command, createArgv);
-    assert.equal(createResult.ok, true, `ak_create must succeed: ${JSON.stringify(createResult)}`);
+    const createResult = await runCliCommand(agon_impl.executeCommand, createTool.command, createArgv);
+    assert.equal(createResult.ok, true, `agon_create must succeed: ${JSON.stringify(createResult)}`);
 
     const simConfigPath = createResult.artifactPaths?.sim_config
       || createResult.simConfigPath
@@ -277,8 +277,8 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
       outDir: runOutDir,
     });
 
-    const runResult = await runCliCommand(ak_impl.executeCommand, runTool.command, runArgv);
-    assert.equal(runResult.ok, true, `ak_run must succeed: ${JSON.stringify(runResult)}`);
+    const runResult = await runCliCommand(agon_impl.executeCommand, runTool.command, runArgv);
+    assert.equal(runResult.ok, true, `agon_run must succeed: ${JSON.stringify(runResult)}`);
     assert.equal(runResult.command, "run");
     assert.equal(runResult.ticks, 100, `run summary must report ticks=100, got ${runResult.ticks}`);
 
@@ -315,7 +315,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     // NOTE: this assertion exercises the runtime's own persona-level random
     // movement (already implemented per M3 / tests/personas/actor/actor-random-movement-ticks.test.js)
     // operating on whatever motivation ended up in InitialState. Given the
-    // "ak_create drops motivation" gap pinned in the previous test, actors run
+    // "agon_create drops motivation" gap pinned in the previous test, actors run
     // here may have NO motivation at all, in which case the persona falls back
     // to exit-directed pathfinding rather than "random" — moves may still be
     // accepted, but they will not be reason:"random". We assert move presence
@@ -339,11 +339,11 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
   });
 
   test("bundle produced from the create+run outDir matches the agon/GameplayBundle shape expected by __ak_loadGameplayBundle (M7 stitching gap)", async () => {
-    const { ak_impl, authoringToolsModule, simulationToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
-    const runTool = findTool(simulationToolsModule.simulationTools, "ak_run");
+    const { agon_impl, authoringToolsModule, simulationToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
+    const runTool = findTool(simulationToolsModule.simulationTools, "agon_run");
 
-    const bundleOutDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-cli-ui-bundle-"));
+    const bundleOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-cli-ui-bundle-"));
     try {
       const createArgv = createTool.buildArgs({
         room: ["count=5;size=medium"],
@@ -353,8 +353,8 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
         runId: "mcp_random_scenario_bundle",
         outDir: bundleOutDir,
       });
-      const createResult = await runCliCommand(ak_impl.executeCommand, createTool.command, createArgv);
-      assert.equal(createResult.ok, true, `ak_create must succeed: ${JSON.stringify(createResult)}`);
+      const createResult = await runCliCommand(agon_impl.executeCommand, createTool.command, createArgv);
+      assert.equal(createResult.ok, true, `agon_create must succeed: ${JSON.stringify(createResult)}`);
 
       const simConfigPath = createResult.artifactPaths?.sim_config
         || createResult.simConfigPath
@@ -371,10 +371,10 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
         runId: "mcp_random_scenario_bundle",
         outDir: join(bundleOutDir, "run"),
       });
-      const runResult = await runCliCommand(ak_impl.executeCommand, runTool.command, runArgv);
-      assert.equal(runResult.ok, true, `ak_run must succeed: ${JSON.stringify(runResult)}`);
+      const runResult = await runCliCommand(agon_impl.executeCommand, runTool.command, runArgv);
+      assert.equal(runResult.ok, true, `agon_run must succeed: ${JSON.stringify(runResult)}`);
 
-      // GROUND TRUTH: ak_create DOES already write a bundle.json
+      // GROUND TRUTH: agon_create DOES already write a bundle.json
       // (createResult.artifactPaths.bundle), confirmed by direct invocation
       // during test authoring. But its shape is NOT the
       // "agon/GameplayBundle" schema that __ak_loadGameplayBundle /
@@ -388,7 +388,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
       // the CLI/MCP surface merges the create-time bundle.json with the
       // run-time tick-frames.json into an agon/GameplayBundle.
       const bundlePath = join(bundleOutDir, "bundle.json");
-      assert.ok(existsSync(bundlePath), `ak_create must write bundle.json at ${bundlePath} (this part already works)`);
+      assert.ok(existsSync(bundlePath), `agon_create must write bundle.json at ${bundlePath} (this part already works)`);
 
       const bundle = readJson(bundlePath);
       assert.equal(
@@ -397,35 +397,35 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
         `create-time bundle.json has no "agon/GameplayBundle" schema tag (got schema=${JSON.stringify(bundle.schema)}, ` +
           `top-level keys=${JSON.stringify(Object.keys(bundle))}) — it is a pre-run BuildSpec preview bundle ` +
           "{spec, schemas, artifacts}, not the post-run playback bundle __ak_loadGameplayBundle expects. " +
-          "No MCP/CLI seam yet merges this with tick-frames.json into a real GameplayBundle (the ak_push_to_ui gap).",
+          "No MCP/CLI seam yet merges this with tick-frames.json into a real GameplayBundle (the agon_push_to_ui gap).",
       );
       assert.equal(bundle.schemaVersion, 1);
       assert.ok(Array.isArray(bundle.artifacts) && bundle.artifacts.length >= 2, "bundle.artifacts must include sim-config and initial-state");
       assert.ok(
         Array.isArray(bundle.tickFrames) && bundle.tickFrames.length > 0,
         `bundle must carry the recorded tick frames from the run (got tickFrames=${JSON.stringify(bundle.tickFrames)}) — ` +
-          "create-time bundle.json is written before ak_run executes and cannot contain them without an M7 stitching step",
+          "create-time bundle.json is written before agon_run executes and cannot contain them without an M7 stitching step",
       );
     } finally {
       rmSync(bundleOutDir, { recursive: true, force: true });
     }
   });
 
-  test("no ak_push_to_ui MCP tool exists yet to deliver the bundle over the sandbox bridge (M7 gap)", async () => {
-    // sandboxTools currently exposes ak_sandbox_create / ak_sandbox_place /
-    // ak_sandbox_move only (packages/adapters-cli/src/mcp/tools/sandbox.mjs) —
+  test("no agon_push_to_ui MCP tool exists yet to deliver the bundle over the sandbox bridge (M7 gap)", async () => {
+    // sandboxTools currently exposes agon_sandbox_create / agon_sandbox_place /
+    // agon_sandbox_move only (packages/adapters-cli/src/mcp/tools/sandbox.mjs) —
     // none of these push a compiled GameplayBundle over the WS bridge
     // (packages/adapters-cli/src/mcp/bridge-server.mjs pushGameplayBundle).
     // This assertion documents and pins that gap per the sandbox-consolidation
-    // plan (rename -> ak_push_to_ui) so it fails loudly until M7 wires it up.
+    // plan (rename -> agon_push_to_ui) so it fails loudly until M7 wires it up.
     const sandboxToolsModule = await import("../../packages/adapters-cli/src/mcp/tools/sandbox.mjs");
     const server = await import("../../packages/adapters-cli/src/mcp/server.mjs").catch(() => null);
     void server; // server.mjs self-connects a stdio transport on import; avoid importing it directly here.
 
     const toolNames = sandboxToolsModule.sandboxTools.map((t) => t.name);
     assert.ok(
-      toolNames.includes("ak_push_to_ui"),
-      `expected an "ak_push_to_ui" MCP tool wiring create/run output to the sandbox bridge; found tools: ${toolNames.join(", ")}`,
+      toolNames.includes("agon_push_to_ui"),
+      `expected an "agon_push_to_ui" MCP tool wiring create/run output to the sandbox bridge; found tools: ${toolNames.join(", ")}`,
     );
   });
 });

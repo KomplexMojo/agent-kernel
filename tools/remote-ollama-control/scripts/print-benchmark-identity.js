@@ -4,8 +4,8 @@
 /**
  * Prints the benchmark identities derived from this checkout.
  *
- * The installed agent refuses to start unless AK_BENCHMARK_SCENARIO_HASH,
- * AK_BENCHMARK_MATRIX_HASH and AK_BENCHMARK_EXECUTION_SUITE_HASH are all set,
+ * The installed agent refuses to start unless AGON_BENCHMARK_SCENARIO_HASH,
+ * AGON_BENCHMARK_MATRIX_HASH and AGON_BENCHMARK_EXECUTION_SUITE_HASH are all set,
  * and the shipped env template carries only <placeholder> markers — deliberately,
  * because an identity that drifts from the source it describes must fail closed
  * rather than be guessed. That leaves the operator needing a way to read the
@@ -17,9 +17,9 @@
 const { currentBenchmarkIdentity } = require('./lib/benchmark-result-reader.js');
 
 const ENV_NAMES = Object.freeze({
-  scenario: 'AK_BENCHMARK_SCENARIO_HASH',
-  matrix: 'AK_BENCHMARK_MATRIX_HASH',
-  execution: 'AK_BENCHMARK_EXECUTION_SUITE_HASH',
+  scenario: 'AGON_BENCHMARK_SCENARIO_HASH',
+  matrix: 'AGON_BENCHMARK_MATRIX_HASH',
+  execution: 'AGON_BENCHMARK_EXECUTION_SUITE_HASH',
 });
 
 function parseArgs(rawArgv) {

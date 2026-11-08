@@ -1,5 +1,5 @@
 // Playtest scenarios (adapters-cli/src/cli/playtest-scenarios.json): every scenario must build
-// through `ak create` and run headless for every affinity as the player's, breaking no simulation
+// through `agon create` and run headless for every affinity as the player's, breaking no simulation
 // rule beyond the ones it lists as known. The playtest report tests moved with the launcher to
 // Primordial (#744).
 import { affinitiesForSeed, loadPlaytestScenarios, scenarioArgs, traitKinds } from "../../packages/adapters-cli/src/cli/playtest-scenarios.mjs";

@@ -548,7 +548,7 @@ export function attachAllocatorServices({
   }
 
   /**
-   * #279: a level's pricing, reported for a play session. A level `ak create` makes carries
+   * #279: a level's pricing, reported for a play session. A level `agon create` makes carries
    * the Allocator's receipt; one without it was never priced. Reported, not refused: a
    * hand-written level is played as written.
    */
@@ -556,7 +556,7 @@ export function attachAllocatorServices({
     if (simConfig?.budgetReceiptRef?.id) return [];
     return [{
       code: "level_unpriced",
-      message: "This level has no budget receipt, so it was not priced by the Allocator; build it with ak create to price it.",
+      message: "This level has no budget receipt, so it was not priced by the Allocator; build it with agon create to price it.",
     }];
   }
 
@@ -583,7 +583,7 @@ export function attachAllocatorServices({
   }
 
   /**
-   * #278: `ak run` overrides change a level after it was priced. The changed level is priced
+   * #278: `agon run` overrides change a level after it was priced. The changed level is priced
    * again, against the budget of the level's own receipt when there is one (its total cost
    * plus what remained) and the reference budget otherwise, and a new receipt is issued.
    * Reported, not refused: a level the overrides take over budget still runs.
@@ -667,7 +667,7 @@ export function attachAllocatorServices({
     prepareLayoutBudgetFit,
     completeLayoutBudgetFit,
     fitLayoutToBudget: boundFitLayoutToBudget,
-    // #300 — the tile counts a built level was billed for, so `ak solve --question
+    // #300 — the tile counts a built level was billed for, so `agon solve --question
     // budget-fit` asks about the same tiles the receipt charged.
     billedLayoutTiles,
     // P5.5 — the chartered reconciliation. State-gated, unlike the pricing surface.

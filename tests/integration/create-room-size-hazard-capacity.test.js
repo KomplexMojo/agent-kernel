@@ -3,8 +3,8 @@
  * failing base tests (interface-testing benchmark sweep, 2026-07-09).
  *
  * Seam driven (same seam the MCP server uses):
- *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
- *   -> packages/adapters-cli/src/cli/ak-impl.mjs executeCommand("create", argv)
+ *   packages/adapters-cli/src/mcp/tools/authoring.mjs agon_create buildArgs
+ *   -> packages/adapters-cli/src/cli/agon-impl.mjs executeCommand("create", argv)
  *
  * #198 (2026-10-13): empty small and medium rooms are no longer identical; each size has
  * its own range. A small room that holds hazards is still sized as medium, so the
@@ -31,13 +31,13 @@ const { mkdtempSync, rmSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 let authoringToolsModule;
 
 async function loadModules() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
   authoringToolsModule ??= await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  return { ak_impl, authoringToolsModule };
+  return { agon_impl, authoringToolsModule };
 }
 
 function findTool(tools, name) {
@@ -127,7 +127,7 @@ const HAZARD_SPEC = "id=room_1_field_1;affinity=dark;expression=emit;proximityRa
 let permutationOutDir;
 
 beforeAll(() => {
-  permutationOutDir = mkdtempSync(join(os.tmpdir(), "ak-i1-permutations-"));
+  permutationOutDir = mkdtempSync(join(os.tmpdir(), "agon-i1-permutations-"));
 });
 
 afterAll(() => {
@@ -138,7 +138,7 @@ describe("create room-size hazard capacity (I1: a small room holding hazards beh
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-i1-room-size-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-i1-room-size-"));
   });
 
   afterAll(() => {
@@ -148,14 +148,14 @@ describe("create room-size hazard capacity (I1: a small room holding hazards beh
   // #198 (maintainer, 2026-10-13, "Real sizes"): empty small and medium rooms used to be
   // identical 5x5 squares. Each size now spans its own range: small 3-5, medium 5-8.
   test("small and medium rooms with nothing in them get their own sizes", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const layouts = {};
     for (const size of ["small", "medium"]) {
       const dir = join(outDir, `alone-${size}`);
       const result = await runCliCommand(
-        ak_impl.executeCommand,
+        agon_impl.executeCommand,
         createTool.command,
         createTool.buildArgs({
           room: [`size=${size};count=1`],
@@ -175,11 +175,11 @@ describe("create room-size hazard capacity (I1: a small room holding hazards beh
   });
 
   test("size=small room accepts one hazard exactly like size=medium does (FAILS today)", async () => {
-    const { ak_impl, authoringToolsModule } = await loadModules();
-    const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+    const { agon_impl, authoringToolsModule } = await loadModules();
+    const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
     const mediumResult = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["size=medium;count=1"],
@@ -192,7 +192,7 @@ describe("create room-size hazard capacity (I1: a small room holding hazards beh
     assert.equal(mediumResult.ok, true, `medium+hazard must succeed (does today): ${mediumResult.error}`);
 
     const smallResult = await runCliCommand(
-      ak_impl.executeCommand,
+      agon_impl.executeCommand,
       createTool.command,
       createTool.buildArgs({
         room: ["size=small;count=1"],
@@ -215,8 +215,8 @@ describe("create room-size hazard capacity (I1: a small room holding hazards beh
 
 // ## TODO: Test Permutations (expanded 2026-07-11 — M5)
 test("i1 small room accepts two hazards when medium accepts the same pair", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
   const hazardSpecs = [
     HAZARD_SPEC,
     "id=room_1_field_2;affinity=water;expression=emit;proximityRadius=2;mana=regen:2:2:1",
@@ -225,7 +225,7 @@ test("i1 small room accepts two hazards when medium accepts the same pair", asyn
   const smallDir = join(permutationOutDir, "small-two-hazards");
   const mediumDir = join(permutationOutDir, "medium-two-hazards");
   const smallResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=small;count=1"],
@@ -236,7 +236,7 @@ test("i1 small room accepts two hazards when medium accepts the same pair", asyn
     }),
   );
   const mediumResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -259,8 +259,8 @@ test("i1 small room accepts two hazards when medium accepts the same pair", asyn
 });
 
 test("i1 small room + hazard + delver + warden matches medium acceptance", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const sharedArgs = {
     hazard: [HAZARD_SPEC],
@@ -272,7 +272,7 @@ test("i1 small room + hazard + delver + warden matches medium acceptance", async
   const smallDir = join(permutationOutDir, "small-actors");
   const mediumDir = join(permutationOutDir, "medium-actors");
   const smallResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=small;count=1"],
@@ -282,7 +282,7 @@ test("i1 small room + hazard + delver + warden matches medium acceptance", async
     }),
   );
   const mediumResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -310,13 +310,13 @@ test("i1 small room + hazard + delver + warden matches medium acceptance", async
 });
 
 test("i1 capacity rule counts entrance/exit tiles consistently across sizes", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const smallDir = join(permutationOutDir, "small-floor-count");
   const mediumDir = join(permutationOutDir, "medium-floor-count");
   const smallResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=small;count=1"],
@@ -327,7 +327,7 @@ test("i1 capacity rule counts entrance/exit tiles consistently across sizes", as
     }),
   );
   const mediumResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -352,8 +352,8 @@ test("i1 capacity rule counts entrance/exit tiles consistently across sizes", as
 });
 
 test("i1 large room accepts hazard counts proportional to its larger interior", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
 
   const hazardSpecs = [
     HAZARD_SPEC,
@@ -364,7 +364,7 @@ test("i1 large room accepts hazard counts proportional to its larger interior", 
   const mediumDir = join(permutationOutDir, "medium-three-hazards");
   const largeDir = join(permutationOutDir, "large-three-hazards");
   const mediumResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
@@ -375,7 +375,7 @@ test("i1 large room accepts hazard counts proportional to its larger interior", 
     }),
   );
   const largeResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=large;count=1"],
@@ -400,8 +400,8 @@ test("i1 large room accepts hazard counts proportional to its larger interior", 
 });
 
 test("i1 small and medium both accept the same dense 10-hazard request", async () => {
-  const { ak_impl, authoringToolsModule } = await loadModules();
-  const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
+  const { agon_impl, authoringToolsModule } = await loadModules();
+  const createTool = findTool(authoringToolsModule.authoringTools, "agon_create");
   const hazardSpecs = Array.from({ length: 10 }, (_, index) =>
     `id=room_1_field_${index + 1};affinity=${["fire", "water", "earth", "wind"][index % 4]};expression=emit;proximityRadius=${
       (index % 3) + 1
@@ -411,7 +411,7 @@ test("i1 small and medium both accept the same dense 10-hazard request", async (
   const smallDir = join(permutationOutDir, "small-dense-hazards");
   const mediumDir = join(permutationOutDir, "medium-dense-hazards");
   const smallResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=small;count=1"],
@@ -422,7 +422,7 @@ test("i1 small and medium both accept the same dense 10-hazard request", async (
     }),
   );
   const mediumResult = await runCliCommand(
-    ak_impl.executeCommand,
+    agon_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],

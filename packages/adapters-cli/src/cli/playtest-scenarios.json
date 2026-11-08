@@ -1,5 +1,5 @@
 {
-  "about": "Playtest scenarios: the levels the sims play here, and that Primordial's playtest launcher and phone app build (#744). Each is `ak create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. Levels use irregular room footprints and destroyable earth interior barriers by default; every resource is encased in a fragile barrier ring (walls count). {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair; {T1} and {T2} are two kinds whose affinity-table row carries a trait (soak, spread, raise), so every trait comes up across seeds. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do. A scenario with --tactic is built with --seed set to its seed, so the tactic's placement replays too. `shows` is the one-line summary the scenario list prints.",
+  "about": "Playtest scenarios: the levels the sims play here, and that Primordial's playtest launcher and phone app build (#744). Each is `agon create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. Levels use irregular room footprints and destroyable earth interior barriers by default; every resource is encased in a fragile barrier ring (walls count). {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair; {T1} and {T2} are two kinds whose affinity-table row carries a trait (soak, spread, raise), so every trait comes up across seeds. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do. A scenario with --tactic is built with --seed set to its seed, so the tactic's placement replays too. `shows` is the one-line summary the scenario list prints.",
   "createdAt": "2026-10-18T00:00:00.000Z",
   "scenarios": [
     {
@@ -345,7 +345,7 @@
       "title": "Full budget: big level",
       "shows": "six large rooms, wardens and traps built from the whole budget (95% spent)",
       "focus": [
-        "The start line gives the spend: about 95% of the budget goes on the rooms, the traps and the wardens, and your delver's share on you. ak create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
+        "The start line gives the spend: about 95% of the budget goes on the rooms, the traps and the wardens, and your delver's share on you. agon create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
         "Four wardens guard six large rooms and two strong traps: does the level feel full, or empty between fights?",
         "Your delver is built from its whole share, so it is strong: is it too strong for what the dungeon could buy?"
       ],
@@ -368,7 +368,7 @@
       "title": "Full budget: vast level",
       "shows": "ten large rooms, six wardens and four traps from the whole budget (97% spent)",
       "focus": [
-        "Ten large rooms on a 56 by 56 board, with the whole budget spent (about 97%). ak create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
+        "Ten large rooms on a 56 by 56 board, with the whole budget spent (about 97%). agon create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
         "Two hunters come for you; four guards hold their rooms. Do the hunters find you across a board this big?",
         "Four traps, one of your own kind: what does your kind's trap do to you?",
         "On the phone: is the board still readable at this size?"
@@ -398,7 +398,7 @@
       "title": "Full budget: tactics",
       "shows": "eight large rooms with a minefield and a boss retinue, from the whole budget (96% spent)",
       "focus": [
-        "Eight large rooms with the whole budget spent (about 96%) through placement tactics: a minefield room and a boss with two minions. ak create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
+        "Eight large rooms with the whole budget spent (about 96%) through placement tactics: a minefield room and a boss with two minions. agon create splits a budget into shares (rooms, traps, wardens, your delver); this level is sized so every share is nearly spent.",
         "The minefield room has a safe line through its traps: can you find it?",
         "The boss keeps its retinue near: do you pull minions off it first, or go for the boss?"
       ],

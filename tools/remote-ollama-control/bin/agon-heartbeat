@@ -13,7 +13,7 @@ done
 
 ROOT_DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-ENV_FILE="${AK_BENCHMARK_ENV_FILE:-$CONFIG_HOME/agon-benchmark/benchmark-agent.env}"
+ENV_FILE="${AGON_BENCHMARK_ENV_FILE:-$CONFIG_HOME/agon-benchmark/benchmark-agent.env}"
 if [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck disable=SC1090

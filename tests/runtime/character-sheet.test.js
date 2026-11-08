@@ -15,7 +15,7 @@ async function load() {
 test("a scenario's delver opens as the sheet, priced by the Allocator", async () => {
   const { createCharacterSheet } = await load();
   const view = createCharacterSheet({ spec: HERO, budgetTokens: 1000 }).view();
-  assert.equal(view.total, 234, "the same spend ak create records for this delver");
+  assert.equal(view.total, 234, "the same spend agon create records for this delver");
   assert.equal(view.ok, true);
   assert.equal(view.remaining, 766);
   assert.deepEqual(view.rows.map((row) => row.id), [
@@ -197,7 +197,7 @@ test("minions: a tap cycles a role, each one adds a row, none takes it out, and 
   assert.deepEqual(sheet.minions(), ["shield", "support", "striker"]);
   sheet.tap(at(1), 0); sheet.tap(at(1), 0); sheet.tap(at(1), 0); // shield -> none
   assert.deepEqual(sheet.minions(), ["support", "striker"], "none takes the minion out and the rest close up");
-  assert.match(sheet.spec(), /;minions=support\+striker;/, "the spec carries them, for ak create");
+  assert.match(sheet.spec(), /;minions=support\+striker;/, "the spec carries them, for agon create");
   assert.deepEqual(createCharacterSheet({ spec: sheet.spec(), budgetTokens: 5000 }).minions(), ["support", "striker"], "and reads them back");
   assert.equal(sheet.view().cursorNumeric, false);
 });
@@ -248,8 +248,8 @@ test("select puts the cursor on a tapped row and field, within bounds", async ()
 });
 
 // #717: a configuration recipe loads into the sheet in one step, stays editable, and is priced by
-// the Allocator exactly as `ak create` prices the same recipe.
-test("a recipe loads into the sheet, prices as the recipe, and writes a spec ak create accepts", async () => {
+// the Allocator exactly as `agon create` prices the same recipe.
+test("a recipe loads into the sheet, prices as the recipe, and writes a spec agon create accepts", async () => {
   const { createCharacterSheet, SHEET_INTENT } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
   assert.equal(sheet.view().recipe, null);

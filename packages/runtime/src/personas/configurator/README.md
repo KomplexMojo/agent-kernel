@@ -112,7 +112,7 @@ At a high level, the Configurator:
 > the same question for a level loaded as written (the play session asks it): each delver or warden vital
 > below the floor, reported and never raised. `reportActorStrategies(initialState)` does the same for
 > strategies (Phase 2b): the parts each actor's thinking motivation will not follow and the target ids
-> the level lacks, reported and never refused (`ak create` returns it as `strategyReport`).
+> the level lacks, reported and never refused (`agon create` returns it as `strategyReport`).
 > All of it previously lived in `allocator/budget-fulfillment.js`, where the budget maximizer built its own
 > cards and then priced them.
 >
@@ -150,20 +150,20 @@ At a high level, the Configurator:
 > `actor-authoring.js`'s `authorDelverCandidate`, published on the persona surface, owns the
 > defaulting (missing motivation → `attacking`), enum validation (affinity/motivation/setup-mode
 > against the chartered vocabularies) and final assembly of one delver candidate. This was
-> previously `ak-impl.mjs`'s `parseDelverSpec` doing all three inline — domain logic in adapter
+> previously `agon-impl.mjs`'s `parseDelverSpec` doing all three inline — domain logic in adapter
 > glue. The CLI keeps the `;`-delimited field splitting and the generic value-format tokenizers
 > (`affinities`/`vitals`/`goals` tuples, shared with the still-unmigrated `parseWardenSpec`): those
 > are DSL syntax, not configuration authoring, and moving them was out of this milestone's scope.
 >
 > `authorActorEquipment`, beside it, authors a delver or warden card's `slots=` and `equip=`
-> (`ak create`) into core's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and
+> (`agon create`) into core's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and
 > `equippedAffinityStacks`. It refuses only what core could not load: more equips than slots, an
 > affinity the actor does not hold, a duplicate, more stacks than held, slots outside 1 to the preset
 > (extra slots are retired, Darren 2026-10-30: affinities past the slots are carried as a pack). Any mix,
 > opposite emits included, is allowed. The preset slot counts are `PRESET_AFFINITY_SLOTS` in contracts.
 >
 > `equipOmissionWarnings` (#722) reads the same request and returns a warning for each held attack
-> (`affinityRole` `attack`) an explicit equip order leaves in the pack while a slot is free. `ak create`
+> (`affinityRole` `attack`) an explicit equip order leaves in the pack while a slot is free. `agon create`
 > prints them and returns them as `warnings`; nothing is refused.
 >
 > Range and intensity (#340, #343): an authored affinity entry may carry `intensity` beside its
@@ -238,12 +238,12 @@ priced by the Allocator like any other vital, pays for costlier moves.
 Authored vitals stand (#371). The stamina regen floor and the cast floor (`applyAffinityDerivedVitalRequirements`,
 mana max raised to one cast) fill only a value left unset at 0; a regen of 1 means more rest turns, and a pool
 smaller than one cast keeps that affinity off, both as the author wrote. `applyAuthoredActorVitalFloors` applies
-the movement, cast and viability floors to each authored actor in `ak create` and returns every max or regen
+the movement, cast and viability floors to each authored actor in `agon create` and returns every max or regen
 someone set (anything other than `DEFAULT_VITALS`) that a floor still raised, such as a pool below one step or
 health below the viability floor; the create result lists them under `vitalsReport`.
 `reportUnaffordableCasts` (#732) names each push or pull an actor with a motivation holds whose cast price
 is above its mana max: core never pays more than the pool holds, so that cast is never made and the Actor
-falls through to a weaker slot. It reports and changes nothing; `ak create` lists the rows under
+falls through to a weaker slot. It reports and changes nothing; `agon create` lists the rows under
 `unaffordableCasts` and warns on stderr.
 
 The existing `configurator_satisfiability` constraint domain remains reserved for Z9 object-placement
@@ -308,8 +308,8 @@ the CONFIG plane uses the service surface below. Both move the same state machin
 `requireState` + `fsm.advance`, and the production authoring path
 (`build/authoring-build.js`) called neither, so a malformed `levelGen` or resource
 list reached `orchestrateBuild` untouched. Since #280 `orchestrateBuild` itself validates and
-locks, so every build path (create/configure, the *-plan commands, `ak build`, `ak llm-plan`,
-`ak scenario`, the sandbox bridge) gets the same verdict, and `ak configurator` runs the same
+locks, so every build path (create/configure, the *-plan commands, `agon build`, `agon llm-plan`,
+`agon scenario`, the sandbox bridge) gets the same verdict, and `agon configurator` runs the same
 round on its `--level-gen`/`--actors` input — a config the Configurator rejects fails the build.
 
 Validation is **permissive on presence, strict on type**: production emits partial
@@ -502,7 +502,7 @@ The plan's `directives.tactics` (`ambush`, `retinue`, ...) are the Director's; t
 compiles each it knows into #301 placement constraints over the level's own wardens and resources
 (`compileTactics` in `tactic-report.js`, run by the build just before object placement), so the
 placement search seats them. Every tactic gets a report row, which the build returns as
-`tacticReport` and `ak create` appends to its `placementReport`; one not compiled yet is
+`tacticReport` and `agon create` appends to its `placementReport`; one not compiled yet is
 `{ tactic, params?, applied: false, note }`, so an asked-for tactic is never silently dropped.
 `validateTactics(tactics, { wardens, resources })` (#402) checks a plan the Configurator didn't author (the
 model's, under `--tactic llm`) before the build: params through the same readers the compile uses, and the
@@ -539,7 +539,7 @@ minions the build adds. When InitialState carries `escorts`, the Configurator al
 `escortOf` onto those actors so core refuses exit dwell while the leader is still alive (AK-6).
 
 **Minion bonds (#408).** `buildInitialStateArtifact` binds each minion to one leader, who pays its mana
-upkeep every turn: from `leader` on the actor (`ak create ...;leader=<id>`), a `leaders` map, or by
+upkeep every turn: from `leader` on the actor (`agon create ...;leader=<id>`), a `leaders` map, or by
 default an escort's ally (`escortOf`). A retinue's minions carry `leader` too. The bonds ride beside the
 roster as `InitialState.leaders` (`{ <minion id>: <leader id> }`) and as `minionOf` on each minion's
 record, which is what core reads. A leader that is not another actor in the level, or bonds that loop,
@@ -547,7 +547,7 @@ are refused by name.
 
 **Temperaments (#675).** `buildInitialStateArtifact` keeps each actor's temperament beside the roster as
 `InitialState.temperaments` (`{ <actor id>: <n> }`): from `temperament` on the actor
-(`ak create ...;temperament=<n>`) or a `temperaments` map. Only the Actor reads it, so it is never on a
+(`agon create ...;temperament=<n>`) or a `temperaments` map. Only the Actor reads it, so it is never on a
 core record; 0 is the default and is left out. A value that is not a whole number 0 or more, or one for
 an actor not in the level, is refused.
 

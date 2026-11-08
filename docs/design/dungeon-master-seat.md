@@ -8,7 +8,7 @@ The driver is `scripts/testing/play-sim-dungeon-master.mjs`, and its tests are i
 
 Change any of these on request.
 
-- **What the master may do.** It only orders actors that already exist and are `ai_controlled`. It never spawns anything, moves a hazard, or re-equips an actor. An order is a strategy, with the same goals `ak_play_order` takes, and the Actor carries it out. Orders to anyone else are refused and counted.
+- **What the master may do.** It only orders actors that already exist and are `ai_controlled`. It never spawns anything, moves a hazard, or re-equips an actor. An order is a strategy, with the same goals `agon_play_order` takes, and the Actor carries it out. Orders to anyone else are refused and counted.
 - **Cadence and budget.** One master call every 5 ticks (`--cadence`), and at most 12 calls a run (`--budget`). An order costs a tick, as it does for a player: the seat gives the order and the ordered actor takes it. Leaving an actor out keeps its current order and costs nothing.
 - **What the master sees.** For each of its living actors, it gets that actor's seat: the fogged screen, the HUD line, who is in its sight (label, role and position only), and its current order. It gets no exit position, no one else's vitals, and nothing its actors have not seen. The harness reads the true state only to score the run.
 
@@ -24,7 +24,7 @@ The score is the delver's, using the same `scoreRun` as the tactic benefit gate 
 
 ## Fake-provider runs
 
-These levels came from `ak create`:
+These levels came from `agon create`:
 - three medium rooms;
 - one exploring, goal-oriented delver with a fire push of range 2 and health regen 0;
 - two `ai_controlled` exploring wardens with a decay push of range 2;
@@ -46,7 +46,7 @@ On these boards a master that only reacts to sightings changes nothing. Each del
 ## Running it with a model
 
 ```bash
-node packages/adapters-cli/src/cli/ak.mjs create --seed 1 --room "size=medium;count=3" \
+node packages/adapters-cli/src/cli/agon.mjs create --seed 1 --room "size=medium;count=3" \
   --delver "count=1;id=hero;affinity=fire;motivation=exploring+goal_oriented;affinities=fire:push:2:1;vitals=health:20:0,mana:20:2,stamina:12:2,durability:5:0" \
   --warden "count=2;id=keeper;affinity=decay;motivation=ai_controlled+exploring+goal_oriented;affinities=decay:push:2:1" \
   --resource "permanenceMode=permanent;vital=mana;delta=3" --budget-tokens 8000 --out-dir /tmp/dm-seed1

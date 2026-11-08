@@ -5,7 +5,7 @@ const { join, resolve } = require("node:path");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
-const CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const INPUT = join(ROOT, "tests/fixtures/adaptive-workflow/cli-run-input-v1-basic.json");
 
 function runCli(args) {
@@ -19,7 +19,7 @@ function ok(args) {
 const json = (path) => JSON.parse(readFileSync(path, "utf8"));
 
 test("workflow run --dry-run validates without model calls or filesystem mutation", () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-workflow-dry-"));
+  const root = mkdtempSync(join(os.tmpdir(), "agon-workflow-dry-"));
   const outDir = join(root, "not-created");
   const { output, result } = ok(["workflow", "run", "--input", INPUT, "--out-dir", outDir, "--dry-run"]);
   assert.deepEqual({ ok: output.ok, action: output.action, valid: output.valid, dryRun: output.dryRun }, { ok: true, action: "run", valid: true, dryRun: true });
@@ -34,7 +34,7 @@ test("workflow run --dry-run validates without model calls or filesystem mutatio
 });
 
 test("fixture run persists the durable workflow record and safe execution receipt", () => {
-  const outDir = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-run-")), "record");
+  const outDir = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-run-")), "record");
   const { output, result } = ok(["workflow", "run", "--input", INPUT, "--out-dir", outDir]);
   assert.equal(output.outcome, "complete");
   for (const file of ["state.json", "runtime-profile.json", "selected-strategy.json", "validation.json", "events.json", "request.json"]) assert.equal(existsSync(join(outDir, file)), true, file);
@@ -62,7 +62,7 @@ test("filesystem reservations survive adapter restart and controlled execution i
     import("../../packages/adapters-cli/src/adapters/adaptive-workflow/filesystem-store.js"),
     import("../../packages/adapters-cli/src/adapters/adaptive-workflow/controlled-execution.js"),
   ]);
-  const root = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-store-")), "store");
+  const root = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-store-")), "store");
   const first = await createFilesystemWorkflowStore({ root });
   const payloadRef = await first.putContent({ x: 1 });
   assert.equal((await first.reserveSideEffect({ idempotencyKey: "safe-key", payloadRef })).status, "claimed");
@@ -81,17 +81,17 @@ test("filesystem reservations survive adapter restart and controlled execution i
   await restarted.save("active", { runId: "active", phase: "plan" });
   assert.equal(ok(["workflow", "cancel", "--out-dir", root]).output.requested, true);
   assert.equal(existsSync(join(root, "cancel-request.json")), true);
-  const unsafe = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-unsafe-")), "store");
-  const outside = mkdtempSync(join(os.tmpdir(), "ak-workflow-outside-"));
+  const unsafe = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-unsafe-")), "store");
+  const outside = mkdtempSync(join(os.tmpdir(), "agon-workflow-outside-"));
   mkdirSync(unsafe); symlinkSync(outside, join(unsafe, "content"));
   await assert.rejects(() => createFilesystemWorkflowStore({ root: unsafe, create: false }).then((store) => store.putContent({ secret: true })), /symlink|unsafe/i);
-  const rootLink = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-root-link-")), "link");
+  const rootLink = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-root-link-")), "link");
   symlinkSync(root, rootLink);
   await assert.rejects(() => createFilesystemWorkflowStore({ root: rootLink, create: false }), /symlink|unsafe/i);
 });
 
 test("workflow rejects persisted credential-shaped config before creating output", () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-workflow-secrets-"));
+  const root = mkdtempSync(join(os.tmpdir(), "agon-workflow-secrets-"));
   const input = json(INPUT);
   input.declaredCapability.credentials = { apiKey: "declared-credential-marker" };
   const inputPath = join(root, "input.json"); writeFileSync(inputPath, JSON.stringify(input));
@@ -109,11 +109,11 @@ test("workflow rejects persisted credential-shaped config before creating output
 });
 
 test("workflow replay is read-only when source execution or candidate content is missing", () => {
-  const first = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-replay-ro-")), "run"); ok(["workflow", "run", "--input", INPUT, "--out-dir", first]);
+  const first = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-replay-ro-")), "run"); ok(["workflow", "run", "--input", INPUT, "--out-dir", first]);
   const reservation = join(first, "idempotency", readdirSync(join(first, "idempotency"))[0]); rmSync(reservation);
   const replay = ok(["workflow", "replay", "--out-dir", first]);
   assert.equal(replay.output.liveExecutionCalls, 0); assert.equal(existsSync(reservation), false);
-  const second = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-replay-missing-")), "run"); ok(["workflow", "run", "--input", INPUT, "--out-dir", second]);
+  const second = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-replay-missing-")), "run"); ok(["workflow", "run", "--input", INPUT, "--out-dir", second]);
   const digest = json(join(second, "state.json")).refs.configurationRef.contentRef.digest;
   const candidate = join(second, "content", `${digest}.json`); rmSync(candidate);
   const missing = runCli(["workflow", "replay", "--out-dir", second]);
@@ -121,7 +121,7 @@ test("workflow replay is read-only when source execution or candidate content is
 });
 
 test("workflow rejects duplicate, conflicting, and colliding command inputs", () => {
-  const outDir = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-conflicts-")), "run"); ok(["workflow", "run", "--input", INPUT, "--out-dir", outDir]);
+  const outDir = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-conflicts-")), "run"); ok(["workflow", "run", "--input", INPUT, "--out-dir", outDir]);
   for (const args of [
     ["workflow", "run", "--input", INPUT, "--out-dir", "/tmp/first", "--out-dir", "/tmp/second", "--dry-run"],
     ["workflow", "run", "--replay", outDir, "--input", INPUT],
@@ -131,14 +131,14 @@ test("workflow rejects duplicate, conflicting, and colliding command inputs", ()
     ["workflow", "replay", "--cancel", "cli_workflow_basic", "--out-dir", outDir],
     ["workflow", "cancel", "--replay", outDir, "--out-dir", outDir],
   ]) assert.notEqual(runCli(args).status, 0, args.join(" "));
-  const occupied = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-occupied-")), "run"); mkdirSync(occupied); writeFileSync(join(occupied, "request.json"), "do-not-overwrite");
+  const occupied = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-occupied-")), "run"); mkdirSync(occupied); writeFileSync(join(occupied, "request.json"), "do-not-overwrite");
   assert.notEqual(runCli(["workflow", "run", "--input", INPUT, "--out-dir", occupied]).status, 0);
   assert.equal(readFileSync(join(occupied, "request.json"), "utf8"), "do-not-overwrite");
 });
 
 test("filesystem store validates canonical refs, names, and clone isolation", async () => {
   const { createFilesystemWorkflowStore } = await import("../../packages/adapters-cli/src/adapters/adaptive-workflow/filesystem-store.js");
-  const root = join(mkdtempSync(join(os.tmpdir(), "ak-workflow-integrity-")), "store"); const store = await createFilesystemWorkflowStore({ root });
+  const root = join(mkdtempSync(join(os.tmpdir(), "agon-workflow-integrity-")), "store"); const store = await createFilesystemWorkflowStore({ root });
   const first = await store.putContent({ b: 2, a: 1 }); const second = await store.putContent({ a: 1, b: 2 });
   assert.equal(first.digest, second.digest);
   const loaded = await store.getContent(first); loaded.a = 99; assert.equal((await store.getContent(first)).a, 1);
@@ -150,7 +150,7 @@ test("filesystem store validates canonical refs, names, and clone isolation", as
 });
 
 test("missing policy, invalid runtime profile, occupied state dir, and replay/cancel conflicts fail safely", () => {
-  const root = mkdtempSync(join(os.tmpdir(), "ak-workflow-m11-"));
+  const root = mkdtempSync(join(os.tmpdir(), "agon-workflow-m11-"));
 
   // Missing --policy path fails before the output directory is created.
   const missingPolicyOut = join(root, "missing-policy");

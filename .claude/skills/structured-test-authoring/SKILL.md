@@ -1,6 +1,6 @@
 ---
 name: structured-test-authoring
-description: Use when authoring, scaffolding, or locating a test in Agon — reach for the ak_test_* MCP tools and an existing recipe before hand-writing a file. Do not use for diagnosing a failing suite (tiered-test-optimizer), expanding `## TODO: Test Permutations` stubs (local-test-gen), or deciding what behavior a persona should have (persona-*).
+description: Use when authoring, scaffolding, or locating a test in Agon — reach for the agon_test_* MCP tools and an existing recipe before hand-writing a file. Do not use for diagnosing a failing suite (tiered-test-optimizer), expanding `## TODO: Test Permutations` stubs (local-test-gen), or deciding what behavior a persona should have (persona-*).
 ---
 
 # Structured Test Authoring
@@ -8,9 +8,9 @@ description: Use when authoring, scaffolding, or locating a test in Agon — rea
 Use the Agon MCP test tools before writing or running tests manually.
 
 ## Rules
-- Prefer `ak_test_list_suites` and `ak_test_discover_patterns` before authoring a new test.
-- Prefer `ak_test_scaffold_case` over freehand test creation when the recipe fits.
-- Prefer `ak_test_run` on the narrowest relevant mode first.
+- Prefer `agon_test_list_suites` and `agon_test_discover_patterns` before authoring a new test.
+- Prefer `agon_test_scaffold_case` over freehand test creation when the recipe fits.
+- Prefer `agon_test_run` on the narrowest relevant mode first.
 - Use Vitest-backed suites for contracts, runtime logic, CLI flows, WASM, and non-browser integrations.
 - Browser clients and their tests live in Primordial (#744); there is no browser-facing suite or browser-native runner here.
 - Do not replace domain or contract tests with UI-only tests.
@@ -22,15 +22,15 @@ Use the Agon MCP test tools before writing or running tests manually.
 goes stale silently. This section named two recipes when eleven existed, which is worse than
 naming none: it reads as "these are your options".
 
-`ak_test_scaffold_case` only supports the subset in `SCAFFOLDABLE_RECIPES`
+`agon_test_scaffold_case` only supports the subset in `SCAFFOLDABLE_RECIPES`
 (`packages/adapters-cli/src/mcp/tools/testing.mjs`); the rest are detection-only, so a recipe
 being in the catalog does not mean it can be scaffolded.
 
 ## Typical Flow
-1. `ak_test_list_suites`
-2. `ak_test_discover_patterns`
-3. `ak_test_scaffold_case` if a supported recipe fits
-4. `ak_test_run`
+1. `agon_test_list_suites`
+2. `agon_test_discover_patterns`
+3. `agon_test_scaffold_case` if a supported recipe fits
+4. `agon_test_run`
 
 ## Fallback
 - If no recipe fits, inspect nearby tests, match the nearest existing structure, and keep the new test narrow.

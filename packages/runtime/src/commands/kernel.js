@@ -97,7 +97,7 @@ import {
   TICK_FRAME_SCHEMA,
 } from "../contracts/artifacts.ts";
 
-// #300 — the questions `ak solve --dir` can ask about a built level, one per adopted domain.
+// #300 — the questions `agon solve --dir` can ask about a built level, one per adopted domain.
 const SOLVE_QUESTIONS = Object.freeze(["place-objects", "budget-fit"]);
 
 const SCHEMAS = Object.freeze({
@@ -624,7 +624,7 @@ async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy
       const fixtureText = await readText(fixturePath);
       fetchFn = async () => ({ ok: true, text: async () => fixtureText });
     } else if (!allowNetwork) {
-      throw new Error("ipfs capture requires fixturePath unless AK_ALLOW_NETWORK=1.");
+      throw new Error("ipfs capture requires fixturePath unless AGON_ALLOW_NETWORK=1.");
     }
 
     const adapter = createIpfsAdapter({ gatewayUrl, fetchFn });
@@ -640,7 +640,7 @@ async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy
     const fixtureBalancePath = resolvePath(request.fixtureBalancePath, baseDir);
 
     if ((!fixtureChainIdPath || (address && !fixtureBalancePath)) && !allowNetwork) {
-      throw new Error("blockchain capture requires fixtures unless AK_ALLOW_NETWORK=1.");
+      throw new Error("blockchain capture requires fixtures unless AGON_ALLOW_NETWORK=1.");
     }
 
     let fetchFn;
@@ -681,7 +681,7 @@ async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy
       const fixtureJson = JSON.parse(await readText(fixturePath));
       fetchFn = async () => ({ ok: true, json: async () => fixtureJson });
     } else if (!allowNetwork && !isLocalBaseUrl(baseUrl)) {
-      throw new Error("llm capture requires fixturePath unless AK_ALLOW_NETWORK=1.");
+      throw new Error("llm capture requires fixturePath unless AGON_ALLOW_NETWORK=1.");
     }
 
     const options = isObject(request.options) ? request.options : undefined;
@@ -1332,7 +1332,7 @@ export function createCommandKernel(host = {}) {
     });
     const overridesApplied = tileOverrideResult.mutated || actorOverrideResult.mutated;
     // #278: an overridden level is priced again by the Allocator, against the budget of the
-    // receipt `ak create` wrote beside it. The run plays as overridden either way.
+    // receipt `agon create` wrote beside it. The run plays as overridden either way.
     let overridePricing = null;
     if (overridesApplied) {
       const levelDir = dirname(simConfigPath);
@@ -1470,7 +1470,7 @@ export function createCommandKernel(host = {}) {
     // P5.5 — the chartered post-run step, after the run and after the summary: effects the
     // run could not satisfy deterministically are coordinated by the Orchestrator, and what
     // came back is captured for future deterministic runs. Before this they were marked
-    // `deferred`, counted by `ak inspect`, and dropped.
+    // `deferred`, counted by `agon inspect`, and dropped.
     //
     // Written only when there was something to coordinate. `null` means the run deferred
     // nothing, and a file recording an empty settlement would read as "all coordinated" —
@@ -1751,7 +1751,7 @@ export function createCommandKernel(host = {}) {
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
 
     // #276: with no budget the Allocator's reference budget and price list apply, as for
-    // `ak create` (#274). Only a caller-supplied receipt with no budget is taken as already priced.
+    // `agon create` (#274). Only a caller-supplied receipt with no budget is taken as already priced.
     // Price before cages so enclosure durability can follow each resource's token total.
     const pricedHere = Boolean(budget) || !budgetReceipt;
     if (pricedHere) {
@@ -2126,7 +2126,7 @@ export function createCommandKernel(host = {}) {
         if (body.method === "eth_chainId" && chainFixture) {
           return { ok: true, json: async () => chainFixture };
         }
-        if (body.method === "ak_mintCard" && mintFixture) {
+        if (body.method === "agon_mintCard" && mintFixture) {
           return { ok: true, json: async () => mintFixture };
         }
         return { ok: false, status: 500, statusText: "Missing fixture" };
@@ -2180,7 +2180,7 @@ export function createCommandKernel(host = {}) {
         if (body.method === "eth_chainId" && chainFixture) {
           return { ok: true, json: async () => chainFixture };
         }
-        if (body.method === "ak_getMintedCard" && loadFixture) {
+        if (body.method === "agon_getMintedCard" && loadFixture) {
           return { ok: true, json: async () => loadFixture };
         }
         return { ok: false, status: 500, statusText: "Missing fixture" };
@@ -2208,11 +2208,11 @@ export function createCommandKernel(host = {}) {
   }
 
   async function llm(args) {
-    const model = args.model || readEnv(host.env, "AK_LLM_MODEL") || DEFAULT_LLM_MODEL;
+    const model = args.model || readEnv(host.env, "AGON_LLM_MODEL") || DEFAULT_LLM_MODEL;
     const prompt = args.prompt;
-    const baseUrl = args["base-url"] || readEnv(host.env, "AK_LLM_BASE_URL") || DEFAULT_LLM_BASE_URL;
+    const baseUrl = args["base-url"] || readEnv(host.env, "AGON_LLM_BASE_URL") || DEFAULT_LLM_BASE_URL;
     const fixturePath = resolvePath(args.fixture, cwd());
-    const llmFormat = readEnv(host.env, "AK_LLM_FORMAT");
+    const llmFormat = readEnv(host.env, "AGON_LLM_FORMAT");
 
     if (!isNonEmptyString(prompt)) {
       throw new Error("llm requires --prompt.");
@@ -2241,8 +2241,8 @@ export function createCommandKernel(host = {}) {
     const catalogOverride = resolvePath(args.catalog);
     const goalOverride = args.goal;
     const budgetTokensRaw = args["budget-tokens"];
-    const model = args.model || readEnv(host.env, "AK_LLM_MODEL") || DEFAULT_LLM_MODEL;
-    const baseUrl = args["base-url"] || readEnv(host.env, "AK_LLM_BASE_URL") || DEFAULT_LLM_BASE_URL;
+    const model = args.model || readEnv(host.env, "AGON_LLM_MODEL") || DEFAULT_LLM_MODEL;
+    const baseUrl = args["base-url"] || readEnv(host.env, "AGON_LLM_BASE_URL") || DEFAULT_LLM_BASE_URL;
     const promptInput = isNonEmptyString(promptRaw)
       ? promptRaw
       : isNonEmptyString(textRaw)
@@ -2350,7 +2350,7 @@ export function createCommandKernel(host = {}) {
       });
     const constraintLines = buildLlmConstraintSection({ allowedPairsText });
     const finalPrompt = appendJsonOnlyInstruction(`${basePrompt}\n\n${constraintLines}`);
-    const llmFormat = readEnv(host.env, "AK_LLM_FORMAT");
+    const llmFormat = readEnv(host.env, "AGON_LLM_FORMAT");
 
     const liveEnabled = isLlmLiveEnabled();
     const adapterFlowEnabled = liveEnabled || Boolean(fixturePath);
@@ -2382,7 +2382,7 @@ export function createCommandKernel(host = {}) {
 
     if (adapterFlowEnabled) {
       if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
-        throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
+        throw new Error("llm-plan requires --fixture unless AGON_ALLOW_NETWORK=1 or base URL is local.");
       }
 
       let fetchFn;
@@ -2416,7 +2416,7 @@ export function createCommandKernel(host = {}) {
         const poolPolicy = Number.isFinite(budgetReserveTokens) ? { reserveTokens: budgetReserveTokens } : undefined;
         // Z7.1: the host owns adapter construction. A fixture/non-capable adapter is still
         // useful here: the Allocator detects the missing domain and takes its characterized
-        // fallback, while AK_SOLVER_ENGINE=z3-real exposes the hybrid search path.
+        // fallback, while AGON_SOLVER_ENGINE=z3-real exposes the hybrid search path.
         const fitLayout = await hostLayoutBudgetFit(director, createdAt, (decision) => solverDecisions.push(decision));
         const loopResult = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
@@ -2554,14 +2554,14 @@ export function createCommandKernel(host = {}) {
       }
     } else {
       if (isNonEmptyString(prompt)) {
-        throw new Error("llm-plan requires AK_LLM_LIVE=1 when using --prompt.");
+        throw new Error("llm-plan requires AGON_LLM_LIVE=1 when using --prompt.");
       }
       if (!scenario) {
-        throw new Error("llm-plan requires AK_LLM_LIVE=1 when --scenario is omitted.");
+        throw new Error("llm-plan requires AGON_LLM_LIVE=1 when --scenario is omitted.");
       }
       const summaryPath = resolveScenarioAssetPath(scenario.summaryPath, scenarioBaseDir, resolvePath, exists);
       if (!summaryPath) {
-        throw new Error("llm-plan requires scenario.summaryPath when AK_LLM_LIVE is off.");
+        throw new Error("llm-plan requires scenario.summaryPath when AGON_LLM_LIVE is off.");
       }
       const summaryFixture = await readJson(summaryPath);
       const normalized = normalizeSummary(summaryFixture);

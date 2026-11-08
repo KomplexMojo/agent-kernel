@@ -11,6 +11,6 @@
     "./src/character-cli.mjs": "./src/character-cli.mjs"
   },
   "bin": {
-    "ak-maze": "src/cli.mjs"
+    "agon-maze": "src/cli.mjs"
   }
 }

@@ -42,7 +42,7 @@ directory asserted the opposite. Flipped 2026-08-12 on re-derived evidence, not 
 closure note: the inventory guard scans `packages/`, `scripts/` and `tools/` and asserts **zero**
 direct `runLlmSession` call sites, and every capture stamped `producedBy: "orchestrator"` is built
 inside `llm-round.js`'s `settle()`, which cannot run before a terminal state. The `producedBy` that
-`kernel.js` and `ak-impl.mjs` pass is an *option into a round-hosted call*, not glue stamping an
+`kernel.js` and `agon-impl.mjs` pass is an *option into a round-hosted call*, not glue stamping an
 artifact of its own.
 
 **Residue worth knowing before you edit this persona:** `runLlmBudgetLoop` is still a plain function
@@ -117,12 +117,12 @@ The Orchestrator does not interpret or refine intent beyond routing and normaliz
 
 🟢 **IMPLEMENTED — P5.5, 2026-08-13.** This section described intent for as long as the persona
 model has been enforced: `dispatchEffect` marked IO-bound effects `deferred`, the Moderator's
-fulfilment plan recorded the disposition, and the only thing downstream was `ak inspect`, which
+fulfilment plan recorded the disposition, and the only thing downstream was `agon inspect`, which
 **counted** them. The records then went nowhere — and a run that dropped every deferral looked
 identical, in every output test, to a run that had none.
 
 It now runs as a round (`post-run-round.js`), opened by the runtime's `coordinateDeferredEffects()`
-after the ticks are done, and reached in production through `ak run`, which writes
+after the ticks are done, and reached in production through `agon run`, which writes
 `deferred-coordination.json`.
 
 - **The round performs no IO.** `begin()` returns the deferred effects as data; the host dispatches
@@ -232,7 +232,7 @@ caller, so nothing about internal state escapes with it.
 ⚠️ **`commands/llm-host.js` is NOT a substitute for it.** `runLlmSessionHosted` hosts a *session*;
 this runs the budget loop. They are different capabilities and two callers legitimately import
 both. The allowlist previously carried four rows pointing straight at `llm-budget-loop.js`
-(`ak-impl.mjs`, `adaptive-workflow/llm-seams.js`, `commands/kernel.js`, `ui-web/design-guidance.js`)
+(`agon-impl.mjs`, `adaptive-workflow/llm-seams.js`, `commands/kernel.js`, `ui-web/design-guidance.js`)
 and CR.4's D4 predicted a use case returning LLM-request effects would replace them; it did not.
 Those four now import `persona.js` and the rows are gone (allowlist 35 → 31).
 

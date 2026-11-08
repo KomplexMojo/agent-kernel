@@ -53,11 +53,11 @@ export function createGameplayBridgeOperation({
 
     const messageId = makeMessageId(runId);
     const envelope = {
-      type: "ak.gameplayBundle.v1",
+      type: "agon.gameplayBundle.v1",
       id: messageId,
       createdAt: clock(),
       targetTab,
-      payload: { bundle, source: { tool: "ak_workflow_run", strategyId: selectedStrategy?.strategyId ?? null } },
+      payload: { bundle, source: { tool: "agon_workflow_run", strategyId: selectedStrategy?.strategyId ?? null } },
     };
 
     const pushResult = (await push(envelope)) || {};

@@ -152,7 +152,7 @@ export const ADAPTIVE_WORKFLOW_REPLAY_SCHEMA = "agon/AdaptiveWorkflowReplay";
 // -------------------------
 // Persona CLI invocation contracts (DECISION D-j)
 // -------------------------
-// The in/out envelope for `ak-persona <name> --in <spec.json> --out <result.json>`:
+// The in/out envelope for `agon-persona <name> --in <spec.json> --out <result.json>`:
 // artifact in, artifact out, one process. This is the contract the G1
 // CLI-differential tests diff against — capture what the production path handed a
 // persona, run the persona standalone on the same input, and compare. A mismatch
@@ -1989,7 +1989,7 @@ export type ActionV1 = ActionEnvelopeV1 & ActorAction;
 /**
  * NOT a standalone artifact (PA.4, 2026-07-28). `agon/Event` was retired — nothing
  * ever produced or consumed an Event artifact. This shape survives because it is the element
- * type of `TickFrameV1.emittedEvents`, which IS live: ak-impl.mjs reads it when narrating a
+ * type of `TickFrameV1.emittedEvents`, which IS live: agon-impl.mjs reads it when narrating a
  * run. Consumers use `kind`, `actorId`, `targetActorId`, `targetId` and `data` — never a
  * schema envelope — so the envelope was removed rather than versioned.
  */
@@ -2352,7 +2352,7 @@ export type WorldStateArtifact = WorldStateArtifactV2;
  * Z.1 — a constraint problem posed to a solver, and the normalized answer.
  *
  * Both carry `meta`, so both are persisted artifacts rather than bare protocol
- * messages: `ak solve` already writes a solver request and result to disk, and a
+ * messages: `agon solve` already writes a solver request and result to disk, and a
  * problem whose provenance cannot be traced is not auditable. The classification
  * in `schema-catalog.js` is derived from exactly that — the presence of `meta`
  * here IS the statement of what these are.
@@ -2934,7 +2934,7 @@ export type SandboxSessionArtifact = SandboxSessionArtifactV1;
 // elsewhere in the tree. That list is now empty.
 //
 // Two of the seven had a constant, in two places at once: `GAMEPLAY_BUNDLE_SCHEMA`
-// was declared independently in `adapters-cli/src/cli/ak-impl.mjs` AND in
+// was declared independently in `adapters-cli/src/cli/agon-impl.mjs` AND in
 // `ui-web/src/phaser-surface-ingestion.js` — a CLI writer and a browser reader of the
 // same bundle, each free to drift from the other. The remaining five had no constant
 // anywhere; the literal was retyped at each use site, four times for `ActorArtifact`

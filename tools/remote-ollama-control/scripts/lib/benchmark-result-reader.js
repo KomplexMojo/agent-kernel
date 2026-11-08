@@ -3,7 +3,7 @@
 const { execFileSync } = require('child_process');
 const path = require('path');
 
-const { loadScenarioCatalog } = require('./ak-scenarios');
+const { loadScenarioCatalog } = require('./agon-scenarios');
 const { buildContentGenMatrix } = require('./benchmark');
 const { loadConfig } = require('./config');
 const { loadExecutionCatalog } = require('./execution-catalog');

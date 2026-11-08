@@ -38,7 +38,7 @@ function writeRun(root, params) {
 const boardRow = (ascii, y) => ascii.split("\n")[2 + y].slice(2);
 
 test("tick replay moves the actor to params.target", async () => {
-  const root = writeRun(mkdtempSync(join(tmpdir(), "ak-tick-target-")), { target: { x: 2, y: 1 } });
+  const root = writeRun(mkdtempSync(join(tmpdir(), "agon-tick-target-")), { target: { x: 2, y: 1 } });
   const ascii = await renderAscii(root, 1);
   const row = boardRow(ascii, 1);
   assert.equal(row[2], "@");
@@ -46,7 +46,7 @@ test("tick replay moves the actor to params.target", async () => {
 });
 
 test("tick replay ignores a leftover params.to destination", async () => {
-  const root = writeRun(mkdtempSync(join(tmpdir(), "ak-tick-to-")), { to: { x: 2, y: 1 } });
+  const root = writeRun(mkdtempSync(join(tmpdir(), "agon-tick-to-")), { to: { x: 2, y: 1 } });
   const ascii = await renderAscii(root, 1);
   const row = boardRow(ascii, 1);
   assert.equal(row[1], "@");

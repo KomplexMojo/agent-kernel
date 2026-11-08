@@ -42,7 +42,7 @@ export function createBlockchainAdapter({ rpcUrl, fetchFn = fetch } = {}) {
     tokenId,
     metadata = {},
   } = {}) {
-    return call("ak_mintCard", [{
+    return call("agon_mintCard", [{
       owner,
       contractAddress,
       tokenId,
@@ -56,7 +56,7 @@ export function createBlockchainAdapter({ rpcUrl, fetchFn = fetch } = {}) {
     owner,
     contractAddress,
   } = {}) {
-    return call("ak_getMintedCard", [{
+    return call("agon_getMintedCard", [{
       tokenId,
       owner,
       contractAddress,

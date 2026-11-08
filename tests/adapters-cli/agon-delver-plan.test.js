@@ -1,0 +1,316 @@
+const assert = require("node:assert/strict");
+// CR.9 M3: the Allocator refuses to price raw motivations without the Configurator's
+// vocabulary. Injected here exactly as the CLI composition root injects it.
+const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
+const { spawnSync } = require("node:child_process");
+const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
+const { resolve, join } = require("node:path");
+const os = require("node:os");
+
+const ROOT = resolve(__dirname, "../..");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
+
+function runCli(args) {
+  return spawnSync(process.execPath, [CLI, ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+}
+
+function runCliOk(args) {
+  const result = runCli(args);
+  if (result.status !== 0) {
+    const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
+    throw new Error(`CLI failed (${result.status}): ${output}`);
+  }
+  return result;
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+function readStdoutJson(result) {
+  return JSON.parse((result.stdout || "").trim());
+}
+
+function listDelverCards(spec) {
+  const cardSet = spec?.plan?.hints?.cardSet;
+  if (!Array.isArray(cardSet)) return [];
+  return cardSet.filter((entry) => entry?.type === "delver");
+}
+
+test("cli delver-plan authors delver cards directly from delver flags", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-basic-"));
+  const result = runCliOk([
+    "delver-plan",
+    "--delver",
+    "affinity=fire;motivation=attacking;count=2",
+    "--run-id",
+    "run_delver_plan_basic",
+    "--created-at",
+    "2026-03-07T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+  const summary = readStdoutJson(result);
+
+  assert.equal(existsSync(join(outDir, "spec.json")), true);
+  assert.equal(existsSync(join(outDir, "sim-config.json")), true);
+  assert.equal(existsSync(join(outDir, "initial-state.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
+  assert.equal(summary.preview.ready, true);
+  assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
+  assert.equal(summary.preview.hasActors, true);
+  assert.equal(summary.preview.runReady, false);
+  assert.equal(summary.artifactPaths.resource_bundle, join(outDir, "resource-bundle.json"));
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const manifest = readJson(join(outDir, "manifest.json"));
+  assert.equal(spec.meta.runId, "run_delver_plan_basic");
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agon/ResourceBundleArtifact"));
+
+  const cards = listDelverCards(spec);
+  assert.equal(cards.length, 1);
+  const delver = cards[0];
+  assert.equal(delver.count, 2);
+  assert.equal(delver.affinity, "fire");
+  assert.deepEqual(delver.motivations, ["attacking"]);
+});
+
+test("cli delver-plan applies default delver motivation and affinity fallback", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-defaults-"));
+  runCliOk([
+    "delver-plan",
+    "--delver",
+    "count=1",
+    "--dungeon-affinity",
+    "water",
+    "--run-id",
+    "run_delver_plan_defaults",
+    "--created-at",
+    "2026-03-07T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const cards = listDelverCards(spec);
+  assert.equal(cards.length, 1);
+  const delver = cards[0];
+  assert.equal(delver.count, 1);
+  assert.equal(delver.affinity, "water");
+  assert.deepEqual(delver.motivations, ["attacking"]);
+});
+
+test("cli delver-plan supports multiple delver configurations in one command", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-multi-"));
+  runCliOk([
+    "delver-plan",
+    "--delver",
+    "affinity=fire;motivation=attacking;count=2",
+    "--delver",
+    "affinity=earth;motivation=patrolling;count=1",
+    "--run-id",
+    "run_delver_plan_multi",
+    "--created-at",
+    "2026-03-07T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const cards = listDelverCards(spec);
+  assert.equal(cards.length, 2);
+
+  const byAffinity = new Map(cards.map((card) => [card.affinity, card]));
+  assert.equal(byAffinity.get("fire")?.count, 2);
+  assert.equal(byAffinity.get("earth")?.count, 1);
+  assert.deepEqual(byAffinity.get("earth")?.motivations, ["patrolling"]);
+});
+
+test("cli delver-plan supports advanced affinities, vitals, setup mode, and receipt accounting", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-advanced-"));
+  runCliOk([
+    "delver-plan",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0",
+    "--budget",
+    "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
+    "--price-list",
+    "tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
+    "--run-id",
+    "run_delver_plan_advanced",
+    "--created-at",
+    "2026-03-07T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const cards = listDelverCards(spec);
+  assert.equal(cards.length, 1);
+  const delver = cards[0];
+  assert.equal(delver.setupMode, "user");
+  assert.deepEqual(delver.affinities, [
+    { kind: "fire", expression: "push", stacks: 3 },
+    { kind: "wind", expression: "emit", stacks: 2 },
+  ]);
+  assert.equal(delver.vitals.health.max, 12);
+  assert.equal(delver.vitals.mana.regen, 2);
+
+  const initialState = readJson(join(outDir, "initial-state.json"));
+  const placed = initialState.actors.filter((actor) => !/^barrier_\d+_\d+$/.test(actor.id));
+  assert.equal(placed.length, 1);
+  const actor = placed[0];
+  assert.equal(actor.vitals.health.max, 12);
+  assert.equal(actor.vitals.mana.regen, 2);
+  assert.deepEqual(actor.affinities, [
+    { kind: "fire", expression: "push", stacks: 3 },
+    { kind: "wind", expression: "emit", stacks: 2 },
+  ]);
+  assert.equal(actor.traits?.affinities, undefined);
+
+  const receipt = readJson(join(outDir, "budget-receipt.json"));
+  const byId = new Map(receipt.lineItems.map((item) => [item.id, item]));
+  assert.equal(byId.get("affinity_base")?.quantity, 2);
+  // Range and intensity are priced per affinity (#340): 2·3² + 2·2², never 2·(3 + 2)².
+  const lines = (id) => receipt.lineItems.filter((item) => item.id === id)
+    .map((item) => [item.detail?.affinity, item.quantity, item.totalCost]).sort();
+  assert.deepEqual(lines("affinity_range"), [["fire:push", 3, 18], ["wind:emit", 2, 8]]);
+  assert.deepEqual(lines("affinity_intensity"), [["fire:push", 1, 10], ["wind:emit", 1, 10]]);
+  assert.equal(byId.get("affinity_expression_externalize")?.quantity, 1);
+  assert.equal(byId.get("affinity_expression_localized")?.quantity, 1);
+  assert.equal(byId.get("vital_health_point")?.quantity, 12);
+  assert.equal(byId.get("vital_mana_regen_tick")?.quantity, 2);
+});
+
+test("cli delver-plan rejects invalid motivation", async () => {
+  const result = runCli([
+    "delver-plan",
+    "--delver",
+    "affinity=fire;motivation=berserk;count=1",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /motivation must be one of/i);
+});
+
+test("cli delver-plan rejects duplicate motivation declarations", async () => {
+  const result = runCli([
+    "delver-plan",
+    "--delver",
+    "affinity=fire;attacking;motivation=defending;count=1",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /motivation may only be specified once/i);
+});
+
+test("cli delver-plan rejects invalid setup mode", async () => {
+  const result = runCli([
+    "delver-plan",
+    "--delver",
+    "affinity=fire;setup-mode=manual;count=1",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /setup-mode must be one of/i);
+});
+
+test("cli delver-plan rejects invalid vital tuple", async () => {
+  const result = runCli([
+    "delver-plan",
+    "--delver",
+    "affinity=fire;vitals=health:notanumber:1",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /non-negative integer/i);
+});
+
+test("cli delver-plan requires --budget and --price-list together", async () => {
+  const result = runCli([
+    "delver-plan",
+    "--delver",
+    "affinity=fire;count=1",
+    "--budget",
+    "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /requires both --budget and --price-list/i);
+});
+
+test("cli delver-plan maximizes mana-focused spend within a 200-token budget", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-budgeted-"));
+  const outDir = join(workDir, "out");
+
+  runCliOk([
+    "delver-plan",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;goals=max_mana,mana_regen",
+    "--budget-tokens",
+    "200",
+    "--run-id",
+    "run_delver_plan_budgeted",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const delver = listDelverCards(spec)[0];
+  assert.ok(delver);
+  assert.deepEqual(delver.affinities, [
+    { kind: "fire", expression: "push", stacks: 2 },
+  ]);
+  assert.ok(delver.vitals.mana.max > 0);
+  assert.ok(delver.vitals.mana.regen > 0);
+  assert.ok(delver.vitals.stamina.regen > 0);
+
+  const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/allocator/spend-proposal.js");
+  const { buildDefaultPriceList } = await import("../../packages/runtime/src/personas/allocator/default-price-list.js");
+  const { normalizePriceItems } = await import("../../packages/runtime/src/personas/allocator/validate-spend.js");
+
+const card = delver;
+const unitCost = calculateActorConfigurationUnitCost({
+  entry: {
+    motivations: card.motivations,
+    affinities: card.affinities,
+    vitals: card.vitals,
+  },
+  priceMap: normalizePriceItems(buildDefaultPriceList({ createdAt: "2026-04-09T00:00:00.000Z" })),
+  normalizeMotivations: await configuratorNormalizeMotivations(),
+}).cost;
+
+// The assertion that carries the test's intent: the maximizer still spends the
+// WHOLE 200-token budget, and still spends it on mana. That is unchanged.
+assert.equal(unitCost, 195);
+const receipt = readJson(join(outDir, "budget-receipt.json"));
+assert.equal(receipt.totalCost, 200);
+// AM.2b re-baseline. Fixed spend rose 65 -> 70 because a delver now funds the
+// stamina it needs to move at all:
+//     stamina.max  0 -> 2   costs 2   (2 points x 1 token)
+//     stamina.regen 1 -> 2  costs 3   (regen is quadratic: 2² - 1²)
+// so 5 tokens moved out of mana and mana.max fell by exactly 5, 99 -> 94:
+//     70 + mana.max 94 + mana.regen 6² = 200.
+// Before this, the delver was priced for stamina REGEN with a zero-sized pool,
+// which core clamps regen against — it bought an actor that could never take a
+// step. The extra 5 tokens are what movement actually costs.
+//
+// Actor viability floor re-baseline, and the shape of the change is the point. The floor adds
+// health 10/regen 1 and durability 10/regen 1 = 22 tokens of fixed spend. The maximizer paid for
+// them by ABANDONING mana regen rather than mana max: regen 6 -> 1 frees 6²-1² = 35 quadratic
+// tokens, of which 22 fund the floor and the rest goes to max, 94 -> 109.
+//
+// ⚠️ That means the `mana_regen` goal is now effectively unserved at this budget — regen 1 is the
+// floor's own minimum, not a choice the optimizer made. Quadratic regen is simply a bad buy once
+// 22 tokens of the 200 are spoken for. The test's stated intent (the whole budget, spent on mana)
+// still holds; WHICH mana it buys has inverted.
+// Playable re-baseline (Phase 1b): a delver is no longer auto-tagged user_controlled, so it no
+// longer pays the 10-token playable premium. Those 10 tokens buy mana max 104 -> 106 and regen
+// 1 -> 3 (2 + 3² - 1² = 10), so `mana_regen` is served again at this budget.
+// Range/intensity re-baseline (#340): the fire affinity now prices range 2·1² + intensity 10·1²
+// where one stack cost 1, so fixed spend rose 11. Mana pays it: max 106 -> 100, regen 3 -> 1.
+assert.equal(card.vitals.mana.max, 100);
+assert.equal(card.vitals.mana.regen, 1);
+assert.equal(card.vitals.stamina.max, 2);
+assert.equal(card.vitals.stamina.regen, 2);
+});

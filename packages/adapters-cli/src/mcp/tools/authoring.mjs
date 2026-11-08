@@ -18,15 +18,15 @@ const authoringProperties = withCommonOutput({
   floorTile: entitySpecSchema("Floor tile specs. Accepts spec strings or structured objects."),
   hazard: entitySpecSchema("Hazard specs. Accepts spec strings or structured objects. `stacks` is the range (how far it reaches); `intensity` (default 1) is its strength: a hit is base × intensity²."),
   resource: entitySpecSchema("Resource specs. Accepts spec strings or structured objects. A vital payload is permanenceMode + vital + delta (or regen), e.g. { permanenceMode: \"level\", vital: \"health\", delta: 10 }; the actor-style map { vital: { health: { delta: 10 } } } (or vitals:) is the same thing. One vital per resource."),
-  delver: entitySpecSchema("Delver specs. Accepts spec strings or structured objects. `recipe` names a configuration recipe (ak_recipe_list lists them; e.g. shadowblade, tank, lantern-bearer) that fills affinities, equip and vitals as if typed; any field given beside it wins, `kind` sets a {K} recipe's kind, and a warden keeps the recipe's first two affinities. `affinities` are kind:expression[:range[:intensity]]: range is how far it reaches, intensity (default 1) its strength, a hit being base × intensity². `slots` sets its affinity slots (1-6; each above the preset costs a slot unlock), `equip` its starting equips in order (kind:expression[:stacks], or objects). `strategy` gives each actor a standing order: { goals: [{kind: reach|defeat|take|guard|follow|lead|hold|survive, ...}], tactics?: [{when, do}] }, or compact goals like \"follow:hero-1:2,reach:exit\". goal_oriented follows goals; strategy_focused and user_controlled also follow tactics; other actors ignore it (reported in strategyReport). `strategyRecipe` (or `strategy-recipe`) names one of the Actor's strategy recipes instead (ak_recipe_list kind strategy; e.g. kite, structure-breaker) and adds the posture, mobility and strategy_focused it needs; an explicit motivation that clashes is refused."),
-  warden: entitySpecSchema("Warden specs. Accepts spec strings or structured objects. `recipe` names a configuration recipe (ak_recipe_list lists them; e.g. shadowblade, tank, lantern-bearer) that fills affinities, equip and vitals as if typed; any field given beside it wins, `kind` sets a {K} recipe's kind, and a warden keeps the recipe's first two affinities. `affinities` are kind:expression[:range[:intensity]]: range is how far it reaches, intensity (default 1) its strength, a hit being base × intensity². `slots` sets its affinity slots (1-6; each above the preset costs a slot unlock), `equip` its starting equips in order (kind:expression[:stacks], or objects). `strategy` gives each actor a standing order: { goals: [{kind: reach|defeat|take|guard|follow|lead|hold|survive, ...}], tactics?: [{when, do}] }, or compact goals like \"follow:hero-1:2,reach:exit\". goal_oriented follows goals; strategy_focused and user_controlled also follow tactics; other actors ignore it (reported in strategyReport). `strategyRecipe` (or `strategy-recipe`) names one of the Actor's strategy recipes instead (ak_recipe_list kind strategy; e.g. kite, structure-breaker) and adds the posture, mobility and strategy_focused it needs; an explicit motivation that clashes is refused."),
+  delver: entitySpecSchema("Delver specs. Accepts spec strings or structured objects. `recipe` names a configuration recipe (agon_recipe_list lists them; e.g. shadowblade, tank, lantern-bearer) that fills affinities, equip and vitals as if typed; any field given beside it wins, `kind` sets a {K} recipe's kind, and a warden keeps the recipe's first two affinities. `affinities` are kind:expression[:range[:intensity]]: range is how far it reaches, intensity (default 1) its strength, a hit being base × intensity². `slots` sets its affinity slots (1-6; each above the preset costs a slot unlock), `equip` its starting equips in order (kind:expression[:stacks], or objects). `strategy` gives each actor a standing order: { goals: [{kind: reach|defeat|take|guard|follow|lead|hold|survive, ...}], tactics?: [{when, do}] }, or compact goals like \"follow:hero-1:2,reach:exit\". goal_oriented follows goals; strategy_focused and user_controlled also follow tactics; other actors ignore it (reported in strategyReport). `strategyRecipe` (or `strategy-recipe`) names one of the Actor's strategy recipes instead (agon_recipe_list kind strategy; e.g. kite, structure-breaker) and adds the posture, mobility and strategy_focused it needs; an explicit motivation that clashes is refused."),
+  warden: entitySpecSchema("Warden specs. Accepts spec strings or structured objects. `recipe` names a configuration recipe (agon_recipe_list lists them; e.g. shadowblade, tank, lantern-bearer) that fills affinities, equip and vitals as if typed; any field given beside it wins, `kind` sets a {K} recipe's kind, and a warden keeps the recipe's first two affinities. `affinities` are kind:expression[:range[:intensity]]: range is how far it reaches, intensity (default 1) its strength, a hit being base × intensity². `slots` sets its affinity slots (1-6; each above the preset costs a slot unlock), `equip` its starting equips in order (kind:expression[:stacks], or objects). `strategy` gives each actor a standing order: { goals: [{kind: reach|defeat|take|guard|follow|lead|hold|survive, ...}], tactics?: [{when, do}] }, or compact goals like \"follow:hero-1:2,reach:exit\". goal_oriented follows goals; strategy_focused and user_controlled also follow tactics; other actors ignore it (reported in strategyReport). `strategyRecipe` (or `strategy-recipe`) names one of the Actor's strategy recipes instead (agon_recipe_list kind strategy; e.g. kite, structure-breaker) and adds the posture, mobility and strategy_focused it needs; an explicit motivation that clashes is refused."),
   place: stringArraySchema("Placement constraints: \"<subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump][;outOfSight=room:<id>]\". Subject hazard|resource|delver|warden:<id|n|*>; target spawn, exit, room:<id> or one hazard|resource|delver|warden:<id|n>. Distances are king moves. count=<n> with near= means at least n of the subjects. onRoute is a cell every spawn-to-exit route passes; outOfSight=room:<id> a cell no doorway of that room can see. A constraint that cannot hold refuses the level, naming it; placementReport says how each held."),
-  tactics: stringArraySchema("Placement tactics: \"<ambush|retinue|minefield|shrine>[;key=value...]\". An unknown tactic is refused, naming the known ones. The plan records each tactic and placementReport says how it was handled. \"ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true]\" puts that many of the level's resources in a room (room=, else picked from the seed) and seats that many of its wardens there hidden from the room's doorways (visible=true: in the open by the loot). \"retinue[;leader=<warden id>][;size=<n>]\" gives the leader (default: the first free warden) that many minions (default 3) within 2 of it, by role from the affinity table (shield, support, striker); they are priced as wardens and a retinue the warden share can't afford shrinks. \"minefield[;room=<id>][;hazards=<n>][;range=<n>][;kinds=<kind>+<kind>...]\" fills a room on the spawn-to-exit route with that many emit hazards (default 4) clear of a safe line along the room's edge, plus one free resource as the reward; kinds default to damaging kinds drawn from the seed, no two opposite; priced from the hazard share, which shrinks a minefield it can't afford. \"shrine[;room=<id>][;count=<n>][;range=<n>][;kinds=<kind>+<kind>...]\" seats that many emit hazards (default 1) whose field restores a vital in a room off the spawn-to-exit route (room=, else picked from the seed); kinds default to restoring kinds drawn from the seed, and kinds= must name restoring kinds; a health shrine is reported as a healing well; priced from the hazard share like a minefield. \"llm\" (alone) asks the model (tacticFixture, or AK_LLM_LIVE=1) for the mix; an invalid reply or no model falls back to the seeded pick and the result's tacticPlan says which decided. \"auto\" (alone) lets the Director pick a mix of these, with their sizes, from the seed. With a tactic and no seed, a seed is drawn and reported (seed)."),
+  tactics: stringArraySchema("Placement tactics: \"<ambush|retinue|minefield|shrine>[;key=value...]\". An unknown tactic is refused, naming the known ones. The plan records each tactic and placementReport says how it was handled. \"ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true]\" puts that many of the level's resources in a room (room=, else picked from the seed) and seats that many of its wardens there hidden from the room's doorways (visible=true: in the open by the loot). \"retinue[;leader=<warden id>][;size=<n>]\" gives the leader (default: the first free warden) that many minions (default 3) within 2 of it, by role from the affinity table (shield, support, striker); they are priced as wardens and a retinue the warden share can't afford shrinks. \"minefield[;room=<id>][;hazards=<n>][;range=<n>][;kinds=<kind>+<kind>...]\" fills a room on the spawn-to-exit route with that many emit hazards (default 4) clear of a safe line along the room's edge, plus one free resource as the reward; kinds default to damaging kinds drawn from the seed, no two opposite; priced from the hazard share, which shrinks a minefield it can't afford. \"shrine[;room=<id>][;count=<n>][;range=<n>][;kinds=<kind>+<kind>...]\" seats that many emit hazards (default 1) whose field restores a vital in a room off the spawn-to-exit route (room=, else picked from the seed); kinds default to restoring kinds drawn from the seed, and kinds= must name restoring kinds; a health shrine is reported as a healing well; priced from the hazard share like a minefield. \"llm\" (alone) asks the model (tacticFixture, or AGON_LLM_LIVE=1) for the mix; an invalid reply or no model falls back to the seeded pick and the result's tacticPlan says which decided. \"auto\" (alone) lets the Director pick a mix of these, with their sizes, from the seed. With a tactic and no seed, a seed is drawn and reported (seed)."),
   seed: integerSchema("Build seed. Given, the same inputs rebuild the same level; with tactics and no seed, one is drawn and reported.", { minimum: 0 }),
-  actors: stringSchema("\"llm\": the model picks the delvers and wardens from `text` and the recipe catalogue (configuration recipes with their cost, strategy recipes), replying with specs like recipe=shadowblade;motivation=user_controlled. They join any delver/warden given here and are parsed the same way, so an unknown recipe is refused; the result's actorPlan records the reply. Needs actorFixture or AK_LLM_LIVE=1; not with tactics [\"llm\"].", { enum: ["llm"] }),
+  actors: stringSchema("\"llm\": the model picks the delvers and wardens from `text` and the recipe catalogue (configuration recipes with their cost, strategy recipes), replying with specs like recipe=shadowblade;motivation=user_controlled. They join any delver/warden given here and are parsed the same way, so an unknown recipe is refused; the result's actorPlan records the reply. Needs actorFixture or AGON_LLM_LIVE=1; not with tactics [\"llm\"].", { enum: ["llm"] }),
   actorFixture: pathSchema("actors \"llm\" only: a recorded model reply to use instead of a live model (no network)."),
   tacticFixture: pathSchema("tactics [\"llm\"] only: a recorded model reply to use instead of a live model (no network)."),
-  model: stringSchema("tactics [\"llm\"] only: the model to ask (live needs AK_LLM_LIVE=1)."),
+  model: stringSchema("tactics [\"llm\"] only: the model to ask (live needs AGON_LLM_LIVE=1)."),
   baseUrl: stringSchema("tactics [\"llm\"] only: the model server's URL."),
   goal: stringSchema("Goal text override."),
   dungeonAffinity: stringSchema("Dungeon affinity override."),
@@ -76,8 +76,8 @@ export const authoringSpec = [
 export const authoringTools = [
   // #716: the recipe catalogue. Configuration recipes are the Configurator's, priced by the Allocator.
   createTool({
-    name: "ak_recipe_list",
-    description: "List the named recipes: configuration recipes (an actor's vitals and affinities as one name, with its token cost as a delver and as a warden, and its attack/defence/support mix) and the Actor's strategy recipes (standing orders tagged with the posture, mobility and cognition they need). Use a configuration name as `recipe` and a strategy name as `strategyRecipe` in an ak_create delver or warden spec.",
+    name: "agon_recipe_list",
+    description: "List the named recipes: configuration recipes (an actor's vitals and affinities as one name, with its token cost as a delver and as a warden, and its attack/defence/support mix) and the Actor's strategy recipes (standing orders tagged with the posture, mobility and cognition they need). Use a configuration name as `recipe` and a strategy name as `strategyRecipe` in an agon_create delver or warden spec.",
     command: "recipes",
     inputSchema: {
       properties: {
@@ -88,7 +88,7 @@ export const authoringTools = [
     buildArgs: (args) => [...buildArgv(args, [{ key: "kind" }, { key: "role" }]), "--json"],
   }),
   createTool({
-    name: "ak_recipe_show",
+    name: "agon_recipe_show",
     description: "Show one recipe in full: for a configuration recipe, its expansion for a delver or warden (vitals, affinities with range and intensity, equip, slots left out) and the Allocator's price line items; for a strategy recipe, its goals and tactics, tags, expected kit and limits.",
     command: "recipe",
     inputSchema: {
@@ -102,8 +102,8 @@ export const authoringTools = [
     buildArgs: (args) => [String(args.name), ...buildArgv(args, [{ key: "role" }, { key: "kind" }]), "--json"],
   }),
   createTool({
-    name: "ak_create",
-    description: "Create a level (rooms joined by corridors, hazards, resources, delvers, wardens) from structured object specs. Freeform text alone authors nothing; for a level from a natural-language request use ak_llm_plan or ak_scenario.",
+    name: "agon_create",
+    description: "Create a level (rooms joined by corridors, hazards, resources, delvers, wardens) from structured object specs. Freeform text alone authors nothing; for a level from a natural-language request use agon_llm_plan or agon_scenario.",
     command: "create",
     inputSchema: {
       properties: authoringProperties,
@@ -111,7 +111,7 @@ export const authoringTools = [
     buildArgs: (args) => buildArgv(args, authoringSpec),
   }),
   createTool({
-    name: "ak_configure",
+    name: "agon_configure",
     description: "Configure authored build artifacts from structured object specs, recording the configure action.",
     command: "configure",
     inputSchema: {
@@ -120,7 +120,7 @@ export const authoringTools = [
     buildArgs: (args) => buildArgv(args, authoringSpec.filter((entry) => entry.key !== "dryRun")),
   }),
   createTool({
-    name: "ak_room_plan",
+    name: "agon_room_plan",
     description: "Build a room-only authoring plan.",
     command: "room-plan",
     inputSchema: {
@@ -149,7 +149,7 @@ export const authoringTools = [
     ]),
   }),
   createTool({
-    name: "ak_delver_plan",
+    name: "agon_delver_plan",
     description: "Build a delver-only authoring plan.",
     command: "delver-plan",
     inputSchema: {
@@ -178,7 +178,7 @@ export const authoringTools = [
     ]),
   }),
   createTool({
-    name: "ak_warden_plan",
+    name: "agon_warden_plan",
     description: "Build a warden-only authoring plan.",
     command: "warden-plan",
     inputSchema: {
@@ -207,7 +207,7 @@ export const authoringTools = [
     ]),
   }),
   createTool({
-    name: "ak_hazard_plan",
+    name: "agon_hazard_plan",
     description: "Build a hazard-only authoring plan.",
     command: "hazard-plan",
     inputSchema: {
@@ -236,7 +236,7 @@ export const authoringTools = [
     ]),
   }),
   createTool({
-    name: "ak_resource_plan",
+    name: "agon_resource_plan",
     description: "Build a resource-only authoring plan.",
     command: "resource-plan",
     inputSchema: {

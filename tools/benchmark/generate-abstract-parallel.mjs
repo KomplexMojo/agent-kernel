@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const {
   canonicalJson,
   loadScenarioCatalog,
-} = require("../remote-ollama-control/scripts/lib/ak-scenarios.js");
+} = require("../remote-ollama-control/scripts/lib/agon-scenarios.js");
 const {
   evaluateAbstractPlan,
   mapAbstractPlanToCreateArgs,

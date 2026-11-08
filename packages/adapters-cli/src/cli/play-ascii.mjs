@@ -1,6 +1,6 @@
 /**
- * `ak play` — show or play a level in the terminal UI (`packages/ui-ascii`), or
- * watch a recorded run in it (`--watch`), which is also how `ak tick` and the MCP
+ * `agon play` — show or play a level in the terminal UI (`packages/ui-ascii`), or
+ * watch a recorded run in it (`--watch`), which is also how `agon tick` and the MCP
  * tick tools draw a run.
  *
  * The terminal UI is its own program, so this adapter launches it as a child
@@ -14,7 +14,7 @@ import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const UI_ASCII_CLI = resolve(dirname(fileURLToPath(import.meta.url)), "../../../ui-ascii/src/cli.mjs");
-const AK_CLI = resolve(dirname(fileURLToPath(import.meta.url)), "ak.mjs");
+const AGON_CLI = resolve(dirname(fileURLToPath(import.meta.url)), "agon.mjs");
 /** ui-ascii arguments naming the level; `source` is exactly one of its keys. */
 export function levelArgs(source = {}) {
   if (source.dir) return ["--run", source.dir];
@@ -31,12 +31,12 @@ function quote(arg) {
 
 /** The command a person runs in their own terminal to play this level, or to watch a run. */
 export function launchCommand(source = {}, { cwd = process.cwd(), watch = false, tick } = {}) {
-  const ak = relative(cwd, AK_CLI) || AK_CLI;
+  const agon = relative(cwd, AGON_CLI) || AGON_CLI;
   const args = source.dir
     ? ["--dir", source.dir]
     : levelArgs(source);
   const watching = watch ? ["--watch", ...(Number.isInteger(tick) ? ["--tick", String(tick)] : [])] : [];
-  return ["node", ak, "play", ...args, ...watching].map(quote).join(" ");
+  return ["node", agon, "play", ...args, ...watching].map(quote).join(" ");
 }
 
 /** ui-ascii arguments for recording or replaying a game (#204). */
@@ -62,7 +62,7 @@ export function playAsciiScripted({ source, keys = "", color = false, fog = true
 }
 
 /**
- * One call on a game kept in a session file (`ak play-session`): the UI replays the file
+ * One call on a game kept in a session file (`agon play-session`): the UI replays the file
  * if it exists (else starts the level `source` names), seats `actor`, acts `commands`
  * (structured, labels allowed) and `keys`, writes the file back, and returns
  * `{ ok, session, level, turns, status, active, party, inSight, results?, hud, screen }`,

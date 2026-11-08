@@ -11,7 +11,7 @@ import {
 
 export const simulationTools = [
   createTool({
-    name: "ak_build",
+    name: "agon_build",
     description: "Build artifacts from a build spec.",
     command: "build",
     inputSchema: {
@@ -28,8 +28,8 @@ export const simulationTools = [
     ]),
   }),
   createTool({
-    name: "ak_solve",
-    description: "Ask the constraint solver a question. With `dir` (a built level, e.g. from ak_create) and `question`, the owning persona poses a real problem: `place-objects` re-places the level's hazards and resources keeping spawn connected to exit (Configurator); `budget-fit` fits the level's billed tiles to `budgetTokens` (Allocator). The result's `answer` holds the persona's verdict and `source` (solver or fallback); `status: not_posed` means no search was needed. With `scenario` instead, free text carries no solver domain, so it comes back solved:false with status deferred and a reason. `solved` says whether the solver answered.",
+    name: "agon_solve",
+    description: "Ask the constraint solver a question. With `dir` (a built level, e.g. from agon_create) and `question`, the owning persona poses a real problem: `place-objects` re-places the level's hazards and resources keeping spawn connected to exit (Configurator); `budget-fit` fits the level's billed tiles to `budgetTokens` (Allocator). The result's `answer` holds the persona's verdict and `source` (solver or fallback); `status: not_posed` means no search was needed. With `scenario` instead, free text carries no solver domain, so it comes back solved:false with status deferred and a reason. `solved` says whether the solver answered.",
     command: "solve",
     inputSchema: {
       properties: withCommonOutput({
@@ -55,7 +55,7 @@ export const simulationTools = [
     ]),
   }),
   createTool({
-    name: "ak_run",
+    name: "agon_run",
     description: "Run a simulation from artifacts or from an existing run.",
     command: "run",
     inputSchema: {
@@ -104,7 +104,7 @@ export const simulationTools = [
     ]),
   }),
   createTool({
-    name: "ak_configurator",
+    name: "agon_configurator",
     description: "Assemble simulation config and initial state inputs.",
     command: "configurator",
     inputSchema: {
@@ -136,7 +136,7 @@ export const simulationTools = [
     ]),
   }),
   createTool({
-    name: "ak_budget",
+    name: "agon_budget",
     description: "Compute a budget receipt from budget and price list artifacts.",
     command: "budget",
     inputSchema: {
@@ -158,7 +158,7 @@ export const simulationTools = [
     ]),
   }),
   createTool({
-    name: "ak_replay",
+    name: "agon_replay",
     description: "Replay a run deterministically from recorded tick frames.",
     command: "replay",
     inputSchema: {
@@ -183,7 +183,7 @@ export const simulationTools = [
     ]),
   }),
   createTool({
-    name: "ak_scenario",
+    name: "agon_scenario",
     description: "Run llm-plan plus run plus inspect as a single scenario pipeline.",
     command: "scenario",
     inputSchema: {

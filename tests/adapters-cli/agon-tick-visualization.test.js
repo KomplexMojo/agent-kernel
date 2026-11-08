@@ -1,0 +1,302 @@
+'use strict';
+
+// M1 — CLI tests for the --visualization flag on tick commands.
+//
+// All tests exercising --visualization FAIL until M3 (ascii) and M4 (image)
+// implement the flag. The backward-compat test passes immediately to confirm
+// no regression on existing tick state behaviour.
+
+const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
+const { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } = require("node:fs");
+const { resolve, join, dirname } = require("node:path");
+const os = require("node:os");
+
+const ROOT = resolve(__dirname, "../..");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
+
+function runCli(args, cwd) {
+  return spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8" });
+}
+
+function writeJson(filePath, value) {
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function makeMeta(id, runId) {
+  return { id, runId, createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" };
+}
+
+async function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
+  const buildDir = join(workDir, "artifacts", "runs", runId, "build");
+  const runDir  = join(workDir, "artifacts", "runs", runId, "run");
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const terrain = boxedTerrain(7, 3);
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 7,
+    height: 3,
+    terrain,
+    runId,
+    actors: [
+      {
+        id: "actor_delver_1",
+        category: "delver",
+        position: { x: 1, y: 1 },
+        motivations: ["exploring"],
+        affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
+        vitals: { health: { current: 10, max: 10, regen: 1 }, stamina: { current: 7, max: 7, regen: 1 } },
+      },
+      {
+        id: "actor_warden_1",
+        category: "warden",
+        position: { x: 5, y: 1 },
+        motivations: ["patrolling"],
+        affinities: [{ kind: "dark", expression: "emit", stacks: 1 }],
+        vitals: { health: { current: 15, max: 15, regen: 0 }, stamina: { current: 5, max: 5, regen: 0 } },
+      },
+      {
+        id: "hazard_1",
+        category: "hazard",
+        position: { x: 2, y: 1 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
+        vitals: { durability: { current: 3, max: 3, regen: 0 } },
+      },
+      {
+        id: "resource_1",
+        category: "resource",
+        position: { x: 4, y: 1 },
+        vitals: { durability: { current: 1, max: 1, regen: 0 } },
+      },
+    ],
+  });
+  writeJson(join(buildDir, "sim-config.json"), simConfig);
+  writeJson(join(buildDir, "initial-state.json"), initialState);
+
+  const frames = Array.from({ length: maxTick }, (_, i) => ({
+    schema: "agon/TickFrame",
+    schemaVersion: 1,
+    meta: makeMeta(`tf_${i + 1}`, runId),
+    tick: i + 1,
+    phase: "summarize",
+    acceptedActions: [
+      {
+        schema: "agon/Action",
+        schemaVersion: 1,
+        actorId: "actor_delver_1",
+        tick: i + 1,
+        kind: "wait",
+        params: { reason: "idle" },
+      },
+    ],
+  }));
+  writeJson(join(runDir, "tick-frames.json"), frames);
+  writeJson(join(runDir, "run-summary.json"), {
+    schema: "agon/RunSummary",
+    schemaVersion: 1,
+    meta: makeMeta("run_summary", runId),
+    outcome: "success",
+    metrics: { ticks: maxTick },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Backward compat — PASSES immediately (no visualization flag, existing fields)
+// ---------------------------------------------------------------------------
+
+test("tick state without --visualization preserves existing ascii + tickFrame fields", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-compat-"));
+  const runId = "run_viz_compat";
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  const result = runCli(["tick", "state", "--run-id", runId], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.tick, 1);
+  assert.equal(typeof output.ascii, "string", "ascii field must still be present");
+  assert.ok(output.tickFrame !== undefined, "tickFrame field must still be present");
+  assert.equal(output.visualization, undefined, "visualization must be absent without the flag");
+});
+
+// ---------------------------------------------------------------------------
+// FAILING: --visualization ascii not yet implemented (M3)
+// ---------------------------------------------------------------------------
+
+test("tick state --visualization ascii returns visualization object with ascii mode", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-ascii-"));
+  const runId = "run_viz_ascii";
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "ascii"], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  // FAILS: visualization field not present until M3
+  assert.ok(output.visualization !== undefined, "visualization field must be present with --visualization ascii");
+  assert.equal(output.visualization.mode, "ascii");
+  assert.equal(typeof output.visualization.ascii, "string");
+  assert.ok(output.visualization.layers, "layers must be present in ascii mode");
+  assert.equal(typeof output.visualization.layers.layout, "string");
+  assert.ok(output.visualization.layers.layout.includes("#"), "unified terrain must render wall glyphs");
+  assert.equal(typeof output.visualization.layers.hazards, "string");
+  assert.equal(typeof output.visualization.layers.resources, "string");
+  assert.equal(typeof output.visualization.layers.delvers, "string");
+  assert.equal(typeof output.visualization.layers.wardens, "string");
+  assert.ok(Array.isArray(output.visualization.actorDetails));
+});
+
+test("tick state --visualization ascii actorDetails includes affinities vitals and motivation", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-detail-"));
+  const runId = "run_viz_detail";
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "ascii"], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  // FAILS until M3
+  assert.ok(Array.isArray(output.visualization?.actorDetails) && output.visualization.actorDetails.length >= 1,
+    "actorDetails must contain at least one actor");
+  const delver = output.visualization.actorDetails.find((a) => a.id === "actor_delver_1");
+  assert.ok(delver, "actor_delver_1 must be in actorDetails");
+  assert.equal(delver.motivation, "exploring");
+  assert.ok(Array.isArray(delver.affinities) && delver.affinities.length > 0);
+  assert.ok(delver.vitals?.health, "health vital must be present");
+});
+
+test("tick forward --visualization ascii includes visualization at the new tick", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-fwd-"));
+  const runId = "run_viz_fwd";
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
+
+  const result = runCli(["tick", "forward", "--run-id", runId, "--visualization", "ascii"], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.tick, 1);
+  // FAILS until M3
+  assert.ok(output.visualization !== undefined, "tick forward must include visualization when flag is present");
+  assert.equal(output.visualization.mode, "ascii");
+  assert.equal(output.visualization.tick, 1, "visualization.tick must match the cursor tick after forward");
+});
+
+test("tick backward --visualization ascii includes visualization at the rewound tick", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-bwd-"));
+  const runId = "run_viz_bwd";
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  const result = runCli(["tick", "backward", "--run-id", runId, "--visualization", "ascii"], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.tick, 1);
+  // FAILS until M3
+  assert.ok(output.visualization !== undefined, "tick backward must include visualization when flag is present");
+  assert.equal(output.visualization.tick, 1, "visualization.tick must match the cursor tick after backward");
+});
+
+// ---------------------------------------------------------------------------
+// FAILING: --visualization image not yet implemented (M4)
+// ---------------------------------------------------------------------------
+
+test("tick state --visualization image writes a PNG file and returns its path (#144)", async () => {
+  // #144 -- an inlined data URI reliably blows an MCP tool-result token budget (443,790
+  // characters on a trivial one-room, one-actor real run). Image mode now writes the PNG to disk
+  // and returns visualizationPath instead, the same convention every other artifact-producing
+  // agon_* command already follows.
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-img-"));
+  const runId = "run_viz_img";
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "image"], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.ok(output.visualization !== undefined, "visualization must be present with --visualization image");
+  assert.equal(output.visualization.mode, "image");
+  assert.equal(output.visualization.visualizationDataUri, null, "visualizationDataUri must be null -- the bytes are on disk");
+  assert.equal(typeof output.visualization.visualizationPath, "string", "visualizationPath must be a string path");
+  assert.ok(existsSync(output.visualization.visualizationPath), "the PNG file must actually exist");
+  const bytes = readFileSync(output.visualization.visualizationPath);
+  assert.equal(bytes[0], 0x89, "PNG magic byte 0 must be 0x89");
+  assert.equal(bytes[1], 0x50, "PNG magic byte 1 must be 0x50 (P)");
+  assert.equal(bytes[2], 0x4e, "PNG magic byte 2 must be 0x4e (N)");
+  assert.equal(bytes[3], 0x47, "PNG magic byte 3 must be 0x47 (G)");
+});
+
+test("tick state --visualization with invalid value returns ok:false with structured error", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-bad-"));
+  const runId = "run_viz_bad";
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "video"], workDir);
+  // FAILS until M3 validates the flag value
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.match(output.error, /ascii|image|visualization/i,
+    "error must name the valid visualization values");
+});
+
+test("tick state --visualization ascii at tick 0 returns ok:true with visualization", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-ascii-tick0-"));
+  const runId = "run_viz_ascii_tick0";
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
+
+  const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "ascii"], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.tick, 0);
+  assert.equal(output.visualization.mode, "ascii");
+});
+
+test("tick forward at maxTick boundary with --visualization ascii returns ok:false boundary error", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-forward-boundary-"));
+  const runId = "run_viz_forward_boundary";
+  await scaffoldRun(workDir, runId, { maxTick: 1 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+  const result = runCli(["tick", "forward", "--run-id", runId, "--visualization", "ascii"], workDir);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.match(output.error, /max tick|cannot advance/i);
+});
+
+test("tick backward at tick 0 with --visualization ascii returns ok:false boundary error", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-backward-boundary-"));
+  const runId = "run_viz_backward_boundary";
+  await scaffoldRun(workDir, runId, { maxTick: 1 });
+
+  const result = runCli(["tick", "backward", "--run-id", runId, "--visualization", "ascii"], workDir);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.match(output.error, /tick 0|cannot rewind|already at/i);
+});
+
+test("tick state --visualization image at tick 0 returns image mode gracefully", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-viz-image-tick0-"));
+  const runId = "run_viz_image_tick0";
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
+
+  const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "image"], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.visualization.mode, "image");
+  assert.ok(
+    output.visualization.visualizationDataUri === null ||
+      typeof output.visualization.visualizationDataUri === "string",
+  );
+});
+
+test.skip("tick state --visualization ascii when core-ts binary is absent returns best-effort ascii", () => {});
+test.skip("tick state --visualization image when core-ts binary is absent returns null image data", () => {});
+test.skip("tick state --visualization ascii with missing initial-state.json returns best-effort ascii", () => {});
+test.skip("consecutive tick forward calls with --visualization ascii report distinct delver positions", () => {});

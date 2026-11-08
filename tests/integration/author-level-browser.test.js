@@ -1,7 +1,7 @@
 /**
- * #557: the phone app builds a level from `ak create` arguments by `ak create`'s own code
- * (runtime `authorLevel`), with object placement answered from what z3 decided when `ak create`
- * ran (`AK_SOLVER_RECORD`, replayed by adapters-web's recorded-answers adapter). So a level built
+ * #557: the phone app builds a level from `agon create` arguments by `agon create`'s own code
+ * (runtime `authorLevel`), with object placement answered from what z3 decided when `agon create`
+ * ran (`AGON_SOLVER_RECORD`, replayed by adapters-web's recorded-answers adapter). So a level built
  * on the phone, with or without a configured character, is byte for byte the level
  * `playtest.sh` builds in the terminal.
  */
@@ -12,7 +12,7 @@ const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
 const ROOT = join(__dirname, "../..");
-const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AK = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const CREATED_AT = "2026-10-18T00:00:00.000Z";
 // As written to disk: a key holding undefined is not part of a file.
 const asWritten = (artifact) => JSON.parse(JSON.stringify(artifact));
@@ -24,12 +24,12 @@ async function load() {
   return { ...playtest, authorLevel, createRecordedSolverAdapter };
 }
 
-/** `ak create` with z3 and its answers recorded; returns the files it wrote and the answers. */
+/** `agon create` with z3 and its answers recorded; returns the files it wrote and the answers. */
 function akCreate(dir, argv) {
   mkdirSync(dir, { recursive: true });
   const answersPath = join(dir, "answers.jsonl");
   const result = spawnSync(process.execPath, [AK, "create", ...argv, "--out-dir", join(dir, "level")], {
-    cwd: ROOT, encoding: "utf8", env: { ...process.env, AK_SOLVER_RECORD: answersPath },
+    cwd: ROOT, encoding: "utf8", env: { ...process.env, AGON_SOLVER_RECORD: answersPath },
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const read = (name) => JSON.parse(readFileSync(join(dir, "level", name), "utf8"));
@@ -41,7 +41,7 @@ function akCreate(dir, argv) {
 
 // `fields` places its traps with z3, so without the recorded answers the browser would differ.
 for (const id of ["first-look", "fields"]) {
-  test(`${id}: the browser build matches ak create, as written and with a configured character`, async () => {
+  test(`${id}: the browser build matches agon create, as written and with a configured character`, async () => {
     const { loadPlaytestScenarios, createArgs, playerDelverSpec, authorLevel, createRecordedSolverAdapter } = await load();
     const scenario = loadPlaytestScenarios().scenarios.find((entry) => entry.id === id);
     const dir = mkdtempSync(join(tmpdir(), "author-level-"));
@@ -67,7 +67,7 @@ for (const id of ["first-look", "fields"]) {
 
 // 2026-10-29: minions. A delver's minions start beside it, seated as delvers are, so they pose no
 // placement question: the level's own recorded answers build it, priced as the sheet priced it.
-for (const id of ["first-look", "fields"]) test(`${id} with minions: the browser build matches ak create from the level's own answers, and the sheet's total is the delver share's spend`, async () => {
+for (const id of ["first-look", "fields"]) test(`${id} with minions: the browser build matches agon create from the level's own answers, and the sheet's total is the delver share's spend`, async () => {
   const { loadPlaytestScenarios, createArgs, playerDelverSpec, authorLevel, createRecordedSolverAdapter } = await load();
   const { createCharacterSheet } = await import("../../packages/runtime/src/runner/character-sheet.js");
   const scenario = loadPlaytestScenarios().scenarios.find((entry) => entry.id === id);

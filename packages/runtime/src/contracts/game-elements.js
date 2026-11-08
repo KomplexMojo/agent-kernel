@@ -63,7 +63,7 @@ export function relativePathForGameAssetId(assetId) {
 
 function ipfsUriForAssetId(assetId, version = 2) {
   const slug = String(assetId || "").replace(/\./g, "-");
-  return `ipfs://ak-resource-bundle-v${version}/${slug}.png`;
+  return `ipfs://agon-resource-bundle-v${version}/${slug}.png`;
 }
 
 function element({

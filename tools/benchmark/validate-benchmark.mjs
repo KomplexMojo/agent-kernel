@@ -7,12 +7,12 @@ import { authoringSpec } from "../../packages/adapters-cli/src/mcp/tools/authori
 import { buildArgv } from "../../packages/adapters-cli/src/mcp/tools/shared.mjs";
 
 const require = createRequire(import.meta.url);
-const { loadScenarioCatalog } = require("../remote-ollama-control/scripts/lib/ak-scenarios.js");
+const { loadScenarioCatalog } = require("../remote-ollama-control/scripts/lib/agon-scenarios.js");
 
 const ROOT = resolve(process.env.AGENT_KERNEL_ROOT || process.cwd());
-const CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const SERVER = join(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
-const OUT_ROOT = resolve(process.env.AK_BENCHMARK_OUTPUT_DIR || join(ROOT, "tools/benchmark/out"));
+const OUT_ROOT = resolve(process.env.AGON_BENCHMARK_OUTPUT_DIR || join(ROOT, "tools/benchmark/out"));
 const VALIDATION_ROOT = join(OUT_ROOT, "Validation");
 const REQUIRED_FILES = Object.freeze([
   "spec.json",
@@ -297,7 +297,7 @@ export async function validateBenchmark() {
       try {
         mkdirSync(mcpOutDir, { recursive: true });
         mcpResult = await mcp.callTool(
-          "ak_create",
+          "agon_create",
           scenarioPayloadForOutput(scenario, mcpOutDir),
         );
       } catch (error) {

@@ -148,7 +148,7 @@ Dynamic actors express behavior through **stackable motivations** organised into
 
 **A held way (#645).** An `exploring` actor sees only what is adjacent, so a warden patrolling a one-wide gateway is in sight from one cell and out of sight from the next; re-planning every turn with no memory, it used to step back along the longer detour, lose sight, and walk back in: a two-cycle that never arrived. When another actor that can move holds the next cell of the shortest route, the only route round it is longer, and the step it would take does not close on the exit, it waits or takes the detour on a seeded coin (`deterministicRandom`, salt 645). Stateless, so the context stays serializable; the same for a seed and tick; a detour that closes on the exit, a way round that loses nothing, and actors that cannot move (barrier furniture) are unchanged.
 
-**`ai_controlled` (2026-11-02).** The same `control` family as `user_controlled`, for any actor including hazards: an AI, not a player, holds the controls. It proposes nothing of its own, follows strategies in full, and is seated, commanded and ordered through the play session's legal list (`ak_play_*`); a level lists such actors under `view().aiControlled`, apart from the player's party and its shared sight. One actor has one controller, so it refuses both kinds together. The Allocator prices it as the playable premium (dearest autonomous stack + 1).
+**`ai_controlled` (2026-11-02).** The same `control` family as `user_controlled`, for any actor including hazards: an AI, not a player, holds the controls. It proposes nothing of its own, follows strategies in full, and is seated, commanded and ordered through the play session's legal list (`agon_play_*`); a level lists such actors under `view().aiControlled`, apart from the player's party and its shared sight. One actor has one controller, so it refuses both kinds together. The Allocator prices it as the playable premium (dearest autonomous stack + 1).
 
 **Nothing to do (#522).** An actor with a motivation of its own (anything but `user_controlled` or `ai_controlled`) that finds nothing it can do, boxed into a dead end for instance, proposes `wait` rather than nothing, so its turn and the telemetry say it waited. Objects and the player's actor still propose nothing. On the solver route every wait is the candidate `wait_here`.
 
@@ -279,7 +279,7 @@ Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; co
 diagnostic because this is a one-step choice, while `AggroRangeBoost` remains perception/candidate policy. The
 shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The CLI
 and web Actor lexicographic adapters validate and compare the tuples without re-deriving their meaning, accepting
-valid v1 envelopes for compatibility. The old `createRealZ3SolverAdapter` factory and `AK_SOLVER_ENGINE=z3-real`
+valid v1 envelopes for compatibility. The old `createRealZ3SolverAdapter` factory and `AGON_SOLVER_ENGINE=z3-real`
 selector remain compatibility aliases; `z3-real` now names the default engine rather than enabling it, and neither
 initializes Z3 on this path. Measured over 819 candidate/rank permutations, this adapter's selection diverges from a
 plain lexicographic sort on 0.0% of them and initializes Z3 zero times — the domain performs no search. Missing or malformed objectives defer with typed

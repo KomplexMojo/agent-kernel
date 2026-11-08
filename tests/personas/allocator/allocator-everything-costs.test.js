@@ -226,7 +226,7 @@ test("a hazard's affinity payload pays the same base an actor's does", async () 
 /**
  * The shape the CLI actually produces, which is NOT the shape the pricer was reading.
  *
- * `ak create --hazard "affinity=fire;expression=emit"` records the payload as
+ * `agon create --hazard "affinity=fire;expression=emit"` records the payload as
  * `{ affinity: "fire", expression: "emit", affinityStacks: [...] }` — affinity as a STRING
  * beside a stacks array — while the hazard pricer tested `typeof affinity === "object"`.
  * The test above uses the object shape and so could never see this: on the real build path

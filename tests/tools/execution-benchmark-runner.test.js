@@ -43,11 +43,11 @@ function passingResult(request) {
 test('local execution command pins build inputs, seed, ticks, checkpoints, and output identity', () => {
   const command = buildExecutionCommand({
     scenarioId: 'EX-TR-01', stage: 'qualify', seed: 3, repeat: 1, ticks: 50,
-    checkpoints: [0, 10, 25, 50], buildDir: '/build', runDir: '/runs/tr-01', cliPath: '/repo/ak.mjs',
+    checkpoints: [0, 10, 25, 50], buildDir: '/build', runDir: '/runs/tr-01', cliPath: '/repo/agon.mjs',
   });
   assert.equal(command.command, process.execPath);
   assert.deepEqual(command.args, [
-    '/repo/ak.mjs', 'run', '--sim-config', '/build/sim-config.json', '--initial-state', '/build/initial-state.json',
+    '/repo/agon.mjs', 'run', '--sim-config', '/build/sim-config.json', '--initial-state', '/build/initial-state.json',
     '--ticks', '50', '--seed', '3', '--run-id', 'execution-EX-TR-01-qualify-s3-r1',
     '--out-dir', '/runs/tr-01', '--world-state-checkpoints', '0,10,25,50',
   ]);
@@ -76,7 +76,7 @@ test('schedule plan uses one bounded screen then exact declared seed/repeat/vari
 });
 
 test('five-family fixture matrix promotes screens, reuses identical runs, and persists aggregates', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-schedule-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-schedule-'));
   const calls = [];
   const summary = await runExecutionSchedule({
     catalog,
@@ -102,7 +102,7 @@ test('five-family fixture matrix promotes screens, reuses identical runs, and pe
 });
 
 test('failed screen retains evidence and cannot promote', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-screen-fail-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-screen-fail-'));
   const summary = await runExecutionSchedule({
     catalog, scenarioIds: ['EX-TR-01'], outputRoot,
     resolveBuild: () => '/fixture-build',
@@ -115,7 +115,7 @@ test('failed screen retains evidence and cannot promote', async () => {
 });
 
 test('a diagnostic screen failure remains visible without failing qualification scenarios', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-diagnostic-fail-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-diagnostic-fail-'));
   const mixedCatalog = structuredClone(catalog);
   mixedCatalog.scenarios.find((scenario) => scenario.id === 'EX-HZ-01').purpose = 'diagnostic';
   const summary = await runExecutionSchedule({
@@ -130,7 +130,7 @@ test('a diagnostic screen failure remains visible without failing qualification 
 });
 
 test('unavailable observation evidence does not block a structurally valid screen', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-screen-unavailable-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-screen-unavailable-'));
   const summary = await runExecutionSchedule({
     catalog, scenarioIds: ['EX-RS-04'], outputRoot,
     resolveBuild: () => '/fixture-build',
@@ -148,7 +148,7 @@ test('unavailable observation evidence does not block a structurally valid scree
 });
 
 test('executor and build-resolution exceptions become retained infrastructure evidence', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-exception-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-exception-'));
   const executor = await runExecutionSchedule({
     catalog, scenarioIds: ['EX-TR-01'], outputRoot: join(outputRoot, 'executor'),
     resolveBuild: () => '/fixture-build',
@@ -163,7 +163,7 @@ test('executor and build-resolution exceptions become retained infrastructure ev
 });
 
 test('definitive full-stage failure stops losslessly and preserves the failing result', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-early-stop-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-early-stop-'));
   let calls = 0;
   const summary = await runExecutionSchedule({
     catalog, scenarioIds: ['EX-RS-04'], outputRoot,

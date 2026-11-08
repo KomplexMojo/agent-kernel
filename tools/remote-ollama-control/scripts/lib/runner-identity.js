@@ -41,7 +41,7 @@ function runnerIdentity(env = process.env, facts = machineFacts()) {
     .update([facts.hostname, facts.platform, facts.arch, facts.cpu].join('\n'))
     .digest('hex')
     .slice(0, 16);
-  const label = (env.AK_BENCHMARK_RUNNER_LABEL || '').trim();
+  const label = (env.AGON_BENCHMARK_RUNNER_LABEL || '').trim();
   return {
     id: digest,
     platform: facts.platform,

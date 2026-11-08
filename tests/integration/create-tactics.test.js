@@ -1,4 +1,4 @@
-// #396: `ak create --tactic` / `ak_create { tactics }` carry a tactic list into the plan and the
+// #396: `agon create --tactic` / `agon_create { tactics }` carry a tactic list into the plan and the
 // BuildSpec. The create result reports what was done with each tactic (#398 ambush, #400 retinue,
 // #418 minefield, #486 shrine) and names the build seed so the level can be rebuilt exactly.
 
@@ -9,15 +9,15 @@ const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const AK_CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const AGON_CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 
 async function create(payload) {
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
-  const outDir = mkdtempSync(join(tmpdir(), "ak-tactic-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-tactic-"));
   try {
     const result = spawnSync(process.execPath, [
-      AK_CLI, "create",
+      AGON_CLI, "create",
       ...buildArgv({ ...payload, outDir, runId: "tactic_probe", createdAt: "2026-10-18T00:00:00.000Z" }, authoringSpec),
     ], { cwd: ROOT, encoding: "utf8" });
     const read = (name) => JSON.parse(readFileSync(join(outDir, name), "utf8"));
@@ -36,7 +36,7 @@ async function create(payload) {
 
 const level = { room: ["size=medium;count=2"], warden: ["count=2;motivation=defending"] };
 
-test("ak_create tactics reach the BuildSpec and each one is reported", async () => {
+test("agon_create tactics reach the BuildSpec and each one is reported", async () => {
   const result = await create({ ...level, tactics: ["ambush;guards=1", "retinue;size=1"], seed: 7 });
   assert.equal(result.status, 0, result.output);
   const tactics = [{ tactic: "ambush", params: { guards: 1 } }, { tactic: "retinue", params: { size: 1 } }];
@@ -105,14 +105,14 @@ test("an unknown tactic or a bad seed is refused with a reason", async () => {
   const unknown = await create({ ...level, tactics: ["flank"] });
   assert.notEqual(unknown.status, 0);
   assert.match(unknown.output, /unknown tactic "flank".*ambush, retinue, minefield/);
-  const cli = spawnSync(process.execPath, [AK_CLI, "create", ...["--room", "size=small;count=1", "--seed", "-3"]],
+  const cli = spawnSync(process.execPath, [AGON_CLI, "create", ...["--room", "size=small;count=1", "--seed", "-3"]],
     { cwd: ROOT, encoding: "utf8" });
   assert.notEqual(cli.status, 0);
   assert.match(`${cli.stderr}${cli.stdout}`, /--seed/);
 });
 
 // ## TODO: Test Permutations
-// - `ak configure --tactic` carries the same list
+// - `agon configure --tactic` carries the same list
 // - --dry-run with a tactic still validates the tactic list
 // - a tactic param that is a word stays a string in the plan
 
@@ -183,9 +183,9 @@ test("tactic-seated emitters keep their fields off resources and hazards (#473)"
   const { loadPlaytestScenarios, scenarioArgs } = await import("../../packages/adapters-cli/src/cli/playtest-scenarios.mjs");
   const scenario = loadPlaytestScenarios().scenarios.find((entry) => entry.id === "long-haul");
   for (const seed of [1, 6]) {
-    const outDir = mkdtempSync(join(tmpdir(), "ak-tactic-reach-"));
+    const outDir = mkdtempSync(join(tmpdir(), "agon-tactic-reach-"));
     try {
-      const result = spawnSync(process.execPath, [AK_CLI, "create", "--out-dir", outDir, "--run-id", "reach",
+      const result = spawnSync(process.execPath, [AGON_CLI, "create", "--out-dir", outDir, "--run-id", "reach",
         "--created-at", "2026-10-24T00:00:00.000Z", ...withoutTactics(scenarioArgs(scenario, seed)), "--tactic", "auto", "--seed", String(seed)],
       { cwd: ROOT, encoding: "utf8" });
       assert.equal(result.status, 0, `${result.stderr}${result.stdout}`);
@@ -208,4 +208,4 @@ test("tactic-seated emitters keep their fields off resources and hazards (#473)"
       rmSync(outDir, { recursive: true, force: true });
     }
   }
-}, 180_000); // two long-haul `ak create` runs: ~30s alone, over 60s under the full suite's load
+}, 180_000); // two long-haul `agon create` runs: ~30s alone, over 60s under the full suite's load

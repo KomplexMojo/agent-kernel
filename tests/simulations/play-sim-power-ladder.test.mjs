@@ -1,5 +1,5 @@
 // Power ladder (Darren, 2026-11-03): the scenario's delver scaled rung by rung, each rung priced by
-// the Allocator through `ak create` and played by the seat driver. A fixture picker; no model.
+// the Allocator through `agon create` and played by the seat driver. A fixture picker; no model.
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

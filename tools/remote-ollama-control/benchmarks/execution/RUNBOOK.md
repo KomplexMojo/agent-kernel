@@ -2,7 +2,7 @@
 
 This runbook separates deterministic contract validation from real benchmark evidence. The repository
 validator is safe for development sessions: it uses fixture results, writes only to an operator-chosen
-local directory, and never calls an LLM, `ak run`, a GPU host, Git publication, or a timer. Real execution
+local directory, and never calls an LLM, `agon run`, a GPU host, Git publication, or a timer. Real execution
 quality is produced only by the standalone nightly benchmark service; agents must not run it from a
 development session.
 
@@ -58,7 +58,7 @@ work begins, retain these identities in the pending result:
 Abort on a dirty isolated checkout, an identity change during the run, missing profile isolation, or a
 missing build route. Do not substitute the current branch tip after a run starts.
 
-`AK_BENCHMARK_EXECUTION_SUITE_HASH` is a required unattended-agent identity alongside the content
+`AGON_BENCHMARK_EXECUTION_SUITE_HASH` is a required unattended-agent identity alongside the content
 scenario and matrix hashes. It is persisted after evaluation, participates in the immutable run key,
 and is emitted by dry-run/publication metadata. Changing it alone selects runtime and generated
 execution while keeping authoring disabled.
@@ -66,7 +66,7 @@ execution while keeping authoring disabled.
 ### Immutable source preparation
 
 For a triggered non-dry invocation, the installed agent creates an owned detached worktree beneath
-`AK_BENCHMARK_STATE_DIR/source-worktrees/<run-key>`. It verifies both the exact commit and tree before
+`AGON_BENCHMARK_STATE_DIR/source-worktrees/<run-key>`. It verifies both the exact commit and tree before
 running, in order:
 
 1. `pnpm install --frozen-lockfile`;
@@ -82,7 +82,7 @@ for that immutable run key; paths outside the owned state subtree are rejected. 
 never used or cleaned. Worktree cleanup occurs before publication while preflight logs remain local.
 
 Pipeline orchestration is also loaded from that detached worktree. This includes the execution catalog,
-runner, evaluator integration, content-generation command, and `ak` CLI; an installed controller may not
+runner, evaluator integration, content-generation command, and `agon` CLI; an installed controller may not
 silently substitute its own benchmark semantics for the pinned source commit.
 
 ## 4. Execute staged populations
@@ -102,7 +102,7 @@ must have `execSucceeded: true`, a passing scenario verdict, and both `sim-confi
 `initial-state.json`.
 
 The two route manifests are repository-relative JSON documents configured by
-`AK_BENCHMARK_RUNTIME_ROUTES` and `AK_BENCHMARK_GENERATED_ROUTES`. Runtime routes point to committed
+`AGON_BENCHMARK_RUNTIME_ROUTES` and `AGON_BENCHMARK_GENERATED_ROUTES`. Runtime routes point to committed
 build directories inside the pinned source tree. Generated routes select successful retained authoring
 records; they never derive a build from benchmark prose. Missing manifests, cache entries, routes, or
 build files fail closed.
@@ -138,8 +138,8 @@ with the pinned source tree:
 ```bash
 pnpm --dir tools/remote-ollama-control validate:execution -- \
   --corpus \
-  --source-root "$AK_BENCHMARK_SOURCE_WORKTREE" \
-  --out "$AK_BENCHMARK_STATE_DIR/corpus-validation"
+  --source-root "$AGON_BENCHMARK_SOURCE_WORKTREE" \
+  --out "$AGON_BENCHMARK_STATE_DIR/corpus-validation"
 ```
 
 Resource scenarios need world-state checkpoints to be scoreable at all. Collection is destructive, so a
@@ -177,7 +177,7 @@ run may replace `latest-success.json`. Push without force and retain a rejected 
 
 ## 6. First standalone deployment (operator)
 
-Run these on the Ubuntu benchmark machine. Nothing here starts GPU work: `AK_BENCHMARK_DRY_RUN=1`
+Run these on the Ubuntu benchmark machine. Nothing here starts GPU work: `AGON_BENCHMARK_DRY_RUN=1`
 ships enabled and a real pipeline needs a second, separate gate.
 
 **1. Install (idempotent; safe to re-run after a source update).**
@@ -197,15 +197,15 @@ overwritten, so operator edits survive a reinstall.
 pnpm --dir tools/remote-ollama-control run identity -- --env
 ```
 
-This prints the three `AK_BENCHMARK_*_HASH` lines ready to paste into the config. They are pinned by
+This prints the three `AGON_BENCHMARK_*_HASH` lines ready to paste into the config. They are pinned by
 hand rather than derived at run time on purpose: a hash that silently follows the source it describes
 cannot detect drift. Re-read them whenever the content catalog, matrix, or execution suite changes —
 the agent refuses to start on a mismatch rather than evaluating the wrong thing.
 
 Drop `--env` for the full identity, including `evaluatorVersion`, `seedSetHash`, and `tickProfileHash`.
 
-**3. Fill in the config.** Set `AK_BENCHMARK_SOURCE_REMOTE`, the three hashes, and — only when
-publication is wanted — `AK_BENCHMARK_RESULTS_REMOTE`. Every required key ships commented out, so an
+**3. Fill in the config.** Set `AGON_BENCHMARK_SOURCE_REMOTE`, the three hashes, and — only when
+publication is wanted — `AGON_BENCHMARK_RESULTS_REMOTE`. Every required key ships commented out, so an
 unedited config fails with the agent naming what is missing rather than with a shell error.
 
 **4. Confirm the dry run before anything else.**
@@ -229,16 +229,16 @@ Check the identities against step 2 and the commit against the source ref. A dry
 contacts no model, and cannot publish.
 
 **5. Authorize real work, one gate at a time.** Only after step 4 reads correctly:
-set `AK_BENCHMARK_LIVE=1` for a real pipeline; enable the timer with
+set `AGON_BENCHMARK_LIVE=1` for a real pipeline; enable the timer with
 `systemctl --user enable --now agon-benchmark.timer` for unattended operation; and set
-`AK_BENCHMARK_RESULTS_REMOTE` for publication. These are three independent decisions — none implies the
+`AGON_BENCHMARK_RESULTS_REMOTE` for publication. These are three independent decisions — none implies the
 others, and a development session performs none of them.
 
 ## 7. Operator gates and recovery
 
-- Keep `AK_BENCHMARK_DRY_RUN=1` until the operator has reviewed source pinning, trigger modes, profile
+- Keep `AGON_BENCHMARK_DRY_RUN=1` until the operator has reviewed source pinning, trigger modes, profile
   isolation, model availability, disk capacity, and the destination branch.
-- A non-dry pipeline also requires `AK_BENCHMARK_LIVE=1`. This second explicit gate prevents an
+- A non-dry pipeline also requires `AGON_BENCHMARK_LIVE=1`. This second explicit gate prevents an
   accidental dry-run toggle from starting content generation or execution.
 - Enabling the user timer, starting real GPU work, or publishing results requires an explicit operator
   action. See the unattended-agent section in the package README.

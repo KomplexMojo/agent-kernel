@@ -202,7 +202,7 @@ function getFreePort() {
 
 test("mcp server lists required tools and schemas round-trips over stdio", async () => {
   const harness = new McpServerHarness({
-    AK_SCHEMA_CATALOG_TIME: "2000-01-01T00:00:00.000Z",
+    AGON_SCHEMA_CATALOG_TIME: "2000-01-01T00:00:00.000Z",
   });
   try {
     const initializeResult = await harness.initialize();
@@ -210,14 +210,14 @@ test("mcp server lists required tools and schemas round-trips over stdio", async
 
     const listed = await harness.request("tools/list", {});
     const toolNames = listed.tools.map((tool) => tool.name);
-    assert.ok(toolNames.includes("ak_create"));
-    assert.ok(toolNames.includes("ak_run"));
-    assert.ok(toolNames.includes("ak_llm_plan"));
-    assert.ok(toolNames.includes("ak_inspect"));
-    assert.ok(toolNames.includes("ak_schemas"));
+    assert.ok(toolNames.includes("agon_create"));
+    assert.ok(toolNames.includes("agon_run"));
+    assert.ok(toolNames.includes("agon_llm_plan"));
+    assert.ok(toolNames.includes("agon_inspect"));
+    assert.ok(toolNames.includes("agon_schemas"));
 
     const outDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-schemas-"));
-    const schemas = await harness.callTool("ak_schemas", { outDir });
+    const schemas = await harness.callTool("agon_schemas", { outDir });
     assert.equal(schemas.command, "schemas");
     assert.equal(schemas.stdout, `schemas: wrote ${outDir}`);
 
@@ -238,8 +238,8 @@ test("mcp authoring tools expose the current full scenario schema", async () => 
     await harness.initialize();
 
     const listed = await harness.request("tools/list", {});
-    const createTool = listed.tools.find((tool) => tool.name === "ak_create");
-    const configureTool = listed.tools.find((tool) => tool.name === "ak_configure");
+    const createTool = listed.tools.find((tool) => tool.name === "agon_create");
+    const configureTool = listed.tools.find((tool) => tool.name === "agon_configure");
     for (const tool of [createTool, configureTool]) {
       assert.ok(tool, "expected authoring tool to be listed");
       const properties = tool.inputSchema?.properties || {};
@@ -262,13 +262,13 @@ test("mcp authoring tools expose the current full scenario schema", async () => 
 
 test("mcp server create and llm-plan tool calls round-trip with fixture inputs", async () => {
   const harness = new McpServerHarness({
-    AK_LLM_LIVE: "1",
+    AGON_LLM_LIVE: "1",
   });
   try {
     await harness.initialize();
 
     const createOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-create-"));
-    const createResult = await harness.callTool("ak_create", {
+    const createResult = await harness.callTool("agon_create", {
       dryRun: true,
       text: "Create one fire delver within a total budget of 200 tokens.",
       delver: ["count=1;affinity=fire;motivation=attacking;goals=max_mana,mana_regen"],
@@ -284,7 +284,7 @@ test("mcp server create and llm-plan tool calls round-trip with fixture inputs",
     assert.equal(existsSync(join(createOutDir, "spec.json")), false);
 
     const llmPlanOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-llm-plan-"));
-    const llmPlanResult = await harness.callTool("ak_llm_plan", {
+    const llmPlanResult = await harness.callTool("agon_llm_plan", {
       scenario: E2E_SCENARIO,
       model: "fixture",
       fixture: LLM_FIXTURE,
@@ -315,7 +315,7 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
     await harness.initialize();
 
     const roomOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-room-plan-"));
-    const roomPlanResult = await harness.callTool("ak_room_plan", {
+    const roomPlanResult = await harness.callTool("agon_room_plan", {
       room: ["size=small;count=1"],
       runId: "run_mcp_room_plan_preview",
       createdAt: "2026-04-10T00:00:00.000Z",
@@ -329,7 +329,7 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
     assert.equal(roomPlanResult.preview.runReady, false);
 
     const delverOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-delver-plan-"));
-    const delverPlanResult = await harness.callTool("ak_delver_plan", {
+    const delverPlanResult = await harness.callTool("agon_delver_plan", {
       delver: ["count=1;affinity=fire;motivation=attacking"],
       runId: "run_mcp_delver_plan_preview",
       createdAt: "2026-04-10T00:00:00.000Z",
@@ -340,7 +340,7 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
     assert.equal(delverPlanResult.preview.runReady, false);
 
     const wardenOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-warden-plan-"));
-    const wardenPlanResult = await harness.callTool("ak_warden_plan", {
+    const wardenPlanResult = await harness.callTool("agon_warden_plan", {
       warden: ["count=1;affinity=dark;motivation=defending"],
       runId: "run_mcp_warden_plan_preview",
       createdAt: "2026-04-10T00:00:00.000Z",
@@ -360,7 +360,7 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
     await harness.initialize();
 
     const runId = "run_mcp_full_scenario";
-    const createResult = await harness.callTool("ak_create", {
+    const createResult = await harness.callTool("agon_create", {
       runId,
       createdAt: "2026-04-19T00:00:00.000Z",
       text: "Create a full playable dungeon scenario with room layout, hazards, resources, delvers, and a warden under a total budget of 2000 tokens.",
@@ -384,17 +384,17 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
     assert.equal(createResult.artifactLocation?.defaultedToTemp, true);
     assert.equal(createResult.artifactLocation?.remembered, true);
 
-    const showResult = await harness.callTool("ak_show", { runId });
+    const showResult = await harness.callTool("agon_show", { runId });
     assert.equal(showResult.command, "show");
     assert.equal(showResult.runId, runId);
     assert.equal(showResult.commands.some((entry) => entry.command === "create" && entry.outDir === createResult.outDir), true);
 
-    const runsListResult = await harness.callTool("ak_runs_list");
+    const runsListResult = await harness.callTool("agon_runs_list");
     assert.equal(runsListResult.command, "runs");
     assert.equal(runsListResult.action, "list");
     assert.equal(runsListResult.runs.some((entry) => entry.runId === runId), true);
 
-    const runResult = await harness.callTool("ak_run", {
+    const runResult = await harness.callTool("agon_run", {
       fromRun: runId,
       ticks: 1,
     });
@@ -402,30 +402,30 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
     assert.equal(existsSync(join(runResult.outDir, "tick-frames.json")), true);
     assert.equal(runResult.outDir.startsWith(os.tmpdir()), true);
 
-    const showWithRun = await harness.callTool("ak_show", { runId });
+    const showWithRun = await harness.callTool("agon_show", { runId });
     assert.equal(showWithRun.commands.some((entry) => entry.command === "run" && entry.outDir === runResult.outDir), true);
   } finally {
     await harness.close();
   }
 });
 
-test("mcp ak_run stitches tickFrames into bundle.json even when run in place (outDir === sim-config's directory)", async () => {
+test("mcp agon_run stitches tickFrames into bundle.json even when run in place (outDir === sim-config's directory)", async () => {
   // M7 gap 3's stitching only carries the create-time bundle.json forward when
   // it detects "the run's inputs came from an authored create outDir" via a
-  // sibling bundle.json next to --sim-config. The detection in ak-impl.mjs
+  // sibling bundle.json next to --sim-config. The detection in agon-impl.mjs
   // additionally requires that sibling path to differ from the run's own
   // --out-dir/bundle.json — which is false, and so the whole stitch silently
   // no-ops, whenever a caller runs a scenario "in place" by pointing --out-dir
   // at the same directory as --sim-config (the natural choice: no reason to
   // invent a nested subdirectory just to run what you just created). The run
   // still executes and writes tick-frames.json correctly; only the bundle.json
-  // that ak_push_to_ui reads is left stale, silently missing every tick.
+  // that agon_push_to_ui reads is left stale, silently missing every tick.
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
 
     const runId = "run_mcp_in_place_stitch";
-    const createResult = await harness.callTool("ak_create", {
+    const createResult = await harness.callTool("agon_create", {
       runId,
       createdAt: "2026-04-19T00:00:00.000Z",
       text: "Create a small playable dungeon scenario for an in-place run.",
@@ -443,7 +443,7 @@ test("mcp ak_run stitches tickFrames into bundle.json even when run in place (ou
     const preRunBundle = readJson(join(createOutDir, "bundle.json"));
     assert.equal(Array.isArray(preRunBundle.tickFrames), false);
 
-    const runResult = await harness.callTool("ak_run", {
+    const runResult = await harness.callTool("agon_run", {
       simConfig: join(createOutDir, "sim-config.json"),
       initialState: join(createOutDir, "initial-state.json"),
       outDir: createOutDir,
@@ -472,7 +472,7 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
 
     const runOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-run-"));
     const artifacts = await writeUnifiedRunArtifacts(runOutDir);
-    const runResult = await harness.callTool("ak_run", {
+    const runResult = await harness.callTool("agon_run", {
       simConfig: artifacts.simConfigPath,
       initialState: artifacts.initialStatePath,
       ticks: 1,
@@ -484,7 +484,7 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
     assert.equal(existsSync(join(runOutDir, "effects-log.json")), true);
 
     const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-inspect-"));
-    const inspectResult = await harness.callTool("ak_inspect", {
+    const inspectResult = await harness.callTool("agon_inspect", {
       tickFrames: join(runOutDir, "tick-frames.json"),
       effectsLog: join(runOutDir, "effects-log.json"),
       outDir: inspectOutDir,
@@ -502,9 +502,9 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
 });
 
 test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design UI can render", async () => {
-  // ak_create's --hazard/--resource always land as "placed" objects baked straight into
+  // agon_create's --hazard/--resource always land as "placed" objects baked straight into
   // the room grid layout, never a plan.hints.cardSet entry — so a hazard/resource authored
-  // via ak_create is real (priced, positioned) but invisible in the UI's Design tab, which
+  // via agon_create is real (priced, positioned) but invisible in the UI's Design tab, which
   // renders from cardSet. hazard-plan/resource-plan already produce cardSet entries via the
   // same commandKernel.planBuild pipeline room-plan/delver-plan/warden-plan use; they just
   // never had MCP tool wrappers. This asserts the new wrappers actually produce a card.
@@ -513,7 +513,7 @@ test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design
     await harness.initialize();
 
     const hazardOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-hazard-plan-"));
-    const hazardPlanResult = await harness.callTool("ak_hazard_plan", {
+    const hazardPlanResult = await harness.callTool("agon_hazard_plan", {
       hazard: ["affinity=fire;expression=push;proximityRadius=2"],
       runId: "run_mcp_hazard_plan_preview",
       createdAt: "2026-04-10T00:00:00.000Z",
@@ -526,7 +526,7 @@ test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design
     assert.equal(hazardCardSet.some((card) => card.type === "hazard"), true);
 
     const resourceOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-resource-plan-"));
-    const resourcePlanResult = await harness.callTool("ak_resource_plan", {
+    const resourcePlanResult = await harness.callTool("agon_resource_plan", {
       resource: ["permanenceMode=consumable;vital=health;delta=2"],
       runId: "run_mcp_resource_plan_preview",
       createdAt: "2026-04-10T00:00:00.000Z",
@@ -542,24 +542,24 @@ test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design
   }
 });
 
-test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver to a connected UI client", async () => {
+test("mcp server starts the sandbox bridge on boot so agon_push_to_ui can deliver to a connected UI client", async () => {
   const bridgePort = await getFreePort();
-  const harness = new McpServerHarness({ AK_SANDBOX_BRIDGE_PORT: String(bridgePort) });
+  const harness = new McpServerHarness({ AGON_SANDBOX_BRIDGE_PORT: String(bridgePort) });
   let ws;
   try {
     await harness.initialize();
 
     ws = await new Promise((resolveWs, rejectWs) => {
-      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/ak-sandbox`);
+      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/agon-sandbox`);
       client.addEventListener("open", () => resolveWs(client));
       client.addEventListener("error", (e) => rejectWs(e.error ?? new Error("ws connect failed")));
     });
 
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
-      if (msg.type === "ak.gameplayBundle.v1") {
+      if (msg.type === "agon.gameplayBundle.v1") {
         ws.send(JSON.stringify({
-          type: "ak.bundleLoaded.v1",
+          type: "agon.bundleLoaded.v1",
           clientId: "mcp_boot_test_client",
           messageId: msg.id,
         }));
@@ -567,14 +567,14 @@ test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver 
     });
 
     ws.send(JSON.stringify({
-      type: "ak.uiReady.v1",
+      type: "agon.uiReady.v1",
       clientId: "mcp_boot_test_client",
       capabilities: { loadGameplayBundle: true },
     }));
     // Let the server register the client before pushing.
     await new Promise((r) => setTimeout(r, 50));
 
-    const pushResult = await harness.callTool("ak_push_to_ui", {
+    const pushResult = await harness.callTool("agon_push_to_ui", {
       bundle: { schema: "agon/GameplayBundle", schemaVersion: 1, artifacts: [] },
       targetTab: "design",
     });
@@ -602,7 +602,7 @@ test("mcp server exits when its stdin ends, even with no kill signal ever sent (
   const bridgePort = await getFreePort();
   const proc = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
-    env: { ...process.env, AK_SANDBOX_BRIDGE_PORT: String(bridgePort) },
+    env: { ...process.env, AGON_SANDBOX_BRIDGE_PORT: String(bridgePort) },
     stdio: ["pipe", "pipe", "pipe"],
   });
   try {
@@ -636,8 +636,8 @@ test("mcp server exits when its stdin ends, even with no kill signal ever sent (
   }
 });
 
-test("ak_sandbox_create omitting outDir defaults into a temp folder instead of crashing (createHandlerTool has no tool.command)", async () => {
-  // ak_sandbox_create is built via createHandlerTool, which returns {name, description,
+test("agon_sandbox_create omitting outDir defaults into a temp folder instead of crashing (createHandlerTool has no tool.command)", async () => {
+  // agon_sandbox_create is built via createHandlerTool, which returns {name, description,
   // inputSchema, handler} — no `command` field. server.mjs's resolveDefaultOutDir does
   // join(SESSION_TEMP_ROOT, runId, tool.command) whenever outDir is omitted and runId is
   // given (the documented, normal usage pattern — see the outDir schema description: "When
@@ -648,7 +648,7 @@ test("ak_sandbox_create omitting outDir defaults into a temp folder instead of c
   try {
     await harness.initialize();
 
-    const result = await harness.callTool("ak_sandbox_create", {
+    const result = await harness.callTool("agon_sandbox_create", {
       budget: resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"),
       runId: "run_mcp_sandbox_create_no_outdir",
     });
@@ -664,8 +664,8 @@ test("ak_sandbox_create omitting outDir defaults into a temp folder instead of c
 // ## Gap Registry — Uncovered MCP Tools (M7 scope boundary)
 //
 // This file is the authoritative MCP verification surface for the session.
-// Tools verified working (M5): ak_schemas, ak_create (dry-run + full), ak_configure,
-// ak_llm_plan, ak_room_plan, ak_delver_plan, ak_warden_plan, ak_show, ak_runs_list, ak_run, ak_inspect.
+// Tools verified working (M5): agon_schemas, agon_create (dry-run + full), agon_configure,
+// agon_llm_plan, agon_room_plan, agon_delver_plan, agon_warden_plan, agon_show, agon_runs_list, agon_run, agon_inspect.
 //
 // The tool families below are uncovered at the MCP layer. Each requires fixture files or
 // core-backed runs that do not yet exist, placing them outside the local-model permutation
@@ -673,49 +673,49 @@ test("ak_sandbox_create omitting outDir defaults into a temp folder instead of c
 // explicit gap registry so the uncovered surface stays observable rather than implied.
 //
 // Simulation tools:
-// - Permutation: ak_build with a fixture spec — confirm the MCP envelope returns a bundle ref and
-//   the same artifact set as `ak build` on the CLI.
-// - Permutation: ak_solve with --solver-fixture — confirm the MCP server returns the SolverResult
+// - Permutation: agon_build with a fixture spec — confirm the MCP envelope returns a bundle ref and
+//   the same artifact set as `agon build` on the CLI.
+// - Permutation: agon_solve with --solver-fixture — confirm the MCP server returns the SolverResult
 //   envelope deterministically (no network).
-// - Permutation: ak_configurator with a level-gen + actors fixture — confirm the configurator
+// - Permutation: agon_configurator with a level-gen + actors fixture — confirm the configurator
 //   FSM result schema matches the CLI's `configurator` command.
-// - Permutation: ak_budget against a fixed budget + price list — confirm the MCP receipt envelope
+// - Permutation: agon_budget against a fixed budget + price list — confirm the MCP receipt envelope
 //   matches the CLI receipt envelope byte-for-byte except for ids/timestamps.
-// - Permutation: ak_replay against a recorded tick-frames artifact — confirm parity with CLI
+// - Permutation: agon_replay against a recorded tick-frames artifact — confirm parity with CLI
 //   `replay` (replay-summary + replay-tick-frames present).
-// - Permutation: ak_scenario with --from-run and a deterministic fixture — confirm scenario
+// - Permutation: agon_scenario with --from-run and a deterministic fixture — confirm scenario
 //   chaining works from MCP without leaking temp paths.
 //
 // LLM tools:
-// - Permutation: ak_llm with --fixture set — confirm fixture-backed text path returns the expected
+// - Permutation: agon_llm with --fixture set — confirm fixture-backed text path returns the expected
 //   payload schema and never opens a network socket.
-// - Permutation: ak_ollama against a fixture path — confirm same envelope surface as ak_llm.
+// - Permutation: agon_ollama against a fixture path — confirm same envelope surface as agon_llm.
 //
 // Inspection tools:
-// - Permutation: ak_diff between two recorded runs — confirm diff envelope contains a stable
+// - Permutation: agon_diff between two recorded runs — confirm diff envelope contains a stable
 //   shape (added/removed/changed) when both runs have run-step artifacts (covers GAP-3 boundary).
-// - Permutation: ak_narrate against tick-frames + initial-state — confirm the narrative artifact
+// - Permutation: agon_narrate against tick-frames + initial-state — confirm the narrative artifact
 //   schema matches the CLI's `narrate` command.
 //
 // External adapters (must remain fixture-backed under test):
-// - Permutation: ak_ipfs with --fixture — confirm payload envelope and no network.
-// - Permutation: ak_ipfs_publish with --fixture-cid — confirm artifact map handling.
-// - Permutation: ak_ipfs_load with --fixture-map — confirm the per-file fetch loop.
-// - Permutation: ak_blockchain with --fixture-chain-id and --fixture-balance — confirm wallet
+// - Permutation: agon_ipfs with --fixture — confirm payload envelope and no network.
+// - Permutation: agon_ipfs_publish with --fixture-cid — confirm artifact map handling.
+// - Permutation: agon_ipfs_load with --fixture-map — confirm the per-file fetch loop.
+// - Permutation: agon_blockchain with --fixture-chain-id and --fixture-balance — confirm wallet
 //   shape envelope.
-// - Permutation: ak_blockchain_mint with --fixture-mint — confirm token id is echoed back.
-// - Permutation: ak_blockchain_load with --fixture-load — confirm card payload round-trips.
+// - Permutation: agon_blockchain_mint with --fixture-mint — confirm token id is echoed back.
+// - Permutation: agon_blockchain_load with --fixture-load — confirm card payload round-trips.
 //
 // Test-tooling MCP surface (lowest priority — verifying the verifier):
-// - Permutation: ak_test_list_suites — confirm the suite list matches the file system.
-// - Permutation: ak_test_discover_patterns — confirm pattern discovery produces a deterministic
+// - Permutation: agon_test_list_suites — confirm the suite list matches the file system.
+// - Permutation: agon_test_discover_patterns — confirm pattern discovery produces a deterministic
 //   list for a fixed snapshot.
-// - Permutation: ak_test_plan_from_change — confirm the plan envelope shape against a known diff.
-// - Permutation: ak_test_run — confirm a single test invocation returns a stable status envelope.
-// - Permutation: ak_test_scaffold_case — confirm the scaffolded test file matches an in-tree
+// - Permutation: agon_test_plan_from_change — confirm the plan envelope shape against a known diff.
+// - Permutation: agon_test_run — confirm a single test invocation returns a stable status envelope.
+// - Permutation: agon_test_scaffold_case — confirm the scaffolded test file matches an in-tree
 //   golden.
-// - Permutation: ak_test_insert_case — confirm idempotent insertion (re-running does not duplicate).
-// - Permutation: ak_test_explain_failure — confirm the explanation envelope shape for a stub
+// - Permutation: agon_test_insert_case — confirm idempotent insertion (re-running does not duplicate).
+// - Permutation: agon_test_explain_failure — confirm the explanation envelope shape for a stub
 //   failing test.
-// - Permutation: ak_test_lint_structure — confirm the lint envelope shape against a known-good and
+// - Permutation: agon_test_lint_structure — confirm the lint envelope shape against a known-good and
 //   a known-bad fixture.

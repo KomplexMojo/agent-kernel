@@ -1,0 +1,584 @@
+const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
+const { mkdtempSync, readFileSync, writeFileSync, existsSync } = require("node:fs");
+const { resolve, join } = require("node:path");
+const os = require("node:os");
+
+const ROOT = resolve(__dirname, "../..");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
+
+function runCli(args, env = {}) {
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, ...env },
+  });
+  if (result.status !== 0) {
+    const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
+    throw new Error(`CLI failed (${result.status}): ${output}`);
+  }
+  return result;
+}
+
+function runCliExpectFailure(args, env = {}) {
+  return spawnSync(process.execPath, [CLI, ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, ...env },
+  });
+}
+
+test("cli llm-plan defaults to the canonical persisted handoff", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary.json",
+      "--run-id",
+      "run_llm_plan_fixture",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
+  assert.equal(spec.schema, "agon/BuildSpec");
+  assert.equal(spec.meta.runId, "run_llm_plan_fixture");
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
+  );
+  assert.equal(captureEntry, undefined);
+  assert.ok(manifest.schemas.every((entry) => entry.schema !== "agon/CapturedInputArtifact"));
+  assert.equal(existsSync(join(outDir, "intent.json")), false);
+  assert.equal(existsSync(join(outDir, "plan.json")), false);
+
+  const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
+  assert.ok(bundle.artifacts.every((artifact) => artifact.schema !== "agon/CapturedInputArtifact"));
+});
+
+test("cli llm-plan budget loop writes intermediates only when explicitly requested", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
+      "--budget-loop",
+      "--emit-intermediates",
+      "--run-id",
+      "run_llm_plan_loop",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntries = manifest.artifacts.filter(
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
+  );
+  assert.equal(captureEntries.length, 2);
+  assert.ok(
+    manifest.artifacts.some((entry) => entry.schema === "agon/BudgetAllocationArtifact"),
+  );
+  const captureA = JSON.parse(readFileSync(join(outDir, captureEntries[0].path), "utf8"));
+  const captureB = JSON.parse(readFileSync(join(outDir, captureEntries[1].path), "utf8"));
+  assert.equal(captureA.payload.phase, "layout_only");
+  assert.equal(captureB.payload.phase, "actors_only");
+  assert.ok(captureA.payload.phaseTiming?.startedAt);
+  assert.ok(captureA.payload.phaseTiming?.endedAt);
+  assert.equal(typeof captureA.payload.phaseTiming?.durationMs, "number");
+  assert.ok(captureB.payload.phaseTiming?.startedAt);
+  assert.ok(captureB.payload.phaseTiming?.endedAt);
+  assert.equal(typeof captureB.payload.phaseTiming?.durationMs, "number");
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const trace = telemetry?.data?.llm?.trace || [];
+  assert.ok(Array.isArray(trace));
+  assert.equal(trace[0].phase, "layout_only");
+  // CR.9 M5: the fixture layout is 100 floor + 50 hallway tiles. Hallways used to be
+  // zeroed before pricing (the `deprecated_hallway_tiles_ignored` warning this used to
+  // assert), so a third of the level was free. They are charged now, and the warning is
+  // gone because the behavior it announced is gone.
+  assert.equal(trace[0].spentTokens, 150);
+  // Spend is unchanged at 150 — the layout is the same 100 floor + 50 hallway tiles. What moved is
+  // the ROOM POOL this phase draws against: the actor viability floor retune took room from 41% to
+  // 29%, so the same layout leaves less behind. #344 took room 29% -> 27%.
+  assert.equal(trace[0].remainingBudgetTokens, 258);
+  assert.ok(
+    !(trace[0].warnings || []).some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
+  );
+  assert.ok(trace[0].startedAt);
+  assert.ok(trace[0].endedAt);
+  assert.equal(typeof trace[0].durationMs, "number");
+  const allocation = telemetry?.data?.llm?.budgetAllocation;
+  assert.ok(allocation);
+  const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
+  assert.equal(poolsById.rooms, 216);  // CR.9 M5: rooms 44% -> 41%; viability floor: 41% -> 29%; #344: 27%
+  assert.equal(poolsById.wardens, 192);  // 16% -> 23%; #344: 24%
+  assert.equal(poolsById.delver, 200);  // 20% -> 25%
+});
+
+test("cli llm-plan budget loop writes feasibility warnings into telemetry", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-warn-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-budget-loop-feasibility.json",
+      "--budget-loop",
+      "--run-id",
+      "run_llm_plan_loop_warn",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const trace = telemetry?.data?.llm?.trace || [];
+  assert.ok(Array.isArray(trace));
+  assert.ok(
+    trace.some((entry) =>
+      Array.isArray(entry.validationWarnings)
+        && entry.validationWarnings.some((warn) => warn.code === "insufficient_floor_tiles")
+    )
+  );
+});
+
+test("cli llm-plan budget loop honors custom budget pools", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-pools-"));
+  const fixturePath = join(outDir, "budget-loop-single-actor.json");
+  const fixture = JSON.parse(readFileSync(
+    resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary-budget-loop.json"),
+    "utf8",
+  ));
+  const actorResponse = JSON.parse(fixture.responses[1].response);
+  actorResponse.actors[0].count = 1;
+  fixture.responses[1].response = JSON.stringify(actorResponse);
+  const finalResponse = JSON.parse(fixture.responses[2].response);
+  finalResponse.actors = [{
+    ...finalResponse.actors[0],
+    motivation: "defending",
+    affinity: "earth",
+    count: 1,
+  }];
+  finalResponse.stop = "done";
+  fixture.responses[2].response = JSON.stringify(finalResponse);
+  writeFileSync(fixturePath, JSON.stringify(fixture, null, 2));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      fixturePath,
+      "--budget-loop",
+      "--budget-pool",
+      "delver=0",
+      "--budget-pool",
+      "rooms=0.5",
+      "--budget-pool",
+      "wardens=0.5",
+      "--budget-pool",
+      "resources=0",
+      "--run-id",
+      "run_llm_plan_loop_pools",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const allocation = telemetry?.data?.llm?.budgetAllocation;
+  const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
+  assert.equal(poolsById.rooms, 400);
+  assert.equal(poolsById.wardens, 400);
+  assert.equal(poolsById.delver, 0);
+
+  const trace = telemetry?.data?.llm?.trace || [];
+  // CR.9 M5: 50 hallway tiles now cost 50 tokens (see above), so 700 -> 650.
+  assert.equal(trace[0].remainingBudgetTokens, 650);
+  assert.ok(
+    !(trace[0].warnings || []).some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
+  );
+});
+
+test("cli budget loop awaits the host-created hybrid solver for an over-budget layout", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-z3-"));
+  const fixturePath = join(outDir, "budget-loop-z3.json");
+  const fixture = JSON.parse(readFileSync(
+    resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary-budget-loop.json"),
+    "utf8",
+  ));
+  const firstActorResponse = JSON.parse(fixture.responses[1].response);
+  firstActorResponse.actors[0].count = 1;
+  fixture.responses[1].response = JSON.stringify(firstActorResponse);
+  const secondActorResponse = JSON.parse(fixture.responses[2].response);
+  secondActorResponse.actors = [{
+    ...secondActorResponse.actors[0],
+    motivation: "defending",
+    affinity: "earth",
+    count: 1,
+  }];
+  secondActorResponse.stop = "done";
+  fixture.responses[2].response = JSON.stringify(secondActorResponse);
+  writeFileSync(fixturePath, JSON.stringify(fixture, null, 2));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      fixturePath,
+      "--budget-loop",
+      "--budget-pool",
+      "delver=0",
+      "--budget-pool",
+      "rooms=0.1",
+      "--budget-pool",
+      "wardens=0.9",
+      "--budget-pool",
+      "resources=0",
+      "--run-id",
+      "run_llm_plan_loop_z3",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1", AGON_SOLVER_ENGINE: "z3-real" },
+  );
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const layoutTrace = telemetry?.data?.llm?.trace?.[0];
+  assert.deepEqual(layoutTrace.layout, { floorTiles: 53, hallwayTiles: 27 });
+  assert.equal(layoutTrace.spentTokens, 80);
+});
+
+test("cli llm-plan budget loop requires budget tokens", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-missing-budget-"));
+  const scenarioPath = join(outDir, "scenario-missing-budget.json");
+  const scenario = {
+    schema: "agon/E2EScenario",
+    schemaVersion: 1,
+    goal: "Missing budget tokens",
+    tier: 1,
+    levelSize: { width: 5, height: 5 },
+    actorCount: 1,
+    catalogPath: "tests/fixtures/pool/catalog-basic.json",
+    summaryPath: "tests/fixtures/e2e/summary-v1-basic.json",
+  };
+  writeFileSync(scenarioPath, JSON.stringify(scenario, null, 2));
+
+  const result = runCliExpectFailure(
+    [
+      "llm-plan",
+      "--scenario",
+      scenarioPath,
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
+      "--budget-loop",
+      "--run-id",
+      "run_llm_plan_missing_budget",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /llm-plan requires --budget-tokens/i);
+});
+
+test("cli llm-plan requires budget tokens in single-pass mode", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-missing-budget-"));
+  const scenarioPath = join(outDir, "scenario-missing-budget.json");
+  const scenario = {
+    schema: "agon/E2EScenario",
+    schemaVersion: 1,
+    goal: "Missing budget tokens",
+    tier: 1,
+    levelSize: { width: 5, height: 5 },
+    actorCount: 1,
+    catalogPath: "tests/fixtures/pool/catalog-basic.json",
+    summaryPath: "tests/fixtures/e2e/summary-v1-basic.json",
+  };
+  writeFileSync(scenarioPath, JSON.stringify(scenario, null, 2));
+
+  const result = runCliExpectFailure(
+    [
+      "llm-plan",
+      "--scenario",
+      scenarioPath,
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary.json",
+      "--run-id",
+      "run_llm_plan_missing_budget_single",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /llm-plan requires --budget-tokens/i);
+});
+
+test("cli llm-plan strict mode fails but writes capture with errors", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-strict-"));
+  const runId = "run_llm_plan_strict";
+  const result = runCliExpectFailure(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-invalid.json",
+      "--run-id",
+      runId,
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1", AGON_LLM_STRICT: "1" },
+  );
+  assert.notEqual(result.status, 0);
+
+  const capturePath = join(outDir, `capture_llm_${runId}.json`);
+  assert.equal(existsSync(capturePath), true);
+  const capture = JSON.parse(readFileSync(capturePath, "utf8"));
+  assert.ok(Array.isArray(capture.payload.errors));
+  assert.ok(capture.payload.errors.length > 0);
+});
+
+test("cli llm-plan resilient mode sanitizes invalid affinities", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-resilient-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-invalid.json",
+      "--run-id",
+      "run_llm_plan_resilient",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
+  );
+  assert.equal(captureEntry, undefined);
+});
+
+test("cli llm-plan supports prompt-only mode with catalog", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-prompt-"));
+  runCli(
+    [
+      "llm-plan",
+      "--prompt",
+      "Plan a small fire dungeon.",
+      "--catalog",
+      "tests/fixtures/pool/catalog-basic.json",
+      "--model",
+      "fixture",
+      "--goal",
+      "Prompt-only goal",
+      "--budget-tokens",
+      "800",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary.json",
+      "--run-id",
+      "run_llm_plan_prompt",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
+  assert.equal(spec.intent.goal, "Prompt-only goal");
+  assert.equal(spec.intent.hints.budgetTokens, 800);
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
+  );
+  assert.equal(captureEntry, undefined);
+});
+
+test("cli llm-plan supports text mode without an explicit fixture", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-text-"));
+  runCli(
+    [
+      "llm-plan",
+      "--text",
+      "a dungeon with two fire delvers",
+      "--catalog",
+      "tests/fixtures/pool/catalog-basic.json",
+      "--budget-tokens",
+      "300",
+      "--run-id",
+      "run_llm_plan_text",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "0" },
+  );
+
+  const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
+  assert.equal(spec.intent.goal, "a dungeon with two fire delvers");
+  assert.equal(spec.intent.hints.budgetTokens, 300);
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
+  );
+  assert.equal(captureEntry, undefined);
+});
+
+test("cli llm-plan falls back to scenario summary when AGON_LLM_LIVE is off", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-fallback-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--run-id",
+      "run_llm_plan_fallback",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "0" },
+  );
+
+  const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
+  assert.equal(spec.meta.runId, "run_llm_plan_fallback");
+  assert.equal(existsSync(join(outDir, "intent.json")), false);
+  assert.equal(existsSync(join(outDir, "plan.json")), false);
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
+  );
+  assert.equal(captureEntry, undefined);
+});
+
+test("cli llm-plan emits planning sidecars when explicitly requested", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-intermediates-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary.json",
+      "--emit-intermediates",
+      "--run-id",
+      "run_llm_plan_intermediates",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  assert.equal(existsSync(join(outDir, "intent.json")), true);
+  assert.equal(existsSync(join(outDir, "plan.json")), true);
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
+  );
+  assert.ok(captureEntry);
+  assert.equal(existsSync(join(outDir, captureEntry.path)), true);
+
+  const capture = JSON.parse(readFileSync(join(outDir, captureEntry.path), "utf8"));
+  assert.ok(capture.payload.prompt);
+  assert.ok(capture.payload.responseRaw);
+  assert.ok(capture.payload.responseParsed);
+  assert.ok(capture.payload.summary);
+});
+
+test("cli llm-plan rejects summaries that do not match catalog entries", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-mismatch-"));
+  const result = runCliExpectFailure(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-mismatch.json",
+      "--run-id",
+      "run_llm_plan_mismatch",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AGON_LLM_LIVE: "1" },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /did not match catalog entries/);
+});

@@ -26,7 +26,7 @@ Scoring follows Darren's rules (2026-11-02), reported separately and never colla
 
 ## Evidence and its limits
 
-Two losing runs on `first-look`, seed 0, fog on: Haiku 5.5 through `ak play-session` (defeated tick 74) and `qwen3.8:27b` through the seat driver (run `20261102-173839`, defeated tick 159). Both are quoted in #670, #671 and #672.
+Two losing runs on `first-look`, seed 0, fog on: Haiku 5.5 through `agon play-session` (defeated tick 74) and `qwen3.8:27b` through the seat driver (run `20261102-173839`, defeated tick 159). Both are quoted in #670, #671 and #672.
 
 Raw run records are not in the repo (`artifacts/` is ignored), and the seat driver does not record token value or the vital-pressure numbers. Those fields are `null` unless an issue gives the figure. Only the Haiku stamina numbers are filled in, from the #671 turn log: stamina 0 from tick 66, nine turns, no reaction. Recording all three numbers per seat run is a follow-up for the seat-sim output, not part of this change.
 

@@ -2,7 +2,7 @@
  * P2.2 — the Configurator owns input preparation on the CONFIG plane.
  *
  * The persona audit found the Configurator's FSM never gated real behavior:
- * the CLI (ak-impl.mjs) prepared configurator inputs inline — grid sizing
+ * the CLI (agon-impl.mjs) prepared configurator inputs inline — grid sizing
  * (ensureAuthoringLevelGenCapacity), hazard placement, resource mapping — and
  * reached around the persona. P2.2 relocates that pure logic into
  * personas/configurator/input-preparation.js and fronts it with an FSM-gated
@@ -26,7 +26,7 @@ async function makeConfigurator() {
 }
 
 // ---------------------------------------------------------------------------
-// prepareLevelGen — grid-sizing characterization (byte-for-byte with ak-impl)
+// prepareLevelGen — grid-sizing characterization (byte-for-byte with agon-impl)
 // ---------------------------------------------------------------------------
 
 test("prepareLevelGen sizes a single medium room with no hazards/floor tiles", async () => {

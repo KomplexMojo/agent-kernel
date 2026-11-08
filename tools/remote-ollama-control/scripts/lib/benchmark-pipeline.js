@@ -5,8 +5,8 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const { ROOT_DIR, parseEnvFile } = require('./config');
-const { validateContentResult } = require('./ak-compare');
-const { loadScenarioCatalog } = require('./ak-scenarios');
+const { validateContentResult } = require('./agon-compare');
+const { loadScenarioCatalog } = require('./agon-scenarios');
 const { MANIFEST_NAME, latestResultDir } = require('./content-gen-checkpoint');
 const { createGeneratedBuildResolver, combineBenchmarkQualification } = require('./execution-integration');
 const { executeLocalRun, planExecutionSchedule, runExecutionSchedule } = require('./execution-runner');
@@ -28,8 +28,8 @@ function pipelineComponents(sourceWorktree, injectedCatalog) {
   const sourceCatalog = require(path.join(libRoot, 'execution-catalog.js'));
   const sourceIntegration = require(path.join(libRoot, 'execution-integration.js'));
   const sourceRunner = require(path.join(libRoot, 'execution-runner.js'));
-  const sourceCompare = require(path.join(libRoot, 'ak-compare.js'));
-  const sourceScenarios = require(path.join(libRoot, 'ak-scenarios.js'));
+  const sourceCompare = require(path.join(libRoot, 'agon-compare.js'));
+  const sourceScenarios = require(path.join(libRoot, 'agon-scenarios.js'));
   return {
     catalog: sourceCatalog.loadExecutionCatalog(path.join(
       sourceWorktree, 'tools', 'remote-ollama-control', 'benchmarks', 'execution',
@@ -327,7 +327,7 @@ async function runContentGenerationProcess({ sourceWorktree, retentionDir, timeo
 async function scheduleExecution({ components, catalog, outputRoot, resolveBuild, executeExecution, sourceWorktree }) {
   const execute = executeExecution || ((request) => components.executeLocalRun(request, {
     catalog,
-    cliPath: path.join(sourceWorktree, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs'),
+    cliPath: path.join(sourceWorktree, 'packages', 'adapters-cli', 'src', 'cli', 'agon.mjs'),
   }));
   return components.runExecutionSchedule({ catalog, outputRoot, resolveBuild, execute });
 }
@@ -356,13 +356,13 @@ async function runBenchmarkPipeline({
   }
   const selectedRuntimeRoutes = trigger.modes.runtimeExecution
     ? validateRouteManifestDocument(runtimeRoutes || routeManifestDocument(
-      sourceWorktree, 'AK_BENCHMARK_RUNTIME_ROUTES',
+      sourceWorktree, 'AGON_BENCHMARK_RUNTIME_ROUTES',
     ), { kind: 'runtime', components, catalog: selectedCatalog, sourceWorktree, scenarioSetHash,
       requireEnvelope: !runtimeRoutes })
     : null;
   const selectedGeneratedRoutes = trigger.modes.generatedExecution
     ? validateRouteManifestDocument(generatedRoutes || routeManifestDocument(
-      sourceWorktree, 'AK_BENCHMARK_GENERATED_ROUTES',
+      sourceWorktree, 'AGON_BENCHMARK_GENERATED_ROUTES',
     ), { kind: 'generated', components, catalog: selectedCatalog, sourceWorktree, scenarioSetHash,
       requireEnvelope: !generatedRoutes })
     : null;

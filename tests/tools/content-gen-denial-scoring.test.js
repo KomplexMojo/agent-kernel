@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { scoreRun } = require("../../tools/remote-ollama-control/scripts/lib/ak-compare");
+const { scoreRun } = require("../../tools/remote-ollama-control/scripts/lib/agon-compare");
 
 // A scenario that is SUPPOSED to be denied must be scored like any other.
 //

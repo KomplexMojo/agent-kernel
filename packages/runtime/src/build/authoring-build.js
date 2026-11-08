@@ -6,7 +6,7 @@
  *     motivation patching.
  *   - runPlanBuild        (*-plan commands, P2.3.3): the plain build with neither.
  *
- * ak-impl previously reimplemented these pipelines inline (agentAuthoringCommand
+ * agon-impl previously reimplemented these pipelines inline (agentAuthoringCommand
  * and the five *-plan handlers): assemble the BuildSpec → [Configurator prep] →
  * orchestrateBuild → post-process. That is the same pipeline the kernel already
  * owns for llm-plan. This module hosts it so the CLI keeps only arg parsing,
@@ -87,7 +87,7 @@ function resolveCardMotivations(card) {
   return kinds;
 }
 
-// ak_create/ak_configure accept --delver/--warden "motivation=<kind>" but
+// agon_create/agon_configure accept --delver/--warden "motivation=<kind>" but
 // orchestrateBuild (packages/runtime) does not carry that value through onto
 // the actor records it writes into InitialStateArtifact — it is only used
 // authoring-side for cost calculation (hasNonStationaryMobilityMotivation /
@@ -298,7 +298,7 @@ export async function runAuthoringBuild(input = {}) {
 
   // CR.2 / #280 — the Configurator validates and locks the assembled config inside
   // orchestrateBuild, which every build path runs, so a config it rejects fails the build
-  // here as it does for `ak build`, `ak llm-plan` and the *-plan commands.
+  // here as it does for `agon build`, `agon llm-plan` and the *-plan commands.
 
   applyAuthoringSection(spec, authoring, commandName);
 

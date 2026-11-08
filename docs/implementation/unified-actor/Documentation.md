@@ -48,7 +48,7 @@ adaptActionToCore still requires from and to on the non-registry path.
 
 Counted `tier=` resource strings in the content-gen catalogs: 16, and
 each includes `dropRate`. The only `tier=` spec without `dropRate` is
-`ak-create-hazard-resource` "rejects missing dropRate", which expects
+`agon-create-hazard-resource` "rejects missing dropRate", which expects
 failure. Mapping those strings onto V3 holdings would drop loot or
 invent a quantity. Row 1 stays skipped. The 15-minute loop stopped.
 
@@ -170,9 +170,9 @@ invent-required pool denials (llm-plan/authoring), occupancy, proximityRadius,
 V1, tools/benchmark env red. Queue exhausted for lossless S; row 9 adversarial
 is later reviewer.
 
-## September 22 — leftover ak-golden Configurator artifacts
+## September 22 — leftover agon-golden Configurator artifacts
 
-ak-golden run/replay/inspect writes Configurator boxed terrain plus delver with
+agon-golden run/replay/inspect writes Configurator boxed terrain plus delver with
 health vitals; leftover basic stationary fixtures stay off the CLI path.
 Restoring basic fixtures failed invalid JSON state; restored. Typecheck 0.
 Wiring 36 vs 13. Leave llm-plan/pool denials, occupancy, proximityRadius, V1,
@@ -257,7 +257,7 @@ Typecheck 0. Wiring 36 vs 13.
 ## September 16 — leftover tile-barrier and V1 loot parse
 
 `--tile-barrier` places Configurator barrier actors (`blocksMovement`).
-Leftover CLI `tier`/`stat`/`dropRate` is rejected at parse. ak-errors 20;
+Leftover CLI `tier`/`stat`/`dropRate` is rejected at parse. agon-errors 20;
 create-hazard-resource 31/3 skipped; element-matrix 38. Leave
 llm-plan/warden-pool 0, overlay string-affinity, and MCP skipped stubs red.
 Typecheck 0. Wiring 36 vs 13.
@@ -278,11 +278,11 @@ Sandbox place rebuilds SimConfig/InitialState via Configurator boxed terrain
 and a unified roster. Leftover `tiles`/`legend`/`traits`/V1 loot are gone.
 Resource specs use V3 permanence. Wall-rim occupancy is rejected, so leftover
 x=0 OOB setup cannot stand on a wall. sandbox-tick 37 passed / 16 skipped;
-sandbox-entities 14 passed / 16 skipped including create→place→ak_run.
-`ak run --tile-wall/--tile-floor` mutate `layout.data.terrain`; leftover
+sandbox-entities 14 passed / 16 skipped including create→place→agon_run.
+`agon run --tile-wall/--tile-floor` mutate `layout.data.terrain`; leftover
 `--tile-barrier` still rejects category storage. `--actor` requires
 delver/warden/hazard/resource/barrier and rebuilds through Configurator.
-ak-errors 20 passed. Leave leftover `--vital-default` glue table red.
+agon-errors 20 passed. Leave leftover `--vital-default` glue table red.
 Typecheck 0. Wiring 36 vs 13.
 
 ## September 16 — leftover affinity-summary and 10-tick V3 resources
@@ -340,7 +340,7 @@ attacking→delver failed; restored. Typecheck 0. Wiring 36 vs 13.
 `mapHazards` assigns `hazard_N` when generated occupants omit id and still
 rejects missing affinity. cloneLayoutData strips leftover
 tiles/hazards/kinds/actors. CLI configurator runs object-placement then
-unified builders. Create-blocking (8), ak-build (15), ak-configurator (3)
+unified builders. Create-blocking (8), agon-build (15), agon-configurator (3)
 passed. Perturb requiring ids failed the new oracle; restored. Typecheck 0.
 Wiring 36 vs 13. Leave orchestrateBuild budget/category leftovers red.
 
@@ -413,7 +413,7 @@ collections. Runtime capture supplies registry/presentation/tick.
 Reattaching `hazards: []` failed the new oracle; restored. Annotator +
 world-state + owner guards: 11 files, 45 passed, 2 skipped; typecheck 0.
 
-Row 7 partial: `ak run` world-state checkpoints now consume Configurator
+Row 7 partial: `agon run` world-state checkpoints now consume Configurator
 unified artifacts and read hazard actors from `actors`, not `hazards[0]`.
 File-backed CLI/MCP fixtures with layout tiles/hazards remain. Checkpoints
 + no-authoring guard: 2 files, 8 passed.
@@ -478,7 +478,7 @@ unclaimed vital holding and default source durability. Mechanical requests still
 pass through. Unknown extras still throw. V1 `tier`/`stat` remains rejected so
 loot keys are not invented. Spreading CLI extras failed the new V3 oracle;
 restored. Configurator + four owner guards: 47 files, 219 passed, 1 skipped.
-Typecheck and diff check pass. Resource-only `ak create` now fails next on
+Typecheck and diff check pass. Resource-only `agon create` now fails next on
 layout `budgetScaffold`. No full-app green claim, commit, push, PR or benchmark.
 
 ## September 16 — CLI hazard affinity authoring
@@ -534,7 +534,7 @@ and ID-keyed movementStamina are not in this slice.
 
 The new mapHazards oracle failed before the projector existed. Restoring the raw
 spread failed that test; restored. Configurator + four owner guards: 46 files,
-214 passed, 1 skipped. Typecheck and diff check pass. Production `ak create`
+214 passed, 1 skipped. Typecheck and diff check pass. Production `agon create`
 now fails next on missing movementStamina (`undefined` rather than an ID map).
 No full-app green claim, commit, push, PR or benchmark run.
 
@@ -949,7 +949,7 @@ required before declaring the rewrite complete.
 Benchmark attribution for a future commit: ActorAction's declaration now lives
 in core and is wrapped by the unchanged runtime action envelope. Configurator's
 new normalizeActorDefinition method changes the available entity normalization
-surface. ak_create schema, buildArgv and CLI argument mapping have not been
+surface. agon_create schema, buildArgv and CLI argument mapping have not been
 migrated in this continuation. No benchmark execution is needed for these gates.
 
 ### September 10 continuation — UA.9b1 authored turn costs
@@ -996,11 +996,11 @@ Additional validation: a movement-cost Map incorrectly passed as an empty record
 A negative test reproduced this; Configurator now requires a plain object (null
 prototype allowed) and rejects Maps/Dates. Both cases pass after the fix.
 The first full run this continuation caught two new uninformative error messages
-in the ak_create error-detail guard. Added invalid entry/rule context rather than
+in the agon_create error-detail guard. Added invalid entry/rule context rather than
 expanding the allowlist. The targeted guard passed.
 
 Benchmark attribution: this continuation adds public Configurator normalization
-cost assembly but does not wire it into CLI/MCP normalization or change ak_create
+cost assembly but does not wire it into CLI/MCP normalization or change agon_create
 schema/buildArgv/argument mapping. No remote benchmark was run.
 
 ### Final verification for this continuation — September 10

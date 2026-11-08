@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ak-maze — play an agon level in the terminal.
+ * agon-maze — play an agon level in the terminal.
  *
  * The terminal is the only thing this file owns: argument parsing, raw-mode
  * keypresses, redraws. See README.md for usage.
@@ -25,10 +25,10 @@ import { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat
 import { DEFAULT_WEB_PORT, lanAddresses, startWebGame } from "./web.mjs";
 import { WINDOW_DEFAULT, windowSizeForTerminal } from "../../runtime/src/render/window-size.js";
 
-const USAGE = `Usage: ak-maze [options]
+const USAGE = `Usage: agon-maze [options]
 
   --level <name>          start at a bundled level (default: the first)
-  --run <dir>             play the level from an ak run directory
+  --run <dir>             play the level from an agon run directory
   --sim-config <path>     play a SimConfig artifact...
   --initial-state <path>  ...with this InitialState artifact
   --keys <keys>           non-interactive: apply these keys, print the final screen, exit
@@ -38,7 +38,7 @@ const USAGE = `Usage: ak-maze [options]
   --list                  list bundled levels
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
-  --ascii                 plain ASCII for terminals without box-drawing or Unicode glyphs: walls - | +, letter actors; also AK_ASCII=1
+  --ascii                 plain ASCII for terminals without box-drawing or Unicode glyphs: walls - | +, letter actors; also AGON_ASCII=1
   --no-fog                debug: show the whole map (play is always under fog of war)
   --window N              tiles square in the play window (default: sized to this terminal, odd, 7-15)
   --no-window             debug: show the whole board, not the 10x10 window around you
@@ -50,7 +50,7 @@ const USAGE = `Usage: ak-maze [options]
                           tile, an event log); evaluation only, off by default
   --lan                   with --web: also serve the local network, so a phone on the same
                           Wi-Fi can play (prints the address to open)
-  --watch                 with --run: watch the run \`ak run\` recorded there, tick by tick
+  --watch                 with --run: watch the run \`agon run\` recorded there, tick by tick
   --tick <n>              with --watch: open at this tick (default 0)
   --no-help               start with the key help hidden (? shows it)
   --session <path>        a game kept in a file across calls: replay it if it exists, then
@@ -298,7 +298,7 @@ export async function main(argv = process.argv.slice(2)) {
     const levelOptions = recorded?.level && !options.level && !options.runDir && !options.simConfigPath
       ? { ...options, level: recorded.level }
       : options;
-    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, window: windowFor(options), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, window: windowFor(options), glyphSet: options.glyphSet ?? (process.env.AGON_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
     if (recorded) await game.replay(recorded.capture);
   } catch (error) {
     console.error(error.message);
@@ -343,7 +343,7 @@ export async function main(argv = process.argv.slice(2)) {
     return 2;
   }
   if (!process.stdin.isTTY) {
-    console.error("ak-maze needs an interactive terminal (or pass --keys).");
+    console.error("agon-maze needs an interactive terminal (or pass --keys).");
     return 1;
   }
   runInteractive(game, { color: resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env }), recordPath: options.recordPath, realtimeMs: options.realtimeMs ?? null });
@@ -375,7 +375,7 @@ async function session(options) {
     const levelOptions = { ...options, ...(source?.runDir ? { runDir: source.runDir } : {}),
       ...(source?.simConfigPath ? { simConfigPath: source.simConfigPath, initialStatePath: source.initialStatePath } : {}),
       ...(source?.level ? { level: source.level } : {}) };
-    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, window: windowFor(options), glyphSet: options.glyphSet ?? (process.env.AK_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, window: windowFor(options), glyphSet: options.glyphSet ?? (process.env.AGON_ASCII ? "ascii" : "unicode"), showHelp: options.showHelp !== false });
     if (recorded) await game.replay(recorded.capture);
   } catch (error) {
     console.error(error.message);
@@ -415,7 +415,7 @@ async function session(options) {
 /** `--watch`: a recorded run, drawn with the game's screen; keys step through its ticks. */
 async function watch(options) {
   if (!options.runDir) {
-    console.error(`--watch needs --run <dir> (an \`ak run\` output directory).\n\n${USAGE}`);
+    console.error(`--watch needs --run <dir> (an \`agon run\` output directory).\n\n${USAGE}`);
     return 2;
   }
   const unsupported = ["level", "simConfigPath", "initialStatePath", "recordPath", "replayPath"].filter((key) => options[key] !== undefined);

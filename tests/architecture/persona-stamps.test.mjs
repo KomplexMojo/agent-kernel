@@ -12,9 +12,9 @@ import { test } from "vitest";
 import { personaStampViolations, REQUIRED_PERSONA_STAMPS } from "../../packages/runtime/src/contracts/persona-stamps.js";
 
 const ROOT = resolve(import.meta.dirname, "../..");
-const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const CREATED_AT = "2026-10-17T00:00:00.000Z";
-const ak = (args, env = {}) => spawnSync(process.execPath, [CLI, ...args],
+const agon = (args, env = {}) => spawnSync(process.execPath, [CLI, ...args],
   { cwd: ROOT, encoding: "utf8", env: { ...process.env, ...env } });
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 
@@ -48,7 +48,7 @@ const LEVEL_COMMANDS = [
 test.each(LEVEL_COMMANDS.map((args) => [args[0], args]))("%s stamps each level artifact with its persona", (_name, args) => {
   const dir = mkdtempSync(join(tmpdir(), "persona-stamps-"));
   try {
-    const result = ak([...args, "--created-at", CREATED_AT, "--out-dir", dir]);
+    const result = agon([...args, "--created-at", CREATED_AT, "--out-dir", dir]);
     assert.equal(result.status, 0, result.stderr);
     assertStamped(dir, args[0]);
   } finally {
@@ -59,17 +59,17 @@ test.each(LEVEL_COMMANDS.map((args) => [args[0], args]))("%s stamps each level a
 test("build --spec and llm-plan stamp their level artifacts and the Director's plan", () => {
   const dir = mkdtempSync(join(tmpdir(), "persona-stamps-build-"));
   try {
-    assert.equal(ak([...LEVEL_COMMANDS[0], "--created-at", CREATED_AT, "--out-dir", join(dir, "create")]).status, 0);
+    assert.equal(agon([...LEVEL_COMMANDS[0], "--created-at", CREATED_AT, "--out-dir", join(dir, "create")]).status, 0);
     const spec = readJson(join(dir, "create", "spec.json"));
     writeFileSync(join(dir, "spec.json"), JSON.stringify(spec));
-    const built = ak(["build", "--spec", join(dir, "spec.json"), "--out-dir", join(dir, "build")]);
+    const built = agon(["build", "--spec", join(dir, "spec.json"), "--out-dir", join(dir, "build")]);
     assert.equal(built.status, 0, built.stderr);
     assertStamped(join(dir, "build"), "build --spec");
 
-    const planned = ak(["llm-plan", "--scenario", "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+    const planned = agon(["llm-plan", "--scenario", "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
       "--model", "fixture", "--fixture", "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
       "--budget-loop", "--emit-intermediates", "--run-id", "run_stamps", "--created-at", CREATED_AT,
-      "--out-dir", join(dir, "llm")], { AK_LLM_LIVE: "1" });
+      "--out-dir", join(dir, "llm")], { AGON_LLM_LIVE: "1" });
     assert.equal(planned.status, 0, planned.stderr);
     assert.ok(existsSync(join(dir, "llm", "plan.json")));
     assertStamped(join(dir, "llm"), "llm-plan");
@@ -81,13 +81,13 @@ test("build --spec and llm-plan stamp their level artifacts and the Director's p
 test("receipts written outside a build are the Allocator's too (sandbox, run overrides)", () => {
   const dir = mkdtempSync(join(tmpdir(), "persona-stamps-receipts-"));
   try {
-    const sandbox = ak(["sandbox-create", "--budget", "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
+    const sandbox = agon(["sandbox-create", "--budget", "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
       "--run-id", "sbx", "--created-at", CREATED_AT, "--out-dir", join(dir, "sandbox")]);
     assert.equal(sandbox.status, 0, sandbox.stderr);
     assert.deepEqual(personaStampViolations(judgedArtifacts(join(dir, "sandbox"))), []);
 
-    assert.equal(ak([...LEVEL_COMMANDS[0], "--created-at", CREATED_AT, "--out-dir", join(dir, "level")]).status, 0);
-    const run = ak(["run", "--sim-config", join(dir, "level", "sim-config.json"),
+    assert.equal(agon([...LEVEL_COMMANDS[0], "--created-at", CREATED_AT, "--out-dir", join(dir, "level")]).status, 0);
+    const run = agon(["run", "--sim-config", join(dir, "level", "sim-config.json"),
       "--initial-state", join(dir, "level", "initial-state.json"), "--ticks", "0",
       "--actor", "extra_1,2,2,delver", "--out-dir", join(dir, "run")]);
     assert.equal(run.status, 0, run.stderr);
@@ -104,6 +104,6 @@ test("an artifact stamped by glue instead of its persona is a violation", () => 
 });
 
 // ## TODO: Test Permutations
-// - ak scenario stamps its level artifacts and plan.
+// - agon scenario stamps its level artifacts and plan.
 // - the sandbox bridge compile stamps its level artifacts.
 // - a caller-supplied --price-list keeps the caller's stamp (input, not a persona output).

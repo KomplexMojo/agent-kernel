@@ -5,7 +5,7 @@ const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 
 const ROOT = resolve(__dirname, '../..');
-const CLI = join(ROOT, 'packages/adapters-cli/src/cli/ak.mjs');
+const CLI = join(ROOT, 'packages/adapters-cli/src/cli/agon.mjs');
 const TRAVERSAL_FIXTURE_ROOT = join(ROOT, 'tests/fixtures/benchmarks/execution/traversal');
 const COMBAT_FIXTURE_ROOT = join(ROOT, 'tests/fixtures/benchmarks/execution/combat');
 const HAZARD_FIXTURE_ROOT = join(ROOT, 'tests/fixtures/benchmarks/execution/hazards');
@@ -770,7 +770,7 @@ test('committed execution builds pass the public CLI zero-tick smoke boundary', 
   for (const [scenarioId, fixtureRoot] of builds) {
     const { buildDir } = loadBuild(scenarioId, fixtureRoot);
     const safeScenarioId = scenarioId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const outDir = mkdtempSync(join(tmpdir(), `ak-${safeScenarioId}-`));
+    const outDir = mkdtempSync(join(tmpdir(), `agon-${safeScenarioId}-`));
     execFileSync(process.execPath, [CLI, 'run',
       '--sim-config', join(buildDir, 'sim-config.json'),
       '--initial-state', join(buildDir, 'initial-state.json'),

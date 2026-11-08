@@ -1,5 +1,5 @@
 /**
- * D10 — Integration tests for ak_sandbox_push_ui tool (M8)
+ * D10 — Integration tests for agon_sandbox_push_ui tool (M8)
  *
  * Tests:
  * - compileBuildSpecToGameplayBundle produces { spec, artifacts[] } with correct schemas
@@ -24,7 +24,7 @@ const SCHEMA_RESOURCE_BUNDLE = "agon/ResourceBundleArtifact";
 
 test("compileBuildSpecToGameplayBundle returns { spec, artifacts[] } with SimConfig and ResourceBundle", async () => {
   const { compileBuildSpecToGameplayBundle } = await import(
-    "../../packages/adapters-cli/src/cli/ak-impl.mjs"
+    "../../packages/adapters-cli/src/cli/agon-impl.mjs"
   );
   const specJson = await readFile(SPEC_PATH, "utf8");
   const buildSpec = JSON.parse(specJson);
@@ -50,7 +50,7 @@ test("compileBuildSpecToGameplayBundle returns { spec, artifacts[] } with SimCon
 
 test("compileBuildSpecToGameplayBundle bundle includes InitialStateArtifact (D2)", async () => {
   const { compileBuildSpecToGameplayBundle } = await import(
-    "../../packages/adapters-cli/src/cli/ak-impl.mjs?t=" + Date.now()
+    "../../packages/adapters-cli/src/cli/agon-impl.mjs?t=" + Date.now()
   );
   const specJson = await readFile(SPEC_PATH, "utf8");
   const buildSpec = JSON.parse(specJson);
@@ -61,12 +61,12 @@ test("compileBuildSpecToGameplayBundle bundle includes InitialStateArtifact (D2)
   assert.ok(initialState.meta?.id, "InitialStateArtifact must have meta.id");
 });
 
-test("ak_sandbox_push_ui tool handler returns MISSING_BUILD_SPEC when buildSpec omitted (D5)", async () => {
+test("agon_sandbox_push_ui tool handler returns MISSING_BUILD_SPEC when buildSpec omitted (D5)", async () => {
   const { sandboxUiTools } = await import(
     "../../packages/adapters-cli/src/mcp/tools/sandbox-ui.mjs?t=" + Date.now()
   );
-  const tool = sandboxUiTools.find((t) => t.name === "ak_sandbox_push_ui");
-  assert.ok(tool, "ak_sandbox_push_ui tool must be registered");
+  const tool = sandboxUiTools.find((t) => t.name === "agon_sandbox_push_ui");
+  assert.ok(tool, "agon_sandbox_push_ui tool must be registered");
 
   // Call without buildSpec
   const result = await tool.handler({});
@@ -74,7 +74,7 @@ test("ak_sandbox_push_ui tool handler returns MISSING_BUILD_SPEC when buildSpec 
   assert.equal(result.error, "MISSING_BUILD_SPEC");
 });
 
-test("ak_sandbox_push_ui tool handler returns SANDBOX_UI_NOT_CONNECTED when no clients connected", async () => {
+test("agon_sandbox_push_ui tool handler returns SANDBOX_UI_NOT_CONNECTED when no clients connected", async () => {
   // Import fresh to ensure no clients are connected
   const { sandboxUiTools } = await import(
     "../../packages/adapters-cli/src/mcp/tools/sandbox-ui.mjs?t=" + Date.now()
@@ -82,21 +82,21 @@ test("ak_sandbox_push_ui tool handler returns SANDBOX_UI_NOT_CONNECTED when no c
   const specJson = await readFile(SPEC_PATH, "utf8");
   const buildSpec = JSON.parse(specJson);
 
-  const tool = sandboxUiTools.find((t) => t.name === "ak_sandbox_push_ui");
+  const tool = sandboxUiTools.find((t) => t.name === "agon_sandbox_push_ui");
   const result = await tool.handler({ buildSpec, requireClient: true });
   assert.equal(result.ok, false);
   assert.equal(result.error, "SANDBOX_UI_NOT_CONNECTED");
   assert.ok(result.bridge, "must include bridge state in error response");
 });
 
-test("ak_sandbox_push_ui tool compiles and pre-stages bundle when requireClient: false", async () => {
+test("agon_sandbox_push_ui tool compiles and pre-stages bundle when requireClient: false", async () => {
   const { sandboxUiTools } = await import(
     "../../packages/adapters-cli/src/mcp/tools/sandbox-ui.mjs?t=" + Date.now()
   );
   const specJson = await readFile(SPEC_PATH, "utf8");
   const buildSpec = JSON.parse(specJson);
 
-  const tool = sandboxUiTools.find((t) => t.name === "ak_sandbox_push_ui");
+  const tool = sandboxUiTools.find((t) => t.name === "agon_sandbox_push_ui");
   const result = await tool.handler({ buildSpec, requireClient: false });
 
   assert.equal(result.ok, true, `expected ok:true but got: ${result.error ?? result.message}`);
@@ -110,7 +110,7 @@ test("ak_sandbox_push_ui tool compiles and pre-stages bundle when requireClient:
   assert.deepEqual(result.bridge.timedOutClientIds, []);
 });
 
-test.skip("ak_sandbox_push_ui reports SANDBOX_BRIDGE_START_FAILED when bridge startup port is occupied", () => {});
-test.skip("ak_sandbox_push_ui sends exact artifacts array to a connected browser client", () => {});
-test.skip("ak_sandbox_push_ui targetTab design calls loadGameplayBundle with design target", () => {});
-test.skip("ak_sandbox_push_ui targetTab gameplay calls loadGameplayBundle with gameplay target", () => {});
+test.skip("agon_sandbox_push_ui reports SANDBOX_BRIDGE_START_FAILED when bridge startup port is occupied", () => {});
+test.skip("agon_sandbox_push_ui sends exact artifacts array to a connected browser client", () => {});
+test.skip("agon_sandbox_push_ui targetTab design calls loadGameplayBundle with design target", () => {});
+test.skip("agon_sandbox_push_ui targetTab gameplay calls loadGameplayBundle with gameplay target", () => {});

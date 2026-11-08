@@ -1,7 +1,7 @@
 /**
  * Records a solver adapter's answers (#557): every answered request is appended to `path` as one
- * JSON line, `{ key, result }`, keyed by the runtime's `solverAnswerKey`. `ak create` turns it on
- * with `AK_SOLVER_RECORD=<file>`; the phone build reads the file so the browser, which has no
+ * JSON line, `{ key, result }`, keyed by the runtime's `solverAnswerKey`. `agon create` turns it on
+ * with `AGON_SOLVER_RECORD=<file>`; the phone build reads the file so the browser, which has no
  * solver, replays exactly what z3 decided here. The wrapped adapter's answers are unchanged.
  */
 import { appendFileSync } from "node:fs";

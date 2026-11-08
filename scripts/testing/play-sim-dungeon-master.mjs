@@ -1,6 +1,6 @@
 /**
  * #681 (AI L3): a dungeon-master seat, prototype. A model sets standing orders (goals, the same
- * strategies `ak_play_order` takes) for the level's `ai_controlled` wardens and hazards every
+ * strategies `agon_play_order` takes) for the level's `ai_controlled` wardens and hazards every
  * `cadence` ticks, and the Actor plays every move in between. The delver is the autonomous Actor.
  * Local runs only, never a merge gate.
  *
@@ -18,7 +18,7 @@
  * kills, turns (recorded only). Reported per run, never collapsed. The harness reads the true
  * state to score; the master never sees it.
  *
- *   node scripts/testing/play-sim-dungeon-master.mjs --level <ak create out-dir> [--model id]
+ *   node scripts/testing/play-sim-dungeon-master.mjs --level <agon create out-dir> [--model id]
  *     [--provider ollama|anthropic] [--cadence 5] [--budget 12] [--ticks 60] [--fake]
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -173,7 +173,7 @@ export async function runDungeonMaster({ level, master, cadence = DM_DEFAULTS.ca
   return { stoppedBy, ticks: session.status().tick, delverId, master: { calls: calls.length, callBudget, cadence, refused, log: calls }, score };
 }
 
-/** `{ simConfig, initialState }` from an `ak create` out-dir. */
+/** `{ simConfig, initialState }` from an `agon create` out-dir. */
 export function loadLevel(dir) {
   const read = (file) => JSON.parse(readFileSync(join(dir, file), "utf8"));
   return { simConfig: read("sim-config.json"), initialState: read("initial-state.json") };
@@ -194,7 +194,7 @@ function parseArgs(argv) {
     else if (arg === "--fake") options.fake = true;
     else throw new Error(`unknown argument ${arg}`);
   }
-  if (!options.level) throw new Error("--level <ak create out-dir> is required");
+  if (!options.level) throw new Error("--level <agon create out-dir> is required");
   return options;
 }
 

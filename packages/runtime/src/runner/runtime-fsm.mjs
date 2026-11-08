@@ -1872,7 +1872,7 @@ export function createFsmRuntime({
      *
      * Chartered Orchestrator work that did not exist: `dispatchEffect` marked IO-bound
      * effects `deferred`, the Moderator recorded the disposition, and the only thing
-     * downstream was `ak inspect`, which counted them. The records then went nowhere, and
+     * downstream was `agon inspect`, which counted them. The records then went nowhere, and
      * a run that dropped every deferral looked identical to one that had none.
      *
      * The sequencing is the charter's, not a convenience: this runs only after the ticks

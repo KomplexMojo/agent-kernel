@@ -10,7 +10,7 @@ const targetProperties = { outDir: pathSchema("Durable run directory."), runId: 
 const runFlags = [{ key: "input" }, { key: "objective" }, { key: "policy" }, { key: "runtimeProfile", flag: "runtime-profile" }, { key: "model" }, { key: "maxModelAttempts", flag: "max-model-attempts" }, { key: "outDir", flag: "out-dir" }, { key: "runId", flag: "run-id" }, { key: "createdAt", flag: "created-at" }];
 const targetFlags = [{ key: "outDir", flag: "out-dir" }, { key: "runId", flag: "run-id" }];
 const workflowTool = ({ action, description, properties, schema = {}, flags }) => ({
-  ...createTool({ name: `ak_workflow_${action}`, description, command: "workflow", inputSchema: { properties, ...schema }, buildArgs: (args) => [action, ...buildArgv(args, flags)] }), workflowAction: action,
+  ...createTool({ name: `agon_workflow_${action}`, description, command: "workflow", inputSchema: { properties, ...schema }, buildArgs: (args) => [action, ...buildArgv(args, flags)] }), workflowAction: action,
 });
 
 export const adaptiveWorkflowTools = [

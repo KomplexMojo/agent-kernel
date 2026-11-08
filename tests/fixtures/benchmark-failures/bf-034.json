@@ -11,7 +11,7 @@
     "emitIntermediates": true,
     "runId": "growth_shrine_001",
     "outDir": "./artifacts",
-    "text": "Using the agon skill and the agon MCP, create a growth shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "text": "Using the agon skill and the agon MCP, create a growth shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
     "room": [
       {
         "count": 1,

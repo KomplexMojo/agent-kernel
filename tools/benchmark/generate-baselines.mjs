@@ -18,19 +18,19 @@ const require = createRequire(import.meta.url);
 const {
   CATALOG_DIR,
   loadScenarioCatalog,
-} = require("../remote-ollama-control/scripts/lib/ak-scenarios.js");
+} = require("../remote-ollama-control/scripts/lib/agon-scenarios.js");
 
 const ROOT = resolve(process.env.AGENT_KERNEL_ROOT || process.cwd());
-const CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
 const OUTPUT_DIR = resolve(
-  process.env.AK_BENCHMARK_OUTPUT_DIR || join(ROOT, "tools/benchmark/out"),
+  process.env.AGON_BENCHMARK_OUTPUT_DIR || join(ROOT, "tools/benchmark/out"),
 );
 const ARTIFACT_ROOT = join(OUTPUT_DIR, "Reference Artifacts");
 const UNCONSTRAINED_BUDGET = 1_000_000;
-const VAULT_PREFIX = process.env.AK_BENCHMARK_VAULT_PREFIX
+const VAULT_PREFIX = process.env.AGON_BENCHMARK_VAULT_PREFIX
   || "/Users/darren/Documents/Obsidian/agent-kernel-vault";
-const ALLOW_VAULT_WRITE = process.env.AK_BENCHMARK_ALLOW_VAULT_WRITE === "1";
-const UPDATE_CATALOG = process.env.AK_BENCHMARK_UPDATE_CATALOG === "1";
+const ALLOW_VAULT_WRITE = process.env.AGON_BENCHMARK_ALLOW_VAULT_WRITE === "1";
+const UPDATE_CATALOG = process.env.AGON_BENCHMARK_UPDATE_CATALOG === "1";
 const PAYLOAD_ARRAY_FIELDS = ["room", "floorTile", "hazard", "resource", "delver", "warden"];
 
 function slugify(value) {
@@ -255,8 +255,8 @@ Prompt: ${scenario.prompt}
 
 ## Reference Result
 
-- MCP tool to call: \`ak_create\`
-- Reference generation path: \`ak.mjs create\` through the shared MCP argument mapping
+- MCP tool to call: \`agon_create\`
+- Reference generation path: \`agon.mjs create\` through the shared MCP argument mapping
 - Expected canonical outcome: \`${scenario.expectedOutcome}\`
 - Observed canonical outcome: \`${actualOutcome}\`
 - Run id: \`${scenario.runId}\`
@@ -329,7 +329,7 @@ export function generateBaselines() {
   if (!ALLOW_VAULT_WRITE && VAULT_PREFIX && OUTPUT_DIR.startsWith(VAULT_PREFIX)) {
     throw new Error(
       `Refusing to write benchmark output under the read-only vault path: ${OUTPUT_DIR}\n`
-      + "Set AK_BENCHMARK_ALLOW_VAULT_WRITE=1 to override.",
+      + "Set AGON_BENCHMARK_ALLOW_VAULT_WRITE=1 to override.",
     );
   }
   const catalog = loadScenarioCatalog();

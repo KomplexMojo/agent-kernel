@@ -52,10 +52,10 @@ test("cli blockchain adapter handles errors", async () => {
       if (body.method === "eth_chainId") {
         return { ok: true, json: async () => ({ result: "0x1" }) };
       }
-      if (body.method === "ak_mintCard") {
+      if (body.method === "agon_mintCard") {
         return { ok: true, json: async () => ({ result: { tokenId: "token_1", txHash: "0xmint" } }) };
       }
-      if (body.method === "ak_getMintedCard") {
+      if (body.method === "agon_getMintedCard") {
         return { ok: true, json: async () => ({ result: { tokenId: "token_1", card: { type: "delver" } } }) };
       }
       return { ok: true, json: async () => ({ result: null }) };

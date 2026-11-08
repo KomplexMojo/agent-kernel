@@ -18,7 +18,7 @@ the author specified.
 
 **Root cause (verified):**
 - `create` sets `built.spec.configurator.inputs.maximizeBudget = true` whenever a budget is supplied
-  — `packages/adapters-cli/src/cli/ak-impl.mjs:5109`.
+  — `packages/adapters-cli/src/cli/agon-impl.mjs:5109`.
 - Build orchestration probes remaining budget and calls `maximizeActorBudget` —
   `packages/runtime/src/build/orchestrate-build.js:1413-1429`.
 - `maximizeActorBudget` distributes *all* remaining tokens across *every* actor vital, including
@@ -33,7 +33,7 @@ authored vitals do not stay fixed. Two coherent intents:
   drift is expected. (Lowest code risk.)
 - **(B) Treat authored vitals as a floor, not a target** — only maximize vitals the author did *not*
   pin; or gate maximization behind an explicit `--maximize-budget` flag rather than auto-on whenever
-  a budget exists. Fix at `ak-impl.mjs:5109` (don't auto-set the flag) and/or
+  a budget exists. Fix at `agon-impl.mjs:5109` (don't auto-set the flag) and/or
   `budget-maximizer.js` (skip author-pinned vital keys). (Restores baseline-like spends; changes a
   user-visible default.)
 
@@ -91,7 +91,7 @@ same cost function instead of its private quadratic logic in `budget-maximizer.j
 had to emit all benchmark hazards as `blocking=false`.
 
 **Root cause (verified):**
-- `parseHazardSpec` accepts + parses `blocking` — `packages/adapters-cli/src/cli/ak-impl.mjs:847,885-887`.
+- `parseHazardSpec` accepts + parses `blocking` — `packages/adapters-cli/src/cli/agon-impl.mjs:847,885-887`.
 - Level layout turns blocking hazard cells into non-walkable cells
   (`packages/runtime/src/personas/configurator/level-layout.js:1320-1325`), applied before hazard
   validation (`:1847`).
@@ -120,8 +120,8 @@ Choke") want it. If product says no, do (B) so the failure is honest and immedia
 ## Architecture notes
 
 - D2/D3 are pure `runtime` (allocator/configurator) — no adapter/core boundary crossings.
-- D1 touches the adapter default (`ak-impl.mjs`) and `runtime` (budget-maximizer/orchestrate); the
+- D1 touches the adapter default (`agon-impl.mjs`) and `runtime` (budget-maximizer/orchestrate); the
   decision should be reflected in `packages/adapters-cli/README.md` if `--maximize-budget` becomes a
   flag.
-- D4 spans the CLI parser (`ak-impl.mjs`) and `runtime` level-layout; keep the parser permissive only
+- D4 spans the CLI parser (`agon-impl.mjs`) and `runtime` level-layout; keep the parser permissive only
   if layout supports it (option A).

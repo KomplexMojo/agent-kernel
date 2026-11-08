@@ -427,7 +427,7 @@ function extractResourcePriceEntries(resource) {
  * A hazard's affinity payload, in whichever shape it arrives.
  *
  * ⚠️ CR.9 M5 — THIS IS WHY HAZARD AFFINITIES WERE FREE ON THE REAL BUILD PATH. The pricer
- * tested `typeof hazard.affinity === "object"`, but `ak create --hazard
+ * tested `typeof hazard.affinity === "object"`, but `agon create --hazard
  * "affinity=fire;expression=emit"` records `{ affinity: "fire", expression: "emit",
  * affinityStacks: [{ kind, expression, stacks, targetType }] }` — the kind as a STRING
  * beside a stacks array. The object branch never matched, so the whole payload cost
@@ -484,7 +484,7 @@ function readHazardVitalCharges(hazard) {
   // three, so a schema-valid V1/V2 hazard from any producer other than the CLI would get
   // its vitals free — the same shape mismatch this function exists to end, one version
   // back. The CLI itself always stamps `_schemaVersion: 3`, so this is unreachable through
-  // `ak create`; it is fixed anyway because "unreachable today" is how the V3 gap survived.
+  // `agon create`; it is fixed anyway because "unreachable today" is how the V3 gap survived.
   if (!vitals || typeof vitals !== "object") {
     return ["mana", "durability"]
       .map((key) => ({ key, points: Number.isInteger(hazard?.[key]) ? hazard[key] : 0, regen: 0 }))

@@ -24,7 +24,7 @@
  *
  * It is not strengthened in place because it CANNOT be, at this seam: a CLI run
  * writes no world-state artifact at all (finding F11). `run` emits tick-frames,
- * effects, action and summary logs, and `ak_show_state` / `renderAscii`
+ * effects, action and summary logs, and `agon_show_state` / `renderAscii`
  * (packages/adapters-cli/src/tick-session.mjs) rebuild core from
  * `initial-state.json` and render base tiles — so they report tick 0 regardless
  * of the session cursor, and never draw actors. There is nothing on disk that
@@ -45,11 +45,11 @@ const { mkdtempSync, existsSync, rmSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const os = require("node:os");
 
-let ak_impl;
+let agon_impl;
 
 async function loadImpl() {
-  ak_impl ??= await import("../../packages/adapters-cli/src/cli/ak-impl.mjs");
-  return ak_impl;
+  agon_impl ??= await import("../../packages/adapters-cli/src/cli/agon-impl.mjs");
+  return agon_impl;
 }
 
 function readJson(filePath) {
@@ -90,7 +90,7 @@ describe("CLI create+run moves every actor (kernel command-core surface)", () =>
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-cli-multi-actor-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-multi-actor-"));
   });
 
   afterAll(() => {
@@ -159,7 +159,7 @@ describe("CLI create+run multi-actor permutations", () => {
   let permOutRoot;
 
   beforeAll(() => {
-    permOutRoot = mkdtempSync(join(os.tmpdir(), "ak-cli-multi-actor-perm-"));
+    permOutRoot = mkdtempSync(join(os.tmpdir(), "agon-cli-multi-actor-perm-"));
   });
 
   afterAll(() => {

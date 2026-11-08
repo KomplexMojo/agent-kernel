@@ -47,7 +47,7 @@ function setupRemote(root) {
 }
 
 test("local Ubuntu install is idempotent and deploys unprivileged user artifacts", () => {
-  const home = mkdtempSync(join(tmpdir(), "ak-benchmark-install-"));
+  const home = mkdtempSync(join(tmpdir(), "agon-benchmark-install-"));
   installFixture(home);
   const packageDir = join(home, "remote-ollama-control");
   const config = join(home, ".config/agon-benchmark/benchmark-agent.env");
@@ -57,9 +57,9 @@ test("local Ubuntu install is idempotent and deploys unprivileged user artifacts
   assert.equal(existsSync(join(packageDir, "bin/agon-benchmark")), true);
   assert.equal(existsSync(service), true);
   assert.equal(existsSync(timer), true);
-  writeFileSync(config, `${readFileSync(config, "utf8")}\nAK_OPERATOR_MARKER=preserve\n`);
+  writeFileSync(config, `${readFileSync(config, "utf8")}\nAGON_OPERATOR_MARKER=preserve\n`);
   installFixture(home);
-  assert.match(readFileSync(config, "utf8"), /AK_OPERATOR_MARKER=preserve/);
+  assert.match(readFileSync(config, "utf8"), /AGON_OPERATOR_MARKER=preserve/);
   assert.doesNotMatch(readFileSync(config, "utf8"), /(?:TOKEN|PASSWORD|PRIVATE_KEY)=\S+/);
 });
 
@@ -68,7 +68,7 @@ test("local Ubuntu install is idempotent and deploys unprivileged user artifacts
 // correct; anywhere else it installs outside the caller's HOME. Two suite failures
 // came from exactly that, so the override seam is pinned rather than assumed.
 test("the install target follows the named env file, not whatever config is on the machine", () => {
-  const home = mkdtempSync(join(tmpdir(), "ak-benchmark-envfile-"));
+  const home = mkdtempSync(join(tmpdir(), "agon-benchmark-envfile-"));
   const target = join(home, "explicit-package-dir");
   const envFile = join(home, "llm-host.env");
   writeFileSync(envFile, `LLM_REMOTE_PACKAGE_DIR=${target}\n`);
@@ -95,7 +95,7 @@ test("the install target follows the named env file, not whatever config is on t
 
   assert.equal(existsSync(join(target, "bin/agon-benchmark")), true);
   // And with no env file in scope it falls back to HOME rather than the repo's.
-  const bare = mkdtempSync(join(tmpdir(), "ak-benchmark-noenv-"));
+  const bare = mkdtempSync(join(tmpdir(), "agon-benchmark-noenv-"));
   installFixture(bare);
   assert.equal(existsSync(join(bare, "remote-ollama-control/bin/agon-benchmark")), true);
 });
@@ -105,7 +105,7 @@ test("the install target follows the named env file, not whatever config is on t
 // after install died on "syntax error near unexpected token `newline'", which
 // says nothing about what actually needs filling in.
 test("the installed config is sourceable before the operator edits it", () => {
-  const home = mkdtempSync(join(tmpdir(), "ak-benchmark-sourceable-"));
+  const home = mkdtempSync(join(tmpdir(), "agon-benchmark-sourceable-"));
   installFixture(home);
   const config = join(home, ".config/agon-benchmark/benchmark-agent.env");
 
@@ -115,7 +115,7 @@ test("the installed config is sourceable before the operator edits it", () => {
   // And sourcing it must not leave a placeholder standing in for a real value.
   const exported = execFileSync("bash", ["-c", `set -a; . "${config}"; set +a; env`], { encoding: "utf8" });
   const placeholders = exported.split("\n")
-    .filter((line) => /^AK_BENCHMARK_/.test(line) && /[<>]/.test(line));
+    .filter((line) => /^AGON_BENCHMARK_/.test(line) && /[<>]/.test(line));
   assert.deepEqual(placeholders, [], "a placeholder survived into the environment as a real value");
 });
 
@@ -133,30 +133,30 @@ test("systemd timer delegates to one internal lock and runbook documents lifecyc
   assert.match(service, /EnvironmentFile=-%h\/\.config\/agon-benchmark\/benchmark-agent\.env/);
   assert.match(timer, /Unit=agon-benchmark\.service/);
   assert.equal((`${service}\n${timer}\n${shim}`.match(/flock/g) || []).length, 0);
-  assert.match(example, /AK_BENCHMARK_DRY_RUN=1/);
+  assert.match(example, /AGON_BENCHMARK_DRY_RUN=1/);
   assert.doesNotMatch(example, /\/Users\/|\/home\/darren|(?:TOKEN|PASSWORD|PRIVATE_KEY)=\S+/);
   assert.notEqual(
-    /AK_BENCHMARK_SOURCE_MIRROR=([^\n]+)/.exec(example)?.[1],
-    /AK_BENCHMARK_STATE_DIR=([^\n]+)/.exec(example)?.[1],
+    /AGON_BENCHMARK_SOURCE_MIRROR=([^\n]+)/.exec(example)?.[1],
+    /AGON_BENCHMARK_STATE_DIR=([^\n]+)/.exec(example)?.[1],
   );
   assert.match(readme, /systemctl --user disable --now agon-benchmark\.timer/);
   assert.match(readme, /systemctl --user enable --now agon-benchmark\.timer/);
 });
 
 test("installed dry-run fetches and classifies without state, publication, or GPU execution", () => {
-  const home = mkdtempSync(join(tmpdir(), "ak-benchmark-dry-run-"));
+  const home = mkdtempSync(join(tmpdir(), "agon-benchmark-dry-run-"));
   const remote = setupRemote(home);
   installFixture(home);
   const envFile = join(home, ".config/agon-benchmark/benchmark-agent.env");
   writeFileSync(envFile, [
-    `AK_BENCHMARK_SOURCE_REMOTE=${remote}`,
-    `AK_BENCHMARK_RESULTS_REMOTE=${remote}`,
-    "AK_BENCHMARK_SOURCE_REF=main",
-    "AK_BENCHMARK_RESULT_BRANCH=benchmark-results",
-    "AK_BENCHMARK_SCENARIO_HASH=scenario-a",
-    "AK_BENCHMARK_MATRIX_HASH=matrix-a",
-    "AK_BENCHMARK_EXECUTION_SUITE_HASH=execution-a",
-    "AK_BENCHMARK_DRY_RUN=1",
+    `AGON_BENCHMARK_SOURCE_REMOTE=${remote}`,
+    `AGON_BENCHMARK_RESULTS_REMOTE=${remote}`,
+    "AGON_BENCHMARK_SOURCE_REF=main",
+    "AGON_BENCHMARK_RESULT_BRANCH=benchmark-results",
+    "AGON_BENCHMARK_SCENARIO_HASH=scenario-a",
+    "AGON_BENCHMARK_MATRIX_HASH=matrix-a",
+    "AGON_BENCHMARK_EXECUTION_SUITE_HASH=execution-a",
+    "AGON_BENCHMARK_DRY_RUN=1",
     "",
   ].join("\n"));
   const result = spawnSync(join(home, "bin/agon-benchmark"), [], {

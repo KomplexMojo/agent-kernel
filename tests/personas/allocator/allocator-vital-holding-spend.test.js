@@ -1,7 +1,7 @@
 /**
- * #242 — a placed resource's vital grant is charged on the `ak create` path.
+ * #242 — a placed resource's vital grant is charged on the `agon create` path.
  *
- * `ak create` hands the Allocator resources as placed actors whose grant is a
+ * `agon create` hands the Allocator resources as placed actors whose grant is a
  * `vital` holding. Only the actor's own body was priced, so +5 permanent health
  * and +2 regen were free. The holding now prices exactly as the resource-spec
  * path does: the delta at its permanence tier, the regen per tick.

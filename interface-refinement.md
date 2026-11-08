@@ -426,7 +426,7 @@ and must be sanity-checked against the largest scenario in M5.
 
 **Delivered:**
 - `packages/ui-web/src/views/entity-sprite-textures.js` replaces `actor-medallion-textures.js`
-  (deleted). Texture key is `ak-sprite:{size}:{role}:{affinity}`.
+  (deleted). Texture key is `agon-sprite:{size}:{role}:{affinity}`.
 - Hazards and resources now go through the composer. They previously drew bundle PNGs via
   `resolveHazardAssetId`, so the board would have mixed the new language for actors with retired
   art for everything else.

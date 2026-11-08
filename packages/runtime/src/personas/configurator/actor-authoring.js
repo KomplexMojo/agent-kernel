@@ -2,7 +2,7 @@
  * `configurator/actors` — actor-config authoring, moved out of CLI glue 2026-08-18
  * (local-codex/Plan.md §POST-AM/Z).
  *
- * `ak-impl.mjs`'s `parseDelverSpec` used to default a missing motivation to
+ * `agon-impl.mjs`'s `parseDelverSpec` used to default a missing motivation to
  * `"attacking"`, validate affinity/motivation/setup-mode against the chartered enums,
  * and assemble the delver roster entry itself — domain logic in adapter glue. The CLI's
  * `;`-delimited field splitting and its generic value-format tokenizers
@@ -177,7 +177,7 @@ export function authorDelverCandidate({
 }
 
 /**
- * Authors an actor card's affinity slots and starting equips (`ak create` delver/warden
+ * Authors an actor card's affinity slots and starting equips (`agon create` delver/warden
  * `slots=` and `equip=`), as the unified actor fields core reads. Returns only the fields
  * the author set, so a card without them is unchanged.
  *

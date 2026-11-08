@@ -12,7 +12,7 @@ const {
 const ROOT = resolve(__dirname, '../..');
 
 test('canonical evaluator witnesses expose qualification readiness without fabricated results', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-validation-test-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-validation-test-'));
   const record = await runCanonicalFixtureValidation({ outputRoot });
 
   assert.equal(record.schemaVersion, 'agon-execution-validation/v2');
@@ -71,7 +71,7 @@ test('validation witness artifacts flow through the real execution evaluator', (
 });
 
 test('corpus integration binds all committed/generated routes before deterministic scheduling', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-corpus-test-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-corpus-test-'));
   const record = await runCorpusIntegrationValidation({
     outputRoot,
     sourceWorktree: ROOT,
@@ -94,7 +94,7 @@ test('corpus integration binds all committed/generated routes before determinist
 });
 
 test('a complete but semantically misrouted runtime build fails before scheduling', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-corpus-misroute-'));
+  const outputRoot = mkdtempSync(join(tmpdir(), 'agon-execution-corpus-misroute-'));
   const manifest = JSON.parse(readFileSync(join(
     ROOT, 'tools/remote-ollama-control/benchmarks/execution/runtime-build-routes.json',
   ), 'utf8'));

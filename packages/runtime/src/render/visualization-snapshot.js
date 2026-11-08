@@ -215,7 +215,7 @@ export async function createVisualizationSnapshot({
   const meta = {
     id: `vs_${runId}_t${tick}`,
     runId,
-    producedBy: "ak-tick",
+    producedBy: "agon-tick",
   };
   if (typeof clock === "function") {
     meta.createdAt = clock();

@@ -10,7 +10,7 @@ const {
   loadAbstractPlanCatalog,
   mapAbstractPlanToCreateArgs,
 } = require("../../tools/remote-ollama-control/scripts/lib/abstract-plan");
-const { loadScenarioCatalog } = require("../../tools/remote-ollama-control/scripts/lib/ak-scenarios");
+const { loadScenarioCatalog } = require("../../tools/remote-ollama-control/scripts/lib/agon-scenarios");
 const {
   comparePairedAttempts,
   validateComparisonMetadata,
@@ -88,7 +88,7 @@ test("deterministic mapping places affinities on hazards and never on rooms", ()
 test("mapped reference plan compiles and executes through the production create command", async (context) => {
   const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
   const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
-  const outputRoot = mkdtempSync(join(tmpdir(), "ak-abstract-plan-exec-"));
+  const outputRoot = mkdtempSync(join(tmpdir(), "agon-abstract-plan-exec-"));
   context.onTestFinished(() => rmSync(outputRoot, { recursive: true, force: true }));
   const scenario = loadAbstractPlanCatalog().scenarios[0];
   const outDir = join(outputRoot, "create");
@@ -96,7 +96,7 @@ test("mapped reference plan compiles and executes through the production create 
     outDir,
     runId: "abstract-plan-execution-test",
   });
-  const cli = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+  const cli = join(ROOT, "packages/adapters-cli/src/cli/agon.mjs");
   const result = spawnSync(process.execPath, [cli, "create", ...buildArgv(mapped, authoringSpec)], {
     cwd: ROOT,
     encoding: "utf8",
@@ -226,7 +226,7 @@ test("parallel hidden mappings reconstruct every canonical content payload", () 
 });
 
 test("parallel abstract catalog rejects a stale content-catalog identity", (context) => {
-  const outputRoot = mkdtempSync(join(tmpdir(), "ak-abstract-stale-"));
+  const outputRoot = mkdtempSync(join(tmpdir(), "agon-abstract-stale-"));
   context.onTestFinished(() => rmSync(outputRoot, { recursive: true, force: true }));
   const document = JSON.parse(readFileSync(join(
     REMOTE_CONTROL_ROOT, "benchmarks/abstract-plan/parallel.json",

@@ -63,7 +63,7 @@ and the outcome is whatever those rules produce. Nothing is decided off the boar
 - **An enforced economy.** Every actor, ability and room has a token price. The Allocator is the only owner of
   pricing, and a level that cannot clear a budget receipt is flagged. Games get balanced content generation for free.
 - **Levels from intent.** Describe a dungeon in plain terms (budget, affinities, motivations), and Agon authors,
-  prices and validates it. The `ak` CLI and the MCP tools do the same for AI harnesses.
+  prices and validates it. The `agon` CLI and the MCP tools do the same for AI harnesses.
 - **A rendering seam.** Agon decides *what* is on the board and hands a client a draw model, an HUD model and a
   ResourceBundle. It never draws. A terminal, a phone app or a graphical client can all sit on the same data.
 - **Distributed by design.** Artifacts are versioned and content-addressable, ready for IPFS and chain adapters, so
@@ -77,10 +77,10 @@ Primordial is built *on* Agon and keeps to its own side of a hard line.
 |---|---|---|
 | **Rules** | Affinities, vitals, motivations, combat, fog of war, turn order | None. It plays by Agon's |
 | **Economy** | Token pricing, budgets, receipts (the Allocator) | None. Content is priced by Agon |
-| **Levels** | Generates and validates them (`ak create`) | Chooses which to ship, and its own scenarios and story |
+| **Levels** | Generates and validates them (`agon create`) | Chooses which to ship, and its own scenarios and story |
 | **Opponents** | Actor decisions, tactics, temperament, solver hooks | Decides how opponents are presented |
 | **Look and sound** | Draw model, HUD model, ResourceBundle (data only) | Palette, glyphs, sprites, animation, audio |
-| **Clients** | A reference terminal client (`ak play`) | The phone app and graphical client |
+| **Clients** | A reference terminal client (`agon play`) | The phone app and graphical client |
 | **Lore** | None | The Primordial Dungeon and its mythology |
 
 In practice: when Primordial shows a fire wizard casting at a warden, Agon decided that the cast was legal, what it
@@ -102,7 +102,7 @@ Each public module is a subpath, for example
 `@agon-engine/engine/runtime/render/client-surface.js`. The full list, and the rules for how it may change, are in
 [`docs/engine-api.md`](docs/engine-api.md). A typical game:
 
-1. Generates levels with `ak create` (or the `ak_create` MCP tool), choosing budgets and affinities.
+1. Generates levels with `agon create` (or the `agon_create` MCP tool), choosing budgets and affinities.
 2. Plays them through a session and renders each turn from the draw model.
 3. Dresses the result with its own ResourceBundle: sprites, colours, sounds.
 4. Sends the player's choices back to the session as commands.
@@ -118,7 +118,7 @@ Everything gameplay-shaped stays in Agon, and everything expressive stays in the
 ### Authoring through an AI harness
 
 With `pnpm run mcp:serve` connected to a harness (Cursor, Claude Code, Codex, and similar), level authoring is plain
-language. The harness calls tools such as `ak_create`, `ak_configure`, `ak_run` and `ak_inspect`; the Allocator still
+language. The harness calls tools such as `agon_create`, `agon_configure`, `agon_run` and `agon_inspect`; the Allocator still
 enforces the token budget.
 
 > Create a new large dungeon using a 50K token budget. Delver affinities should focus on water. Warden and trap affinities should focus on fire.
@@ -169,7 +169,7 @@ pnpm run mcp:serve
 the private Primordial repository.
 
 ```bash
-node packages/adapters-cli/src/cli/ak.mjs create \
+node packages/adapters-cli/src/cli/agon.mjs create \
   --room "size=small;count=1" \
   --delver "count=1;affinity=fire;motivation=attacking" \
   --warden "count=1;affinity=dark;motivation=defending"
@@ -190,7 +190,7 @@ adapters / ui-ascii  →  runtime (personas)  →  core-ts
 | `packages/core-ts` | Deterministic simulation. No IO, no clock, no imports outside itself. |
 | `packages/runtime` | Persona FSMs, tick orchestration, artifact contracts, effect routing. |
 | `packages/adapters-*` | CLI, browser, fixture, and external IO. |
-| `packages/ui-ascii` | Reference terminal client (`ak play`, run viewer). |
+| `packages/ui-ascii` | Reference terminal client (`agon play`, run viewer). |
 
 Boundary data uses versioned schemas in `packages/runtime/src/contracts/artifacts.ts`.
 

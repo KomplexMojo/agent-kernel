@@ -1,5 +1,5 @@
-// Bounded configuration-permutation matrix for `ak create` (dry-run or full) plus an optional
-// `ak run` follow-on, driven by run-configuration-permutation-sweep.mjs.
+// Bounded configuration-permutation matrix for `agon create` (dry-run or full) plus an optional
+// `agon run` follow-on, driven by run-configuration-permutation-sweep.mjs.
 //
 // Not a full Cartesian product (10 affinities x 4 expressions x 11 motivations x counts x
 // warden/resource combos would run into the thousands) — this is a one-axis-at-a-time sweep off a
@@ -24,7 +24,7 @@ export const NON_CONTROL_MOTIVATIONS = [
 // The control family (packages/runtime/src/contracts/game-elements.js GAME_MOTIVATION_FAMILIES)
 // has exactly one kind. Player-controlled actors are documented (Actor persona README, "Player-
 // controlled dynamic actors") as needing streamed simulation playback to actually be driven, so a
-// plain ak_run pass over this axis is expected to authoring-validate cleanly but act as an inert
+// plain agon_run pass over this axis is expected to authoring-validate cleanly but act as an inert
 // actor at the run layer — informational, not a failure signal, same caveat as the axis-B
 // cognition-only motivations already noted in mcp-harness-run-through.md.
 export const CONTROL_MOTIVATIONS = ["user_controlled"];
@@ -114,7 +114,7 @@ export const MATRIX = [
   // rationale as axis C's diagonal hazard positions but for an actor rather than a static hazard.
   // create/configure has no x/y field for delver/warden (level-gen auto-places actors), so this
   // reuses E1's exact authored config and repositions the auto-placed warden at RUN time via
-  // `ak run --actor <id>,<x>,<y>,<category>` (run-configuration-permutation-sweep.mjs's actorOverride hook)
+  // `agon run --actor <id>,<x>,<y>,<category>` (run-configuration-permutation-sweep.mjs's actorOverride hook)
   // — id "card_warden_1-1" confirmed from E1's own initial-state.json (single warden, count=1).
   // Corners are absolute grid coordinates of the current default room R1 (12x12 grid, room at
   // (3,2), 5 wide x 8 high, so walkable x 3..7, y 2..9). Re-read sim-config.json if the default

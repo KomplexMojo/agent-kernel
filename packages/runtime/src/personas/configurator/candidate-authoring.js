@@ -102,7 +102,7 @@ export function hasNonStationaryMobilityMotivation(motivations = []) {
 // computeNextStaminaAfterRegen clamps to max — `min(current + regen, max)` — so
 // with `max === 0` the regen never accumulates and stamina is permanently 0.
 // core's applyMove then rejects every move with InsufficientStamina. The result:
-// no actor authored through `ak create` could move, ever, in any run (F12).
+// no actor authored through `agon create` could move, ever, in any run (F12).
 //
 // The rule was written against one SPELLING of the requirement (regen) rather
 // than the capability it exists to guarantee (can this actor take a step?), so
@@ -173,13 +173,13 @@ export function applyActorViabilityFloor(vitals) {
   return vitals;
 }
 
-// The presets whose cards `ak create` raises to the floor: the actor cards. Hazards,
+// The presets whose cards `agon create` raises to the floor: the actor cards. Hazards,
 // resources and barriers are authored on their own paths and never floored.
 const VIABILITY_FLOOR_CATEGORIES = Object.freeze(["delver", "warden"]);
 
 /**
  * Report, never raise: every delver or warden vital below ACTOR_VIABILITY_FLOOR in a
- * loaded InitialState. `ak create` applies the floor while authoring (above); a
+ * loaded InitialState. `agon create` applies the floor while authoring (above); a
  * hand-written level loaded for play is checked with this instead and played as
  * written. A vital the actor lacks counts as 0.
  * Returns `[{ actorId, vital, field, value, floor }]`, empty when all clear.
@@ -236,7 +236,7 @@ export function reportActorStrategies(initialState) {
  * Apply the requirements an actor's MOTIVATION implies to its vitals, in place.
  *
  * The card-level helpers above only run inside budget-driven candidate
- * enumeration. A plain `ak create` with no budget never enters that path, so its
+ * enumeration. A plain `agon create` with no budget never enters that path, so its
  * actors kept `DEFAULT_VITALS` — stamina {0,0,0} — and could not move (F12).
  * Motivation is not known until it is patched onto the actor record, so this is
  * the funnel every authoring path passes through once the kind is resolved.
@@ -370,7 +370,7 @@ const AUTHORED_ACTOR_FLOORS = Object.freeze([
 ]);
 
 /**
- * #371 — every floor `ak create` applies to an authored actor, in order, in place, and what
+ * #371 — every floor `agon create` applies to an authored actor, in order, in place, and what
  * each did to a value someone set. A value still at DEFAULT_VITALS counts as unset and is
  * filled silently; one that differs and is raised is reported, never changed in the dark.
  * Returns `[{ actorId, vital, field, set, built, floor }]` for the max and regen fields.

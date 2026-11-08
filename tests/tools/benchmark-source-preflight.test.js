@@ -19,7 +19,7 @@ function git(cwd, args) {
 }
 
 function setupRepository() {
-  const root = mkdtempSync(join(tmpdir(), 'ak-benchmark-source-'));
+  const root = mkdtempSync(join(tmpdir(), 'agon-benchmark-source-'));
   const remote = join(root, 'remote.git');
   const operator = join(root, 'operator');
   git(root, ['init', '--bare', remote]);

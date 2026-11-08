@@ -1,6 +1,6 @@
 /**
  * A solver adapter that answers from answers recorded where z3 ran (#557), for the phone app,
- * which has no solver. `answers` is `[{ key, result }]` as `AK_SOLVER_RECORD` wrote them. A
+ * which has no solver. `answers` is `[{ key, result }]` as `AGON_SOLVER_RECORD` wrote them. A
  * question with no recorded answer is deferred, so the persona's own fallback decides it, and
  * the build's solver decisions say so. Deterministic: the same answers give the same build.
  */

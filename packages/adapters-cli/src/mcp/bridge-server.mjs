@@ -2,7 +2,7 @@
  * M8 — Sandbox to UI bridge server
  *
  * Manages a WebSocket server bound to 127.0.0.1 only.  Browser clients
- * connect, identify themselves with ak.uiReady.v1, and receive compiled
+ * connect, identify themselves with agon.uiReady.v1, and receive compiled
  * gameplay bundles pushed via pushGameplayBundle().
  *
  * Exports:
@@ -79,7 +79,7 @@ export async function startSandboxBridgeServer({ host = LOOPBACK, port } = {}) {
   }
 
   const httpServer = createServer();
-  const wss = new WebSocketServer({ server: httpServer, path: "/ak-sandbox" });
+  const wss = new WebSocketServer({ server: httpServer, path: "/agon-sandbox" });
 
   wss.on("connection", (ws) => {
     let clientId = null;
@@ -92,7 +92,7 @@ export async function startSandboxBridgeServer({ host = LOOPBACK, port } = {}) {
         return; // ignore unparseable frames
       }
 
-      if (msg?.type === "ak.uiReady.v1") {
+      if (msg?.type === "agon.uiReady.v1") {
         clientId = msg.clientId || makeClientId();
         _clients.set(clientId, {
           ws,
@@ -154,10 +154,10 @@ export function getSandboxBridgeState() {
 }
 
 /**
- * Push an ak.gameplayBundle.v1 message to all connected clients.
+ * Push an agon.gameplayBundle.v1 message to all connected clients.
  * Stores the message for a 10-second replay window.
  *
- * @param {object} message  Full ak.gameplayBundle.v1 envelope
+ * @param {object} message  Full agon.gameplayBundle.v1 envelope
  * @returns {Promise<{ deliveredClientIds: string[], timedOutClientIds: string[] }>}
  */
 export async function pushGameplayBundle(message) {
@@ -184,12 +184,12 @@ export async function pushGameplayBundle(message) {
         let msg;
         try { msg = JSON.parse(raw.toString("utf8")); } catch { return; }
         if (
-          (msg?.type === "ak.bundleLoaded.v1" || msg?.type === "ak.bundleLoadFailed.v1")
+          (msg?.type === "agon.bundleLoaded.v1" || msg?.type === "agon.bundleLoadFailed.v1")
           && msg?.messageId === message.id
         ) {
           clearTimeout(timer);
           ws.removeListener("message", onMessage);
-          if (msg.type === "ak.bundleLoaded.v1") {
+          if (msg.type === "agon.bundleLoaded.v1") {
             deliveredClientIds.push(clientId);
           } else {
             timedOutClientIds.push(clientId);

@@ -327,7 +327,7 @@ export function createLlmRound({
     //
     // ⚠️ THIS RUNG WAS DOCUMENTED IN M3 AND NOT IMPLEMENTED. The 8-case differential did
     // not catch it, because none of its scripts produced a response that sanitizing could
-    // rescue — every case either parsed cleanly or was unsalvageable. `ak-llm-plan.test.js`
+    // rescue — every case either parsed cleanly or was unsalvageable. `agon-llm-plan.test.js`
     // ("resilient mode sanitizes invalid affinities") caught it the moment kernel's call
     // sites were migrated. A differential only covers the cases someone thought to script;
     // that is the same lesson as the caller list being undercounted three times.
