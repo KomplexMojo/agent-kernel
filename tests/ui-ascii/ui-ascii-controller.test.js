@@ -1,6 +1,6 @@
 /**
  * The game controller's touch-client surface (game.js): slots as buttons, tuning, list choices and
- * the screen in parts. The phone app in Primordial drives these through @agon/ui-ascii;
+ * the screen in parts. The phone app in Primordial drives these through @agon-engine/ui-ascii;
  * its page, build and report tests moved with it (#744).
  */
 const assert = require("node:assert/strict");

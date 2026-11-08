@@ -704,7 +704,7 @@ recipe and power ladders play, and the game's playtest launcher and phone app bu
 turns a scenario and a seed into `ak create` arguments: `scenarioArgs`, `createArgs`, `playerDelverSpec`,
 `affinitiesForSeed` (the seed fills `{A}`/`{B}` with one opposed pair, `{C}`/`{D}` another, `{T1}`/`{T2}` two
 trait-bearing kinds), `fillFocus`, `traitsInPlay`, plus `AK_CLI`, the `ak` entry the levels are built with. It is
-part of the published API (`@agon/adapters-cli`, `tests/architecture/framework-game-boundary.json`).
+part of the published API (`@agon-engine/adapters-cli`, `tests/architecture/framework-game-boundary.json`).
 
 ### `room-plan`
 Builds a `BuildSpec` directly from Room authoring flags (no hand-edited JSON required) and

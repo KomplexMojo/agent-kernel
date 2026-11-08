@@ -1,5 +1,5 @@
 {
-  "name": "@agon/core-ts",
+  "name": "@agon-engine/core-ts",
   "version": "0.1.0",
   "type": "module",
   "exports": {

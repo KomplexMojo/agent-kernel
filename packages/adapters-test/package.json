@@ -1,5 +1,5 @@
 {
-  "name": "@agon/adapters-test",
+  "name": "@agon-engine/adapters-test",
   "private": true,
   "type": "module"
 }

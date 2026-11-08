@@ -1,5 +1,5 @@
 {
-  "name": "@agon/adapters-cli",
+  "name": "@agon-engine/adapters-cli",
   "private": true,
   "type": "module",
   "exports": {
