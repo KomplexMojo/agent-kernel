@@ -1,5 +1,5 @@
 ---
-description: agent-kernel architecture guardrails and enforcement checklist — dependency direction, persona FSM rules, artifacts, types, tests, docs, and escalation. Applies when changing code.
+description: Agon architecture guardrails and enforcement checklist — dependency direction, persona FSM rules, artifacts, types, tests, docs, and escalation. Applies when changing code.
 globs: packages/**,tests/**
 alwaysApply: false
 ---

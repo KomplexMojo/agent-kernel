@@ -24,7 +24,7 @@ const assert = require("node:assert/strict");
 const DIRECTOR = "../../../packages/runtime/src/personas/director/persona.js";
 
 const INTENT = Object.freeze({
-  schema: "agent-kernel/IntentEnvelope",
+  schema: "agon/IntentEnvelope",
   schemaVersion: 1,
   meta: { id: "intent_translation", runId: "run_translation", createdAt: "2026-08-12T00:00:00.000Z" },
   intent: { goal: "a small room with one warden" },

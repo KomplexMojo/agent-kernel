@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "agent-kernel-benchmark-result/v1",
+  "schemaVersion": "agon-benchmark-result/v1",
   "run": {
     "id": "2026-08-14T17-36-51-712Z-faccd4d0ad0b-0f224419db95",
     "key": "0f224419db95c7b48efc9d08a24f6bf6b6a0f5a016869adbac5a02c83f29a5ed",
@@ -7,7 +7,7 @@
     "runnerContractVersion": "benchmark-agent-v1"
   },
   "source": {
-    "repository": "KomplexMojo/agent-kernel",
+    "repository": "KomplexMojo/agon",
     "ref": "codex/benchmark-catalog",
     "commit": "faccd4d0ad0b7c75614630e58c31d0c3d442af53"
   },

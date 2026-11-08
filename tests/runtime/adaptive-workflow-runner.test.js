@@ -74,7 +74,7 @@ test("local sectional repair path delegates to budget loop and records phase cap
     runId: "run_sectional",
     declaredCapability: { ...capability, contextWindowTokens: 24000, supports: { ...capability.supports, structuredOutput: false } },
     budgetTokens: 320,
-    catalog: { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },
+    catalog: { schema: "agon/PoolCatalog", schemaVersion: 1, entries: [] },
     ports: {
       model: model([
         { response: JSON.stringify({ phase: "layout_only", layout: { floorTiles: 1, hallwayTiles: 0 }, missing: [] }) },

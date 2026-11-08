@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/ConfiguratorArtifactsFixture",
+  "schema": "agon/ConfiguratorArtifactsFixture",
   "schemaVersion": 1,
   "input": {
     "simConfig": {
@@ -11,7 +11,7 @@
       },
       "planRef": {
         "id": "plan",
-        "schema": "agent-kernel/PlanArtifact",
+        "schema": "agon/PlanArtifact",
         "schemaVersion": 1
       },
       "layout": {
@@ -36,7 +36,7 @@
       },
       "simConfigRef": {
         "id": "unified-config",
-        "schema": "agent-kernel/SimConfigArtifact",
+        "schema": "agon/SimConfigArtifact",
         "schemaVersion": 1
       },
       "actors": [
@@ -99,7 +99,7 @@
   },
   "expected": {
     "initialState": {
-      "schema": "agent-kernel/InitialStateArtifact",
+      "schema": "agon/InitialStateArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "unified-initial",
@@ -109,7 +109,7 @@
       },
       "simConfigRef": {
         "id": "unified-config",
-        "schema": "agent-kernel/SimConfigArtifact",
+        "schema": "agon/SimConfigArtifact",
         "schemaVersion": 1
       },
       "actors": [

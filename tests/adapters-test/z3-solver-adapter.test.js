@@ -28,7 +28,7 @@ function buildRequest({
     },
   } : undefined;
   return {
-    schema: "agent-kernel/SolverRequest",
+    schema: "agon/SolverRequest",
     schemaVersion: 1,
     meta: { id: "test_req", runId: "test_run", createdAt: "2026-06-04T00:00:00.000Z", producedBy: "actor" },
     problem: {

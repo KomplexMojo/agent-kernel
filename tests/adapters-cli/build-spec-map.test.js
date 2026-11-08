@@ -14,7 +14,7 @@ test("map build spec to intent + plan artifacts", async () => {
 
   const mapped = mapBuildSpecToArtifacts(spec, { producedBy: "cli-build-spec" });
 
-  assert.equal(mapped.intent.schema, "agent-kernel/IntentEnvelope");
+  assert.equal(mapped.intent.schema, "agon/IntentEnvelope");
   assert.equal(mapped.intent.schemaVersion, 1);
   assert.equal(mapped.intent.meta.runId, spec.meta.runId);
   assert.equal(mapped.intent.meta.producedBy, "cli-build-spec");
@@ -22,7 +22,7 @@ test("map build spec to intent + plan artifacts", async () => {
   assert.equal(mapped.intent.intent.goal, spec.intent.goal);
   assert.deepEqual(mapped.intent.intent.hints, spec.intent.hints);
 
-  assert.equal(mapped.plan.schema, "agent-kernel/PlanArtifact");
+  assert.equal(mapped.plan.schema, "agon/PlanArtifact");
   assert.equal(mapped.plan.schemaVersion, 1);
   // P2.1c: the Director owns plan production and stamps its own provenance.
   assert.equal(mapped.plan.meta.producedBy, "director");

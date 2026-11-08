@@ -49,7 +49,7 @@ async function artifacts({ includeCache = true } = {}) {
   }
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "ws_sim", runId: "ws", createdAt: CLOCK },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { walker: 0 },
   });

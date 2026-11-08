@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const { runnerIdentity } = require('./runner-identity');
 
-const MANIFEST_SCHEMA = 'agent-kernel-content-gen-run-manifest/v1';
+const MANIFEST_SCHEMA = 'agon-content-gen-run-manifest/v1';
 const MANIFEST_NAME = 'run-manifest.json';
 
 function manifestPath(resultDir) {

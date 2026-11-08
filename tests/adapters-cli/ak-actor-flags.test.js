@@ -70,7 +70,7 @@ async function createGridArtifacts(dir) {
 }
 
 test("cli run preserves Configurator-authored wall, barrier, and actor vitals", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-actors-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-actors-"));
   const { simConfigPath, initialStatePath } = await createGridArtifacts(workDir);
   const outDir = join(workDir, "out");
 

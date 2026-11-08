@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/SpendProposal",
+  "schema": "agon/SpendProposal",
   "schemaVersion": 1,
   "meta": {
     "id": "proposal-full-001",
@@ -16,7 +16,7 @@
       "unitCost": 50,
       "totalCost": 50,
       "status": "approved",
-      "subjectRef": { "id": "room-artifact-1", "schema": "agent-kernel/RoomArtifact", "schemaVersion": 1 }
+      "subjectRef": { "id": "room-artifact-1", "schema": "agon/RoomArtifact", "schemaVersion": 1 }
     },
     {
       "id": "tile-1",

@@ -32,10 +32,10 @@ test("annotator persona emits telemetry records and summaries from observations"
   assert.ok(summarizeResult.telemetry);
   assert.ok(Array.isArray(summarizeResult.telemetry.records));
   assert.equal(summarizeResult.telemetry.records.length, 1);
-  assert.equal(summarizeResult.telemetry.records[0].schema, "agent-kernel/TelemetryRecord");
+  assert.equal(summarizeResult.telemetry.records[0].schema, "agon/TelemetryRecord");
   assert.equal(summarizeResult.telemetry.records[0].meta.runId, "run-annotate");
   assert.equal(summarizeResult.telemetry.records[0].data.effectCount, 2);
   assert.ok(summarizeResult.telemetry.summary);
-  assert.equal(summarizeResult.telemetry.summary.schema, "agent-kernel/RunSummary");
+  assert.equal(summarizeResult.telemetry.summary.schema, "agon/RunSummary");
   assert.equal(summarizeResult.telemetry.summary.metrics.totalEffects, 2);
 });

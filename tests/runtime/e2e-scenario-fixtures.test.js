@@ -23,7 +23,7 @@ test("e2e scenario fixtures load and summary matches prompt contract", async () 
     const scenarioPath = resolve(FIXTURES_DIR, name);
     const scenario = readJson(scenarioPath);
 
-    assert.equal(scenario.schema, "agent-kernel/E2EScenario");
+    assert.equal(scenario.schema, "agon/E2EScenario");
     assert.equal(scenario.schemaVersion, 1);
     assert.ok(typeof scenario.goal === "string" && scenario.goal.trim().length > 0);
     assert.ok(Number.isInteger(scenario.tier) && scenario.tier > 0);

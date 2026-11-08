@@ -1,7 +1,7 @@
 /**
  * The game's element VOCABULARY: affinity kinds, expressions, vitals and motivations.
  *
- * These are framework contracts (the rules stay in agent-kernel; Darren, 2026-11-06, #740).
+ * These are framework contracts (the rules stay in agon; Darren, 2026-11-06, #740).
  * Personas and the runner import them from here. The SKIN (palette, element visuals, asset
  * and icon ids) is `game-elements.js`, which re-exports this vocabulary for compatibility
  * and is the part the game may restyle. Charter -> "Framework vs Game".

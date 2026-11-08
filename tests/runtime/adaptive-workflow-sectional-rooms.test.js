@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 
-const CATALOG = { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] };
+const CATALOG = { schema: "agon/PoolCatalog", schemaVersion: 1, entries: [] };
 const POOL_WEIGHTS = [
   { id: "delver", weight: 0 },
   { id: "rooms", weight: 1 },

@@ -18,10 +18,10 @@ test("orchestrateBuild with budget only (no priceList) produces spendProposal an
   const result = await orchestrateBuild({ spec, producedBy: "test" });
 
   assert.ok(result.spendProposal, "spendProposal must be produced when budgetTokens present");
-  assert.equal(result.spendProposal.schema, "agent-kernel/SpendProposal");
+  assert.equal(result.spendProposal.schema, "agon/SpendProposal");
 
   assert.ok(result.budgetReceipt, "budgetReceipt must be produced when budgetTokens present");
-  assert.equal(result.budgetReceipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(result.budgetReceipt.schema, "agon/BudgetReceiptArtifact");
   assert.ok(["approved", "denied", "partial"].includes(result.budgetReceipt.status));
   assert.ok(Number.isFinite(result.budgetReceipt.totalCost));
   assert.ok(Number.isFinite(result.budgetReceipt.remaining));
@@ -36,7 +36,7 @@ test("orchestrateBuild budget receipt references a price list (default or explic
   const result = await orchestrateBuild({ spec, producedBy: "test" });
 
   assert.ok(result.budgetReceipt.priceListRef, "budgetReceipt.priceListRef must be present");
-  assert.equal(result.budgetReceipt.priceListRef.schema, "agent-kernel/PriceList");
+  assert.equal(result.budgetReceipt.priceListRef.schema, "agon/PriceList");
 });
 
 test("orchestrateBuild with explicit priceList still produces receipt+proposal (existing behaviour preserved)", async () => {

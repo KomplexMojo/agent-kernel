@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 
 function buildSpec({ actors, delverCount = 2 } = {}) {
   return {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "rb2_actor_characterization",
@@ -151,7 +151,7 @@ test("orchestrateBuild preserves the current typed placement failure", async () 
       spec: {
         ...buildSpec({ actors, delverCount: actors.length }),
         budget: { budget: {
-          schema: "agent-kernel/BudgetArtifact", schemaVersion: 1,
+          schema: "agon/BudgetArtifact", schemaVersion: 1,
           meta: { id: "rb2_budget", runId: "rb2_actor_characterization", createdAt: "2026-08-30T00:00:00.000Z", producedBy: "runtime-test" },
           budget: { tokens: 1000000 },
         } },

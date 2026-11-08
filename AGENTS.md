@@ -1,7 +1,7 @@
 # AGENTS.md
 
 How the solo developer and the agent team work together on this repo. Short, strict, easy to follow. This repo is
-**agent-kernel**, the public framework. **Primordial**, the game built on it, is a separate private repository.
+**Agon**, the public framework. **Primordial**, the game built on it, is a separate private repository.
 
 **Scope split with `CLAUDE.md` — neither file restates the other.** This one owns the roster, the workflow, per-agent scope, review reality, test and benchmark strategy, file placement, naming, and the pre-handoff checklist. `CLAUDE.md` owns reporting, the session-start protocol, code navigation, commands, the architecture summary, and the enforcement checklist. Change a rule in its owning file only.
 
@@ -13,8 +13,8 @@ How the solo developer and the agent team work together on this repo. Short, str
 
 | Tool | Owns, and writes | Never writes |
 |---|---|---|
-| **Claude** (and the agents it drives) | **agent-kernel**: architecture and design of the framework (core-ts, runtime and personas, contracts, adapters, `ak`, the MCP server, the reference terminal client, the API surface the game consumes) | **Primordial**, not even a one-line fix |
-| **Cursor** | **Primordial**: UI/UX (the phone app and graphical clients, playtest launcher, skin, art, audio, content) | **agent-kernel** |
+| **Claude** (and the agents it drives) | **Agon**: architecture and design of the framework (core-ts, runtime and personas, contracts, adapters, `ak`, the MCP server, the reference terminal client, the API surface the game consumes) | **Primordial**, not even a one-line fix |
+| **Cursor** | **Primordial**: UI/UX (the phone app and graphical clients, playtest launcher, skin, art, audio, content) | **Agon** |
 
 - **Each tool asks the other through GitHub issues**, never by editing the other's repo. Claude opens issues in KomplexMojo/Primordial labelled `ui-request`, and Cursor opens issues here labelled `api-request`. An issue says what is needed and why, and names the module or API involved.
 - **The API surface is the contract between them.** A change that would break a module listed in `tests/architecture/framework-game-boundary.json` (`apiSurface`) lands additively here first, with a `ui-request` issue asking Primordial to move to it. The old export is removed only after Primordial has moved.
@@ -41,7 +41,7 @@ How the solo developer and the agent team work together on this repo. Short, str
 
 **Repo-owned skills** (canonical `.claude/skills/`, mirrored into `.cursor/skills/` for local Cursor discovery): `agentic-change-planning` (Plan/milestone routing onto a focused owner skill), `local-test-gen` (Ollama permutation expansion), `structured-test-authoring` (use the `ak_test_*` MCP tools before hand-writing a test), `tiered-test-optimizer` (the fast-pass → fix-pass recipe), persona-scoped change skills (`persona-orchestrator`, `persona-director`, `persona-configurator`, `persona-allocator`, `persona-actor`, `persona-moderator`, `persona-annotator`), ports-and-adapters skills (`architecture-dependency-direction`, `architecture-effects-routing`, `architecture-artifacts-contracts`, `architecture-adapter-io`), `farm-remote` (run a benchmark or sweep on the remote Ollama GPU box; `disable-model-invocation: true`, so it is user-invoked only and never picked up automatically), and the player-facing game skills: `game-master` (the house rules and tool map for playing the ASCII game through the `ak_*` MCP tools; model-invoked when someone talks about playing) and the user-invoked `/game-new`, `/game-play`, `/game-watch`, `/game-save`, `/game-load`, `/game-recap` and `/game-terminal` (all `disable-model-invocation: true`). The game skills drive the game; they never change code. ⚠️ `farm-remote` lived only under `.cursor/skills/` as a real directory until 2026-09-05 — Cursor could see it and Claude Code could not, and edits to it would have reached one harness and not the other, which is exactly the drift the symlink mirror exists to prevent. Every skill's canonical home is `.claude/skills/`; a real directory under `.cursor/skills/` is a defect, not a variant. Always-on Cursor rule `.cursor/rules/agentic-skill-routing.mdc` requires loading the matching skill when planning or implementing. Escalations from `fix-pass` reach the maintainer verbatim; the orchestrator never approves a boundary change itself.
 
-**MCP surfaces:** `agent-kernel-cli` (`ak_*` — authoring, simulation, inspection, LLM planning, IPFS, blockchain, and the `ak_test_*` test harness; `pnpm run mcp:serve`) and `serena` (structural code queries). Prefer `ak_*` tools over shelling out to `ak.mjs`. Registration for both harnesses is documented in `packages/adapters-cli/src/mcp/README.md`.
+**MCP surfaces:** `agon-cli` (`ak_*` — authoring, simulation, inspection, LLM planning, IPFS, blockchain, and the `ak_test_*` test harness; `pnpm run mcp:serve`) and `serena` (structural code queries). Prefer `ak_*` tools over shelling out to `ak.mjs`. Registration for both harnesses is documented in `packages/adapters-cli/src/mcp/README.md`.
 
 ---
 
@@ -157,7 +157,7 @@ not a thing you quietly use.**
 
 The `Protect Main` ruleset gained a `pull_request` rule at some point after the 2026-08-21 check, and
 this file continued to assert it had none. Current state, from
-`gh api repos/KomplexMojo/agent-kernel/rulesets/14943811`:
+`gh api repos/KomplexMojo/agon/rulesets/14943811`:
 
 - rules: `deletion`, `non_fast_forward`, `pull_request`
 - `required_approving_review_count: 0` — a PR is required, **an approval is not**
@@ -362,9 +362,9 @@ changes, never inside the loop. It is where comparison and qualification happen.
 the working clones, or the program docs below while the Codex effort is in flight — that includes
 committing its loose working-tree changes, moving files into git, or tidying. Report state; change nothing.
 
-- **The catalog and harness are under source control**, in this repo on `codex/benchmark-catalog` (working clone `~/Documents/GitHub/agent-kernel-benchmark`). 28 tracked files under `tools/remote-ollama-control/benchmarks/` — the canonical content-gen catalog is **100 scenarios** (25 simple · 25 affinity · 25 complex · 25 constrained) plus the execution and abstract-plan catalogs and their schemas. Results publish to the `benchmark-results` branch.
-- **That branch has not merged**: 9 ahead of `main`, 20 behind. `main` still carries the older harness under `tools/`, so agent-kernel `main` is not where benchmark state is read.
-- `codex/benchmark-e3` exists **only locally** (`~/Documents/GitHub/agent-kernel-benchmark-e3`), with no commits of its own — its E3 work is entirely uncommitted working-tree change.
+- **The catalog and harness are under source control**, in this repo on `codex/benchmark-catalog` (working clone `~/Documents/GitHub/agon-benchmark`). 28 tracked files under `tools/remote-ollama-control/benchmarks/` — the canonical content-gen catalog is **100 scenarios** (25 simple · 25 affinity · 25 complex · 25 constrained) plus the execution and abstract-plan catalogs and their schemas. Results publish to the `benchmark-results` branch.
+- **That branch has not merged**: 9 ahead of `main`, 20 behind. `main` still carries the older harness under `tools/`, so Agon `main` is not where benchmark state is read.
+- `codex/benchmark-e3` exists **only locally** (`~/Documents/GitHub/agon-benchmark-e3`), with no commits of its own — its E3 work is entirely uncommitted working-tree change.
 - **The program roadmap and execution record are NOT under source control:** `local-codex/Plan-Benchmark.md` and `local-codex/Documentation-Benchmark.md` — `local-codex/` is gitignored, and unlike `Plan.md` these two are real files, not vault symlinks. They exist on one machine with no backup.
 - Run output (`tools/remote-ollama-control/results/`, 7.6 GB) is gitignored by design and stays that way.
 - **Nothing benchmark-related is in the Obsidian vault.** The cross-device-consistency rationale that once justified syncing them no longer applies.

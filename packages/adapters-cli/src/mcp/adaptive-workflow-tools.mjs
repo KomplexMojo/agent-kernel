@@ -39,7 +39,7 @@ export function assertAdaptiveWorkflowArgs(tool, args) {
   if (schema.anyOf && !schema.anyOf.some((option) => option.required.every((key) => args[key] !== undefined))) throw new Error("Workflow tool requires outDir or runId");
 }
 
-export const adaptiveWorkflowResources = ["policy", "runtime-profile", "validators", "run-history"].map((name) => ({ uri: `agent-kernel://adaptive-workflow/${name}`, name: `Adaptive workflow ${name}`, description: `Safe AdaptiveWorkflowAgent ${name} metadata.`, mimeType: "application/json" }));
+export const adaptiveWorkflowResources = ["policy", "runtime-profile", "validators", "run-history"].map((name) => ({ uri: `agon://adaptive-workflow/${name}`, name: `Adaptive workflow ${name}`, description: `Safe AdaptiveWorkflowAgent ${name} metadata.`, mimeType: "application/json" }));
 export function readAdaptiveWorkflowResource(uri, runs = []) {
   const name = adaptiveWorkflowResources.find((resource) => resource.uri === uri)?.uri.split("/").pop();
   const values = { policy: { schemaVersion: 1, strategies: ["flagship_full_context_v1", "local_sectional_repair_v1"], validationAuthority: "deterministic" }, "runtime-profile": { schemaVersion: 1, source: "adapter-injected", correctnessInvariant: true }, validators: { validators: [{ id: "workflow_required_keys", version: 1 }] }, "run-history": { runs } };

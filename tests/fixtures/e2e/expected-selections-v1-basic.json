@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/E2ESelectionsFixture",
+  "schema": "agon/E2ESelectionsFixture",
   "schemaVersion": 1,
   "selections": [
     {

@@ -20,7 +20,7 @@ test("loads a content-gen summary into accepted benchmark evidence", async () =>
   assert.equal(loaded.generatedAt, "2026-07-12T16:56:07.611Z");
   assert.equal(loaded.evidence.length, 1);
   const [evidence] = loaded.evidence;
-  assert.equal(evidence.schema, "agent-kernel/BenchmarkEvidence");
+  assert.equal(evidence.schema, "agon/BenchmarkEvidence");
   assert.equal(evidence.strategyId, "flagship_full_context_v1");
   assert.equal(evidence.sampleSize, 192);
   assert.equal(evidence.averageScore, 70);

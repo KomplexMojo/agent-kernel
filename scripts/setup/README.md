@@ -199,9 +199,9 @@ run `python3 scripts/setup/patch-serena-ignored-dirs.py` yourself and restart th
 
 ---
 
-# agent-kernel CLI & MCP under Cursor
+# Agon CLI & MCP under Cursor
 
-The repo ships its own tool surface: the `ak` CLI and the `agent-kernel-cli` MCP server (the
+The repo ships its own tool surface: the `ak` CLI and the `agon-cli` MCP server (the
 structured-tool version of the CLI — 49 `ak_*` tools for authoring, simulation, inspection, LLM
 planning, IPFS, blockchain, and the `ak_test_*` harness). Full tool reference:
 `packages/adapters-cli/src/mcp/README.md`.
@@ -227,12 +227,12 @@ pnpm run mcp:serve    # start the MCP server manually (stdio)
 The package also exposes `ak-persona` and `ak-mcp` bins:
 `pnpm --dir packages/adapters-cli exec ak-persona --help`.
 
-## MCP — register `agent-kernel-cli`
+## MCP — register `agon-cli`
 
 The server is stdio (`node packages/adapters-cli/src/mcp/server.mjs`). As with Serena, Cursor has two
 surfaces and `mcp.json` is gitignored, so nothing is committed as the live config:
 
-1. **Cursor IDE (local).** Copy the `agent-kernel-cli` block from `.cursor/mcp.example.json` into
+1. **Cursor IDE (local).** Copy the `agon-cli` block from `.cursor/mcp.example.json` into
    `~/.cursor/mcp.json` or `.cursor/mcp.json`. The bundled `NODE_OPTIONS`
    (`--experimental-strip-types --disable-warning=ExperimentalWarning`) let it start even under an
    older `node` on PATH; on Node ≥ 22.18 they are harmless no-ops.
@@ -245,7 +245,7 @@ surfaces and `mcp.json` is gitignored, so nothing is committed as the live confi
    VM's default older `node` shim). `.cursor/install.sh` already makes the VM ready (`pnpm install`
    + native-TS node). Until this dashboard step is done, cloud agents won't see the `ak_*` tools.
 
-Verify a registration by listing tools — the server reports `name: "agent-kernel-cli"` and 49 tools;
+Verify a registration by listing tools — the server reports `name: "agon-cli"` and 49 tools;
 `tools/call ak_create {…, "dryRun": true}` returns a validated result without writing artifacts. The
 `tools/list` handshake snippet is in `packages/adapters-cli/src/mcp/README.md`.
 

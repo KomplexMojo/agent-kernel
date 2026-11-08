@@ -75,7 +75,7 @@ test("ak create --hazard produces V3 hazard artifact and wires canonical levelGe
   assert.ok(existsSync(hazardArtifactPath), "hazard-1.json should exist");
 
   const hazardArtifact = readJson(hazardArtifactPath);
-  assert.equal(hazardArtifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(hazardArtifact.schema, "agon/HazardArtifact");
   assert.equal(hazardArtifact.schemaVersion, 3, "should emit schemaVersion 3");
   assert.ok(hazardArtifact.meta && typeof hazardArtifact.meta.id === "string", "meta.id should be a string");
   assert.equal(hazardArtifact.meta.runId, "run_hazard_test");
@@ -104,7 +104,7 @@ test("ak create --hazard one-time mana and durability produces V3 artifact", () 
   ]);
 
   const hazardArtifact = readJson(join(outDir, "hazard-1.json"));
-  assert.equal(hazardArtifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(hazardArtifact.schema, "agon/HazardArtifact");
   assert.equal(hazardArtifact.schemaVersion, 3);
   assert.equal(hazardArtifact.affinity, "water");
   assert.equal(hazardArtifact.expression, "pull");
@@ -142,7 +142,7 @@ test("ak create --resource produces resource artifact and wires configurator.inp
   assert.ok(existsSync(resourceArtifactPath), "resource-1.json should exist");
 
   const resourceArtifact = readJson(resourceArtifactPath);
-  assert.equal(resourceArtifact.schema, "agent-kernel/ResourceArtifact");
+  assert.equal(resourceArtifact.schema, "agon/ResourceArtifact");
   assert.equal(resourceArtifact.schemaVersion, 4);
   assert.ok(resourceArtifact.meta && typeof resourceArtifact.meta.id === "string", "meta.id should be a string");
   assert.equal(resourceArtifact.meta.runId, "run_resource_test");
@@ -226,7 +226,7 @@ test("ak create --hazard emits V3 artifact with default durability", () => {
     "--out-dir", outDir,
   ]);
   const artifact = readJson(join(outDir, "hazard-1.json"));
-  assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(artifact.schema, "agon/HazardArtifact");
   assert.equal(artifact.schemaVersion, 3, "should emit schemaVersion 3");
   assert.equal(artifact.affinity, "fire");
   assert.equal(artifact.vitals.mana.kind, "regen");
@@ -244,7 +244,7 @@ test("ak create --resource accepts permanenceMode=consumable and emits V3 artifa
     "--out-dir", outDir,
   ]);
   const artifact = readJson(join(outDir, "resource-1.json"));
-  assert.equal(artifact.schema, "agent-kernel/ResourceArtifact");
+  assert.equal(artifact.schema, "agon/ResourceArtifact");
   assert.equal(artifact.schemaVersion, 4, "should emit schemaVersion 4");
   assert.equal(artifact.permanenceMode, "consumable");
   assert.ok(Array.isArray(artifact.vitals) && artifact.vitals.length === 1);
@@ -353,7 +353,7 @@ test("ak create --hazard emits canonical hazard public objects", () => {
   assert.equal(hazardReq.attributes.vitals.durability.max, 6);
 
   const artifact = readJson(join(outDir, "hazard-1.json"));
-  assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(artifact.schema, "agon/HazardArtifact");
   assert.equal(artifact.schemaVersion, 3);
   assert.equal(artifact.meta.id, "fire_hazard");
   assert.equal(artifact.affinity, "fire");

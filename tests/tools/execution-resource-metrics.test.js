@@ -30,7 +30,7 @@ function vitals({ health = [10, 10, 0], mana = [0, 0, 0], stamina = [20, 20, 0] 
 
 function checkpoint(tick, { actors = [], resources = [] } = {}) {
   return {
-    schema: 'agent-kernel/WorldStateArtifact',
+    schema: 'agon/WorldStateArtifact',
     schemaVersion: 2,
     meta: { id: `s${tick}`, runId: 'fixture', createdAt: '2026-01-01T00:00:00.000Z', producedBy: 'annotator' },
     tick,

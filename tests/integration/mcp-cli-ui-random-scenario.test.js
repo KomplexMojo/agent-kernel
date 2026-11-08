@@ -40,7 +40,7 @@
  *     (packages/runtime/src/commands/kernel.js `run()`, called via
  *     commandKernel.run in ak-impl.mjs runCommand ~line 4813-4843).
  *   - The bundle shape consumable by the UI (`window.__ak_loadGameplayBundle`)
- *     is `{ schema: "agent-kernel/GameplayBundle", schemaVersion: 1, meta, artifacts: [simConfig, initialState], spec, tickFrames }`
+ *     is `{ schema: "agon/GameplayBundle", schemaVersion: 1, meta, artifacts: [simConfig, initialState], spec, tickFrames }`
  *     per packages/runtime/src/runner/core-facade.js compileScenarioPlaybackBundle.
  *     There is currently no MCP tool (`ak_push_to_ui` or otherwise) that goes
  *     from a `create`+`run` CLI outDir to this bundle shape and pushes it over
@@ -177,9 +177,9 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     const simConfig = readJson(simConfigPath);
     const initialState = readJson(initialStatePath);
 
-    assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+    assert.equal(simConfig.schema, "agon/SimConfigArtifact");
     assert.equal(simConfig.schemaVersion, 1);
-    assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
+    assert.equal(initialState.schema, "agon/InitialStateArtifact");
     assert.equal(initialState.schemaVersion, 1);
 
     // 5 rooms requested via --room "count=5;size=medium".
@@ -288,7 +288,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     const tickFrames = readJson(tickFramesPath);
     assert.ok(Array.isArray(tickFrames), "tick-frames.json must be a JSON array");
 
-    // GROUND TRUTH: tick-frames.json records one agent-kernel/TickFrame per
+    // GROUND TRUTH: tick-frames.json records one agon/TickFrame per
     // sub-phase of the six-phase tick orchestration (init, observe, decide,
     // apply, emit, summarize — see runtime-fsm.mjs), not one frame per tick.
     // For --ticks 100 this yields 501 records (100 ticks x ~5 phases + 1
@@ -338,7 +338,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     }
   });
 
-  test("bundle produced from the create+run outDir matches the agent-kernel/GameplayBundle shape expected by __ak_loadGameplayBundle (M7 stitching gap)", async () => {
+  test("bundle produced from the create+run outDir matches the agon/GameplayBundle shape expected by __ak_loadGameplayBundle (M7 stitching gap)", async () => {
     const { ak_impl, authoringToolsModule, simulationToolsModule } = await loadModules();
     const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
     const runTool = findTool(simulationToolsModule.simulationTools, "ak_run");
@@ -377,7 +377,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
       // GROUND TRUTH: ak_create DOES already write a bundle.json
       // (createResult.artifactPaths.bundle), confirmed by direct invocation
       // during test authoring. But its shape is NOT the
-      // "agent-kernel/GameplayBundle" schema that __ak_loadGameplayBundle /
+      // "agon/GameplayBundle" schema that __ak_loadGameplayBundle /
       // the sandbox bridge client expect (see
       // packages/runtime/src/runner/core-facade.js compileScenarioPlaybackBundle
       // and packages/ui-web/src/sandbox-bridge-client.js handleBundle). The
@@ -386,15 +386,15 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
       // BuildSpec-preview bundle (produced before any ticks have run), not a
       // post-run playback bundle. This is the precise M6->M7 gap: nothing in
       // the CLI/MCP surface merges the create-time bundle.json with the
-      // run-time tick-frames.json into an agent-kernel/GameplayBundle.
+      // run-time tick-frames.json into an agon/GameplayBundle.
       const bundlePath = join(bundleOutDir, "bundle.json");
       assert.ok(existsSync(bundlePath), `ak_create must write bundle.json at ${bundlePath} (this part already works)`);
 
       const bundle = readJson(bundlePath);
       assert.equal(
         bundle.schema,
-        "agent-kernel/GameplayBundle",
-        `create-time bundle.json has no "agent-kernel/GameplayBundle" schema tag (got schema=${JSON.stringify(bundle.schema)}, ` +
+        "agon/GameplayBundle",
+        `create-time bundle.json has no "agon/GameplayBundle" schema tag (got schema=${JSON.stringify(bundle.schema)}, ` +
           `top-level keys=${JSON.stringify(Object.keys(bundle))}) — it is a pre-run BuildSpec preview bundle ` +
           "{spec, schemas, artifacts}, not the post-run playback bundle __ak_loadGameplayBundle expects. " +
           "No MCP/CLI seam yet merges this with tick-frames.json into a real GameplayBundle (the ak_push_to_ui gap).",

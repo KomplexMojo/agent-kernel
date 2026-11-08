@@ -30,7 +30,7 @@ test("buildRuntimeDecisionEnvelope normalizes actor context and candidate action
   assert.equal(envelope.tick, 3);
   assert.equal(envelope.actor.id, "actor_1");
   assert.equal(envelope.candidateActions.length, 2);
-  assert.equal(envelope.candidateActions[0].action.schema, "agent-kernel/Action");
+  assert.equal(envelope.candidateActions[0].action.schema, "agon/Action");
   assert.equal(envelope.candidateActions[0].action.actorId, "actor_1");
   assert.deepEqual(envelope.candidateActions[0].action.params, { target: { x: 1, y: 1 } });
   assert.equal(envelope.candidateActions[0].action.tick, 3);

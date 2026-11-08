@@ -58,7 +58,7 @@ test("runtime observation carries hazard actor vitals without a hazards collecti
   ];
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "sim_hazard_vitals", runId: "run_hazard_vitals", createdAt: "2026-09-16T00:00:00.000Z", producedBy: "test" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width: 5, height: 5, terrain },
     movementStamina: { observer: 1 },
   });

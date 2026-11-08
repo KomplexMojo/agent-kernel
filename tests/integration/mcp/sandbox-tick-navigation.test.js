@@ -187,7 +187,7 @@ class McpServerHarness {
     const result = await this.request("initialize", {
       protocolVersion: "2025-03-26",
       capabilities: {},
-      clientInfo: { name: "agent-kernel-sandbox-tick-navigation-test", version: "1.0.0" },
+      clientInfo: { name: "agon-sandbox-tick-navigation-test", version: "1.0.0" },
     });
     this.notify("notifications/initialized", {});
     return result;

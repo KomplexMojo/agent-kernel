@@ -8,7 +8,7 @@ test("normalizeBuildSpecForUi normalizes singleton authoring request fields", as
   const { normalizeBuildSpecForUi } = await loadUiFlow();
 
   const input = {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "build_spec_ui_normalize",
@@ -22,7 +22,7 @@ test("normalizeBuildSpecForUi normalizes singleton authoring request fields", as
     authoring: {
       objectKinds: "room",
       request: {
-        schema: "agent-kernel/AgentCommandRequestArtifact",
+        schema: "agon/AgentCommandRequestArtifact",
         schemaVersion: 1,
         meta: {
           id: "agent_command_ui_normalize",

@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "agent-kernel-runtime-build-routes/v1",
+  "schemaVersion": "agon-runtime-build-routes/v1",
   "identity": {
-    "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
+    "executionSuiteHash": "b7e1bba3829601d81615bdbe30222e00c6e0aee40d8694ede8626a2ff1dcad8b"
   },
   "routes": {
     "EX-TR-01": "tests/fixtures/benchmarks/execution/traversal/EX-TR-01",

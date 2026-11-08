@@ -124,7 +124,7 @@ function comparePairedAttempts(contentRecords, abstractRecords, metadata = null)
     ))),
   ]));
   return {
-    schemaVersion: 'agent-kernel-abstract-content-comparison/v1',
+    schemaVersion: 'agon-abstract-content-comparison/v1',
     ...(metadata || {}),
     pairs: pairs.length,
     profiles: [...new Set(pairs.map((pair) => pair.content.profile))],

@@ -2,7 +2,7 @@
 
 **Status (2026-09-01):** all 7 issues this activity found and diagnosed (#142-#145, #147-#149) are
 now **fixed, verified, and closed** — see "Fix pass" below. The maintainer's original ask was to drive
-`agent-kernel` end-to-end through the `agent-kernel-cli` MCP server from inside a Claude Code harness
+`agon` end-to-end through the `agon-cli` MCP server from inside a Claude Code harness
 (Bash + Browser-pane tools), have results display back in that harness, and file every piece of
 friction hit along the way as a standalone `gh issue`, immediately, as it's found — per
 `AGENTS.md → Working agreement`. That scope later widened, on explicit instruction, to fixing and
@@ -32,16 +32,16 @@ this file.
 
 | # | Title | Status | Fix commit | Context |
 |---|---|---|---|---|
-| [#142](https://github.com/KomplexMojo/agent-kernel/issues/142) | `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness | **Closed** — documented, not code-fixable (environment constraint) | `1a79486` | Finding 1 |
-| [#143](https://github.com/KomplexMojo/agent-kernel/issues/143) | `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` | **Closed** — fixed | `f2f8de6` | Finding 2 |
-| [#144](https://github.com/KomplexMojo/agent-kernel/issues/144) | `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit | **Closed** — fixed | `b1dd21d` | Finding 3 |
-| [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) | `ak_create` budget denial doesn't say what budget would have worked | **Closed** — fixed | `65b9173` | Finding 4 |
-| [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) | Open question: does plain `ak_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
-| [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | **Closed** — fixed | `a4e1287` | Finding 5 |
-| [#148](https://github.com/KomplexMojo/agent-kernel/issues/148) | level-gen error formatter in `orchestrate-build.js` bakes literal `"undefined"` into messages for 4 of 5 error codes | **Closed** — fixed | `453d278` | Finding 6 |
-| [#149](https://github.com/KomplexMojo/agent-kernel/issues/149) | `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has | **Closed** — fixed | `4efffe7` | Finding 7 |
-| [#150](https://github.com/KomplexMojo/agent-kernel/issues/150) | `affinity-summary.json`/`deferred-coordination.json` likely share #149's bug (unconfirmed) | Open | — | Found while fixing #149; different files, not exercised by any scenario yet |
-| [#151](https://github.com/KomplexMojo/agent-kernel/issues/151) | MCP README's Tool Index is stale (27 documented vs. ~45 actual tools) | Open | — | Found while fixing #142 |
+| [#142](https://github.com/KomplexMojo/agon/issues/142) | `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness | **Closed** — documented, not code-fixable (environment constraint) | `1a79486` | Finding 1 |
+| [#143](https://github.com/KomplexMojo/agon/issues/143) | `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` | **Closed** — fixed | `f2f8de6` | Finding 2 |
+| [#144](https://github.com/KomplexMojo/agon/issues/144) | `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit | **Closed** — fixed | `b1dd21d` | Finding 3 |
+| [#145](https://github.com/KomplexMojo/agon/issues/145) | `ak_create` budget denial doesn't say what budget would have worked | **Closed** — fixed | `65b9173` | Finding 4 |
+| [#146](https://github.com/KomplexMojo/agon/issues/146) | Open question: does plain `ak_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
+| [#147](https://github.com/KomplexMojo/agon/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | **Closed** — fixed | `a4e1287` | Finding 5 |
+| [#148](https://github.com/KomplexMojo/agon/issues/148) | level-gen error formatter in `orchestrate-build.js` bakes literal `"undefined"` into messages for 4 of 5 error codes | **Closed** — fixed | `453d278` | Finding 6 |
+| [#149](https://github.com/KomplexMojo/agon/issues/149) | `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has | **Closed** — fixed | `4efffe7` | Finding 7 |
+| [#150](https://github.com/KomplexMojo/agon/issues/150) | `affinity-summary.json`/`deferred-coordination.json` likely share #149's bug (unconfirmed) | Open | — | Found while fixing #149; different files, not exercised by any scenario yet |
+| [#151](https://github.com/KomplexMojo/agon/issues/151) | MCP README's Tool Index is stale (27 documented vs. ~45 actual tools) | Open | — | Found while fixing #142 |
 
 All 7 originally-found issues are fixed, each verified against its exact original repro plus a full
 `pnpm run test` + `pnpm run typecheck` pass (green throughout — see each finding's "Fix" note and the
@@ -119,7 +119,7 @@ Fixed by making `ak_push_to_ui`'s own tool description state the constraint plai
 
 even though `ak_show` and `ak_runs_list`, called with the same `runId` right after, both report the
 run indexed and `status: "success"` — because they read from the MCP server's own remembered temp
-root (`/var/folders/.../agent-kernel-mcp-<id>/<runId>/...`).
+root (`/var/folders/.../agon-mcp-<id>/<runId>/...`).
 
 **Root cause:** `resolveRunDir()` in
 [`packages/adapters-cli/src/tick-session.mjs:9-14`](packages/adapters-cli/src/tick-session.mjs#L9-L14)
@@ -401,7 +401,7 @@ First pass surfaced a real bug rather than confirming determinism: **all 49 scen
 every time in exactly the same three files (`action-log.json`, `run-summary.json`,
 `world-state.json`) and never in `tick-frames.json`/`effects-log.json`/`runtime-decision-captures.json`
 — which matched byte-for-byte, every scenario, every field. Root cause, filed as
-**[#149](https://github.com/KomplexMojo/agent-kernel/issues/149)**: those three artifacts stamp
+**[#149](https://github.com/KomplexMojo/agon/issues/149)**: those three artifacts stamp
 `meta.id`/`meta.createdAt` via the host's wall-clock `createMeta()`/`makeId()`
 (`packages/adapters-cli/src/cli/ak-impl.mjs:1597-1611`), completely bypassing the seeded clock the
 simulation itself uses — the same failure mode a `visualization-snapshot.js` comment (PX.3) already
@@ -471,13 +471,13 @@ the same command writes (`action-log.json`, `run-summary.json`, `world-state.jso
 ([`ak-impl.mjs:1597-1611`](packages/adapters-cli/src/cli/ak-impl.mjs#L1597-L1611)) instead of the
 run's own seeded clock, so those two fields — and only those two fields — differ every time, even
 given byte-identical input. Filed as
-**[#149](https://github.com/KomplexMojo/agent-kernel/issues/149)**.
+**[#149](https://github.com/KomplexMojo/agon/issues/149)**.
 
 **Fix (`4efffe7`):** moved the clock construction earlier in `run()` and added
 `deterministicRunArtifactMeta()`, used for exactly the three confirmed call sites (action-log's two
 branches, run-summary, world-state). Two same-pattern-but-unconfirmed sites (`affinity-summary.json`,
 `deferred-coordination.json`) weren't touched — filed separately as
-**[#150](https://github.com/KomplexMojo/agent-kernel/issues/150)** rather than bundled in, since no
+**[#150](https://github.com/KomplexMojo/agon/issues/150)** rather than bundled in, since no
 scenario in the matrix exercises them. Verified: re-ran `ak run` twice against identical
 `sim-config.json`/`initial-state.json` with a 1s sleep between — all three files now byte-identical.
 

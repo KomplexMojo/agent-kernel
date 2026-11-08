@@ -34,7 +34,7 @@ export function buildUnifiedArtifacts({
     .map((actor) => actor.id);
   const simConfig = configurator.buildSimConfigArtifact({
     meta: meta('sim_config'),
-    planRef: { id: 'plan_test', schema: 'agent-kernel/PlanArtifact', schemaVersion: 1 },
+    planRef: { id: 'plan_test', schema: 'agon/PlanArtifact', schemaVersion: 1 },
     layout,
     movementStamina: movementStamina ?? Object.fromEntries(mobileIds.map((id) => [id, 0])),
   });
@@ -57,7 +57,7 @@ export function unifiedActorRuntimeArtifacts() {
   const layout = { width: 8, height: 1, terrain: [...Array(7).fill('floor'), 'exit'], exitApproach: { x: 6, y: 0 } };
   const meta = id => ({ id, runId: 'actor-proof', createdAt: '2026-09-14T00:00:00.000Z' });
   const simConfig = configurator.buildSimConfigArtifact({ meta: meta('config'),
-    planRef: { id: 'plan', schema: 'agent-kernel/PlanArtifact', schemaVersion: 1 },
+    planRef: { id: 'plan', schema: 'agon/PlanArtifact', schemaVersion: 1 },
     layout, movementStamina: { actor_1: 0 } });
   const initialState = configurator.buildInitialStateArtifact({ meta: meta('initial'),
     simConfigRef: { id: 'config', schema: simConfig.schema, schemaVersion: 1 },

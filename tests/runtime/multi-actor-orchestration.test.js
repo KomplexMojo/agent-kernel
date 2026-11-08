@@ -70,7 +70,7 @@ async function buildArtifacts(actors) {
   const movementStamina = Object.fromEntries(actors.map((actor) => [actor.id, 0]));
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "multi_actor_orchestration_sim", runId: "multi_actor_orchestration", createdAt: CLOCK, producedBy: "test" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width: WIDTH, height: HEIGHT, terrain, exitApproach: { x: WIDTH - 2, y: HEIGHT - 2 } },
     movementStamina,
   });

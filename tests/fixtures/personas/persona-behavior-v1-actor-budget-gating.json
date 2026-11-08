@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/PersonaBehavior",
+  "schema": "agon/PersonaBehavior",
   "schemaVersion": 1,
   "persona": "actor",
   "cases": [
@@ -20,7 +20,7 @@
         { "actorId": "actor_mvp", "kind": "custom_action", "params": { "label": "custom" } }
       ],
       "budgetReceipt": {
-        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schema": "agon/BudgetReceiptArtifact",
         "schemaVersion": 1,
         "status": "partial",
         "totalCost": 176,
@@ -54,7 +54,7 @@
         { "actorId": "actor_mvp", "kind": "custom_action", "params": { "label": "custom" } }
       ],
       "budgetReceipt": {
-        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schema": "agon/BudgetReceiptArtifact",
         "schemaVersion": 1,
         "status": "approved",
         "totalCost": 111,
@@ -67,7 +67,7 @@
         ]
       },
       "budgetAllocation": {
-        "schema": "agent-kernel/BudgetAllocationArtifact",
+        "schema": "agon/BudgetAllocationArtifact",
         "schemaVersion": 1,
         "pools": [{ "id": "affinity_motivation", "tokens": 0 }]
       },

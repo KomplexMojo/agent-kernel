@@ -20,8 +20,8 @@ function readJson(path) {
 }
 
 test("cli build outputs deterministic manifest/bundle/telemetry", () => {
-  const outDirA = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-det-a-"));
-  const outDirB = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-det-b-"));
+  const outDirA = mkdtempSync(join(os.tmpdir(), "agon-cli-build-det-a-"));
+  const outDirB = mkdtempSync(join(os.tmpdir(), "agon-cli-build-det-b-"));
 
   const resultA = runCli(["build", "--spec", SPEC, "--out-dir", outDirA]);
   const resultB = runCli(["build", "--spec", SPEC, "--out-dir", outDirB]);

@@ -6,7 +6,7 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const SCRIPT = resolve(ROOT, "scripts/llm-prompt-benchmark.mjs");
-const CAPTURE_SCHEMA = "agent-kernel/CapturedInputArtifact";
+const CAPTURE_SCHEMA = "agon/CapturedInputArtifact";
 
 function writeJson(path, value) {
   writeFileSync(path, JSON.stringify(value, null, 2));
@@ -17,7 +17,7 @@ function writeRun(rootDir, { runId, trace, captures }) {
   mkdirSync(runDir, { recursive: true });
 
   writeJson(join(runDir, "telemetry.json"), {
-    schema: "agent-kernel/TelemetryRecord",
+    schema: "agon/TelemetryRecord",
     schemaVersion: 1,
     meta: {
       id: `${runId}_telemetry`,
@@ -78,7 +78,7 @@ function writeRun(rootDir, { runId, trace, captures }) {
 }
 
 test("llm prompt benchmark script ranks cleaner runs above repaired runs", () => {
-  const tmpRoot = mkdtempSync(join(os.tmpdir(), "agent-kernel-prompt-bench-"));
+  const tmpRoot = mkdtempSync(join(os.tmpdir(), "agon-prompt-bench-"));
 
   writeRun(tmpRoot, {
     runId: "promptA_strict_rep1",
@@ -112,7 +112,7 @@ test("llm prompt benchmark script ranks cleaner runs above repaired runs", () =>
   const noiseDir = join(tmpRoot, "noise-run");
   mkdirSync(noiseDir, { recursive: true });
   writeJson(join(noiseDir, "telemetry.json"), {
-    schema: "agent-kernel/TelemetryRecord",
+    schema: "agon/TelemetryRecord",
     schemaVersion: 1,
     meta: { id: "noise", runId: "noise", createdAt: "2025-01-01T00:00:00Z", producedBy: "cli" },
     scope: "run",

@@ -1,7 +1,7 @@
 # LLM Suitability Scenarios
 
 These scenarios benchmark whether a local Ollama model can generate useful Vitests for
-agent-kernel code. They are used by `/Users/darren/remote-ollama-mac llm-suitability-test`.
+Agon code. They are used by `/Users/darren/remote-ollama-mac llm-suitability-test`.
 
 ## How this differs from tests
 

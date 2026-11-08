@@ -7,7 +7,7 @@ import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
 
 
 /**
- * Canonical default price list for agent-kernel simulations.
+ * Canonical default price list for agon simulations.
  *
  * DATA vs LOGIC: the base costs live in `base-costs.json` and are tunable there.
  * The formulas that consume them live HERE, in code:

@@ -11,7 +11,7 @@ const {
 } = await import("../../../packages/runtime/src/personas/annotator/llm-trace.js");
 
 const llmCaptureB = {
-  schema: "agent-kernel/CapturedInputArtifact",
+  schema: "agon/CapturedInputArtifact",
   schemaVersion: 1,
   meta: {
     id: "capture_b",
@@ -39,7 +39,7 @@ const llmCaptureB = {
 };
 
 const llmCaptureA = {
-  schema: "agent-kernel/CapturedInputArtifact",
+  schema: "agon/CapturedInputArtifact",
   schemaVersion: 1,
   meta: {
     id: "capture_a",
@@ -69,7 +69,7 @@ const llmCaptureA = {
 };
 
 const nonLlmCapture = {
-  schema: "agent-kernel/CapturedInputArtifact",
+  schema: "agon/CapturedInputArtifact",
   schemaVersion: 1,
   meta: {
     id: "capture_other",
@@ -114,7 +114,7 @@ const telemetry = buildLlmTraceTelemetryRecord({
   runId: "run_test",
   createdAt: "2026-02-08T10:00:10.000Z",
 });
-assert.equal(telemetry.schema, "agent-kernel/TelemetryRecord");
+assert.equal(telemetry.schema, "agon/TelemetryRecord");
 assert.equal(telemetry.meta.runId, "run_test");
 assert.equal(telemetry.data.kind, "llm_trace");
 assert.equal(telemetry.data.summary.turnCount, 2);

@@ -108,7 +108,7 @@ async function buildArtifacts(otherX, { lit = true } = {}) {
   ];
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "ds4_scoping_sim", runId: "ds4_scoping", createdAt: CLOCK, producedBy: "test" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width: WIDTH, height: HEIGHT, terrain, exitApproach: { x: 1, y: 1 } },
     movementStamina: { observer: 0, other: 0 },
   });

@@ -994,7 +994,7 @@ async function summarizeBuildLikeOutput({
 // here AND in ui-web/src/phaser-surface-ingestion.js — the writer and the reader of the
 // same bundle, each with its own origin.
 
-// Assemble a post-run agent-kernel/GameplayBundle by merging the resolved
+// Assemble a post-run agon/GameplayBundle by merging the resolved
 // SimConfig/InitialState artifacts that `run` writes with the tick frames it
 // recorded. Matches the shape produced by
 // packages/runtime/src/runner/core-facade.js compileScenarioPlaybackBundle
@@ -1064,7 +1064,7 @@ async function summarizeRunOutput({ outDir, args, pricingReport } = {}) {
     artifactPaths.budget_receipt = join(outDir, "budget-receipt.json");
   }
 
-  // M7 gap 3: stitch a post-run agent-kernel/GameplayBundle from the artifacts
+  // M7 gap 3: stitch a post-run agon/GameplayBundle from the artifacts
   // this run just (re)wrote so ak_push_to_ui has something to deliver to the UI.
   const runId = runSummary?.meta?.runId || simConfig?.meta?.runId || initialState?.meta?.runId || "";
   const tickFrames = await readJsonIfExists(artifactPaths.tick_frames);
@@ -5307,7 +5307,7 @@ export const COMMANDS = {
  * produced by buildBuildArtifacts (SimConfigArtifact, InitialStateArtifact,
  * ResourceBundleArtifact, AffinitySummary, etc.).
  *
- * @param {object} buildSpec  BuildSpec object (agent-kernel/BuildSpec)
+ * @param {object} buildSpec  BuildSpec object (agon/BuildSpec)
  * @returns {Promise<{ spec: object, artifacts: object[] }>}
  */
 export async function compileBuildSpecToGameplayBundle(buildSpec) {

@@ -20,7 +20,7 @@ async function build(input) {
   const { createConfiguratorPersona } = await import("../../../packages/runtime/src/personas/configurator/controller.js");
   return createConfiguratorPersona({ clock: () => FIXED }).buildInitialStateArtifact({
     meta: { id: "s", runId: "s", createdAt: FIXED },
-    simConfigRef: { id: "c", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+    simConfigRef: { id: "c", schema: "agon/SimConfigArtifact", schemaVersion: 1 },
     dimensions: { width: 6, height: 3 },
     terrain: Array(18).fill("floor"),
     ...input,

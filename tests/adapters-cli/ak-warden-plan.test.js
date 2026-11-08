@@ -38,7 +38,7 @@ function listWardenCards(spec) {
 }
 
 test("cli warden-plan authors warden cards directly from warden flags", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-basic-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-warden-plan-basic-"));
   const result = runCliOk([
     "warden-plan",
     "--warden",
@@ -65,7 +65,7 @@ test("cli warden-plan authors warden cards directly from warden flags", () => {
   const spec = readJson(join(outDir, "spec.json"));
   const manifest = readJson(join(outDir, "manifest.json"));
   assert.equal(spec.meta.runId, "run_warden_plan_basic");
-  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agon/ResourceBundleArtifact"));
 
   const cards = listWardenCards(spec);
   assert.equal(cards.length, 1);
@@ -76,7 +76,7 @@ test("cli warden-plan authors warden cards directly from warden flags", () => {
 });
 
 test("cli warden-plan applies default warden motivation and affinity fallback", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-defaults-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-warden-plan-defaults-"));
   runCliOk([
     "warden-plan",
     "--warden",
@@ -101,7 +101,7 @@ test("cli warden-plan applies default warden motivation and affinity fallback", 
 });
 
 test("cli warden-plan keeps defending wardens non-ambulatory by default", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-stationary-defaults-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-warden-plan-stationary-defaults-"));
   runCliOk([
     "warden-plan",
     "--warden",
@@ -119,7 +119,7 @@ test("cli warden-plan keeps defending wardens non-ambulatory by default", () => 
 });
 
 test("cli warden-plan supports multiple warden configurations in one command", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-multi-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-warden-plan-multi-"));
   runCliOk([
     "warden-plan",
     "--warden",
@@ -145,7 +145,7 @@ test("cli warden-plan supports multiple warden configurations in one command", (
 });
 
 test("cli warden-plan supports advanced affinities, vitals, and receipt accounting", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-advanced-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-warden-plan-advanced-"));
   runCliOk([
     "warden-plan",
     "--warden",
@@ -205,7 +205,7 @@ test("cli warden-plan supports advanced affinities, vitals, and receipt accounti
 });
 
 test("cli warden-plan rejects insufficient hard budget", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-budget-fail-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-warden-plan-budget-fail-"));
   const result = runCli([
     "warden-plan",
     "--warden",

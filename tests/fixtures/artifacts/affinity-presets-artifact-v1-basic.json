@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/AffinityPresetArtifact",
+  "schema": "agon/AffinityPresetArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "affinity_presets_basic",

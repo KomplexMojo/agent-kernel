@@ -3,7 +3,7 @@
  * keeps it one.
  *
  * The PA.5 census (2026-08-13) found that "artifacts.ts defines too many schemas" was
- * partly a MEASUREMENT problem: the count is of `agent-kernel/*` strings, and those
+ * partly a MEASUREMENT problem: the count is of `agon/*` strings, and those
  * strings name three different kinds of thing — persisted artifacts that carry
  * `meta: ArtifactMeta` and get written to disk, in-process protocol messages that
  * deliberately carry no meta and are never persisted, and constants with no envelope
@@ -48,7 +48,7 @@ function deriveKinds() {
   const src = readFileSync(ARTIFACTS, "utf8");
   const blocks = [...src.matchAll(/export interface ([A-Za-z0-9_]+)[^{]*\{([\s\S]*?)\n\}/g)];
   const kinds = new Map();
-  for (const m of src.matchAll(/export const ([A-Z0-9_]+)\s*=\s*"(agent-kernel\/[A-Za-z0-9_]+)"/g)) {
+  for (const m of src.matchAll(/export const ([A-Z0-9_]+)\s*=\s*"(agon\/[A-Za-z0-9_]+)"/g)) {
     const [, constName, value] = m;
     const block = blocks.find((b) => new RegExp(`schema:\\s*typeof ${constName}\\b`).test(b[2]));
     if (!block) kinds.set(value, "untyped");

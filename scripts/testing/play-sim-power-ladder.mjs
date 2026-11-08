@@ -180,7 +180,7 @@ export async function runPowerLadder({ scenarioId = "first-look", seeds = [0], r
     };
     const byRecipe = recipes?.length ? Object.fromEntries(ladders.map((recipe) => [recipe, lowest(byRung.filter((rung) => rung.recipe === recipe))])) : null;
     const attackUnused = runs.filter((run) => run.attackUnused).length;
-    const summary = { schema: "agent-kernel/PowerLadderRun", version: 2, scenario: scenarioId, seeds, rungs, repeats, maxTicks, model,
+    const summary = { schema: "agon/PowerLadderRun", version: 2, scenario: scenarioId, seeds, rungs, repeats, maxTicks, model,
       ...(byRecipe ? { recipes: ladders, lowestWinningRungByRecipe: byRecipe } : {}),
       lowestWinningRung: lowest(byRung), attackUnused, byRung, runs };
     writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);

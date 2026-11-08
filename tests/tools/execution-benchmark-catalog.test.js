@@ -36,7 +36,7 @@ function mutateCatalog(file, mutator) {
 
 test("execution benchmark catalog defines 25 balanced scored archetypes", () => {
   const catalog = loadExecutionCatalog();
-  assert.equal(catalog.schemaVersion, "agent-kernel-execution-catalog/v1");
+  assert.equal(catalog.schemaVersion, "agon-execution-catalog/v1");
   assert.equal(catalog.evaluatorVersion, "execution-evaluator-v2");
   assert.equal(catalog.count, 25);
   assert.deepEqual(catalog.familyCounts, {

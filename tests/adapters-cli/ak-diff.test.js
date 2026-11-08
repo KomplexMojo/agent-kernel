@@ -31,12 +31,12 @@ function createMeta(runId, id) {
 
 function createInitialState(runId, actors) {
   return {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: "agon/InitialStateArtifact",
     schemaVersion: 1,
     meta: createMeta(runId, `initial_${runId}`),
     simConfigRef: {
       id: `sim_${runId}`,
-      schema: "agent-kernel/SimConfigArtifact",
+      schema: "agon/SimConfigArtifact",
       schemaVersion: 1,
     },
     actors,
@@ -45,7 +45,7 @@ function createInitialState(runId, actors) {
 
 function createSimConfig(runId) {
   return {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: "agon/SimConfigArtifact",
     schemaVersion: 1,
     meta: createMeta(runId, `sim_${runId}`),
     layout: {
@@ -59,7 +59,7 @@ function createSimConfig(runId) {
 
 function createFrame(runId, tick, details = {}) {
   return {
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     meta: createMeta(runId, `frame_${runId}_${tick}_${details.phaseDetail || "apply"}`),
     tick,
@@ -78,7 +78,7 @@ function writeComparableRun(workDir, runId, frames) {
   writeJson(join(buildDir, "sim-config.json"), createSimConfig(runId));
   writeJson(join(buildDir, "initial-state.json"), createInitialState(runId, []));
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: createMeta(runId, `summary_${runId}`),
     outcome: "success",
@@ -88,7 +88,7 @@ function writeComparableRun(workDir, runId, frames) {
 }
 
 test("cli diff compares two prior runs and reports divergence, effects, damage, and actor presence", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-diff-"));
   const runA = "run_diff_alpha";
   const runB = "run_diff_beta";
   const buildA = join(workDir, "artifacts", "runs", runA, "build");
@@ -139,7 +139,7 @@ test("cli diff compares two prior runs and reports divergence, effects, damage, 
   ]));
 
   writeJson(join(runDirA, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: createMeta(runA, `summary_${runA}`),
     outcome: "success",
@@ -149,7 +149,7 @@ test("cli diff compares two prior runs and reports divergence, effects, damage, 
     },
   });
   writeJson(join(runDirB, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: createMeta(runB, `summary_${runB}`),
     outcome: "success",
@@ -236,7 +236,7 @@ test("cli diff compares two prior runs and reports divergence, effects, damage, 
 });
 
 test("cli diff returns structured failure for missing runs", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-missing-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-diff-missing-"));
   const result = runCli(["diff", "--run-a", "run_missing_a", "--run-b", "run_missing_b"], { cwd: workDir });
 
   assert.notEqual(result.status, 0);
@@ -248,7 +248,7 @@ test("cli diff returns structured failure for missing runs", () => {
 });
 
 test("cli diff between two create-only runs returns an ok:false envelope for documented GAP-3", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-create-only-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-diff-create-only-"));
   const runA = "run_create_only_a";
   const runB = "run_create_only_b";
 
@@ -266,7 +266,7 @@ test("cli diff between two create-only runs returns an ok:false envelope for doc
 });
 
 test("cli diff with --run-a equal to --run-b returns a stable no-diff result", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-same-run-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-diff-same-run-"));
   const runId = "run_same";
   writeComparableRun(workDir, runId, [createFrame(runId, 1)]);
 
@@ -283,7 +283,7 @@ test("cli diff with --run-a equal to --run-b returns a stable no-diff result", (
 test.skip("cli diff names missing tick-frames artifact when run-summary exists", () => {});
 
 test("cli diff with identical tick-frames reports zero divergence deterministically", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-identical-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-diff-identical-"));
   const runA = "run_identical_a";
   const runB = "run_identical_b";
   writeComparableRun(workDir, runA, [createFrame(runA, 1), createFrame(runA, 2)]);
@@ -298,7 +298,7 @@ test("cli diff with identical tick-frames reports zero divergence deterministica
 });
 
 test("cli diff reports longer-run tail frames as additions", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-tail-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-diff-tail-"));
   const runA = "run_tail_a";
   const runB = "run_tail_b";
   writeComparableRun(workDir, runA, [createFrame(runA, 1)]);

@@ -71,15 +71,15 @@ function withoutPresentationCategory(state, category) {
 }
 
 const TICK_FRAME = {
-  schema: "agent-kernel/TickFrame",
+  schema: "agon/TickFrame",
   schemaVersion: 1,
   meta: { id: "tf1", runId: "run_viz", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
   tick: 1,
   phase: "summarize",
   acceptedActions: [
-    { schema: "agent-kernel/Action", schemaVersion: 1, actorId: "actor_delver_1", tick: 1, kind: "move",
+    { schema: "agon/Action", schemaVersion: 1, actorId: "actor_delver_1", tick: 1, kind: "move",
       params: { target: { x: 2, y: 1 } } },
-    { schema: "agent-kernel/Action", schemaVersion: 1, actorId: "actor_warden_1", tick: 1, kind: "wait",
+    { schema: "agon/Action", schemaVersion: 1, actorId: "actor_warden_1", tick: 1, kind: "wait",
       params: { reason: "stationary" } },
   ],
 };
@@ -108,7 +108,7 @@ test("createVisualizationSnapshot in ascii mode returns a valid snapshot object"
     initialState: INITIAL_STATE,
     frames: [TICK_FRAME],
   });
-  assert.equal(snap.schema, "agent-kernel/VisualizationSnapshot");
+  assert.equal(snap.schema, "agon/VisualizationSnapshot");
   assert.equal(snap.schemaVersion, 1);
   assert.equal(snap.mode, "ascii");
   assert.equal(snap.tick, 1);
@@ -300,7 +300,7 @@ test("createVisualizationSnapshot with no frame history at tick greater than zer
 function applyAndSummarizeFrames(tick, moves) {
   return [
     {
-      schema: "agent-kernel/TickFrame",
+      schema: "agon/TickFrame",
       schemaVersion: 1,
       meta: { id: `tf${tick}a`, runId: "run_viz", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
       tick,
@@ -309,7 +309,7 @@ function applyAndSummarizeFrames(tick, moves) {
       acceptedActions: moves,
     },
     {
-      schema: "agent-kernel/TickFrame",
+      schema: "agon/TickFrame",
       schemaVersion: 1,
       meta: { id: `tf${tick}s`, runId: "run_viz", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
       tick,
@@ -321,7 +321,7 @@ function applyAndSummarizeFrames(tick, moves) {
 }
 
 function moveAction(actorId, tick, to) {
-  return { schema: "agent-kernel/Action", schemaVersion: 1, actorId, tick, kind: "move", params: { target: to } };
+  return { schema: "agon/Action", schemaVersion: 1, actorId, tick, kind: "move", params: { target: to } };
 }
 
 test("createVisualizationSnapshot accumulates moves across apply-phase frames from multiple ticks (regression #147)", async () => {

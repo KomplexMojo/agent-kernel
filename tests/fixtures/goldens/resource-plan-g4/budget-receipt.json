@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schema": "agon/BudgetReceiptArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "golden_g4_budget_receipt",
@@ -9,22 +9,22 @@
   },
   "budgetRef": {
     "id": "budget_golden_g4",
-    "schema": "agent-kernel/BudgetArtifact",
+    "schema": "agon/BudgetArtifact",
     "schemaVersion": 1
   },
   "priceListRef": {
     "id": "golden_g4_default_price_list",
-    "schema": "agent-kernel/PriceList",
+    "schema": "agon/PriceList",
     "schemaVersion": 1
   },
   "proposalRef": {
     "id": "golden_g4_spend_proposal",
-    "schema": "agent-kernel/SpendProposal",
+    "schema": "agon/SpendProposal",
     "schemaVersion": 1
   },
   "allocationRef": {
     "id": "golden_g4_budget_allocation",
-    "schema": "agent-kernel/BudgetAllocationArtifact",
+    "schema": "agon/BudgetAllocationArtifact",
     "schemaVersion": 1
   },
   "status": "approved",
@@ -41,7 +41,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -55,7 +55,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -69,7 +69,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -83,7 +83,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -100,7 +100,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -117,7 +117,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -131,7 +131,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -145,7 +145,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     }

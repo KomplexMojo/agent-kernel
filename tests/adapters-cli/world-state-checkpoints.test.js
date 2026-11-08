@@ -27,7 +27,7 @@ async function unifiedArtifacts() {
   };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "checkpoint-config", runId: "checkpoint_fixture", createdAt: clock() },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { walker: 0 },
   });
@@ -117,7 +117,7 @@ test("ak run emits only requested WorldStateArtifact checkpoints", async () => {
     const intermediate = readJson(join(checkpointDir, "tick-000001.json"));
     const final = readJson(join(checkpointDir, "tick-000003.json"));
     for (const [expectedTick, checkpoint] of [[0, initial], [1, intermediate], [3, final]]) {
-      assert.equal(checkpoint.schema, "agent-kernel/WorldStateArtifact");
+      assert.equal(checkpoint.schema, "agon/WorldStateArtifact");
       assert.equal(checkpoint.schemaVersion, 2);
       assert.equal(checkpoint.tick, expectedTick);
       assert.equal(checkpoint.meta.producedBy, "annotator");

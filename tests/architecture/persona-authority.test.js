@@ -347,7 +347,7 @@ test("G1 director/plan-artifact: the persisted plan is the one the Director draf
   // rather than this round's output, the two disagree.
   const director = createDirectorPersona({ clock: () => createdAt });
   const intentEnvelope = {
-    schema: "agent-kernel/IntentEnvelope",
+    schema: "agon/IntentEnvelope",
     schemaVersion: 1,
     meta: { id: `intent_${runId}`, runId, createdAt, producedBy: "cli" },
     source: "cli-create",
@@ -549,7 +549,7 @@ test("G1 actor/no-budget-policy: production admits exactly what the Allocator ad
   // budget at all, so admission would be vacuous — this is what makes production
   // actually exercise the Allocator's judgement.
   const denyingReceipt = {
-    schema: "agent-kernel/BudgetReceipt",
+    schema: "agon/BudgetReceipt",
     schemaVersion: 1,
     lineItems: [{ kind: "motivation", id: "motivation_reflexive", status: "denied", quantity: 0 }],
   };
@@ -687,7 +687,7 @@ test("G1 annotator/run-summary-provenance: the summary comes from the instance t
     meta: { id: "run_summary_g1", runId: "run_g1_cr8", createdAt: "2026-08-01T00:00:00.000Z", producedBy: "annotator" },
   });
 
-  assert.equal(summary.schema, "agent-kernel/RunSummary");
+  assert.equal(summary.schema, "agon/RunSummary");
   assert.equal(summary.meta.producedBy, "annotator");
   // P3.2's derivation must survive CR.8 untouched — the defect was provenance, not
   // the outcome logic.
@@ -707,7 +707,7 @@ test("G1 annotator/run-summary-provenance: an Annotator that never observed is r
     subscribePhases: [],
     advance: () => ({ state: "idle", context: {} }),
     view: () => ({ state: "idle", context: {} }),
-    summarizeRun: () => ({ schema: "agent-kernel/RunSummary", schemaVersion: 1, outcome: "fabricated" }),
+    summarizeRun: () => ({ schema: "agon/RunSummary", schemaVersion: 1, outcome: "fabricated" }),
   };
 
   const runtime = createRuntime({

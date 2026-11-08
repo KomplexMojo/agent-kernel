@@ -75,7 +75,7 @@ test("actor with runtimeDecisioning emits SolverRequest effect containing candid
   assert.equal(solverEffects.length, 1, "exactly one SolverRequest effect should be emitted");
 
   const request = solverEffects[0].request;
-  assert.equal(request?.schema, "agent-kernel/SolverRequest");
+  assert.equal(request?.schema, "agon/SolverRequest");
   const envelope = request?.problem?.data;
   assert.ok(envelope, "solver request must include a runtime-decision envelope as problem.data");
   assert.equal(envelope.contract, "runtime-decision-v1");

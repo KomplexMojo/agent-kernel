@@ -30,9 +30,9 @@ test("missing or mismatched recorded response content fails deterministically", 
   const ref = await store.putContent(response);
   store.tamperContent(ref, { response: "changed" });
   const meta = { id: "r:replay", runId: "r", createdAt: "2026-07-13T00:00:00.000Z", producedBy: "adaptive-workflow" };
-  await assert.rejects(() => createReplayModelAdapter({ store, envelope: { schema: "agent-kernel/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "r", responseRefs: [ref] } }).generate({}), /digest mismatch/i);
-  assert.throws(() => createReplayModelAdapter({ store, envelope: { schema: "agent-kernel/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "r", responseRefs: [] } }), /recorded response/i);
-  assert.throws(() => createReplayModelAdapter({ store, envelope: { schema: "agent-kernel/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "r", responseRefs: [{ algorithm: "sha256" }] } }), /recorded response/i);
+  await assert.rejects(() => createReplayModelAdapter({ store, envelope: { schema: "agon/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "r", responseRefs: [ref] } }).generate({}), /digest mismatch/i);
+  assert.throws(() => createReplayModelAdapter({ store, envelope: { schema: "agon/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "r", responseRefs: [] } }), /recorded response/i);
+  assert.throws(() => createReplayModelAdapter({ store, envelope: { schema: "agon/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "r", responseRefs: [{ algorithm: "sha256" }] } }), /recorded response/i);
 });
 
 test("replay envelope with a mismatched run identifier is rejected before any read", async () => {
@@ -44,7 +44,7 @@ test("replay envelope with a mismatched run identifier is rejected before any re
   const ref = await store.putContent(response);
   const meta = { id: "run-a:replay", runId: "run-a", createdAt: "2026-07-13T00:00:00.000Z", producedBy: "adaptive-workflow" };
   assert.throws(
-    () => createReplayModelAdapter({ store, envelope: { schema: "agent-kernel/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "run-b", responseRefs: [ref] } }),
+    () => createReplayModelAdapter({ store, envelope: { schema: "agon/AdaptiveWorkflowReplay", schemaVersion: 1, meta, runId: "run-b", responseRefs: [ref] } }),
     /replay envelope/i,
   );
 });

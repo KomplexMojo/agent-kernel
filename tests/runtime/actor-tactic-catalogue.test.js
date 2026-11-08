@@ -9,7 +9,7 @@ const { join } = require("node:path");
 const catalogue = JSON.parse(readFileSync(join(__dirname, "../../docs/design/actor-tactic-catalogue.json"), "utf8"));
 
 test("every entry has the fields the gate reads", () => {
-  assert.equal(catalogue.schema, "agent-kernel/ActorTacticCatalogue");
+  assert.equal(catalogue.schema, "agon/ActorTacticCatalogue");
   const ids = new Set();
   for (const entry of catalogue.entries) {
     assert.ok(!ids.has(entry.id), `duplicate id ${entry.id}`);

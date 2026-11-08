@@ -609,7 +609,7 @@ test("a session logs each command that ran a tick and exports it as a player cap
   await session.act(move("north")); // into a wall: rejected, but the tick still ran
   await session.act({ kind: "wait" });
   const capture = session.captureInput({ meta: CAPTURE_META });
-  assert.equal(capture.schema, "agent-kernel/CapturedInputArtifact");
+  assert.equal(capture.schema, "agon/CapturedInputArtifact");
   assert.equal(capture.source.adapter, "player");
   assert.equal(capture.contentType, "application/json");
   assert.equal(capture.meta.producedBy, "play-session");

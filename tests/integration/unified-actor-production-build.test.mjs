@@ -6,7 +6,7 @@ test('production build preserves a placed resource actor and holdings through th
   const holdings = [{ id: 'grant', kind: 'vital', claimedBy: null, permanenceMode: 'consumable',
     vitals: [{ key: 'health', delta: 2 }] }];
   const result = await orchestrateBuild({ spec: {
-    schema: 'agent-kernel/BuildSpec', schemaVersion: 1,
+    schema: 'agon/BuildSpec', schemaVersion: 1,
     meta: { id: 'unified', runId: 'unified', createdAt: '2026-09-12T00:00:00Z', source: 'test' },
     intent: { goal: 'build a common resource actor' }, plan: {}, configurator: { inputs: {
       levelGen: { width: 9, height: 9, seed: 42, shape: { roomCount: 1, roomMinSize: 3, roomMaxSize: 3 } },
@@ -26,7 +26,7 @@ test('production build preserves a placed resource actor and holdings through th
 
 test('production build converts a hazard preset into an equipped common actor', async () => {
   const result = await orchestrateBuild({ spec: {
-    schema: 'agent-kernel/BuildSpec', schemaVersion: 1,
+    schema: 'agon/BuildSpec', schemaVersion: 1,
     meta: { id: 'hazard', runId: 'hazard', createdAt: '2026-09-12T00:00:00Z', source: 'test' },
     intent: { goal: 'build a common hazard actor' }, plan: {}, configurator: { inputs: {
       levelGen: { width: 9, height: 9, seed: 42,
@@ -47,7 +47,7 @@ test('production build converts a hazard preset into an equipped common actor', 
 
 test('production build assembles movement stamina from placed mobile actors when omitted', async () => {
   const result = await orchestrateBuild({ spec: {
-    schema: 'agent-kernel/BuildSpec', schemaVersion: 1,
+    schema: 'agon/BuildSpec', schemaVersion: 1,
     meta: { id: 'stamina', runId: 'stamina', createdAt: '2026-09-16T00:00:00Z', source: 'test' },
     intent: { goal: 'assemble movement costs from the placed roster' }, plan: {}, configurator: { inputs: {
       levelGen: { width: 9, height: 9, seed: 42, shape: { roomCount: 1, roomMinSize: 3, roomMaxSize: 3 } },

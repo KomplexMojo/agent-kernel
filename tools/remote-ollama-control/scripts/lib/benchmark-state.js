@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const emptyState = () => ({
-  schemaVersion: 'agent-kernel-benchmark-agent-state/v1',
+  schemaVersion: 'agon-benchmark-agent-state/v1',
   lastEvaluatedCommit: null,
   scenarioSetHash: null,
   matrixHash: null,
@@ -21,7 +21,7 @@ function loadAgentState(stateDir) {
   const statePath = path.join(stateDir, 'state.json');
   if (!fs.existsSync(statePath)) return emptyState();
   const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-  if (state.schemaVersion !== 'agent-kernel-benchmark-agent-state/v1') throw new Error('Invalid benchmark agent state');
+  if (state.schemaVersion !== 'agon-benchmark-agent-state/v1') throw new Error('Invalid benchmark agent state');
   return state;
 }
 

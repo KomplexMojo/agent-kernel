@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BuildSpec",
+  "schema": "agon/BuildSpec",
   "schemaVersion": 1,
   "meta": {
     "id": "build_spec_configurator_mixed_rooms_small",
@@ -78,7 +78,7 @@
         }
       ],
       "affinityPresets": {
-        "schema": "agent-kernel/AffinityPresetArtifact",
+        "schema": "agon/AffinityPresetArtifact",
         "schemaVersion": 1,
         "meta": {
           "id": "affinity_presets_mixed_room_small",
@@ -106,7 +106,7 @@
         ]
       },
       "affinityLoadouts": {
-        "schema": "agent-kernel/ActorLoadoutArtifact",
+        "schema": "agon/ActorLoadoutArtifact",
         "schemaVersion": 1,
         "meta": {
           "id": "actor_loadouts_mixed_room_small",

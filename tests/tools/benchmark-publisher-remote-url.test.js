@@ -16,7 +16,7 @@ function git(cwd, args) {
 
 function record(id, key = 'K1') {
   return {
-    schemaVersion: 'agent-kernel-benchmark-result/v2',
+    schemaVersion: 'agon-benchmark-result/v2',
     run: { id, key, status: 'completed', startedAt: '2026-08-23T00:00:00.000Z' },
   };
 }

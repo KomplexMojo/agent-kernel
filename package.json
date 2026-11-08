@@ -1,7 +1,7 @@
 {
-  "name": "deepward",
+  "name": "agon",
   "version": "1.0.0",
-  "description": "Deepward, a dungeon game, and agent-kernel, the deterministic Ports & Adapters simulation engine it runs on.",
+  "description": "Agon, a deterministic Ports & Adapters simulation engine where players and AI agents contest under one rule set.",
   "main": "index.js",
   "directories": {
     "doc": "docs"

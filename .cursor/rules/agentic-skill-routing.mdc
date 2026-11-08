@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Agentic skill routing (plan + implement)
 
-Before planning or editing agent-kernel domain/architecture code, **pick and follow a focused skill**. Do not default to a full-application sweep.
+Before planning or editing Agon domain/architecture code, **pick and follow a focused skill**. Do not default to a full-application sweep.
 
 ## When planning (Plan mode or milestone scoping)
 

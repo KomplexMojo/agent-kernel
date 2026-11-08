@@ -47,7 +47,7 @@ async function sight(kind) {
   ];
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "own_emit_sim", runId: "own_emit", createdAt: FIXED },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { eye: 1, lamp: 1 },
   });

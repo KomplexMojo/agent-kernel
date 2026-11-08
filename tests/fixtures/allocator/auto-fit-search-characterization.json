@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/test-fixture/AutoFitSearchCharacterization",
+  "schema": "agon/test-fixture/AutoFitSearchCharacterization",
   "generatedFor": "CR.4 M5b.2c",
   "note": "Captured from personas/orchestrator/llm-budget-loop.js BEFORE the auto-fit search moved to the Allocator. Any diff here is a behavior change in what the search converges on.",
   "tileFields": [

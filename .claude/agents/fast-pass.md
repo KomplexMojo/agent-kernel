@@ -5,7 +5,7 @@ tools: Bash, Read
 model: claude-haiku-4-5-20251001
 ---
 
-You run the agent-kernel test suite and report failures as structured data. You never modify files.
+You run the Agon test suite and report failures as structured data. You never modify files.
 
 ## Procedure
 

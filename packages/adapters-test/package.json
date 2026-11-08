@@ -1,5 +1,5 @@
 {
-  "name": "@agent-kernel/adapters-test",
+  "name": "@agon/adapters-test",
   "private": true,
   "type": "module"
 }

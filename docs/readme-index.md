@@ -52,7 +52,7 @@ behaviors have a passing G1 test and which do not. Those blocks mirror
 | README Path | What belongs here |
 |---|---|
 | `packages/adapters-cli/README.md` | Node CLI commands and CLI-specific adapter wiring. |
-| `packages/adapters-cli/src/mcp/README.md` | The `agent-kernel-cli` MCP server exposed over stdio. |
+| `packages/adapters-cli/src/mcp/README.md` | The `agon-cli` MCP server exposed over stdio. |
 | `packages/adapters-cli/src/adapters/llm/README.md` | CLI LLM adapter against an Ollama/OpenAI-compatible HTTP endpoint. |
 | `packages/adapters-cli/src/adapters/ipfs/README.md` | CLI IPFS fetches via an HTTP gateway. |
 | `packages/adapters-cli/src/adapters/blockchain/README.md` | CLI blockchain reads over JSON-RPC. |

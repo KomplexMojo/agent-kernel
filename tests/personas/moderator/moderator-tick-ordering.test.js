@@ -225,7 +225,7 @@ test("CR.5 characterization: need_external_fact with a sourceRef is fulfilled de
     kind: "need_external_fact",
     requestId: "req-a",
     targetAdapter: "fixtures",
-    sourceRef: { id: "src-a", schema: "agent-kernel/IntentEnvelope", schemaVersion: 1 },
+    sourceRef: { id: "src-a", schema: "agon/IntentEnvelope", schemaVersion: 1 },
     data: { query: "a" },
   }];
   const { dispatched, recordingAdapters } = runWithEffects(effectList);

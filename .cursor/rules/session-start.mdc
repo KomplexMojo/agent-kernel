@@ -1,5 +1,5 @@
 ---
-description: agent-kernel session-start protocol — bring the workspace to a known-good state (source, tools, tests) before other work, on cloud or local.
+description: Agon session-start protocol — bring the workspace to a known-good state (source, tools, tests) before other work, on cloud or local.
 alwaysApply: true
 ---
 

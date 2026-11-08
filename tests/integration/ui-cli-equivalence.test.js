@@ -218,7 +218,7 @@ async function writeUnifiedRunArtifacts(dir, runId = "run_equivalence") {
 }
 
 test("browser host build artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-build-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-build-"));
   runCli([
     "build",
     "--spec",
@@ -244,7 +244,7 @@ test("browser host normalizes agent-authored build specs for UI parity", async (
   const adapter = await createBrowserAdapter();
   const normalized = await adapter.normalizeBuildSpec({
     spec: {
-      schema: "agent-kernel/BuildSpec",
+      schema: "agon/BuildSpec",
       schemaVersion: 1,
       meta: {
         id: "build_spec_ui_equivalence",
@@ -258,7 +258,7 @@ test("browser host normalizes agent-authored build specs for UI parity", async (
       authoring: {
         objectKinds: "room",
         request: {
-          schema: "agent-kernel/AgentCommandRequestArtifact",
+          schema: "agon/AgentCommandRequestArtifact",
           schemaVersion: 1,
           meta: {
             id: "agent_command_ui_equivalence",
@@ -299,7 +299,7 @@ test("browser host normalizes agent-authored build specs for UI parity", async (
 });
 
 test("browser host solve artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-solve-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-solve-"));
   runCli([
     "solve",
     "--scenario",
@@ -328,7 +328,7 @@ test("browser host solve artifacts are equivalent to Node CLI output", async () 
 });
 
 test("browser host configurator artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-configurator-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-configurator-"));
   runCli([
     "configurator",
     "--level-gen",
@@ -363,7 +363,7 @@ test("browser host configurator artifacts are equivalent to Node CLI output", as
 });
 
 test("browser host budget artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-budget-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-budget-"));
   runCli([
     "budget",
     "--budget",
@@ -392,7 +392,7 @@ test("browser host budget artifacts are equivalent to Node CLI output", async ()
 });
 
 test("browser host ipfs-publish artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-ipfs-publish-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-ipfs-publish-"));
   runCli([
     "ipfs-publish",
     "--artifact-map",
@@ -418,7 +418,7 @@ test("browser host ipfs-publish artifacts are equivalent to Node CLI output", as
 });
 
 test("browser host ipfs-load artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-ipfs-load-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-ipfs-load-"));
   runCli([
     "ipfs-load",
     "--cid",
@@ -444,7 +444,7 @@ test("browser host ipfs-load artifacts are equivalent to Node CLI output", async
 });
 
 test("browser host blockchain-mint artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-blockchain-mint-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-blockchain-mint-"));
   runCli([
     "blockchain-mint",
     "--rpc-url",
@@ -479,7 +479,7 @@ test("browser host blockchain-mint artifacts are equivalent to Node CLI output",
 });
 
 test("browser host blockchain-load artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-blockchain-load-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-blockchain-load-"));
   runCli([
     "blockchain-load",
     "--rpc-url",
@@ -511,7 +511,7 @@ test("browser host blockchain-load artifacts are equivalent to Node CLI output",
 });
 
 test("browser host llm-plan artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-llm-plan-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-llm-plan-"));
   runCli([
     "llm-plan",
     "--scenario",
@@ -546,7 +546,7 @@ test("browser host llm-plan artifacts are equivalent to Node CLI output", async 
 });
 
 test("browser host llm artifacts are equivalent to Node CLI output", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-llm-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-llm-"));
   runCli([
     "llm",
     "--model",
@@ -579,12 +579,12 @@ test("browser host llm artifacts are equivalent to Node CLI output", async () =>
 
 test("browser host run artifacts are equivalent to Node CLI output", async () => {
 
-  const artifactDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-run-artifacts-"));
+  const artifactDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-run-artifacts-"));
   const { simConfigPath, initialStatePath, simConfig, initialState } = await writeUnifiedRunArtifacts(
     artifactDir,
     "run_equivalence_run",
   );
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-run-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-run-"));
   runCli([
     "run",
     "--sim-config",
@@ -614,12 +614,12 @@ test("browser host run artifacts are equivalent to Node CLI output", async () =>
 
 test("browser host replay artifacts are equivalent to Node CLI output", async () => {
 
-  const artifactDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-replay-artifacts-"));
+  const artifactDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-replay-artifacts-"));
   const { simConfigPath, initialStatePath, simConfig, initialState } = await writeUnifiedRunArtifacts(
     artifactDir,
     "run_equivalence_replay",
   );
-  const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-replay-run-"));
+  const runOutDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-replay-run-"));
   runCli([
     "run",
     "--sim-config",
@@ -632,7 +632,7 @@ test("browser host replay artifacts are equivalent to Node CLI output", async ()
     runOutDir,
   ]);
 
-  const replayOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-replay-"));
+  const replayOutDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-replay-"));
   runCli([
     "replay",
     "--sim-config",
@@ -671,12 +671,12 @@ test("browser host replay artifacts are equivalent to Node CLI output", async ()
 
 test("browser host inspect artifacts are equivalent to Node CLI output", async () => {
 
-  const artifactDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-inspect-artifacts-"));
+  const artifactDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-inspect-artifacts-"));
   const { simConfigPath, initialStatePath, simConfig, initialState } = await writeUnifiedRunArtifacts(
     artifactDir,
     "run_equivalence_inspect",
   );
-  const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-inspect-run-"));
+  const runOutDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-inspect-run-"));
   runCli([
     "run",
     "--sim-config",
@@ -689,7 +689,7 @@ test("browser host inspect artifacts are equivalent to Node CLI output", async (
     runOutDir,
   ]);
 
-  const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-inspect-"));
+  const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-inspect-"));
   runCli([
     "inspect",
     "--tick-frames",
@@ -764,7 +764,7 @@ for (const tier of LADDER_TIERS) {
       const specAbsPath = join(specDir, "spec.json");
       const specRootRelPath = `/artifacts/parity/${tier.id}/spec.json`;
 
-      const cliBuildOut = mkdtempSync(join(os.tmpdir(), `agent-kernel-parity-${tier.id}-`));
+      const cliBuildOut = mkdtempSync(join(os.tmpdir(), `agon-parity-${tier.id}-`));
       runCli(["build", "--spec", specAbsPath, "--out-dir", cliBuildOut]);
       const cliArtifacts = collectJsonArtifacts(cliBuildOut);
 

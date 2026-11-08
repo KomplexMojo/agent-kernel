@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ufw-llm.sh — firewall policy for the agent-kernel LLM box (darren-LLM, 192.168.1.170)
+# ufw-llm.sh — firewall policy for the agon LLM box (darren-LLM, 192.168.1.170)
 #
 # Use case (verified 2026-07-11):
 #   - SSH (2222/tcp) reachable ONLY from the trusted LAN and from the private VPN exit.

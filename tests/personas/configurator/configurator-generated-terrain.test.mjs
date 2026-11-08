@@ -21,7 +21,7 @@ test('public generated terrain goes directly into the production SimConfig build
     const generated = c.generateGridLayoutFromInput({ ...input, seed });
     expect(generated.ok).toBe(true);
     const artifact = c.buildSimConfigArtifact({ meta: { id: 'generated' },
-      planRef: { schema: 'agent-kernel/PlanArtifact', schemaVersion: 1, id: 'plan' },
+      planRef: { schema: 'agon/PlanArtifact', schemaVersion: 1, id: 'plan' },
       layout: generated.value, seed, movementStamina: {} });
     expect(artifact.layout.data.terrain).toEqual(generated.value.terrain);
     expect(c.normalizeActorRoster({ actors: [], dimensions: { width: input.width, height: input.height }, terrain: artifact.layout.data.terrain }).actors).toEqual([]);

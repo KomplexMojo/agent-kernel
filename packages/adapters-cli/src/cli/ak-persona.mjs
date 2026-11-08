@@ -20,7 +20,7 @@
  * single-persona replay, and the ability to bisect a bad build by running one
  * persona in isolation.
  *
- * Envelope: agent-kernel/PersonaInvocation -> agent-kernel/PersonaResult
+ * Envelope: agon/PersonaInvocation -> agon/PersonaResult
  * (DECISION D-j, contracts/artifacts.ts). Maps 1:1 onto the existing
  * `advance({phase, event, payload, tick})` signature, so no persona code changed
  * to add this.
@@ -283,7 +283,7 @@ const USAGE = `ak-persona — run one persona standalone (artifact in, artifact 
   --in <path>   PersonaInvocation artifact (default: stdin)
   --out <path>  PersonaResult artifact     (default: stdout)
 
-The input envelope is agent-kernel/PersonaInvocation; "clock" is required and is
+The input envelope is agon/PersonaInvocation; "clock" is required and is
 never defaulted, and "state" must be null until restore() exists.`;
 
 function readStdin() {

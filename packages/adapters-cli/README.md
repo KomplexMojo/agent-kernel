@@ -63,8 +63,8 @@ ak-persona <persona> < spec.json > result.json      # stdin/stdout when --in/--o
 
 | Flag | Meaning |
 |---|---|
-| `--in <path>` | `agent-kernel/PersonaInvocation` artifact (default: stdin) |
-| `--out <path>` | `agent-kernel/PersonaResult` artifact (default: stdout) |
+| `--in <path>` | `agon/PersonaInvocation` artifact (default: stdin) |
+| `--out <path>` | `agon/PersonaResult` artifact (default: stdout) |
 | `--help` | Usage; exits 0 without reading input |
 
 **It is a first-class entry point, not a test harness** — it happens to be used
@@ -81,7 +81,7 @@ persona `advance({phase, event, payload, tick})` signature, so no persona code
 changed to add this.
 
 ```jsonc
-{ "schema": "agent-kernel/PersonaInvocation", "schemaVersion": 1,
+{ "schema": "agon/PersonaInvocation", "schemaVersion": 1,
   "meta": { "id": "…", "runId": "…", "createdAt": "…", "producedBy": "…" },
   "persona": "allocator",
   "clock": "2026-07-29T00:00:00.000Z",   // REQUIRED — never defaulted
@@ -704,7 +704,7 @@ recipe and power ladders play, and the game's playtest launcher and phone app bu
 turns a scenario and a seed into `ak create` arguments: `scenarioArgs`, `createArgs`, `playerDelverSpec`,
 `affinitiesForSeed` (the seed fills `{A}`/`{B}` with one opposed pair, `{C}`/`{D}` another, `{T1}`/`{T2}` two
 trait-bearing kinds), `fillFocus`, `traitsInPlay`, plus `AK_CLI`, the `ak` entry the levels are built with. It is
-part of the published API (`@agent-kernel/adapters-cli`, `tests/architecture/framework-game-boundary.json`).
+part of the published API (`@agon/adapters-cli`, `tests/architecture/framework-game-boundary.json`).
 
 ### `room-plan`
 Builds a `BuildSpec` directly from Room authoring flags (no hand-edited JSON required) and
@@ -826,7 +826,7 @@ Inputs/outputs:
 ## Agent authoring contract
 
 The canonical additive contract for agent-friendly CLI authoring is
-`agent-kernel/AgentCommandRequestArtifact` (schema version `1`). This milestone
+`agon/AgentCommandRequestArtifact` (schema version `1`). This milestone
 defines the contract and taxonomy only; it does not replace existing commands.
 Current `room-plan`, `hazard-plan`, `resource-plan`, `delver-plan`,
 `warden-plan`, `build`, and `configurator` flows remain valid and are the
@@ -873,7 +873,7 @@ Current compatibility rules:
 - `floor_tile` and richer `hazard` requests are intentionally mapped as `build_spec_configurator` work first; when an authored request cannot be represented by current configurator inputs, it must declare `artifact_extension` instead of inventing an unversioned side channel.
 
 Build inputs/outputs:
-- Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
+- Input: `--spec path` (BuildSpec JSON, schema `agon/BuildSpec`).
 - Output dir: `artifacts/runs/<runId>/build` by default, or `--out-dir`.
 - Outputs: `spec.json`, optional `budget.json`, `price-list.json`, `budget-receipt.json`,
   `sim-config.json`, `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
@@ -927,7 +927,7 @@ effect logs plus a minimal RunSummary artifact.
 
 When the run's inputs come from an authored `create` outDir (identified by the sibling
 pre-run `bundle.json` next to `--sim-config`), `run` also stitches a post-run
-`agent-kernel/GameplayBundle` from the resolved artifacts and recorded tick frames. It
+`agon/GameplayBundle` from the resolved artifacts and recorded tick frames. It
 writes that bundle to `bundle.json` in the run outDir, upgrades the create outDir's
 `bundle.json` in place to the same loadable playback shape, and reports both under
 `artifactPaths.bundle` and `artifactPaths.create_bundle`. Fixture-driven runs stay
@@ -1061,7 +1061,7 @@ node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifa
 
 `run` always writes the final `world-state.json`. Supplying
 `--world-state-checkpoints` additionally writes the requested post-step states as
-`agent-kernel/WorldStateArtifact` v2 files under
+`agon/WorldStateArtifact` v2 files under
 `<out-dir>/world-state-checkpoints/tick-NNNNNN.json`. Tick `0` is captured after runtime
 initialization; every other requested tick is captured immediately after that tick's
 `runtime.step()`. The list must be unique, strictly ascending, and within `--ticks`.
@@ -1143,7 +1143,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 - Run action log: `--actions` path to an ActionSequence artifact (emitted to `action-log.json`).
 - Configurator budget inputs: `--budget`, `--price-list`, optional `--receipt-out` to write the receipt elsewhere.
-- Agent authoring contract discovery: run `schemas` and inspect the `agent-kernel/AgentCommandRequestArtifact` entry for the canonical taxonomy and field list.
+- Agent authoring contract discovery: run `schemas` and inspect the `agon/AgentCommandRequestArtifact` entry for the canonical taxonomy and field list.
 - Room authoring (`room-plan`): repeat `--room` with `size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...`.
   If `affinities` is omitted, the command applies `dark:emit:2`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
@@ -1243,7 +1243,7 @@ node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen tests/fixture
 Run all fixture-first demos and emit artifacts under `artifacts/demo-bundle` (override path with an argument):
 ```
 pnpm run demo:cli
-pnpm run demo:cli -- /tmp/agent-kernel-demo
+pnpm run demo:cli -- /tmp/agon-demo
 ```
 
 ## Effect logs and TickFrames
@@ -1266,7 +1266,7 @@ sandbox.
 
 ## MCP sandbox bridge (`ak_push_to_ui`)
 
-The MCP server's `ak_push_to_ui` tool delivers an `agent-kernel/GameplayBundle` to a
+The MCP server's `ak_push_to_ui` tool delivers an `agon/GameplayBundle` to a
 connected browser UI over the sandbox WebSocket bridge
 (`packages/adapters-cli/src/mcp/bridge-server.mjs`), so an agent can author with
 `ak_create`, execute with `ak_run`, and load the result into the gameplay surface
@@ -1276,7 +1276,7 @@ without manual file handoff.
   containing `bundle.json` (the shape written by `run`'s post-run stitching or by
   `create` pre-run).
 - `targetTab`: `"design"` or `"gameplay"` (default `"gameplay"`).
-- `requireClient` (default `true`): fail if no UI client is connected. agent-kernel ships no
+- `requireClient` (default `true`): fail if no UI client is connected. Agon ships no
   browser client since the web UI was archived in Primordial (#744), and `openBrowser` is gone:
   the bridge is the port a game client connects to.
 - Bridge port: `38487` by default, overridable with `AK_SANDBOX_BRIDGE_PORT`.

@@ -10,16 +10,16 @@ test("production loader rejects leftover layout hazard storage", async () => {
   );
   assert.throws(() => initializeCoreFromArtifacts({
     simConfig: {
-      schema: "agent-kernel/SimConfigArtifact",
+      schema: "agon/SimConfigArtifact",
       schemaVersion: 1,
       meta: { id: "cfg" },
       layout: { kind: "grid", data: { width: 1, height: 1, terrain: ["floor"], hazards: [] } },
     },
     initialState: {
-      schema: "agent-kernel/InitialStateArtifact",
+      schema: "agon/InitialStateArtifact",
       schemaVersion: 1,
       meta: { id: "st" },
-      simConfigRef: { id: "cfg", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+      simConfigRef: { id: "cfg", schema: "agon/SimConfigArtifact", schemaVersion: 1 },
       actors: [],
       presentation: {},
     },
@@ -37,7 +37,7 @@ test("production loader loads hazard actors from initial state", async () => {
   const layout = { width: 2, height: 1, terrain: ["floor", "floor"] };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "cfg", runId: "r", createdAt: "fixed" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: {},
   });

@@ -44,7 +44,7 @@ test("the plan carries the tactics as directives, and the BuildSpec as plan hint
   const director = createDirectorPersona({ clock: () => CREATED_AT });
   const tactics = director.normalizeTactics(["ambush;guards=2"]);
   const { planArtifact } = director.beginBuild({
-    schema: "agent-kernel/IntentEnvelope", schemaVersion: 1,
+    schema: "agon/IntentEnvelope", schemaVersion: 1,
     meta: { id: "intent_t", runId: "run_t", createdAt: CREATED_AT, producedBy: "cli" },
     source: "cli-create", intent: { goal: "tactics", hints: { tactics } },
   }, { runId: "run_t" });
@@ -68,7 +68,7 @@ test("a BuildSpec without tactics carries no tactic field", async () => {
   const { createDirectorPersona } = await load();
   const director = createDirectorPersona({ clock: () => CREATED_AT });
   director.beginBuild({
-    schema: "agent-kernel/IntentEnvelope", schemaVersion: 1,
+    schema: "agon/IntentEnvelope", schemaVersion: 1,
     meta: { id: "intent_n", runId: "run_n", createdAt: CREATED_AT, producedBy: "cli" },
     source: "cli-create", intent: { goal: "none" },
   }, { runId: "run_n" });

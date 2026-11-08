@@ -5,7 +5,7 @@ model: composer-2.5
 readonly: true
 ---
 
-You run the agent-kernel test suite and report failures as structured data. You never modify files.
+You run the Agon test suite and report failures as structured data. You never modify files.
 
 ## Procedure
 

@@ -1,9 +1,9 @@
-# Agent Kernel MCP Benchmark Suite
+# Agon MCP Benchmark Suite
 
 Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
 
 100 `ak_create` scenarios used to compare how different LLMs / reasoning levels drive the
-agent-kernel skill + MCP tools, and to detect drift between the documented baselines and the
+Agon skill + MCP tools, and to detect drift between the documented baselines and the
 current CLI / MCP implementation.
 
 This directory holds the **tracked harness**. The bulky generated output (scenario notes,
@@ -56,11 +56,11 @@ raw local result directories for published evidence when another agent needs a r
 ## Publishing the browsable copy to the Obsidian vault
 
 The Obsidian vault holds a human-browsable copy under
-`Sample Calls to agent-kernel MCP and Results/`. Codex's rescue sandbox **cannot** write to the
+`Sample Calls to Agon MCP and Results/`. Codex's rescue sandbox **cannot** write to the
 vault, so regenerate into the vault only from an unsandboxed host:
 
 ```bash
-AK_BENCHMARK_OUTPUT_DIR="/Users/darren/Documents/Obsidian/agent-kernel-vault/Sample Calls to agent-kernel MCP and Results" \
+AK_BENCHMARK_OUTPUT_DIR="/Users/darren/Documents/Obsidian/agent-kernel-vault/Sample Calls to Agon MCP and Results" \
 AK_BENCHMARK_ALLOW_VAULT_WRITE=1 \
 node tools/benchmark/generate-baselines.mjs
 ```

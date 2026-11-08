@@ -22,7 +22,7 @@ test("cli ipfs adapter handles URL build and errors", async () => {
       };
     },
   });
-  const publish = await publishAdapter.publishJsonMap({ "bundle.json": { schema: "agent-kernel/Bundle" } }, { pathPrefix: "run_1" });
+  const publish = await publishAdapter.publishJsonMap({ "bundle.json": { schema: "agon/Bundle" } }, { pathPrefix: "run_1" });
   assert.equal(publish.cid, "bafyroot");
 
   const failing = createIpfsAdapter({

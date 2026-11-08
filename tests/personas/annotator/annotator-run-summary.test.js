@@ -27,7 +27,7 @@ const META = Object.freeze({
 
 function frame(tick, { moderatorState = "ticking", phaseDetail = "summarize" } = {}) {
   return {
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     tick,
     phase: "execute",
@@ -42,7 +42,7 @@ function frame(tick, { moderatorState = "ticking", phaseDetail = "summarize" } =
 
 function limitEffect(status) {
   return {
-    schema: "agent-kernel/Effect",
+    schema: "agon/Effect",
     kind: "limit_violation",
     severity: status === "violated" ? "error" : "warn",
     data: { status, spent: 12, category: "default" },
@@ -64,7 +64,7 @@ test("summarizeRun stamps the Annotator as producer and emits a valid RunSummary
     ticksRequested: 2,
   });
 
-  assert.equal(summary.schema, "agent-kernel/RunSummary");
+  assert.equal(summary.schema, "agon/RunSummary");
   assert.equal(summary.schemaVersion, 1);
   assert.equal(summary.meta.producedBy, "annotator", "the artifact must announce its persona producer");
   assert.equal(summary.meta.runId, META.runId);
@@ -154,7 +154,7 @@ test("a violation outranks an incomplete run — the more specific signal wins",
 });
 
 test("summarizeRun carries optional refs through and is deterministic", async () => {
-  const simConfigRef = { id: "sim_config_1", schema: "agent-kernel/SimConfig", schemaVersion: 1 };
+  const simConfigRef = { id: "sim_config_1", schema: "agon/SimConfig", schemaVersion: 1 };
   const args = { tickFrames: [frame(1)], effectLog: [], ticksRequested: 1, simConfigRef };
 
   const first = await summarize(args);

@@ -16,7 +16,7 @@ const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const FLOOR = "vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1";
 
 function create(args) {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-playable-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-playable-"));
   const result = spawnSync(process.execPath, [CLI, "create", ...args, "--budget-tokens", "6000",
     "--created-at", "2026-10-14T00:00:00.000Z", "--out-dir", outDir], { cwd: ROOT, encoding: "utf8" });
   assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
@@ -83,7 +83,7 @@ test("a level with no user_controlled delver is made, with nobody marked playabl
 });
 
 test("two motivations from one family are refused with the Configurator's reason", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-playable-conflict-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-playable-conflict-"));
   const result = spawnSync(process.execPath, [CLI, "create", "--room", "size=small;count=1",
     "--delver", "count=1;affinity=water;motivation=exploring+patrolling", "--dry-run", "--out-dir", outDir],
   { cwd: ROOT, encoding: "utf8" });

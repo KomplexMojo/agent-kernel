@@ -9,7 +9,7 @@ function isObject(value) {
 
 function validateResourceArtifact(artifact) {
   assert.ok(isObject(artifact));
-  assert.equal(artifact.schema, "agent-kernel/ResourceArtifact");
+  assert.equal(artifact.schema, "agon/ResourceArtifact");
   assert.equal(artifact.schemaVersion, 2);
   assert.ok(isObject(artifact.meta));
   assert.equal(typeof artifact.meta.id, "string");
@@ -74,7 +74,7 @@ const BASE_VITALS = [{ key: "health", delta: 10 }];
 test("resource artifact V3 accepts permanenceMode 'consumable'", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: BASE_VITALS,
@@ -87,7 +87,7 @@ test("resource artifact V3 accepts permanenceMode 'consumable'", async () => {
 test("resource artifact V3 accepts permanenceMode 'level'", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: BASE_VITALS,
@@ -100,7 +100,7 @@ test("resource artifact V3 accepts permanenceMode 'level'", async () => {
 test("resource artifact V3 accepts permanenceMode 'permanent'", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: BASE_VITALS,
@@ -113,7 +113,7 @@ test("resource artifact V3 accepts permanenceMode 'permanent'", async () => {
 test("resource artifact V3 rejects unknown permanenceMode", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: BASE_VITALS,
@@ -137,7 +137,7 @@ test("RESOURCE_PERMANENCE_MODES exports all three modes", async () => {
 test("resource artifact V3 rejects empty vitals array", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const result = validate({
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: [],
@@ -150,7 +150,7 @@ test("resource artifact V3 rejects empty vitals array", async () => {
 test("resource artifact V3 rejects invalid vital key", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const result = validate({
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: [{ key: "durability", delta: 1 }],
@@ -163,7 +163,7 @@ test("resource artifact V3 rejects invalid vital key", async () => {
 test("resource artifact V3 rejects missing permanenceMode", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const result = validate({
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: BASE_VITALS,
@@ -175,7 +175,7 @@ test("resource artifact V3 rejects missing permanenceMode", async () => {
 test("resource artifact V3 accepts consumable mana vital delta", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: [{ key: "mana", delta: 2 }],
@@ -189,14 +189,14 @@ test("resource artifact V3 accepts consumable mana vital delta", async () => {
 test("resource artifact V3 permanent mode is distinct from V2 permanent boolean", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const v3 = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 3,
     meta: BASE_META,
     vitals: BASE_VITALS,
     permanenceMode: "permanent",
   };
   const v2 = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 2,
     meta: BASE_META,
     vitals: BASE_VITALS,
@@ -222,7 +222,7 @@ test("resource artifact V2 permanent fixture remains valid", async () => {
 test("resource artifact V1 tier/stat fixture remains valid", async () => {
   const { validateResourceArtifact: validate } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/ResourceArtifact",
+    schema: "agon/ResourceArtifact",
     schemaVersion: 1,
     meta: BASE_META,
     tier: "level",

@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/MotivationRulesArtifact",
+  "schema": "agon/MotivationRulesArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "motivation_rules_basic",

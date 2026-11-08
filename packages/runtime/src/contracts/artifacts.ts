@@ -110,14 +110,14 @@ export type Phase = "intake" | "plan" | "allocate" | "configure" | "execute" | "
 // AdaptiveWorkflowAgent contracts
 // -------------------------
 
-export const ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA = "agent-kernel/AdaptiveWorkflowRunState";
-export const ADAPTIVE_WORKFLOW_POLICY_SCHEMA = "agent-kernel/AdaptiveWorkflowPolicy";
-export const ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA = "agent-kernel/AdaptiveWorkflowRuntimeProfile";
-export const ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA = "agent-kernel/AdaptiveWorkflowValidationResult";
-export const ADAPTIVE_WORKFLOW_FAILURE_SCHEMA = "agent-kernel/AdaptiveWorkflowFailure";
-export const ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchRequest";
-export const ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchReceipt";
-export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionEvent";
+export const ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA = "agon/AdaptiveWorkflowRunState";
+export const ADAPTIVE_WORKFLOW_POLICY_SCHEMA = "agon/AdaptiveWorkflowPolicy";
+export const ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA = "agon/AdaptiveWorkflowRuntimeProfile";
+export const ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA = "agon/AdaptiveWorkflowValidationResult";
+export const ADAPTIVE_WORKFLOW_FAILURE_SCHEMA = "agon/AdaptiveWorkflowFailure";
+export const ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA = "agon/AdaptiveWorkflowPatchRequest";
+export const ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA = "agon/AdaptiveWorkflowPatchReceipt";
+export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agon/AdaptiveWorkflowExecutionEvent";
 
 // M7 (2026-08-08) — the twelve that were declared OUTSIDE this file.
 //
@@ -127,7 +127,7 @@ export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWo
 // `AdaptiveWorkflowReplay` and once per package for `AdaptiveWorkflowIdempotencyRecord`.
 //
 // ⚠️ That second group is why the cluster was miscounted three times (9 → 15 → 20): a census
-// keyed on `const X = "agent-kernel/…"` cannot see a schema that never had a const. The
+// keyed on `const X = "agon/…"` cannot see a schema that never had a const. The
 // guard in `tests/architecture/schema-declaration-origin.test.js` now matches LITERALS, not
 // declarations, for exactly that reason.
 //
@@ -135,19 +135,19 @@ export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWo
 // schemaVersion is affected. TypeScript interfaces for these twelve are deliberately NOT
 // part of M7 — the constant is what the charter rule is about, and inventing twelve
 // interfaces would be new contract surface rather than a relocation.
-export const ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionReceipt";
-export const ADAPTIVE_WORKFLOW_METRICS_SCHEMA = "agent-kernel/AdaptiveWorkflowMetrics";
-export const ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA = "agent-kernel/AdaptiveWorkflowStrategyPolicy";
-export const ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA = "agent-kernel/SelectedStrategy";
-export const ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA = "agent-kernel/BenchmarkEvidence";
-export const ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA = "agent-kernel/ContextBudget";
+export const ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA = "agon/AdaptiveWorkflowExecutionReceipt";
+export const ADAPTIVE_WORKFLOW_METRICS_SCHEMA = "agon/AdaptiveWorkflowMetrics";
+export const ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA = "agon/AdaptiveWorkflowStrategyPolicy";
+export const ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA = "agon/SelectedStrategy";
+export const ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA = "agon/BenchmarkEvidence";
+export const ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA = "agon/ContextBudget";
 // The six that had no constant anywhere before M7.
-export const ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA = "agent-kernel/AdaptiveWorkflowCliRequest";
-export const ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA = "agent-kernel/AdaptiveWorkflowCliRunInput";
-export const ADAPTIVE_WORKFLOW_CONFIGURATION_SCHEMA = "agent-kernel/AdaptiveWorkflowConfiguration";
-export const ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA = "agent-kernel/AdaptiveWorkflowIdempotencyRecord";
-export const ADAPTIVE_WORKFLOW_PLAN_SCHEMA = "agent-kernel/AdaptiveWorkflowPlan";
-export const ADAPTIVE_WORKFLOW_REPLAY_SCHEMA = "agent-kernel/AdaptiveWorkflowReplay";
+export const ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA = "agon/AdaptiveWorkflowCliRequest";
+export const ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA = "agon/AdaptiveWorkflowCliRunInput";
+export const ADAPTIVE_WORKFLOW_CONFIGURATION_SCHEMA = "agon/AdaptiveWorkflowConfiguration";
+export const ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA = "agon/AdaptiveWorkflowIdempotencyRecord";
+export const ADAPTIVE_WORKFLOW_PLAN_SCHEMA = "agon/AdaptiveWorkflowPlan";
+export const ADAPTIVE_WORKFLOW_REPLAY_SCHEMA = "agon/AdaptiveWorkflowReplay";
 
 // -------------------------
 // Persona CLI invocation contracts (DECISION D-j)
@@ -161,8 +161,8 @@ export const ADAPTIVE_WORKFLOW_REPLAY_SCHEMA = "agent-kernel/AdaptiveWorkflowRep
 // The pair maps 1:1 onto the existing `advance({phase, event, payload, tick})`
 // signature, so adding the CLI required no persona code changes.
 
-export const PERSONA_INVOCATION_SCHEMA = "agent-kernel/PersonaInvocation";
-export const PERSONA_RESULT_SCHEMA = "agent-kernel/PersonaResult";
+export const PERSONA_INVOCATION_SCHEMA = "agon/PersonaInvocation";
+export const PERSONA_RESULT_SCHEMA = "agon/PersonaResult";
 
 export type PersonaName =
   | "orchestrator"
@@ -488,7 +488,7 @@ export interface AdaptiveWorkflowRunStateV1 {
 // Visualization snapshot
 // -------------------------
 
-export const VISUALIZATION_SNAPSHOT_SCHEMA = "agent-kernel/VisualizationSnapshot";
+export const VISUALIZATION_SNAPSHOT_SCHEMA = "agon/VisualizationSnapshot";
 
 export interface VisualizationActorDetail {
   id: string;
@@ -541,7 +541,7 @@ export type VisualizationSnapshot = VisualizationSnapshotAsciiV1 | Visualization
 // Captured inputs (adapters)
 // -------------------------
 
-export const CAPTURED_INPUT_SCHEMA = "agent-kernel/CapturedInputArtifact";
+export const CAPTURED_INPUT_SCHEMA = "agon/CapturedInputArtifact";
 
 export interface CapturedInputRefV1 {
   /** Path to an on-disk payload (adapter output). */
@@ -578,7 +578,7 @@ export type CapturedInputArtifact = CapturedInputArtifactV1;
 // Agent authoring contract
 // -------------------------
 
-export const AGENT_COMMAND_REQUEST_SCHEMA = "agent-kernel/AgentCommandRequestArtifact";
+export const AGENT_COMMAND_REQUEST_SCHEMA = "agon/AgentCommandRequestArtifact";
 
 export type AgentCommandAction = "author" | "configure";
 export type AgentCommandObjectKind =
@@ -745,7 +745,7 @@ export type AgentCommandRequestArtifact = AgentCommandRequestArtifactV1;
 // Build spec intake (CLI/UI)
 // -------------------------
 
-export const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
+export const BUILD_SPEC_SCHEMA = "agon/BuildSpec";
 
 export interface BuildSpecMeta {
   /** Unique identifier for this spec. */
@@ -882,7 +882,7 @@ export type BuildSpec = BuildSpecV1;
 // Orchestrator → Director
 // -------------------------
 
-export const INTENT_ENVELOPE_SCHEMA = "agent-kernel/IntentEnvelope";
+export const INTENT_ENVELOPE_SCHEMA = "agon/IntentEnvelope";
 
 /**
  * Normalized request envelope created at the boundary (UI/CLI/API/automation).
@@ -922,7 +922,7 @@ export type IntentEnvelope = IntentEnvelopeV1;
 // Director → Configurator
 // -------------------------
 
-export const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
+export const PLAN_ARTIFACT_SCHEMA = "agon/PlanArtifact";
 
 /**
  * Structured plan produced by Director. This is still *not* executable configuration.
@@ -1006,12 +1006,12 @@ export interface HazardProposalEffect {
 // Budgeting (Director/Configurator/Actor → Allocator)
 // -------------------------
 
-export const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
-export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
-export const RUNTIME_BUDGET_RECEIPT_SCHEMA = "agent-kernel/RuntimeBudgetReceiptArtifact";
-export const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
-export const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
-export const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
+export const BUDGET_ARTIFACT_SCHEMA = "agon/BudgetArtifact";
+export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agon/BudgetReceiptArtifact";
+export const RUNTIME_BUDGET_RECEIPT_SCHEMA = "agon/RuntimeBudgetReceiptArtifact";
+export const SPEND_PROPOSAL_SCHEMA = "agon/SpendProposal";
+export const PRICE_LIST_SCHEMA = "agon/PriceList";
+export const BUDGET_ALLOCATION_SCHEMA = "agon/BudgetAllocationArtifact";
 
 export interface BudgetCategoryCaps {
   /**
@@ -1242,7 +1242,7 @@ export type SpendProposal = SpendProposalV1;
 // — to produce identifiers nothing ever reads. They carry `schema`/`schemaVersion`
 // so the exchange is still versioned and discriminable.
 
-export const BUDGET_ENVELOPE_SCHEMA = "agent-kernel/BudgetEnvelope";
+export const BUDGET_ENVELOPE_SCHEMA = "agon/BudgetEnvelope";
 
 /**
  * Allocator -> Configurator. The spending room available for one card, and nothing
@@ -1261,7 +1261,7 @@ export interface BudgetEnvelopeV1 {
 
 export type BudgetEnvelope = BudgetEnvelopeV1;
 
-export const CONFIGURATION_CANDIDATE_SCHEMA = "agent-kernel/ConfigurationCandidate";
+export const CONFIGURATION_CANDIDATE_SCHEMA = "agon/ConfigurationCandidate";
 
 /**
  * Configurator -> Allocator. One structurally valid, fully assembled card the
@@ -1304,7 +1304,7 @@ export interface ConfigurationCandidateV1 {
 
 export type ConfigurationCandidate = ConfigurationCandidateV1;
 
-export const SPEND_VERDICT_SCHEMA = "agent-kernel/SpendVerdict";
+export const SPEND_VERDICT_SCHEMA = "agon/SpendVerdict";
 
 /**
  * Reject reasons. Closed union, so a verdict cannot carry an unclassifiable refusal.
@@ -1412,10 +1412,10 @@ export type PriceListArtifact = PriceListArtifactV1;
 // Configurator → core-ts inputs (via bindings)
 // -------------------------
 
-export const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-export const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
+export const SIM_CONFIG_SCHEMA = "agon/SimConfigArtifact";
+export const INITIAL_STATE_SCHEMA = "agon/InitialStateArtifact";
 
-export const EXECUTION_POLICY_SCHEMA = "agent-kernel/ExecutionPolicy";
+export const EXECUTION_POLICY_SCHEMA = "agon/ExecutionPolicy";
 
 export interface ExecutionPolicyV1 {
   schema: typeof EXECUTION_POLICY_SCHEMA;
@@ -1598,9 +1598,9 @@ export type InitialStateArtifact = InitialStateArtifactV1;
 // Configurator affinity/loadout artifacts
 // -------------------------
 
-export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
-export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
-export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
+export const AFFINITY_PRESET_SCHEMA = "agon/AffinityPresetArtifact";
+export const ACTOR_LOADOUT_SCHEMA = "agon/ActorLoadoutArtifact";
+export const AFFINITY_SUMMARY_SCHEMA = "agon/AffinitySummary";
 // Preset catalogs readers accept: v2, and v1 whose effects/abilities are ignored (#264).
 export const AFFINITY_PRESET_SCHEMA_VERSIONS: readonly number[] = Object.freeze([1, 2]);
 
@@ -1800,8 +1800,8 @@ export interface CapabilityRecordV1 {
 // Solver artifacts (runtime adapters)
 // -------------------------
 
-export const SOLVER_REQUEST_SCHEMA = "agent-kernel/SolverRequest";
-export const SOLVER_RESULT_SCHEMA = "agent-kernel/SolverResult";
+export const SOLVER_REQUEST_SCHEMA = "agon/SolverRequest";
+export const SOLVER_RESULT_SCHEMA = "agon/SolverResult";
 
 export interface SolverRequestV1 {
   schema: typeof SOLVER_REQUEST_SCHEMA;
@@ -1878,8 +1878,8 @@ export type SolverResult = SolverResultV1;
  * role is external interaction. These artifacts are what the persona returns INSTEAD of
  * performing the call.
  */
-export const LLM_REQUEST_SCHEMA = "agent-kernel/LlmRequest";
-export const LLM_RESPONSE_SCHEMA = "agent-kernel/LlmResponse";
+export const LLM_REQUEST_SCHEMA = "agon/LlmRequest";
+export const LLM_RESPONSE_SCHEMA = "agon/LlmResponse";
 
 export interface LlmRequestV1 {
   schema: typeof LLM_REQUEST_SCHEMA;
@@ -1936,13 +1936,13 @@ export type LlmResponse = LlmResponseV1;
 // Runtime ↔ core-ts execution contracts
 // -------------------------
 
-export const ACTION_SCHEMA = "agent-kernel/Action";
-export const EFFECT_SCHEMA = "agent-kernel/Effect";
+export const ACTION_SCHEMA = "agon/Action";
+export const EFFECT_SCHEMA = "agon/Effect";
 
 /** Effect fulfillment category used by the Moderator to route effects deterministically. */
 export type EffectFulfillment = "deterministic" | "deferred";
 
-export const TICK_FRAME_SCHEMA = "agent-kernel/TickFrame";
+export const TICK_FRAME_SCHEMA = "agon/TickFrame";
 
 export interface EffectFulfillmentRecordV1 {
   effect: EffectV1;
@@ -1987,7 +1987,7 @@ export type ActionV1 = ActionEnvelopeV1 & ActorAction;
  * - Do not embed internal memory layouts.
  */
 /**
- * NOT a standalone artifact (PA.4, 2026-07-28). `agent-kernel/Event` was retired — nothing
+ * NOT a standalone artifact (PA.4, 2026-07-28). `agon/Event` was retired — nothing
  * ever produced or consumed an Event artifact. This shape survives because it is the element
  * type of `TickFrameV1.emittedEvents`, which IS live: ak-impl.mjs reads it when narrating a
  * run. Consumers use `kind`, `actorId`, `targetActorId`, `targetId` and `data` — never a
@@ -2107,7 +2107,7 @@ export interface EffectV1 {
  * - Do not embed internal memory layouts.
  */
 /**
- * NOT a standalone artifact (PA.4, 2026-07-28). `agent-kernel/Snapshot` was retired — it had
+ * NOT a standalone artifact (PA.4, 2026-07-28). `agon/Snapshot` was retired — it had
  * no producer and no consumer. This shape survives only as the type of the optional
  * `TickFrameV1.emittedSnapshot` field, which no producer populates today. `BudgetLedgerViewV1`
  * below is retained for the same reason and is unrelated to the deleted BudgetLedgerArtifact
@@ -2189,18 +2189,18 @@ export type TickFrame = TickFrameV1;
 // Annotator outputs
 // -------------------------
 
-export const TELEMETRY_RECORD_SCHEMA = "agent-kernel/TelemetryRecord";
-export const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
-export const BATTLE_LOG_ENTRY_SCHEMA = "agent-kernel/BattleLogEntry";
-export const WORLD_STATE_SCHEMA = "agent-kernel/WorldStateArtifact";
+export const TELEMETRY_RECORD_SCHEMA = "agon/TelemetryRecord";
+export const RUN_SUMMARY_SCHEMA = "agon/RunSummary";
+export const BATTLE_LOG_ENTRY_SCHEMA = "agon/BattleLogEntry";
+export const WORLD_STATE_SCHEMA = "agon/WorldStateArtifact";
 // Z.1 — the constraint-problem family. Declared here like every other schema:
 // `contracts/constraint-problem.js` imports these rather than writing the
 // literals, because a retyped literal is a second origin no declaration-keyed
 // census can see (M7/M8/M9).
-export const CONSTRAINT_PROBLEM_SCHEMA = "agent-kernel/ConstraintProblem";
-export const CONSTRAINT_RESULT_SCHEMA = "agent-kernel/ConstraintResult";
-export const ACTOR_INTENTION_SCHEMA = "agent-kernel/ActorIntention";
-export const NARRATIVE_ARTIFACT_SCHEMA = "agent-kernel/NarrativeArtifact";
+export const CONSTRAINT_PROBLEM_SCHEMA = "agon/ConstraintProblem";
+export const CONSTRAINT_RESULT_SCHEMA = "agon/ConstraintResult";
+export const ACTOR_INTENTION_SCHEMA = "agon/ActorIntention";
+export const NARRATIVE_ARTIFACT_SCHEMA = "agon/NarrativeArtifact";
 
 /**
  * Canonical telemetry record. These can be streamed or stored.
@@ -2473,11 +2473,11 @@ export type NarrativeArtifact = NarrativeArtifactV1;
 // Resource Bundle (rendering)
 // -------------------------
 
-export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
+export const RESOURCE_BUNDLE_SCHEMA = "agon/ResourceBundleArtifact";
 /** Sprite atlas manifest: which atlas frame draws which game thing (render/sprite-atlas-manifest.js). */
-export const SPRITE_ATLAS_SCHEMA = "agent-kernel/SpriteAtlasManifest";
+export const SPRITE_ATLAS_SCHEMA = "agon/SpriteAtlasManifest";
 /** A game's painted art laid over a ResourceBundle, asset id by asset id (render/resource-bundle.js). */
-export const RESOURCE_BUNDLE_DRESSING_SCHEMA = "agent-kernel/ResourceBundleDressing";
+export const RESOURCE_BUNDLE_DRESSING_SCHEMA = "agon/ResourceBundleDressing";
 
 /**
  * Visual resource bundle for rendering simulation state.
@@ -2613,7 +2613,7 @@ export interface ResourceBundleDressingV1 {
 // Resource artifacts
 // -------------------------
 
-export const RESOURCE_ARTIFACT_SCHEMA = "agent-kernel/ResourceArtifact";
+export const RESOURCE_ARTIFACT_SCHEMA = "agon/ResourceArtifact";
 
 /** Stats that a resource artifact can affect. */
 export type ResourceStat =
@@ -2726,7 +2726,7 @@ export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | Resourc
 // Hazard artifacts
 // -------------------------
 
-export const HAZARD_ARTIFACT_SCHEMA = "agent-kernel/HazardArtifact";
+export const HAZARD_ARTIFACT_SCHEMA = "agon/HazardArtifact";
 
 export type HazardVitalKind = "mana" | "durability";
 
@@ -2796,7 +2796,7 @@ export type HazardArtifact = HazardArtifactV1 | HazardArtifactV2 | HazardArtifac
 // RoomTileActorConfig
 // -------------------------
 
-export const ROOM_TILE_CONFIG_SCHEMA = "agent-kernel/RoomTileActorConfig";
+export const ROOM_TILE_CONFIG_SCHEMA = "agon/RoomTileActorConfig";
 
 /**
  * Authored configuration for a room tile actor.
@@ -2819,7 +2819,7 @@ export type RoomTileActorConfig = RoomTileActorConfigV1;
 // TickCursorArtifact
 // -------------------------
 
-export const TICK_CURSOR_SCHEMA = "agent-kernel/TickCursor";
+export const TICK_CURSOR_SCHEMA = "agon/TickCursor";
 
 /**
  * Session artifact tracking the current interactive tick position for a run.
@@ -2840,7 +2840,7 @@ export type TickCursorArtifact = TickCursorArtifactV1;
 // Sandbox Session (Phaser sandbox surface)
 // -------------------------
 
-export const SANDBOX_SESSION_SCHEMA = "agent-kernel/SandboxSessionArtifact";
+export const SANDBOX_SESSION_SCHEMA = "agon/SandboxSessionArtifact";
 
 /**
  * A single room definition inside a sandbox session.
@@ -2947,10 +2947,10 @@ export type SandboxSessionArtifact = SandboxSessionArtifactV1;
 // move. `ActorArtifact` and `LayoutArtifact` are not even artifacts that get written:
 // they appear only as the type half of a `subjectRef`, naming what a spend line is
 // about.
-export const ACTION_SEQUENCE_SCHEMA = "agent-kernel/ActionSequence";
-export const ACTOR_ARTIFACT_SCHEMA = "agent-kernel/ActorArtifact";
-export const AFFINITY_RULES_ARTIFACT_SCHEMA = "agent-kernel/AffinityRulesArtifact";
-export const GAMEPLAY_BUNDLE_SCHEMA = "agent-kernel/GameplayBundle";
-export const LAYOUT_ARTIFACT_SCHEMA = "agent-kernel/LayoutArtifact";
-export const MOTIVATION_RULES_ARTIFACT_SCHEMA = "agent-kernel/MotivationRulesArtifact";
-export const POOL_CATALOG_SCHEMA = "agent-kernel/PoolCatalog";
+export const ACTION_SEQUENCE_SCHEMA = "agon/ActionSequence";
+export const ACTOR_ARTIFACT_SCHEMA = "agon/ActorArtifact";
+export const AFFINITY_RULES_ARTIFACT_SCHEMA = "agon/AffinityRulesArtifact";
+export const GAMEPLAY_BUNDLE_SCHEMA = "agon/GameplayBundle";
+export const LAYOUT_ARTIFACT_SCHEMA = "agon/LayoutArtifact";
+export const MOTIVATION_RULES_ARTIFACT_SCHEMA = "agon/MotivationRulesArtifact";
+export const POOL_CATALOG_SCHEMA = "agon/PoolCatalog";

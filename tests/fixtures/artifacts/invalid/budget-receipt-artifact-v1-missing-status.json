@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schema": "agon/BudgetReceiptArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "budget_receipt_basic",
@@ -9,12 +9,12 @@
   },
   "budgetRef": {
     "id": "budget_basic",
-    "schema": "agent-kernel/BudgetArtifact",
+    "schema": "agon/BudgetArtifact",
     "schemaVersion": 1
   },
   "priceListRef": {
     "id": "price_list_basic",
-    "schema": "agent-kernel/PriceList",
+    "schema": "agon/PriceList",
     "schemaVersion": 1
   },
   "totalCost": 0,

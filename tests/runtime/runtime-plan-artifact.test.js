@@ -16,7 +16,7 @@ const core = {
 };
 
 const intentEnvelope = {
-  schema: "agent-kernel/IntentEnvelope",
+  schema: "agon/IntentEnvelope",
   schemaVersion: 1,
   meta: {
     id: "intent_demo",
@@ -40,9 +40,9 @@ await runtime.step();
 
 const frames = runtime.getTickFrames();
 const planFrames = frames.filter((frame) => Array.isArray(frame.personaArtifacts)
-  && frame.personaArtifacts.some((artifact) => artifact?.schema === "agent-kernel/PlanArtifact"));
+  && frame.personaArtifacts.some((artifact) => artifact?.schema === "agon/PlanArtifact"));
 assert.ok(planFrames.length > 0, "Expected a plan artifact in tick frames");
-const planArtifact = planFrames[0].personaArtifacts.find((artifact) => artifact?.schema === "agent-kernel/PlanArtifact");
+const planArtifact = planFrames[0].personaArtifacts.find((artifact) => artifact?.schema === "agon/PlanArtifact");
 assert.equal(planArtifact.intentRef.id, "intent_demo");
 
 const summarizeFrames = frames.filter((frame) => frame.phaseDetail === "summarize");

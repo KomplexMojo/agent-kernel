@@ -9,7 +9,7 @@ function artifacts(slots = {}) {
   const layout = { width: 3, height: 1, terrain: ['floor', 'floor', 'exit'] };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: 'actions-config', runId: 'actions', createdAt: '2026-09-13T00:00:00.000Z', producedBy: 'test' },
-    planRef: { id: 'plan', schema: 'agent-kernel/PlanArtifact', schemaVersion: 1 },
+    planRef: { id: 'plan', schema: 'agon/PlanArtifact', schemaVersion: 1 },
     layout,
     movementStamina: { caster: 1, source: 0 },
   });

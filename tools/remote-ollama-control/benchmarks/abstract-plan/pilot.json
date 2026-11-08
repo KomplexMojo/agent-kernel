@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "agent-kernel-abstract-plan-catalog/v1",
+  "schemaVersion": "agon-abstract-plan-catalog/v1",
   "scenarios": [
     {
       "index": 1,

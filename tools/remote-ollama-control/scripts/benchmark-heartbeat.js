@@ -47,7 +47,7 @@ function main() {
   // Must match benchmark-agent.js exactly. A heartbeat pointed at a different directory would
   // report "idle" with total confidence while a run was underway three directories over.
   const stateDir = process.env.AK_BENCHMARK_STATE_DIR
-    || path.join(os.homedir(), '.local/state/agent-kernel-benchmark');
+    || path.join(os.homedir(), '.local/state/agon-benchmark');
   const remote = requiredEnv('AK_BENCHMARK_RESULTS_REMOTE');
   const branch = process.env.AK_BENCHMARK_HEARTBEAT_BRANCH || DEFAULT_BRANCH;
   const dryRun = process.env.AK_BENCHMARK_DRY_RUN === '1';

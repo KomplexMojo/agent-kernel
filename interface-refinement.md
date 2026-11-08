@@ -10,7 +10,7 @@ interface-defect pass 2026-09-03. Branch pushed, 27 commits.
 Reviewing the actual interface — not the synthetic probes — surfaced three things:
 
 1. **I had been verifying the wrong page.** `index.html` (2414 lines) mixes legacy and current
-   surfaces; the canonical entry is **`index_c.html`** ("Agent Kernel — Current", 189 lines), served
+   surfaces; the canonical entry is **`index_c.html`** ("Agon — Current", 189 lines), served
    by `pnpm run serve:ui`. Earlier M3/M4 app checks used the mixed page, which is why its playback
    controls appeared inert. Re-verified on `index_c.html`.
 2. **Regression I introduced in M3:** the wall border was mapped to `tiles.wall`, a *fill*, dropping

@@ -103,7 +103,7 @@ export async function runRecipeLadder({ scenarioId = "first-look", seeds = [0], 
     if (baselineRate !== null && best - baselineRate >= 0.5) flags.push(`${recipe.name}: wins ${Math.round(best * 100)}% against the baseline's ${Math.round(baselineRate * 100)}%.`);
     if (mine.some((row) => row.plays > 0 && row.outcomes.every((outcome) => outcome === "create_failed"))) flags.push(`${recipe.name}: could not be built.`);
   }
-  const summary = { schema: "agent-kernel/RecipeLadderRun", version: 1, scenario: scenarioId, seeds, maxTicks, baselineWinRate: baselineRate, flags, rows, runs };
+  const summary = { schema: "agon/RecipeLadderRun", version: 1, scenario: scenarioId, seeds, maxTicks, baselineWinRate: baselineRate, flags, rows, runs };
   writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
   const pct = (value) => (value === null ? "–" : `${Math.round(value * 100)}%`);
   writeFileSync(join(outDir, "report.md"), [`# Recipe ladder: ${scenarioId}`, "",

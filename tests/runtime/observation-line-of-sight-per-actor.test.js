@@ -51,7 +51,7 @@ async function buildArtifacts({ width = 7, height = 5, walls = [], actors }) {
   );
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "ds6_sim", runId: "ds6", createdAt: "2026-09-16T00:00:00.000Z", producedBy: "test" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width, height, terrain },
     movementStamina,
   });

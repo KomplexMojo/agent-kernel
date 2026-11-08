@@ -56,14 +56,14 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   const adapter = createCliWorkerAdapter({ forceInProcess: true, fetchFn, env: { AK_LLM_LIVE: "1" } });
   const buildResult = await adapter.build({ specPath });
 
-  assert.equal(buildResult.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(buildResult.spec.schema, "agon/BuildSpec");
   assert.equal(buildResult.manifest.specPath, "spec.json");
-  assert.equal(buildResult.bundle.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(buildResult.bundle.spec.schema, "agon/BuildSpec");
   assert.equal(buildResult.telemetry.data.status, "success");
   assert.ok(Array.isArray(buildResult.logs));
   assert.ok(buildResult.artifacts["manifest.json"]);
   assert.ok(buildResult.artifacts["resource-bundle.json"]);
-  assert.ok(buildResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
+  assert.ok(buildResult.bundle.artifacts.some((artifact) => artifact.schema === "agon/ResourceBundleArtifact"));
   assert.ok(buildResult.manifest.artifacts.some((entry) => entry.path === "resource-bundle.json"));
 
   const configuratorResult = await adapter.configurator({
@@ -74,9 +74,9 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     outDir: "/artifacts/browser/configurator",
     runId: "run_browser_configurator",
   });
-  assert.equal(configuratorResult.simConfig.schema, "agent-kernel/SimConfigArtifact");
-  assert.equal(configuratorResult.initialState.schema, "agent-kernel/InitialStateArtifact");
-  assert.equal(configuratorResult.budgetReceipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(configuratorResult.simConfig.schema, "agon/SimConfigArtifact");
+  assert.equal(configuratorResult.initialState.schema, "agon/InitialStateArtifact");
+  assert.equal(configuratorResult.budgetReceipt.schema, "agon/BudgetReceiptArtifact");
   assert.equal(configuratorResult.budgetReceipt.meta.runId, "run_browser_configurator");
   assert.ok(configuratorResult.artifacts["sim-config.json"]);
   assert.ok(configuratorResult.artifacts["initial-state.json"]);
@@ -89,10 +89,10 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     outDir: "/artifacts/browser/budget",
     outPath: "/artifacts/browser/budget-output.json",
   });
-  assert.equal(budgetResult.output.budget.schema, "agent-kernel/BudgetArtifact");
-  assert.equal(budgetResult.output.priceList.schema, "agent-kernel/PriceList");
-  assert.equal(budgetResult.output.receipt.schema, "agent-kernel/BudgetReceiptArtifact");
-  assert.equal(budgetResult.outputFile.receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(budgetResult.output.budget.schema, "agon/BudgetArtifact");
+  assert.equal(budgetResult.output.priceList.schema, "agon/PriceList");
+  assert.equal(budgetResult.output.receipt.schema, "agon/BudgetReceiptArtifact");
+  assert.equal(budgetResult.outputFile.receipt.schema, "agon/BudgetReceiptArtifact");
   assert.ok(budgetResult.artifacts["budget.json"]);
   assert.ok(budgetResult.artifacts["price-list.json"]);
   assert.ok(budgetResult.artifacts["budget-receipt.json"]);
@@ -104,7 +104,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     fixtureText: readFileSync(path.resolve(root, "tests/fixtures/adapters/ipfs-price-list.json"), "utf8"),
     outDir: "/artifacts/browser/ipfs",
   });
-  assert.equal(ipfsResult.output.schema, "agent-kernel/PriceList");
+  assert.equal(ipfsResult.output.schema, "agon/PriceList");
   assert.ok(ipfsResult.artifacts["ipfs.json"]);
 
   const ipfsLoadResult = await adapter.ipfsLoad({
@@ -114,7 +114,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   });
   assert.equal(ipfsLoadResult.output.cid, "bafyfixture");
   assert.ok(ipfsLoadResult.bundle);
-  assert.equal(ipfsLoadResult.bundle.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(ipfsLoadResult.bundle.spec.schema, "agon/BuildSpec");
   assert.ok(ipfsLoadResult.artifacts["bundle.json"]);
   assert.ok(ipfsLoadResult.artifacts["manifest.json"]);
 
@@ -181,16 +181,16 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     createdAt: "2025-01-01T00:00:00Z",
     outDir: "/artifacts/browser/llm-plan",
   });
-  assert.equal(llmPlanResult.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(llmPlanResult.spec.schema, "agon/BuildSpec");
   assert.equal(llmPlanResult.spec.meta.runId, "run_browser_llm_plan");
-  assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SimConfigArtifact"));
-  assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/InitialStateArtifact"));
-  assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
-  assert.ok(llmPlanResult.bundle.artifacts.every((artifact) => artifact.schema !== "agent-kernel/CapturedInputArtifact"));
-  assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agent-kernel/SimConfigArtifact"));
-  assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agent-kernel/InitialStateArtifact"));
-  assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agent-kernel/ResourceBundleArtifact"));
-  assert.ok(llmPlanResult.manifest.artifacts.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+  assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agon/SimConfigArtifact"));
+  assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agon/InitialStateArtifact"));
+  assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agon/ResourceBundleArtifact"));
+  assert.ok(llmPlanResult.bundle.artifacts.every((artifact) => artifact.schema !== "agon/CapturedInputArtifact"));
+  assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agon/SimConfigArtifact"));
+  assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agon/InitialStateArtifact"));
+  assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agon/ResourceBundleArtifact"));
+  assert.ok(llmPlanResult.manifest.artifacts.every((entry) => entry.schema !== "agon/CapturedInputArtifact"));
   assert.ok(llmPlanResult.artifacts["bundle.json"]);
   assert.ok(llmPlanResult.artifacts["manifest.json"]);
   assert.ok(llmPlanResult.artifacts["telemetry.json"]);
@@ -201,9 +201,9 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     outDir: "/artifacts/browser/solve",
     runId: "run_browser_solve",
   });
-  assert.equal(solveResult.solverRequest.schema, "agent-kernel/SolverRequest");
+  assert.equal(solveResult.solverRequest.schema, "agon/SolverRequest");
   assert.equal(solveResult.solverRequest.meta.runId, "run_browser_solve");
-  assert.equal(solveResult.solverResult.schema, "agent-kernel/SolverResult");
+  assert.equal(solveResult.solverResult.schema, "agon/SolverResult");
   assert.ok(solveResult.artifacts["solver-request.json"]);
   assert.ok(solveResult.artifacts["solver-result.json"]);
 
@@ -222,10 +222,10 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   });
   assert.ok(Array.isArray(runResult.tickFrames));
   assert.ok(Array.isArray(runResult.effectsLog));
-  assert.equal(runResult.runSummary.schema, "agent-kernel/RunSummary");
-  assert.equal(runResult.actionLog.schema, "agent-kernel/ActionSequence");
+  assert.equal(runResult.runSummary.schema, "agon/RunSummary");
+  assert.equal(runResult.actionLog.schema, "agon/ActionSequence");
   assert.ok(Array.isArray(runResult.runtimeDecisionCaptures));
-  assert.equal(runResult.affinitySummary.schema, "agent-kernel/AffinitySummary");
+  assert.equal(runResult.affinitySummary.schema, "agon/AffinitySummary");
   assert.ok(runResult.artifacts["tick-frames.json"]);
   assert.ok(runResult.artifacts["runtime-decision-captures.json"]);
   assert.ok(runResult.artifacts["inspect-summary.json"] === undefined);
@@ -246,7 +246,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     effectsLogJson: runResult.effectsLog,
     outDir: "/artifacts/browser/inspect",
   });
-  assert.equal(inspectResult.inspectSummary.schema, "agent-kernel/TelemetryRecord");
+  assert.equal(inspectResult.inspectSummary.schema, "agon/TelemetryRecord");
   assert.ok(inspectResult.artifacts["inspect-summary.json"]);
 
   const manualMoveResult = await adapter.manualMove({
@@ -294,7 +294,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
                 result: {
                   ok: true,
                   runId: payload.payload.runId,
-                  spec: { schema: "agent-kernel/BuildSpec", meta: { runId: payload.payload.runId } },
+                  spec: { schema: "agon/BuildSpec", meta: { runId: payload.payload.runId } },
                   specText: "{}",
                 },
               },

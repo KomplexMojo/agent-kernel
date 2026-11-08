@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "agent-kernel-benchmark-result/v2",
+  "$id": "agon-benchmark-result/v2",
   "title": "Published benchmark result v2",
   "type": "object",
   "required": [
@@ -14,7 +14,7 @@
     "qualifies"
   ],
   "properties": {
-    "schemaVersion": { "const": "agent-kernel-benchmark-result/v2" },
+    "schemaVersion": { "const": "agon-benchmark-result/v2" },
     "run": {
       "type": "object",
       "required": ["id", "key", "status"],

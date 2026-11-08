@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/RunSummary",
+  "schema": "agon/RunSummary",
   "schemaVersion": 1,
   "meta": {
     "id": "run_summary_basic",
@@ -9,22 +9,22 @@
   },
   "intentRef": {
     "id": "intent_basic",
-    "schema": "agent-kernel/IntentEnvelope",
+    "schema": "agon/IntentEnvelope",
     "schemaVersion": 1
   },
   "planRef": {
     "id": "plan_basic",
-    "schema": "agent-kernel/PlanArtifact",
+    "schema": "agon/PlanArtifact",
     "schemaVersion": 1
   },
   "simConfigRef": {
     "id": "sim_config_basic",
-    "schema": "agent-kernel/SimConfigArtifact",
+    "schema": "agon/SimConfigArtifact",
     "schemaVersion": 1
   },
   "budgetReceiptRef": {
     "id": "budget_receipt_basic",
-    "schema": "agent-kernel/BudgetReceiptArtifact",
+    "schema": "agon/BudgetReceiptArtifact",
     "schemaVersion": 1
   },
   "outcome": "success",

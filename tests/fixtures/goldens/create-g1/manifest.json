@@ -6,19 +6,19 @@
   },
   "schemas": [
     {
-      "schema": "agent-kernel/BudgetArtifact",
+      "schema": "agon/BudgetArtifact",
       "schemaVersion": 1,
       "category": "supporting_input",
       "description": "Token budget input."
     },
     {
-      "schema": "agent-kernel/BudgetReceiptArtifact",
+      "schema": "agon/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "category": "supporting_input",
       "description": "Canonical budget receipt contract for live build/runtime spend decisions."
     },
     {
-      "schema": "agent-kernel/BuildSpec",
+      "schema": "agon/BuildSpec",
       "schemaVersion": 1,
       "category": "canonical_build_input",
       "description": "Canonical build intake artifact for authoring and orchestration.",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/InitialStateArtifact",
+      "schema": "agon/InitialStateArtifact",
       "schemaVersion": 1,
       "category": "canonical_runtime_handoff",
       "description": "Canonical initial actor state for a run.",
@@ -44,13 +44,13 @@
       ]
     },
     {
-      "schema": "agent-kernel/PriceList",
+      "schema": "agon/PriceList",
       "schemaVersion": 1,
       "category": "supporting_input",
       "description": "Price list for token budgeting."
     },
     {
-      "schema": "agent-kernel/ResourceBundleArtifact",
+      "schema": "agon/ResourceBundleArtifact",
       "schemaVersion": 2,
       "category": "canonical_runtime_handoff",
       "description": "Canonical visual resource bundle with embedded data URIs, sprite variants, and Phaser-ready tile effect overlays.",
@@ -66,7 +66,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/SimConfigArtifact",
+      "schema": "agon/SimConfigArtifact",
       "schemaVersion": 1,
       "category": "canonical_runtime_handoff",
       "description": "Canonical executable simulation configuration.",
@@ -81,7 +81,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/SpendProposal",
+      "schema": "agon/SpendProposal",
       "schemaVersion": 1,
       "category": "intermediate",
       "description": "Configurator spend proposal."
@@ -90,43 +90,43 @@
   "artifacts": [
     {
       "id": "budget_golden_g1",
-      "schema": "agent-kernel/BudgetArtifact",
+      "schema": "agon/BudgetArtifact",
       "schemaVersion": 1,
       "path": "budget.json"
     },
     {
       "id": "golden_g1_budget_receipt",
-      "schema": "agent-kernel/BudgetReceiptArtifact",
+      "schema": "agon/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "path": "budget-receipt.json"
     },
     {
       "id": "golden_g1_initial_state",
-      "schema": "agent-kernel/InitialStateArtifact",
+      "schema": "agon/InitialStateArtifact",
       "schemaVersion": 1,
       "path": "initial-state.json"
     },
     {
       "id": "golden_g1_default_price_list",
-      "schema": "agent-kernel/PriceList",
+      "schema": "agon/PriceList",
       "schemaVersion": 1,
       "path": "price-list.json"
     },
     {
       "id": "golden_g1_resource_bundle",
-      "schema": "agent-kernel/ResourceBundleArtifact",
+      "schema": "agon/ResourceBundleArtifact",
       "schemaVersion": 2,
       "path": "resource-bundle.json"
     },
     {
       "id": "golden_g1_sim_config",
-      "schema": "agent-kernel/SimConfigArtifact",
+      "schema": "agon/SimConfigArtifact",
       "schemaVersion": 1,
       "path": "sim-config.json"
     },
     {
       "id": "golden_g1_spend_proposal",
-      "schema": "agent-kernel/SpendProposal",
+      "schema": "agon/SpendProposal",
       "schemaVersion": 1,
       "path": "spend-proposal.json"
     }

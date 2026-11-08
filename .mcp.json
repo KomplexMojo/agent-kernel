@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "agent-kernel-cli": {
+    "agon-cli": {
       "type": "stdio",
       "command": "sh",
       "args": [

@@ -59,7 +59,7 @@ test("orchestrateBuild produces budget receipt refs and totals from real budget 
   const { budget, priceList, buildResult } = await buildBudgetedRun();
   const receipt = buildResult.budgetReceipt;
 
-  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schema, "agon/BudgetReceiptArtifact");
   assert.deepEqual(receipt.budgetRef, refFor(budget));
   assert.deepEqual(receipt.priceListRef, refFor(priceList));
   assert.equal(receipt.proposalRef.id, buildResult.spendProposal.meta.id);

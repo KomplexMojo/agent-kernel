@@ -30,7 +30,7 @@ Use this tool when local agent workflows should spend inference work on the Ubun
 
 ## Profiles
 
-Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `agent-kernel` repo. From this tool directory, the relative path is `config/llm-profiles.json`.
+Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `agon` repo. From this tool directory, the relative path is `config/llm-profiles.json`.
 
 | Profile | GPU visibility | Intended GPU | Port | Default model | Default context | Default num_predict |
 |---|---:|---|---:|---|---:|---:|
@@ -168,11 +168,11 @@ reads live state and still refuses when the profile is already running or the po
 
 Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
 
-The Ubuntu installer also deploys `agent-kernel-benchmark`, its unprivileged user service/timer, and
+The Ubuntu installer also deploys `agon-benchmark`, its unprivileged user service/timer, and
 an operator-owned environment template. Installation is idempotent and never overwrites an existing
-`~/.config/agent-kernel-benchmark/benchmark-agent.env`. Source fetches use a mirror under
-`~/.local/share/agent-kernel-benchmark/source.git`; local state and the isolated result checkout live
-under `~/.local/state/agent-kernel-benchmark/`. The operator's project checkout is never used.
+`~/.config/agon-benchmark/benchmark-agent.env`. Source fetches use a mirror under
+`~/.local/share/agon-benchmark/source.git`; local state and the isolated result checkout live
+under `~/.local/state/agon-benchmark/`. The operator's project checkout is never used.
 
 M4b ships with `AK_BENCHMARK_DRY_RUN=1`. In that mode the agent fetches the configured source ref,
 computes the immutable run key, classifies path/hash triggers, prints JSON, and exits without writing
@@ -183,9 +183,9 @@ On Ubuntu, install and inspect without enabling scheduling:
 
 ```bash
 ./scripts/install-local-ubuntu.sh
-$EDITOR ~/.config/agent-kernel-benchmark/benchmark-agent.env
-agent-kernel-benchmark
-systemctl --user status agent-kernel-benchmark.timer
+$EDITOR ~/.config/agon-benchmark/benchmark-agent.env
+agon-benchmark
+systemctl --user status agon-benchmark.timer
 ```
 
 Derive the three immutable identities from the exact installed source instead of transcribing hashes:
@@ -205,14 +205,14 @@ process.stdout.write([
 NODE
 ```
 
-Copy those lines into `~/.config/agent-kernel-benchmark/benchmark-agent.env`, keep
+Copy those lines into `~/.config/agon-benchmark/benchmark-agent.env`, keep
 `AK_BENCHMARK_DRY_RUN=1` and `AK_BENCHMARK_LIVE=0`, then retain the read-only handoff:
 
 ```bash
-mkdir -p ~/.local/state/agent-kernel-benchmark
-agent-kernel-benchmark --dry-run | tee ~/.local/state/agent-kernel-benchmark/operator-dry-run.json
+mkdir -p ~/.local/state/agon-benchmark
+agon-benchmark --dry-run | tee ~/.local/state/agon-benchmark/operator-dry-run.json
 node -e 'const r=require(process.argv[1]); if(r.status!=="dry_run"||!r.trigger?.modes) process.exit(1)' \
-  ~/.local/state/agent-kernel-benchmark/operator-dry-run.json
+  ~/.local/state/agon-benchmark/operator-dry-run.json
 ```
 
 Do not enable live mode until both Git-owned route manifests named in the environment template exist in
@@ -222,23 +222,23 @@ closed; an operator-created placeholder or generic fixture mapping is not valid 
 After reviewing a successful dry-run, enable scheduling explicitly:
 
 ```bash
-systemctl --user enable --now agent-kernel-benchmark.timer
-systemctl --user list-timers agent-kernel-benchmark.timer
-journalctl --user -u agent-kernel-benchmark.service
+systemctl --user enable --now agon-benchmark.timer
+systemctl --user list-timers agon-benchmark.timer
+journalctl --user -u agon-benchmark.service
 ```
 
 Disable and uninstall without deleting retained state/results:
 
 ```bash
-systemctl --user disable --now agent-kernel-benchmark.timer
-rm ~/.config/systemd/user/agent-kernel-benchmark.service
-rm ~/.config/systemd/user/agent-kernel-benchmark.timer
+systemctl --user disable --now agon-benchmark.timer
+rm ~/.config/systemd/user/agon-benchmark.service
+rm ~/.config/systemd/user/agon-benchmark.timer
 systemctl --user daemon-reload
-rm ~/bin/agent-kernel-benchmark
+rm ~/bin/agon-benchmark
 ```
 
-Remove `~/remote-ollama-control`, `~/.local/share/agent-kernel-benchmark`,
-`~/.local/state/agent-kernel-benchmark`, or the operator environment only after separately deciding
+Remove `~/remote-ollama-control`, `~/.local/share/agon-benchmark`,
+`~/.local/state/agon-benchmark`, or the operator environment only after separately deciding
 their retained data is no longer needed. M5—not this installer—authorizes live GPU execution and the
 first `benchmark-results` branch publication.
 
@@ -270,7 +270,7 @@ never rendered as though it were current.
 Two things this command deliberately does **not** do, both of which look like shortcuts:
 
 - **It does not glob for `progress.json`.** Every historical run leaves its own copy under
-  `~/.local/state/agent-kernel-benchmark/runs/`, so "newest by mtime" is whichever run last wrote --
+  `~/.local/state/agon-benchmark/runs/`, so "newest by mtime" is whichever run last wrote --
   including one that finished days ago. The run in flight is named by the agent's own `state.json`
   and resolved from that alone. A glob would report a finished run's numbers as current, silently.
 - **It does not require anything from the installed package.** `~/remote-ollama-control` on the box
@@ -320,19 +320,19 @@ A full matrix is 6 configurations × 100 scenarios × up to 3 passes — 600 att
 
 **The agent's failure mode is silence, not error.** Two incidents exited zero the whole time: 147
 consecutive nightlies dying on a deleted branch ref, and a nine-day stretch returning `dry_run` on
-every poll. Nothing that watches for a non-zero exit catches either. So `agent-kernel-heartbeat`
+every poll. Nothing that watches for a non-zero exit catches either. So `agon-heartbeat`
 publishes a beacon every five minutes to the **`benchmark-heartbeat`** branch, and
 `.github/workflows/benchmark-heartbeat-alarm.yml` opens an issue when that beacon goes quiet for an
 hour.
 
 The heartbeat is a **separate timer from the benchmark**, deliberately: a run occupies
-`agent-kernel-benchmark` for days, so a beat emitted by the agent would fall silent for exactly the
+`agon-benchmark` for days, so a beat emitted by the agent would fall silent for exactly the
 stretch that most needs watching. It reads state and progress from disk and never waits on the run.
 
 ```bash
-systemctl --user enable --now agent-kernel-heartbeat.timer
-systemctl --user list-timers agent-kernel-heartbeat.timer
-agent-kernel-heartbeat          # publish one beat by hand
+systemctl --user enable --now agon-heartbeat.timer
+systemctl --user list-timers agon-heartbeat.timer
+agon-heartbeat          # publish one beat by hand
 ```
 
 Both timers also carry `OnActiveSec`, so a reinstall that restarts an already-enabled timer arms a
@@ -379,7 +379,7 @@ Reinstall from the box (no Mac tree required):
 
 ```bash
 rm -rf ~/tmp/ak-install-src
-git clone -q --depth 1 -b main https://github.com/KomplexMojo/agent-kernel.git ~/tmp/ak-install-src
+git clone -q --depth 1 -b main https://github.com/KomplexMojo/agon.git ~/tmp/ak-install-src
 cd ~/tmp/ak-install-src/tools/remote-ollama-control && bash scripts/install-local-ubuntu.sh
 ```
 
@@ -390,7 +390,7 @@ grep -c hostEnvironmentForChild ~/remote-ollama-control/scripts/lib/benchmark-pi
 ```
 
 **Do not reinstall while a run is in flight.** `rsync --delete` replaces modules under a live
-process. Wait for `systemctl --user is-active agent-kernel-benchmark.service` to report `inactive`.
+process. Wait for `systemctl --user is-active agon-benchmark.service` to report `inactive`.
 
 `rsync --delete` **excludes `config/llm-host.env`**, so operator addressing survives a reinstall —
 but it removes anything else left in the package directory, including `config/*.bak-*`. Move backups
@@ -457,7 +457,7 @@ baseline. The reader rejects unsupported schemas, malformed identities, and scen
 scenario-hash, matrix-hash, or execution-suite drift. Compact JSON is committed on `benchmark-results`; raw prompts,
 responses, generated artifacts, and telemetry remain ignored and local.
 
-New publications use `agent-kernel-benchmark-result/v2`, which requires the execution-suite identity
+New publications use `agon-benchmark-result/v2`, which requires the execution-suite identity
 used for qualification. Legacy v1 records remain readable as `historical_incomparable`; the reader
 does not invent the missing execution identity or compare them with current evidence. If
 `latest-success.json` does not exist, `latest_success` returns `record: null` with compatibility status
@@ -728,7 +728,7 @@ Each run records endpoint, profile, model, context, `num_predict`, wall time, Ol
 
 ## Content-Gen Benchmark
 
-Compare how well the primary single-card profile and the two-card dual profile handle the current 100 agent-kernel MCP scenarios. The secondary card is not benchmarked alone; it participates only through the dual profile. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference expectations.
+Compare how well the primary single-card profile and the two-card dual profile handle the current 100 Agon MCP scenarios. The secondary card is not benchmarked alone; it participates only through the dual profile. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference expectations.
 
 The benchmark questions are versioned under `benchmarks/content-gen/` as four reviewed tier catalogs with 25 simple, 25 affinity, 25 complex, and 25 constrained scenarios. `loadScenarioCatalog()` validates the complete 1–100 id range and returns a canonical SHA-256, so a scenario-set change is visible in Git and has a stable identity. Canonical payloads use `$RUN_OUTPUT/create` rather than a machine-specific output path.
 

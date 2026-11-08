@@ -107,7 +107,7 @@ const BASE_META = {
 test("room tile actor config accepts affinities, motivations, durability", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const config = {
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     affinity: "dark",
@@ -122,7 +122,7 @@ test("room tile actor config accepts affinities, motivations, durability", async
 test("room tile actor config accepts minimal config (no affinity)", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const config = {
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
   };
@@ -133,7 +133,7 @@ test("room tile actor config accepts minimal config (no affinity)", async () => 
 test("room tile actor config rejects health vital", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const config = {
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     health: { kind: "regen", current: 10, max: 10, regen: 1 },
@@ -146,7 +146,7 @@ test("room tile actor config rejects health vital", async () => {
 test("room tile actor config rejects mana vital", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const config = {
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     mana: { kind: "regen", current: 4, max: 4, regen: 1 },
@@ -159,7 +159,7 @@ test("room tile actor config rejects mana vital", async () => {
 test("room tile actor config rejects stamina vital", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const config = {
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     stamina: { kind: "regen", current: 4, max: 4, regen: 1 },
@@ -172,7 +172,7 @@ test("room tile actor config rejects stamina vital", async () => {
 test("room tile actor config rejects affinity expressions", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const config = {
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     affinityExpression: "push",
@@ -185,7 +185,7 @@ test("room tile actor config rejects affinity expressions", async () => {
 test("room tile actor config rejects invalid affinity kind", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const result = validateRoomTileActorConfig({
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     affinity: "thunder",
@@ -197,7 +197,7 @@ test("room tile actor config rejects invalid affinity kind", async () => {
 test("room tile actor config rejects negative affinity stacks", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const result = validateRoomTileActorConfig({
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     affinityStacks: -1,
@@ -209,7 +209,7 @@ test("room tile actor config rejects negative affinity stacks", async () => {
 test("room tile actor config accepts zero affinity stacks", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const result = validateRoomTileActorConfig({
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     affinity: "dark",
@@ -221,7 +221,7 @@ test("room tile actor config accepts zero affinity stacks", async () => {
 test("room tile actor config accepts one-time durability", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const result = validateRoomTileActorConfig({
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     durability: { kind: "one-time", amount: 1 },
@@ -232,7 +232,7 @@ test("room tile actor config accepts one-time durability", async () => {
 test("room tile actor config rejects region field", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const result = validateRoomTileActorConfig({
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     region: "north",
@@ -244,7 +244,7 @@ test("room tile actor config rejects region field", async () => {
 test("room tile actor config accepts stationary motivation", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const result = validateRoomTileActorConfig({
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     motivation: "stationary",
@@ -255,7 +255,7 @@ test("room tile actor config accepts stationary motivation", async () => {
 test("room tile actor config reports all forbidden vital errors", async () => {
   const { validateRoomTileActorConfig } = await loadValidator();
   const result = validateRoomTileActorConfig({
-    schema: "agent-kernel/RoomTileActorConfig",
+    schema: "agon/RoomTileActorConfig",
     schemaVersion: 1,
     meta: BASE_META,
     health: { kind: "regen", current: 1, max: 1, regen: 0 },

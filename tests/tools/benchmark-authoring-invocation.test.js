@@ -20,7 +20,7 @@ function seedAuthoringRun(retentionDir, name, { manifest = true } = {}) {
   mkdirSync(dir, { recursive: true });
   if (manifest) {
     writeFileSync(join(dir, MANIFEST_NAME), `${JSON.stringify({
-      schemaVersion: 'agent-kernel-content-gen-run-manifest/v1',
+      schemaVersion: 'agon-content-gen-run-manifest/v1',
       startedAt: '2026-08-23T00:00:00.000Z',
       scenarioSet: { count: 100, sha256: 'catalog', tierCounts: {} },
       matrix: { sha256: 'matrix', maximumPasses: 3, configurationIds: ['cfg-a'] },

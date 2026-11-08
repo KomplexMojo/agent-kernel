@@ -35,7 +35,7 @@ function historicalAggregate(records, scorerVersion = 'ak-compare-v1') {
   const execPass = records.filter((record) => record.execSucceeded === true).length;
   const toolPass = records.filter((record) => record.toolCallProduced === true).length;
   return {
-    contract: 'agent-kernel-content-gen-aggregate/v1',
+    contract: 'agon-content-gen-aggregate/v1',
     scorerVersion,
     execOk: { pass: execPass, total, rate: ratio(execPass, total) },
     toolCallOk: { pass: toolPass, total, rate: ratio(toolPass, total) },
@@ -172,7 +172,7 @@ function aggregateContentGenResults(records, {
     other !== candidate && dominates(other.resourceOrder, candidate.resourceOrder)
   )));
   return {
-    schemaVersion: 'agent-kernel-content-gen-result/v1',
+    schemaVersion: 'agon-content-gen-result/v1',
     scenarioSet,
     matrix: {
       sha256: matrix.sha256,
@@ -222,7 +222,7 @@ function compareContentResults(current, prior) {
 }
 
 function validateContentResult(result) {
-  if (result?.schemaVersion !== 'agent-kernel-content-gen-result/v1') throw new Error('invalid result schemaVersion');
+  if (result?.schemaVersion !== 'agon-content-gen-result/v1') throw new Error('invalid result schemaVersion');
   if (!result.scenarioSet?.sha256 || !result.matrix?.sha256) throw new Error('result identities are required');
   if (!Array.isArray(result.configurations) || !Array.isArray(result.paretoFrontier)) {
     throw new Error('result configurations and paretoFrontier are required');
@@ -543,7 +543,7 @@ function writeContentSummary(summaryPath, results, runConfig) {
   ]);
 
   const lines = [
-    '# Agent-Kernel Content-Gen Benchmark Summary',
+    '# Agon Content-Gen Benchmark Summary',
     '',
     `Generated: ${new Date().toISOString()}`,
     `Route: ${runConfig.route}`,

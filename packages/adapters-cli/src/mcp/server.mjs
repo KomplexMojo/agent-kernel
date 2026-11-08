@@ -22,7 +22,7 @@ import { sandboxTools } from "./tools/sandbox.mjs";
 import { adaptiveWorkflowResources, adaptiveWorkflowTools, assertAdaptiveWorkflowArgs, readAdaptiveWorkflowResource } from "./adaptive-workflow-tools.mjs";
 import { startSandboxBridgeServer, stopSandboxBridgeServer } from "./bridge-server.mjs";
 
-const SERVER_NAME = "agent-kernel-cli";
+const SERVER_NAME = "agon-cli";
 const SERVER_VERSION = "1.0.0";
 const SANDBOX_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
 const TOOL_DEFINITIONS = [
@@ -39,7 +39,7 @@ const TOOL_DEFINITIONS = [
 ];
 
 const TOOL_MAP = new Map(TOOL_DEFINITIONS.map((tool) => [tool.name, tool]));
-const SESSION_TEMP_ROOT = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-"));
+const SESSION_TEMP_ROOT = mkdtempSync(join(os.tmpdir(), "agon-mcp-"));
 const REMEMBERED_RUNS = new Map();
 const MCP_REQUESTS = new Map();
 

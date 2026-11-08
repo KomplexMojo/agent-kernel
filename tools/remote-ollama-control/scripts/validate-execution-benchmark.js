@@ -27,12 +27,12 @@ function fixtureExecutionArtifacts({ ticks = 4 } = {}) {
   for (let tick = 1; tick <= boundedTicks; tick += 1) {
     for (const phaseDetail of ['observe', 'decide', 'apply', 'emit', 'summarize']) {
       const acceptedActions = phaseDetail === 'apply' ? [{
-        schema: 'agent-kernel/Action', schemaVersion: 1, actorId: 'delver_1', tick,
+        schema: 'agon/Action', schemaVersion: 1, actorId: 'delver_1', tick,
         kind: tick === 2 ? 'wait' : 'move',
         params: tick === 2 ? {} : { to: positions[tick - 1] },
       }] : [];
       tickFrames.push({
-        schema: 'agent-kernel/TickFrame', schemaVersion: 1,
+        schema: 'agon/TickFrame', schemaVersion: 1,
         meta: { id: `witness_${tick}_${phaseDetail}`, runId: 'execution_validation_witness',
           createdAt: '1970-01-01T00:00:00.000Z', producedBy: 'deterministic-fixture' },
         tick, phase: 'execute', phaseDetail, acceptedActions,
@@ -42,20 +42,20 @@ function fixtureExecutionArtifacts({ ticks = 4 } = {}) {
   }
   return {
     simConfig: {
-      schema: 'agent-kernel/SimConfigArtifact', schemaVersion: 1,
+      schema: 'agon/SimConfigArtifact', schemaVersion: 1,
       layout: { kind: 'grid', data: { width: 4, height: 3, tiles: ['####', '#..#', '####'],
         rooms: [{ id: 'R1', x: 1, y: 1, width: 2, height: 1 }] } },
     },
     initialState: {
-      schema: 'agent-kernel/InitialStateArtifact', schemaVersion: 1,
+      schema: 'agon/InitialStateArtifact', schemaVersion: 1,
       actors: [{ id: 'delver_1', kind: 'ambulatory', position: { x: 1, y: 1 },
         motivation: { kind: 'exploring' },
         vitals: { health: { current: 10, max: 10, regen: 0 } } }],
     },
     tickFrames,
     effectLog: [],
-    actionLog: { schema: 'agent-kernel/ActionSequence', schemaVersion: 1, actions: [] },
-    runSummary: { schema: 'agent-kernel/RunSummary', schemaVersion: 1, outcome: 'success',
+    actionLog: { schema: 'agon/ActionSequence', schemaVersion: 1, actions: [] },
+    runSummary: { schema: 'agon/RunSummary', schemaVersion: 1, outcome: 'success',
       metrics: { ticks: boundedTicks, frames: tickFrames.length, effects: 0 } },
     worldStateCheckpoints: { states: [] },
     requestedTicks: boundedTicks,
@@ -151,7 +151,7 @@ async function runCanonicalFixtureValidation({ outputRoot, catalog = loadExecuti
   const canaries = await generatedContentCanaries(catalog, outputRoot);
   const expectedHardwareProfiles = eligibleHardwareProfiles();
   const record = {
-    schemaVersion: 'agent-kernel-execution-validation/v2',
+    schemaVersion: 'agon-execution-validation/v2',
     mode: 'deterministic_evaluator_witness',
     identity: plan.identity,
     catalog: catalogSummary,
@@ -205,8 +205,8 @@ function runtimeArtifactSetEvidence(sourceWorktree, routes) {
     const artifacts = {};
     const expectedRunId = `benchmark_${key.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
     for (const [name, schema] of [
-      ['sim-config.json', 'agent-kernel/SimConfigArtifact'],
-      ['initial-state.json', 'agent-kernel/InitialStateArtifact'],
+      ['sim-config.json', 'agon/SimConfigArtifact'],
+      ['initial-state.json', 'agon/InitialStateArtifact'],
     ]) {
       const bytes = fs.readFileSync(path.join(buildDir, name));
       const document = JSON.parse(bytes.toString('utf8'));
@@ -267,7 +267,7 @@ async function runCorpusIntegrationValidation({
     outputRoot: path.join(outputRoot, 'fixture-schedule'), catalog,
   });
   const record = {
-    schemaVersion: 'agent-kernel-execution-corpus-validation/v1',
+    schemaVersion: 'agon-execution-corpus-validation/v1',
     mode: 'deterministic_fixture_with_corpus_preflight',
     identity: {
       executionSuiteHash: catalog.sha256,

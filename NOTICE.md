@@ -1,6 +1,6 @@
 # Notices
 
-Deepward's own code, including its engine agent-kernel, is licensed under the PolyForm Strict License 1.0.0 (see
+Deepward's own code, including its engine Agon, is licensed under the PolyForm Strict License 1.0.0 (see
 [LICENSE.md](LICENSE.md)). It uses third-party software that keeps its own licence:
 
 | Component | Licence |

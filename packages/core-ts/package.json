@@ -1,5 +1,5 @@
 {
-  "name": "@agent-kernel/core-ts",
+  "name": "@agon/core-ts",
   "version": "0.1.0",
   "type": "module",
   "exports": {

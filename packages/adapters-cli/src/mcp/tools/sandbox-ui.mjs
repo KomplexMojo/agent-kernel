@@ -35,7 +35,7 @@ export const sandboxUiTools = [
           type: "object",
           additionalProperties: true,
           description:
-            "Inline BuildSpec artifact to compile. Must conform to agent-kernel/BuildSpec schema. " +
+            "Inline BuildSpec artifact to compile. Must conform to agon/BuildSpec schema. " +
             "If omitted, the tool returns an error (future: use current sandbox state).",
         },
         targetTab: {

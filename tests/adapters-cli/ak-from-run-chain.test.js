@@ -38,7 +38,7 @@ function authorLevel(workDir, runId) {
 }
 
 test("cli diff compares two runs played from the same authored level", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-from-run-diff-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-from-run-diff-"));
   const level = authorLevel(workDir, "level_chain");
   runCliJson(workDir, ["run", "--from-run", "level_chain", "--ticks", "3", "--seed", "1", "--run-id", "play_a"]);
   runCliJson(workDir, ["run", "--from-run", "level_chain", "--ticks", "4", "--seed", "1", "--run-id", "play_b"]);
@@ -56,7 +56,7 @@ test("cli diff compares two runs played from the same authored level", () => {
 });
 
 test("cli show lists the actors and rooms of a run played from an authored level", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-from-run-show-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-from-run-show-"));
   const level = authorLevel(workDir, "level_show");
   runCliJson(workDir, ["run", "--from-run", "level_show", "--ticks", "2", "--run-id", "play_show"]);
 
@@ -68,7 +68,7 @@ test("cli show lists the actors and rooms of a run played from an authored level
 });
 
 test("cli scenario runs an explicit sim-config and initial-state pair", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-from-run-scenario-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-from-run-scenario-"));
   const level = authorLevel(workDir, "level_scenario");
 
   const scenario = runCliJson(workDir, [
@@ -83,7 +83,7 @@ test("cli scenario runs an explicit sim-config and initial-state pair", () => {
 });
 
 test("cli scenario rejects --sim-config without --initial-state", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-from-run-scenario-half-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-from-run-scenario-half-"));
   const level = authorLevel(workDir, "level_half");
   const result = runCli(workDir, ["scenario", "--sim-config", level.artifactPaths.sim_config]);
   assert.notEqual(result.status, 0);
@@ -91,7 +91,7 @@ test("cli scenario rejects --sim-config without --initial-state", () => {
 });
 
 test("cli solve says nothing was solved when the solver defers a free-text scenario", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-solve-deferred-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-solve-deferred-"));
   const output = runCliJson(workDir, ["solve", "--scenario", "two rooms joined by a corridor", "--run-id", "solve_deferred"]);
   assert.equal(output.command, "solve");
   assert.equal(output.solved, false, "a deferred solve answered nothing");

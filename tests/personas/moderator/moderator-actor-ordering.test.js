@@ -78,7 +78,7 @@ test("malformed intentions are ignored rather than trusted", async () => {
   const order = orderActorsByIntention({
     actorIds: ["a_1", "b_1"],
     intentions: [
-      { schema: "agent-kernel/NotAnIntention", actorId: "a_1", intentClass: 999 },
+      { schema: "agon/NotAnIntention", actorId: "a_1", intentClass: 999 },
       buildActorIntention({ actorId: "b_1", intentClass: 100, intentTag: "wait", tick: 1 }),
     ],
   });

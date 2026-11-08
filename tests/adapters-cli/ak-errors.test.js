@@ -77,7 +77,7 @@ test("cli run rejects missing args", () => {
 });
 
 test("cli run rejects missing --from-run artifacts", () => {
-  const tempDir = createTempDir("agent-kernel-cli-error-from-run-");
+  const tempDir = createTempDir("agon-cli-error-from-run-");
   const result = runCliExpectFailure(["run", "--from-run", "run_missing"], { cwd: tempDir });
   assert.match(result.stderr, /--from-run could not find artifacts for run run_missing/);
 });
@@ -123,10 +123,10 @@ test("cli llm rejects missing args", () => {
 });
 
 test("cli run rejects schema mismatch", (t) => {
-  const tempDir = createTempDir("agent-kernel-cli-error-");
+  const tempDir = createTempDir("agon-cli-error-");
   const initialStatePath = join(tempDir, "initial-state.json");
   writeJson(initialStatePath, {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: "agon/InitialStateArtifact",
     schemaVersion: 1,
     meta: {
       id: "initial_state",
@@ -136,7 +136,7 @@ test("cli run rejects schema mismatch", (t) => {
     },
     simConfigRef: {
       id: "sim_config",
-      schema: "agent-kernel/SimConfigArtifact",
+      schema: "agon/SimConfigArtifact",
       schemaVersion: 1,
     },
     actors: [{ id: "actor_1", kind: "stationary" }],
@@ -182,7 +182,7 @@ test("cli run rejects initial state schema kind mismatch", (t) => {
 });
 
 test("cli run rejects leftover tile-wall overrides outside terrain bounds", async () => {
-  const tempDir = createTempDir("agent-kernel-cli-override-");
+  const tempDir = createTempDir("agon-cli-override-");
   const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
     "run",
@@ -199,7 +199,7 @@ test("cli run rejects leftover tile-wall overrides outside terrain bounds", asyn
 });
 
 test("cli run converts leftover tile-barrier into a barrier actor", async () => {
-  const tempDir = createTempDir("agent-kernel-cli-barrier-");
+  const tempDir = createTempDir("agon-cli-barrier-");
   const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
   const outDir = join(tempDir, "out");
   const result = spawnSync(process.execPath, [
@@ -229,7 +229,7 @@ test("cli run converts leftover tile-barrier into a barrier actor", async () => 
 });
 
 test("cli run rejects malformed vital specs", async () => {
-  const tempDir = createTempDir("agent-kernel-cli-override-");
+  const tempDir = createTempDir("agon-cli-override-");
   const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
     "run",
@@ -246,7 +246,7 @@ test("cli run rejects malformed vital specs", async () => {
 });
 
 test("cli run rejects invalid actor kind", async () => {
-  const tempDir = createTempDir("agent-kernel-cli-override-");
+  const tempDir = createTempDir("agon-cli-override-");
   const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
     "run",

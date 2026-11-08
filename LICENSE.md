@@ -1,4 +1,4 @@
-Required Notice: Copyright (c) 2026 KomplexMojo (https://github.com/KomplexMojo/agent-kernel)
+Required Notice: Copyright (c) 2026 KomplexMojo (https://github.com/KomplexMojo/agon)
 
 # PolyForm Strict License 1.0.0
 

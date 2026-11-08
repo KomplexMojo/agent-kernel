@@ -50,7 +50,7 @@ async function run(kind, ticks = 16) {
   ];
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "ambusher_sim", runId: "ambusher", createdAt: FIXED },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { hero: 1, guard: 1 },
   });

@@ -138,4 +138,4 @@ Benchmark data is **offline evidence only**; it never silently rewrites routing.
 - **CLI**: `ak workflow <run|status|replay|cancel|validate>` — see
   [`packages/adapters-cli/README.md`](../packages/adapters-cli/README.md).
 - **MCP tools**: `ak_workflow_run|status|replay|cancel|validate`.
-- **MCP resources**: `agent-kernel://adaptive-workflow/{policy,runtime-profile,validators,run-history}`.
+- **MCP resources**: `agon://adaptive-workflow/{policy,runtime-profile,validators,run-history}`.

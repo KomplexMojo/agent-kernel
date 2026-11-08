@@ -26,7 +26,7 @@ test('generated canonical terrain supports placement and production InitialState
     candidates.sort((a, b) => distance(a) - distance(b) || a.y - b.y || a.x - b.x);
     expect(primary.position).toEqual(candidates[0]);
     const initial = c.buildInitialStateArtifact({ meta: { id: 'placed' },
-      simConfigRef: { id: 'config', schema: 'agent-kernel/SimConfigArtifact', schemaVersion: 1 },
+      simConfigRef: { id: 'config', schema: 'agon/SimConfigArtifact', schemaVersion: 1 },
       actors: placed, dimensions: { width: layout.width, height: layout.height }, terrain: layout.terrain });
     expect(initial.actors.map(a => a.position)).toEqual(placed.map(a => a.position));
     expect(actors[0].position).toEqual({ x: 0, y: 0 });

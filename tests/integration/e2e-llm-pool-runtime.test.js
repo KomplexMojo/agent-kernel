@@ -61,7 +61,7 @@ test("e2e trace wires prompt -> summary -> build -> runtime", async () => {
     source: "integration-test",
   });
   assert.equal(buildSpecResult.ok, true);
-  assert.equal(buildSpecResult.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(buildSpecResult.spec.schema, "agon/BuildSpec");
   assert.equal(buildSpecResult.spec.intent.hints.budgetTokens, scenario.budgetTokens);
 
   const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-build" });

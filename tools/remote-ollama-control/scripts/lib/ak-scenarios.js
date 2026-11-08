@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const SCHEMA_VERSION = 'agent-kernel-content-gen-catalog/v1';
+const SCHEMA_VERSION = 'agon-content-gen-catalog/v1';
 const CATALOG_DIR = path.resolve(__dirname, '..', '..', 'benchmarks', 'content-gen');
 // Baselines generated with a budgetTokens at or above this sentinel are
 // budget-UNCONSTRAINED (generate-baselines.mjs uses a non-binding 1M ceiling);

@@ -154,7 +154,7 @@ export async function executeSandboxCreate({
       return {
         ok: false,
         command: "sandbox-create",
-        error: `Expected agent-kernel/BudgetArtifact, got ${budgetArtifact.schema || "unknown"}`,
+        error: `Expected agon/BudgetArtifact, got ${budgetArtifact.schema || "unknown"}`,
       };
     }
     const tokens = budgetArtifact.budget?.tokens;
@@ -971,8 +971,8 @@ function makePushMessageId() {
 }
 
 /**
- * Push a compiled agent-kernel/GameplayBundle to the sandbox WS bridge so a
- * connected UI client loads it. agent-kernel ships no browser client since the
+ * Push a compiled agon/GameplayBundle to the sandbox WS bridge so a
+ * connected UI client loads it. agon ships no browser client since the
  * old web UI was archived in Primordial (#744); the bridge is the port a game client connects to.
  *
  * Accepts either:
@@ -1036,7 +1036,7 @@ export async function executePushToUi({
     return {
       ok: false,
       command: "push-to-ui",
-      error: "Bundle must be an agent-kernel/GameplayBundle object with an artifacts[] array.",
+      error: "Bundle must be an agon/GameplayBundle object with an artifacts[] array.",
       invalidBundle: true,
     };
   }
@@ -1234,7 +1234,7 @@ export const sandboxTools = [
   createHandlerTool({
     name: "ak_push_to_ui",
     description:
-      "Deliver a compiled agent-kernel/GameplayBundle (produced by ak_create + ak_run) to the " +
+      "Deliver a compiled agon/GameplayBundle (produced by ak_create + ak_run) to the " +
       "connected browser UI via the sandbox WebSocket bridge, so the Phaser gameplay surface can " +
       "load and play back the run. Accepts an explicit bundlePath, an outDir containing bundle.json " +
       "(the shape ak_run writes after M7 stitching), or an inline bundle object. " +
@@ -1256,11 +1256,11 @@ export const sandboxTools = [
         outDir: pathSchema(
           "Run or create outDir containing bundle.json. Used when bundle/bundlePath are omitted.",
         ),
-        bundlePath: pathSchema("Explicit path to an agent-kernel/GameplayBundle JSON file."),
+        bundlePath: pathSchema("Explicit path to an agon/GameplayBundle JSON file."),
         bundle: {
           type: "object",
           additionalProperties: true,
-          description: "Inline agent-kernel/GameplayBundle object, taking precedence over bundlePath/outDir.",
+          description: "Inline agon/GameplayBundle object, taking precedence over bundlePath/outDir.",
         },
         targetTab: {
           type: "string",

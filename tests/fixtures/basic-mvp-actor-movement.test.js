@@ -12,7 +12,7 @@ function coordsEqual(a, b) {
 
 test("mvp sim config defines a deterministic 9x9 grid with spawn/exit and palette", () => {
   const data = simConfig.layout.data;
-  assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+  assert.equal(simConfig.schema, "agon/SimConfigArtifact");
   assert.equal(data.width, 9);
   assert.equal(data.height, 9);
   // S/E are perimeter wall portals; seating/pathing use the interior approaches.
@@ -43,7 +43,7 @@ test("initial actor defaults live off the reserved spawn tile with vitals stub",
 test("action sequence walks the MVP maze to the exit in deterministic ticks", () => {
   const actions = actionSequence.actions;
   const data = simConfig.layout.data;
-  assert.equal(actionSequence.schema, "agent-kernel/ActionSequence");
+  assert.equal(actionSequence.schema, "agon/ActionSequence");
   assert.equal(actions.length, 11);
   actions.forEach((action, index) => {
     assert.equal(action.actorId, "actor_mvp");
@@ -59,7 +59,7 @@ test("action sequence walks the MVP maze to the exit in deterministic ticks", ()
 
 test("frame buffers mirror the action path and keep map metadata in sync", () => {
   const data = simConfig.layout.data;
-  assert.equal(frameBufferLog.schema, "agent-kernel/FrameBufferLog");
+  assert.equal(frameBufferLog.schema, "agon/FrameBufferLog");
   assert.deepEqual(frameBufferLog.baseTiles, data.tiles);
   assert.deepEqual(frameBufferLog.legend, data.render);
 

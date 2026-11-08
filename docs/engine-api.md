@@ -1,10 +1,10 @@
 # Engine API contract
 
-agent-kernel is the engine; games (Primordial is the first) are built on it. This page says what a game may rely on and how that changes. It does not restate the boundary rules: those are in `docs/architecture-charter.md` -> "Framework vs Game".
+Agon is the engine; games (Primordial is the first) are built on it. This page says what a game may rely on and how that changes. It does not restate the boundary rules: those are in `docs/architecture-charter.md` -> "Framework vs Game".
 
 ## What is public
 
-The public API is exactly the modules listed in `apiSurface` in `tests/architecture/framework-game-boundary.json` (below), plus the `ak` CLI and the `ak_*` MCP tools. A game imports `@agent-kernel/*` modules from that list and nothing else; it never imports `core-ts`. Anything not listed is internal and may change without notice.
+The public API is exactly the modules listed in `apiSurface` in `tests/architecture/framework-game-boundary.json` (below), plus the `ak` CLI and the `ak_*` MCP tools. A game imports `@agon/*` modules from that list and nothing else; it never imports `core-ts`. Anything not listed is internal and may change without notice.
 
 | Module | Provides |
 |---|---|

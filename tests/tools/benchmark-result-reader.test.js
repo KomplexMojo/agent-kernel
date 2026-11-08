@@ -17,7 +17,7 @@ const identity = currentBenchmarkIdentity(resolve(ROOT, 'tools/remote-ollama-con
 
 function record(overrides = {}) {
   return {
-    schemaVersion: 'agent-kernel-benchmark-result/v2',
+    schemaVersion: 'agon-benchmark-result/v2',
     run: { id: 'fixture', status: 'completed' },
     scenarioSet: { ...identity.scenarioSet },
     matrix: { ...identity.matrix },

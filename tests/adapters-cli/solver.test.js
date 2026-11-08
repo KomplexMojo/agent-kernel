@@ -9,7 +9,7 @@ const fixturePath = resolve(ROOT, "tests/fixtures/artifacts/solver-result-v1-bas
 
 test("cli solve supports solver fixture", () => {
   const nodePath = process.execPath;
-  const outDir = mkdtempSync(join(tmpdir(), "agent-kernel-solve-cli-"));
+  const outDir = mkdtempSync(join(tmpdir(), "agon-solve-cli-"));
 
   const result = spawnSync(nodePath, [cliPath, "solve", "--scenario", "test", "--solver-fixture", fixturePath, "--out-dir", outDir], { encoding: "utf8" });
   if (result.status !== 0) {

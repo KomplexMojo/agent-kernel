@@ -30,7 +30,7 @@ test("runtime drives all personas via the FSM schedule", async () => {
     }],
   });
   const intentEnvelope = {
-    schema: "agent-kernel/IntentEnvelope",
+    schema: "agon/IntentEnvelope",
     schemaVersion: 1,
     meta: {
       id: "intent_runtime_schedule",

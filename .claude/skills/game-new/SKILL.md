@@ -1,6 +1,6 @@
 ---
 name: game-new
-description: Create a new agent-kernel game level from a plain description and show its starting board. Usage /game-new <description>.
+description: Create a new Agon game level from a plain description and show its starting board. Usage /game-new <description>.
 disable-model-invocation: true
 argument-hint: <description of the level>
 ---

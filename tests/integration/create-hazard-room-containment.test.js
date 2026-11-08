@@ -389,7 +389,7 @@ test("i3 push_to_ui bundle renders every hazard inside a room outline", async ()
   assert.ok(bundle.spec, "bundle.json should contain the spec envelope for the generated create run");
   assert.ok(Array.isArray(bundle.artifacts), "bundle.json should expose artifact metadata");
   assert.ok(
-    manifest.artifacts.some((entry) => entry.path === "sim-config.json" && entry.schema === "agent-kernel/SimConfigArtifact"),
+    manifest.artifacts.some((entry) => entry.path === "sim-config.json" && entry.schema === "agon/SimConfigArtifact"),
     "manifest.json should expose the sim-config artifact consumed by the UI pipeline",
   );
 

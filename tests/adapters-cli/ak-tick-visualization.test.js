@@ -74,14 +74,14 @@ async function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
   writeJson(join(buildDir, "initial-state.json"), initialState);
 
   const frames = Array.from({ length: maxTick }, (_, i) => ({
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     meta: makeMeta(`tf_${i + 1}`, runId),
     tick: i + 1,
     phase: "summarize",
     acceptedActions: [
       {
-        schema: "agent-kernel/Action",
+        schema: "agon/Action",
         schemaVersion: 1,
         actorId: "actor_delver_1",
         tick: i + 1,
@@ -92,7 +92,7 @@ async function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
   }));
   writeJson(join(runDir, "tick-frames.json"), frames);
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: makeMeta("run_summary", runId),
     outcome: "success",

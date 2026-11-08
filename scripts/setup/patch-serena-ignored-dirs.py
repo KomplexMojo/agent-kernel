@@ -54,14 +54,14 @@ ORIGINAL = """        return super().is_ignored_dirname(dirname) or dirname in [
             "build",
         ]"""
 
-PATCHED = """        # PATCHED by agent-kernel scripts/setup/patch-serena-ignored-dirs.py
+PATCHED = """        # PATCHED by agon scripts/setup/patch-serena-ignored-dirs.py
         # `dist` and `build` removed: this repo keeps tracked source and tests in
         # directories named `build`, and .gitignore already covers real build output.
         return super().is_ignored_dirname(dirname) or dirname in [
             "node_modules",
         ]"""
 
-MARKER = "PATCHED by agent-kernel"
+MARKER = "PATCHED by agon"
 
 
 def find_target() -> Path | None:

@@ -250,7 +250,7 @@ test("a transport-level LLM failure does not abort the run through executeConten
 
 function passingExecutionSchedule() {
   return {
-    schemaVersion: "agent-kernel-execution-schedule/v1",
+    schemaVersion: "agon-execution-schedule/v1",
     status: "completed",
     identity: { executionSuiteHash: "execution-hash", evaluatorVersion: "evaluator-v2" },
     scenarios: [{ scenarioId: "EX-TR-01", aggregate: { verdict: { qualifies: true } } }],

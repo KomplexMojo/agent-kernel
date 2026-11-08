@@ -34,7 +34,7 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
 
   const runId = "run_affinity_e2e";
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "spec_affinity_e2e",
@@ -70,11 +70,11 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
   assert.ok(buildResult.affinitySummary);
 
   const summary = buildResult.affinitySummary;
-  assert.equal(summary.schema, "agent-kernel/AffinitySummary");
+  assert.equal(summary.schema, "agon/AffinitySummary");
   assert.equal(summary.schemaVersion, 2);
   assert.equal(summary.meta.runId, runId);
-  assert.deepEqual(summary.presetsRef, toRef(presets, "agent-kernel/AffinityPresetArtifact"));
-  assert.deepEqual(summary.loadoutsRef, toRef(loadouts, "agent-kernel/ActorLoadoutArtifact"));
+  assert.deepEqual(summary.presetsRef, toRef(presets, "agon/AffinityPresetArtifact"));
+  assert.deepEqual(summary.loadoutsRef, toRef(loadouts, "agon/ActorLoadoutArtifact"));
   // The shared fixture describes AFFINITY RESOLUTION; this test drives orchestrateBuild, which also
   // applies the actor viability floor on top of it. Deriving the difference here rather than baking
   // it into the fixture keeps that fixture honest for its other two consumers (`cli run` and the

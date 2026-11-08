@@ -15,7 +15,7 @@ test('canonical evaluator witnesses expose qualification readiness without fabri
   const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-validation-test-'));
   const record = await runCanonicalFixtureValidation({ outputRoot });
 
-  assert.equal(record.schemaVersion, 'agent-kernel-execution-validation/v2');
+  assert.equal(record.schemaVersion, 'agon-execution-validation/v2');
   assert.equal(record.mode, 'deterministic_evaluator_witness');
   assert.equal(record.publication, false);
   assert.deepEqual(record.catalog, { scenarios: 25, families: 5, requiredGates: 70 });
@@ -64,7 +64,7 @@ test('validation witness artifacts flow through the real execution evaluator', (
     catalog,
   });
 
-  assert.equal(result.schemaVersion, 'agent-kernel-execution-result/v1');
+  assert.equal(result.schemaVersion, 'agon-execution-result/v1');
   assert.equal(result.identity.executionSuiteHash, catalog.sha256);
   assert.equal(result.invariants.finite_bounds.status, 'evidence_unavailable');
   assert.notEqual(result.metrics.unique_tile_coverage.status, undefined);
@@ -77,7 +77,7 @@ test('corpus integration binds all committed/generated routes before determinist
     sourceWorktree: ROOT,
   });
 
-  assert.equal(record.schemaVersion, 'agent-kernel-execution-corpus-validation/v1');
+  assert.equal(record.schemaVersion, 'agon-execution-corpus-validation/v1');
   assert.equal(record.mode, 'deterministic_fixture_with_corpus_preflight');
   assert.equal(record.corpus.routeKeys, 26);
   assert.equal(record.corpus.runtimeBuilds, 26);

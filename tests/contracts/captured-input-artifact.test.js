@@ -19,7 +19,7 @@ test("buildLlmCaptureArtifact creates a real CapturedInputArtifact payload", asy
   });
 
   assert.equal(result.errors, undefined);
-  assert.equal(result.capture.schema, "agent-kernel/CapturedInputArtifact");
+  assert.equal(result.capture.schema, "agon/CapturedInputArtifact");
   assert.equal(result.capture.schemaVersion, 1);
   assert.equal(result.capture.source.adapter, "llm");
   assert.equal(result.capture.source.requestId, "req_capture_1");
@@ -44,7 +44,7 @@ test("orchestrateBuild carries captured input artifacts through unchanged", asyn
     clock: () => "2026-06-11T00:00:00.000Z",
   }).capture;
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "spec_capture_passthrough",

@@ -91,7 +91,7 @@ test("G1 orchestrator/deferred-side-effects: the Orchestrator coordinates them a
   // The capture is the chartered artifact — a fact obtained post-run, recorded so a future
   // run can be deterministic — and it is stamped by the round, not by the host.
   const capture = result.captures[0];
-  assert.equal(capture.schema, "agent-kernel/CapturedInputArtifact");
+  assert.equal(capture.schema, "agon/CapturedInputArtifact");
   assert.equal(capture.schemaVersion, 1);
   assert.equal(capture.meta.producedBy, "orchestrator");
   assert.equal(capture.meta.runId, "run_g1_deferred");

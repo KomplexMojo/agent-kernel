@@ -25,7 +25,7 @@ function readPlacementFixture(name) {
 test("actor placement fixtures declare schema and expected errors", () => {
   for (const name of FIXTURE_NAMES) {
     const fixture = readPlacementFixture(name);
-    assert.equal(fixture.schema, "agent-kernel/ActorPlacementFixture");
+    assert.equal(fixture.schema, "agon/ActorPlacementFixture");
     assert.equal(fixture.schemaVersion, 1);
     assert.ok(EXPECTED_ERRORS.has(fixture.expectedError), `${name} uses expected error`);
     assert.ok(Array.isArray(fixture.placements), `${name} includes placements array`);

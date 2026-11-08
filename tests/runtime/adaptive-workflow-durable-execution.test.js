@@ -72,8 +72,8 @@ test("recovery continues from every active phase without regenerating validated 
     const contentRef = await store.putContent(candidate);
     const machine = createAdaptiveWorkflowStateMachine({ runId, clock: () => "2026-07-13T00:00:00.000Z" });
     if (target !== "intake") machine.advance(AdaptiveWorkflowEvents.SUBMIT_OBJECTIVE, { objective: "recover" });
-    if (!["intake", "plan"].includes(target)) machine.advance(AdaptiveWorkflowEvents.PLAN_READY, { planRef: { id: "plan", schema: "agent-kernel/AdaptiveWorkflowPlan", schemaVersion: 1, contentRef } });
-    if (!["intake", "plan", "configure"].includes(target)) machine.advance(AdaptiveWorkflowEvents.CONFIGURATION_READY, { configurationRef: { id: "configuration", schema: "agent-kernel/AdaptiveWorkflowConfiguration", schemaVersion: 1, contentRef } });
+    if (!["intake", "plan"].includes(target)) machine.advance(AdaptiveWorkflowEvents.PLAN_READY, { planRef: { id: "plan", schema: "agon/AdaptiveWorkflowPlan", schemaVersion: 1, contentRef } });
+    if (!["intake", "plan", "configure"].includes(target)) machine.advance(AdaptiveWorkflowEvents.CONFIGURATION_READY, { configurationRef: { id: "configuration", schema: "agon/AdaptiveWorkflowConfiguration", schemaVersion: 1, contentRef } });
     if (["execute", "verify"].includes(target)) machine.advance(AdaptiveWorkflowEvents.VALIDATION_PASSED, { validationResult: { outcome: "passed" } });
     if (target === "verify") machine.advance(AdaptiveWorkflowEvents.EXECUTION_SUCCEEDED);
     if (["repair", "escalate"].includes(target)) machine.advance(AdaptiveWorkflowEvents.VALIDATION_FAILED, { validationResult: { outcome: "failed" } });

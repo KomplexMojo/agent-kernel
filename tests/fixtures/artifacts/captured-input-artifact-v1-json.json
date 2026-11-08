@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/CapturedInputArtifact",
+  "schema": "agon/CapturedInputArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "captured_inline_json",

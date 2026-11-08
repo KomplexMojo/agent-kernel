@@ -6,7 +6,7 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const RUNTIME_RECEIPT_SCHEMA = "agent-kernel/RuntimeBudgetReceiptArtifact";
+const RUNTIME_RECEIPT_SCHEMA = "agon/RuntimeBudgetReceiptArtifact";
 
 function writeJson(path, value) {
   mkdirSync(dirname(path), { recursive: true });
@@ -44,8 +44,8 @@ async function makeUnifiedRunArtifacts() {
 }
 
 test("inspect displays provided runtimeBudgetUnits values without reconstructing totals", () => {
-  const runDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runtime-budget-inspect-"));
-  const inspectDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runtime-budget-inspect-out-"));
+  const runDir = mkdtempSync(join(os.tmpdir(), "agon-runtime-budget-inspect-"));
+  const inspectDir = mkdtempSync(join(os.tmpdir(), "agon-runtime-budget-inspect-out-"));
   writeJson(join(runDir, "tick-frames.json"), [{ meta: { runId: "run_runtime_budget" }, tick: 1, phase: "execute" }]);
   writeJson(join(runDir, "effects-log.json"), []);
   const receipt = {
@@ -79,7 +79,7 @@ test("inspect displays provided runtimeBudgetUnits values without reconstructing
 });
 
 test("post-run GameplayBundle carries the exact persisted runtime receipt", async () => {
-  const createDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runtime-budget-bundle-"));
+  const createDir = mkdtempSync(join(os.tmpdir(), "agon-runtime-budget-bundle-"));
   const runDir = join(createDir, "run");
   const { simConfig, initialState } = await makeUnifiedRunArtifacts();
   writeJson(join(createDir, "sim-config.json"), simConfig);
@@ -103,10 +103,10 @@ test("post-run GameplayBundle carries the exact persisted runtime receipt", asyn
 });
 
 test("runs list indexes the persisted runtime receipt as a run output", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runtime-budget-index-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-runtime-budget-index-"));
   const runOutDir = join(workDir, "artifacts", "runs", "run_runtime_budget", "run");
   writeJson(join(runOutDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: { id: "runtime_summary", runId: "run_runtime_budget", createdAt: "2026-09-02T00:00:00.000Z", producedBy: "cli-run" },
   });

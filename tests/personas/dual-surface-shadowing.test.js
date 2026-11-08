@@ -57,7 +57,7 @@ test("PX.5 director: advance() reaches `ready` with no build round performed", a
   const { createDirectorPersona } = await import(`${P}/director/persona.js`);
   const director = createDirectorPersona({ clock: CLOCK });
   const intentEnvelope = {
-    schema: "agent-kernel/IntentEnvelope",
+    schema: "agon/IntentEnvelope",
     schemaVersion: 1,
     meta: { id: "intent_px5", runId: "run_px5" },
     intent: { goal: "px5" },
@@ -67,7 +67,7 @@ test("PX.5 director: advance() reaches `ready` with no build round performed", a
   director.advance({ phase: "decide", event: "ingest_intent", payload: { intentEnvelope }, tick: 0 });
   // draft_complete/refinement_complete are guarded on a planArtifact — but the guard
   // checks the PAYLOAD, not that the service ever ran, so any well-shaped object passes.
-  const planArtifact = { schema: "agent-kernel/PlanArtifact", schemaVersion: 1, meta: { id: "plan_px5" } };
+  const planArtifact = { schema: "agon/PlanArtifact", schemaVersion: 1, meta: { id: "plan_px5" } };
   director.advance({ phase: "decide", event: "draft_complete", payload: { planArtifact }, tick: 1 });
   director.advance({ phase: "decide", event: "refinement_complete", payload: { planArtifact }, tick: 1 });
 
@@ -191,7 +191,7 @@ test("PX.5 RESOLVED: a run claims no build-plane work it did not do", async () =
     initialState,
     runId: "run_px5_resolved",
     intentEnvelope: {
-      schema: "agent-kernel/IntentEnvelope",
+      schema: "agon/IntentEnvelope",
       schemaVersion: 1,
       meta: { id: "intent_px5", runId: "run_px5_resolved", createdAt: "2025-01-01T00:00:00.000Z", producedBy: "test" },
       source: "test",
@@ -232,7 +232,7 @@ test("PX.5 the bare-intent capability survives: a run with NO SimConfig still pl
     seed: 0,
     runId: "run_px5_bare",
     intentEnvelope: {
-      schema: "agent-kernel/IntentEnvelope",
+      schema: "agon/IntentEnvelope",
       schemaVersion: 1,
       meta: { id: "intent_bare", runId: "run_px5_bare", createdAt: "2025-01-01T00:00:00.000Z", producedBy: "test" },
       source: "test",
@@ -242,7 +242,7 @@ test("PX.5 the bare-intent capability survives: a run with NO SimConfig still pl
   for (let i = 0; i < 3; i += 1) await runtime.step();
 
   const planFrames = runtime.getTickFrames().filter((frame) => Array.isArray(frame.personaArtifacts)
-    && frame.personaArtifacts.some((artifact) => artifact?.schema === "agent-kernel/PlanArtifact"));
+    && frame.personaArtifacts.some((artifact) => artifact?.schema === "agon/PlanArtifact"));
   assert.ok(planFrames.length > 0, "with no plan to consume, the Director still drafts one");
 });
 

@@ -19,7 +19,7 @@ const assert = require("node:assert/strict");
 const P = "../../../packages/runtime/src/personas/allocator/";
 
 const BUDGET = Object.freeze({
-  schema: "agent-kernel/BudgetArtifact",
+  schema: "agon/BudgetArtifact",
   schemaVersion: 1,
   meta: { id: "budget_test" },
   budget: { tokens: 500 },
@@ -78,7 +78,7 @@ test("pricing honors caller-supplied priceListMeta (run-scoped determinism for g
 
 test("pricing honors an injected price list", async () => {
   const custom = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: { id: "custom" },
     items: [{ id: "actor_spawn", kind: "actor", unitCost: 99 }],
@@ -112,7 +112,7 @@ test("registerBudget advances idle→budgeting; validateSpend advances to alloca
   const { receipt, errors } = a.validateSpend({ proposal: PROPOSAL, meta: { id: "receipt_test" } });
   assert.equal(errors, undefined);
   assert.equal(a.view().state, "allocating");
-  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schema, "agon/BudgetReceiptArtifact");
   assert.equal(receipt.status, "approved");
   // actor_spawn 2×5 + motivation_exploring 1×2 = 12
   assert.equal(receipt.totalCost, 12);

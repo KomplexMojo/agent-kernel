@@ -1,6 +1,6 @@
 ---
 name: game-terminal
-description: Give the command that opens the live, coloured agent-kernel game in a terminal. Usage /game-terminal [runId | level].
+description: Give the command that opens the live, coloured Agon game in a terminal. Usage /game-terminal [runId | level].
 disable-model-invocation: true
 argument-hint: [runId | level]
 ---

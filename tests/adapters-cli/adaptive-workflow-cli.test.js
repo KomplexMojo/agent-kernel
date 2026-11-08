@@ -102,7 +102,7 @@ test("workflow rejects persisted credential-shaped config before creating output
   result = runCli(["workflow", "run", "--input", inputPath, "--out-dir", join(root, "model")]);
   assert.notEqual(result.status, 0); assert.equal(existsSync(join(root, "model")), false);
   const policyPath = join(root, "policy.json");
-  writeFileSync(policyPath, JSON.stringify({ schema: "agent-kernel/AdaptiveWorkflowStrategyPolicy", schemaVersion: 1, context: { token: "policy-credential-marker" } }));
+  writeFileSync(policyPath, JSON.stringify({ schema: "agon/AdaptiveWorkflowStrategyPolicy", schemaVersion: 1, context: { token: "policy-credential-marker" } }));
   result = runCli(["workflow", "run", "--input", INPUT, "--policy", policyPath, "--out-dir", join(root, "policy")]);
   assert.notEqual(result.status, 0); assert.equal(existsSync(join(root, "policy")), false);
   assert.doesNotMatch(`${result.stdout}${result.stderr}`, /credential-marker/);
@@ -159,7 +159,7 @@ test("missing policy, invalid runtime profile, occupied state dir, and replay/ca
 
   // Invalid runtime profile fails before model execution / output creation.
   const badProfile = join(root, "bad-profile.json");
-  writeFileSync(badProfile, JSON.stringify({ schema: "agent-kernel/AdaptiveWorkflowRuntimeProfile", schemaVersion: 1, source: "not-a-source" }));
+  writeFileSync(badProfile, JSON.stringify({ schema: "agon/AdaptiveWorkflowRuntimeProfile", schemaVersion: 1, source: "not-a-source" }));
   const badProfileOut = join(root, "bad-profile-out");
   assert.notEqual(runCli(["workflow", "run", "--input", INPUT, "--runtime-profile", badProfile, "--out-dir", badProfileOut]).status, 0);
   assert.equal(existsSync(badProfileOut), false);

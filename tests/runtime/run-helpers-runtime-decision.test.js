@@ -20,7 +20,7 @@ const expectedFrames = [
     emittedEffects: [{ kind: "solver_request" }],
     fulfilledEffects: [{ status: "fulfilled" }],
     personaArtifacts: [{
-      schema: "agent-kernel/CapturedInputArtifact",
+      schema: "agon/CapturedInputArtifact",
       schemaVersion: 1,
       meta: { id: "capture_runtime_1" },
       source: { adapter: "llm" },
@@ -65,7 +65,7 @@ const actualFrames = [
     emittedEffects: [{ kind: "solver_request" }],
     fulfilledEffects: [{ status: "fulfilled" }],
     personaArtifacts: [{
-      schema: "agent-kernel/CapturedInputArtifact",
+      schema: "agon/CapturedInputArtifact",
       schemaVersion: 1,
       meta: { id: "capture_runtime_1" },
       source: { adapter: "llm" },

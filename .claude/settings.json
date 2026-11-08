@@ -22,31 +22,31 @@
     ]
   },
   "enabledMcpjsonServers": [
-    "agent-kernel-cli"
+    "agon-cli"
   ],
   "permissions": {
     "allow": [
-      "mcp__agent-kernel-cli__ak_play_ascii",
-      "mcp__agent-kernel-cli__ak_play_start",
-      "mcp__agent-kernel-cli__ak_play_act",
-      "mcp__agent-kernel-cli__ak_play_view",
-      "mcp__agent-kernel-cli__ak_play_switch",
-      "mcp__agent-kernel-cli__ak_play_order",
-      "mcp__agent-kernel-cli__ak_play_advance",
-      "mcp__agent-kernel-cli__ak_play_end",
-      "mcp__agent-kernel-cli__ak_create",
-      "mcp__agent-kernel-cli__ak_configure",
-      "mcp__agent-kernel-cli__ak_run",
-      "mcp__agent-kernel-cli__ak_show",
-      "mcp__agent-kernel-cli__ak_show_state",
-      "mcp__agent-kernel-cli__ak_tick_forward",
-      "mcp__agent-kernel-cli__ak_tick_backward",
-      "mcp__agent-kernel-cli__ak_narrate",
-      "mcp__agent-kernel-cli__ak_inspect",
-      "mcp__agent-kernel-cli__ak_runs_list",
-      "mcp__agent-kernel-cli__ak_schemas",
-      "mcp__agent-kernel-cli__ak_replay",
-      "mcp__agent-kernel-cli__ak_diff"
+      "mcp__agon-cli__ak_play_ascii",
+      "mcp__agon-cli__ak_play_start",
+      "mcp__agon-cli__ak_play_act",
+      "mcp__agon-cli__ak_play_view",
+      "mcp__agon-cli__ak_play_switch",
+      "mcp__agon-cli__ak_play_order",
+      "mcp__agon-cli__ak_play_advance",
+      "mcp__agon-cli__ak_play_end",
+      "mcp__agon-cli__ak_create",
+      "mcp__agon-cli__ak_configure",
+      "mcp__agon-cli__ak_run",
+      "mcp__agon-cli__ak_show",
+      "mcp__agon-cli__ak_show_state",
+      "mcp__agon-cli__ak_tick_forward",
+      "mcp__agon-cli__ak_tick_backward",
+      "mcp__agon-cli__ak_narrate",
+      "mcp__agon-cli__ak_inspect",
+      "mcp__agon-cli__ak_runs_list",
+      "mcp__agon-cli__ak_schemas",
+      "mcp__agon-cli__ak_replay",
+      "mcp__agon-cli__ak_diff"
     ]
   }
 }

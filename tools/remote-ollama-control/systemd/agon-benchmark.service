@@ -1,12 +1,12 @@
 [Unit]
-Description=Agent Kernel benchmark liveness heartbeat
+Description=Agon benchmark poll and qualification
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-EnvironmentFile=-%h/.config/agent-kernel-benchmark/benchmark-agent.env
-ExecStart=%h/bin/agent-kernel-heartbeat
+EnvironmentFile=-%h/.config/agon-benchmark/benchmark-agent.env
+ExecStart=%h/bin/agon-benchmark --service
 WorkingDirectory=%h/remote-ollama-control
 NoNewPrivileges=true
 # PrivateTmp is deliberately NOT set. Under its mount namespace, OpenSSH's safe_path check on
@@ -15,9 +15,6 @@ NoNewPrivileges=true
 # a correct 644 root:root symlink; nothing is wrong outside the namespace, which is exactly why this
 # only ever appears once the unit runs under systemd. This service pushes over SSH, so a private
 # /tmp is not worth trading a working transport for.
-# A beat that cannot finish promptly is a beat worth skipping: the next one is minutes away, and a
-# pile of stuck publishers would be a second fault on top of whatever caused the first.
-TimeoutStartSec=120
 
 [Install]
 WantedBy=default.target

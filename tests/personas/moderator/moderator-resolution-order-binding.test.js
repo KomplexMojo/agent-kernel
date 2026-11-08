@@ -53,7 +53,7 @@ async function artifacts({ delverMotivation, wardenPos, delverPos }) {
   };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "order_sim", runId: "order", createdAt: FIXED },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { a_warden: 0, z_delver: 0 },
   });

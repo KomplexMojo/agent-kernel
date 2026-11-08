@@ -90,7 +90,7 @@ const ROOT = resolve(__dirname, "..", "..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 
 test(${JSON.stringify(args.title)}, () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-"));
   const result = spawnSync(process.execPath, [CLI, ${toLiteralList(args.commandArgs ?? [])}, "--out-dir", outDir], {
     cwd: ROOT,
     encoding: "utf8",
@@ -418,7 +418,7 @@ async function createBrowserAdapter() {
 }
 
 test(${JSON.stringify(args.title)}, async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-equivalence-"));
   const cliArgs = ${args.equivalenceCliArgs ?? "[]"}.slice();
   if (!cliArgs.includes("--out-dir")) {
     cliArgs.push("--out-dir", outDir);

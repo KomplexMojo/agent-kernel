@@ -39,7 +39,7 @@ const vitals = () => ({
 
 function simConfig() {
   return {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: "agon/SimConfigArtifact",
     schemaVersion: 1,
     meta: { id: "c", runId: "c", createdAt: "2026-10-18T00:00:00.000Z" },
     seed: 0,

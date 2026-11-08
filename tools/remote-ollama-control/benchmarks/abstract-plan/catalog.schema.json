@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-kernel.local/schemas/abstract-plan-catalog-v1.json",
-  "title": "Agent Kernel abstract planning benchmark catalog",
+  "$id": "https://agon.local/schemas/abstract-plan-catalog-v1.json",
+  "title": "Agon abstract planning benchmark catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "scenarios"],
   "properties": {
-    "schemaVersion": { "const": "agent-kernel-abstract-plan-catalog/v1" },
+    "schemaVersion": { "const": "agon-abstract-plan-catalog/v1" },
     "sourceScenarioSet": {
       "type": "object",
       "additionalProperties": false,

@@ -90,19 +90,19 @@ test("command kernel budget reads, writes, and logs artifacts via injected host 
   const { files, logs, host } = createHost();
 
   const budget = {
-    schema: "agent-kernel/BudgetArtifact",
+    schema: "agon/BudgetArtifact",
     schemaVersion: 1,
     meta: { id: "budget_1", runId: "run_1", createdAt: "2026-03-08T00:00:00.000Z", producedBy: "test" },
     caps: {},
   };
   const priceList = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: { id: "price_1", runId: "run_1", createdAt: "2026-03-08T00:00:00.000Z", producedBy: "test" },
     entries: [],
   };
   const receipt = {
-    schema: "agent-kernel/BudgetReceiptArtifact",
+    schema: "agon/BudgetReceiptArtifact",
     schemaVersion: 1,
     meta: { id: "receipt_1", runId: "run_1", createdAt: "2026-03-08T00:00:00.000Z", producedBy: "test" },
     status: "approved",
@@ -128,9 +128,9 @@ test("command kernel budget reads, writes, and logs artifacts via injected host 
   assert.deepEqual(files.get("/out/budget/budget-receipt.json"), receipt);
 
   const logged = JSON.parse(logs[0]);
-  assert.equal(logged.budget.schema, "agent-kernel/BudgetArtifact");
-  assert.equal(logged.priceList.schema, "agent-kernel/PriceList");
-  assert.equal(logged.receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(logged.budget.schema, "agon/BudgetArtifact");
+  assert.equal(logged.priceList.schema, "agon/PriceList");
+  assert.equal(logged.receipt.schema, "agon/BudgetReceiptArtifact");
 });
 
 test("command kernel persists the exact Allocator-issued runtime budget receipt", async () => {
@@ -163,7 +163,7 @@ test("command kernel persists the exact Allocator-issued runtime budget receipt"
   });
 
   const receipt = files.get("/out/runtime-receipt/runtime-budget-receipt.json");
-  assert.equal(receipt.schema, "agent-kernel/RuntimeBudgetReceiptArtifact");
+  assert.equal(receipt.schema, "agon/RuntimeBudgetReceiptArtifact");
   assert.equal(receipt.meta.id, "artifact_runtime_receipt_runtimebudgetreceipt");
   assert.equal(receipt.meta.producedBy, "allocator");
   assert.deepEqual(receipt, result.runtimeBudgetReceipt, "kernel writes the exact runtime receipt without recomputing it");

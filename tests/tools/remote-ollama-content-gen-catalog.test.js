@@ -20,7 +20,7 @@ const {
 const { loadExecutionCatalog } = require("../../tools/remote-ollama-control/scripts/lib/execution-catalog");
 
 const PRIOR_CATALOG_HASH = "05ee94ac5e5400e3889a67ae9d611af261981179988472d8356a5a85de6b8f72";
-const EXPECTED_HASH = "6059100a4434d16f0eb7120dee2e52c44509c100e093171d0b82813b05c4c059";
+const EXPECTED_HASH = "1e8b6665aa485e8fba34338c7ed784ccb082d84a97ac28b035bead4be40afcc2";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");
@@ -130,8 +130,8 @@ test("repository catalog owns 100 balanced content-generation scenarios", () => 
   const catalog = loadScenarioCatalog();
   const schema = JSON.parse(readFileSync(join(CATALOG_DIR, "catalog.schema.json"), "utf8"));
 
-  assert.equal(schema.$id, "https://agent-kernel.local/schemas/content-gen-catalog-v1.json");
-  assert.equal(catalog.schemaVersion, "agent-kernel-content-gen-catalog/v1");
+  assert.equal(schema.$id, "https://agon.local/schemas/content-gen-catalog-v1.json");
+  assert.equal(catalog.schemaVersion, "agon-content-gen-catalog/v1");
   assert.equal(catalog.count, 100);
   assert.deepEqual(catalog.tierCounts, {
     simple: 25,

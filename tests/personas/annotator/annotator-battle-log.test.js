@@ -54,7 +54,7 @@ test("cast and defeat entries are derived by the Annotator and stamped by it", a
     payload: { runId: "r", observations: [{ tick: 3, effects: [], battle }] } });
   const entries = result.telemetry.battleLog;
   assert.deepEqual(entries.map((e) => e.event), ["cast", "take", "defeat", "exit"]);
-  assert.deepEqual(entries[0], { schema: "agent-kernel/BattleLogEntry", schemaVersion: 1,
+  assert.deepEqual(entries[0], { schema: "agon/BattleLogEntry", schemaVersion: 1,
     meta: { id: "battlelog_3_0", runId: "r", createdAt: CLOCK(), producedBy: "annotator" },
     tick: 3, event: "cast", sourceId: "a", targetId: "b", kind: "decay", expression: "push", struck: true });
   assert.deepEqual(entries[2], { ...entries[2], event: "defeat", targetId: "b", sourceId: "a", kind: "decay", expression: "push" });

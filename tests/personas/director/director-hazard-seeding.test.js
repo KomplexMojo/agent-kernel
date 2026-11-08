@@ -12,7 +12,7 @@ const clock = () => CLOCK;
 const persona = createDirectorPersona({ clock });
 persona.advance({ phase: "decide", event: "bootstrap", payload: {
   intentEnvelope: {
-    schema: "agent-kernel/IntentEnvelope",
+    schema: "agon/IntentEnvelope",
     schemaVersion: 1,
     meta: { id: "intent_fire_test", runId: "run_fire_test", createdAt: CLOCK, producedBy: "orchestrator" },
     source: "test",
@@ -22,7 +22,7 @@ persona.advance({ phase: "decide", event: "bootstrap", payload: {
 
 // Ingest an intent that has an explicit room hazard affinity hint.
 const intentEnvelope = {
-  schema: "agent-kernel/IntentEnvelope",
+  schema: "agon/IntentEnvelope",
   schemaVersion: 1,
   meta: { id: "intent_fire_test", runId: "run_fire_test", createdAt: CLOCK, producedBy: "orchestrator" },
   source: "test",
@@ -64,7 +64,7 @@ assert.equal(proposal.budgetCeiling, 270, "budgetCeiling should be 270 (27% of 1
 
 // planRef should be present since a plan was built from intent
 assert.ok(proposal.planRef, "proposal should carry a planRef");
-assert.equal(proposal.planRef.schema, "agent-kernel/PlanArtifact");
+assert.equal(proposal.planRef.schema, "agon/PlanArtifact");
 
 // Room without a hazard affinity hint should NOT produce a hazard proposal.
 assert.equal(hazardEffects.filter((e) => e.roomIndex === 1).length, 0, "rest room without a hazard affinity hint should not produce a proposal");
@@ -80,7 +80,7 @@ const clock = () => CLOCK;
 const persona = createDirectorPersona({ clock });
 persona.advance({ phase: "decide", event: "bootstrap", payload: {
   intentEnvelope: {
-    schema: "agent-kernel/IntentEnvelope",
+    schema: "agon/IntentEnvelope",
     schemaVersion: 1,
     meta: { id: "intent_no_rooms", runId: "run_no_rooms", createdAt: CLOCK, producedBy: "orchestrator" },
     source: "test",
@@ -93,7 +93,7 @@ const result = persona.advance({
   event: "ingest_intent",
   payload: {
     intentEnvelope: {
-      schema: "agent-kernel/IntentEnvelope",
+      schema: "agon/IntentEnvelope",
       schemaVersion: 1,
       meta: { id: "intent_no_rooms", runId: "run_no_rooms", createdAt: CLOCK, producedBy: "orchestrator" },
       source: "test",

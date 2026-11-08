@@ -62,7 +62,7 @@ function publicationRecord({
     : {};
   const execution = outcome.execution || { status: 'not_run' };
   return {
-    schemaVersion: 'agent-kernel-benchmark-result/v2',
+    schemaVersion: 'agon-benchmark-result/v2',
     run: {
       id: runId(sourceCommit, key, startedAt),
       key,
@@ -125,7 +125,7 @@ async function runBenchmarkAgent(options) {
   const policy = options.policy || loadTriggerPolicy(path.resolve(__dirname, '..'));
   const sourceRef = options.sourceRef || policy.sourceRef;
   const resultBranch = options.resultBranch || policy.resultBranch;
-  const sourceRepository = options.sourceRepository || 'agent-kernel';
+  const sourceRepository = options.sourceRepository || 'agon';
   if (!sourceRepo || !stateDir || (!dryRun && (!resultsRemote || typeof runBenchmark !== 'function'))) {
     throw new Error('sourceRepo and stateDir are required; live runs also require resultsRemote and runBenchmark');
   }
@@ -316,13 +316,13 @@ async function main() {
     args,
     'source-mirror',
     'AK_BENCHMARK_SOURCE_MIRROR',
-    path.join(home, '.local/share/agent-kernel-benchmark/source.git'),
+    path.join(home, '.local/share/agon-benchmark/source.git'),
   );
   const stateDir = envValue(
     args,
     'state-dir',
     'AK_BENCHMARK_STATE_DIR',
-    path.join(home, '.local/state/agent-kernel-benchmark'),
+    path.join(home, '.local/state/agon-benchmark'),
   );
   const sourceRepo = ensureSourceMirror(sourceRemote, sourceRef, mirrorDir);
   const fixture = fixturePath ? JSON.parse(fs.readFileSync(fixturePath, 'utf8')) : null;
@@ -332,7 +332,7 @@ async function main() {
   const result = await runBenchmarkAgent({
     sourceRepo,
     sourceRef,
-    sourceRepository: envValue(args, 'source-repository', 'AK_BENCHMARK_SOURCE_REPOSITORY', 'agent-kernel'),
+    sourceRepository: envValue(args, 'source-repository', 'AK_BENCHMARK_SOURCE_REPOSITORY', 'agon'),
     resultsRemote: envValue(args, 'results-remote', 'AK_BENCHMARK_RESULTS_REMOTE'),
     resultBranch: envValue(args, 'result-branch', 'AK_BENCHMARK_RESULT_BRANCH', 'benchmark-results'),
     stateDir,

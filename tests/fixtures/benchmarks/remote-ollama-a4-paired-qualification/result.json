@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "agent-kernel-a4-paired-qualification/v1",
+  "schemaVersion": "agon-a4-paired-qualification/v1",
   "createdAt": "2026-08-15T17:55:49.138Z",
   "source": {
     "commit": "cd9019ff6b84f4a623242490a76c4ad57b240d3b",

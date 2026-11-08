@@ -103,7 +103,7 @@ test("command kernel inspect surfaces runtime decisions and decision-driven acti
       ],
       personaArtifacts: [
         {
-          schema: "agent-kernel/CapturedInputArtifact",
+          schema: "agon/CapturedInputArtifact",
           schemaVersion: 1,
           meta: {
             id: "capture_runtime_1",

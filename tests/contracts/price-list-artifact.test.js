@@ -38,7 +38,7 @@ function validatePriceListItem(item) {
 
 function validatePriceListArtifact(artifact) {
   assert.ok(isObject(artifact), "artifact: expected object");
-  assert.equal(artifact.schema, "agent-kernel/PriceList");
+  assert.equal(artifact.schema, "agon/PriceList");
   assert.equal(artifact.schemaVersion, 1);
   assert.ok(isObject(artifact.meta));
   assert.ok(Array.isArray(artifact.items) && artifact.items.length > 0, "items: expected non-empty array");
@@ -178,7 +178,7 @@ test("normalizePriceItems accepts canonical unitCost field (not just costTokens)
     "../../packages/runtime/src/personas/allocator/validate-spend.js"
   );
   const priceList = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: { id: "pl-1", runId: "r-1", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     items: [
@@ -194,7 +194,7 @@ test("normalizePriceItems accepts canonical unitCost field (not just costTokens)
 
 test("price list accepts free quadratic item", () => {
   const artifact = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: { id: "pl-free", runId: "run-free", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     items: [
@@ -232,7 +232,7 @@ test("normalizePriceItems uses last duplicate canonical id", async () => {
 
 test("price list accepts free stationary motivation item", () => {
   const artifact = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: { id: "pl-free-motivation", runId: "run-free", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     items: [
@@ -244,7 +244,7 @@ test("price list accepts free stationary motivation item", () => {
 
 test("price list accepts regen item without formula field", () => {
   const artifact = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: { id: "pl-no-formula", runId: "run-regen", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     items: [
@@ -256,7 +256,7 @@ test("price list accepts regen item without formula field", () => {
 
 test("price list rejects empty items array", () => {
   const artifact = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: { id: "pl-empty", runId: "run-empty", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     items: [],

@@ -27,7 +27,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const SCHEMA_VERSION = 'agent-kernel-benchmark-heartbeat/v1';
+const SCHEMA_VERSION = 'agon-benchmark-heartbeat/v1';
 const HEARTBEAT_NAME = 'heartbeat.json';
 const DEFAULT_BRANCH = 'benchmark-heartbeat';
 

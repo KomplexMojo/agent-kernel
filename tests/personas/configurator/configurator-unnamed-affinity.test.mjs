@@ -51,7 +51,7 @@ test("an object affinity with no kind gets the kind and keeps its other fields",
 
 async function buildWithUnnamedHazard(seed) {
   return orchestrateBuild({ spec: {
-    schema: "agent-kernel/BuildSpec", schemaVersion: 1,
+    schema: "agon/BuildSpec", schemaVersion: 1,
     meta: { id: "unnamed", runId: "unnamed", createdAt: "2026-10-18T00:00:00Z", source: "test" },
     intent: { goal: "a hazard authored with no affinity" }, plan: {}, configurator: { inputs: {
       levelGen: { width: 9, height: 9, seed,

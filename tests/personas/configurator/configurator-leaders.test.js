@@ -25,7 +25,7 @@ async function build(input) {
   const configurator = createConfiguratorPersona({ clock: () => FIXED });
   return configurator.buildInitialStateArtifact({
     meta: { id: "s", runId: "s", createdAt: FIXED },
-    simConfigRef: { id: "c", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+    simConfigRef: { id: "c", schema: "agon/SimConfigArtifact", schemaVersion: 1 },
     dimensions: { width: WIDTH, height: HEIGHT },
     terrain: terrain(),
     ...input,
@@ -72,7 +72,7 @@ test("the run loader refuses a leaders map that disagrees with the records", asy
   const configurator = createConfiguratorPersona({ clock: () => FIXED });
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "c", runId: "s", createdAt: FIXED },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width: WIDTH, height: HEIGHT, terrain: terrain() },
     movementStamina: { hero: 1, imp: 1 },
   });

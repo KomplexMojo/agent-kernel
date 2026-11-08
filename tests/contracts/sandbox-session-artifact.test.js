@@ -49,7 +49,7 @@ test("sandbox session default fixture references required artifact types", async
 test("sandbox session validation rejects wrong schema", async () => {
   const { validateSandboxSession } = await loadValidator();
   const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
-  const result = validateSandboxSession({ ...artifact, schema: "agent-kernel/Wrong" });
+  const result = validateSandboxSession({ ...artifact, schema: "agon/Wrong" });
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /schema/);
 });

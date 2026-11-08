@@ -148,7 +148,7 @@ const PERSONA_SOURCE_DIR = "packages/runtime/src/personas";
 // a FOURTH declaration appearing, that one stops the two sanctioned ones drifting.
 const SPEND_PROTOCOL_VOCABULARY = new RegExp(
   String.raw`["'](?:over_cap|not_priceable|invalid_requirements|conflicting_requirements`
-  + String.raw`|insufficient_budget|agent-kernel/(?:BudgetEnvelope|ConfigurationCandidate|SpendVerdict))["']`,
+  + String.raw`|insufficient_budget|agon/(?:BudgetEnvelope|ConfigurationCandidate|SpendVerdict))["']`,
   "g",
 );
 

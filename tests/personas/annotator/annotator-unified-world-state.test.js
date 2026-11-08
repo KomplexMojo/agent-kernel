@@ -23,7 +23,7 @@ async function artifacts() {
   };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "ws-config", runId: "ws", createdAt: CLOCK },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { walker: 0 },
   });
@@ -86,7 +86,7 @@ test("unified snapshots copy registry actors including equipment, defeat and cla
   const live = runtime.getActorSnapshot();
   const presentation = runtime.getActorPresentation();
 
-  assert.equal(snapshot.schema, "agent-kernel/WorldStateArtifact");
+  assert.equal(snapshot.schema, "agon/WorldStateArtifact");
   assert.equal(snapshot.schemaVersion, 2);
   assert.equal(snapshot.tick, TICKS);
   assert.equal(Object.hasOwn(snapshot, "hazards"), false);

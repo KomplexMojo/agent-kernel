@@ -1,9 +1,9 @@
 {
-  "schema": "agent-kernel/ActionSequence",
+  "schema": "agon/ActionSequence",
   "schemaVersion": 1,
   "actions": [
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 1,
@@ -16,7 +16,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 2,
@@ -29,7 +29,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 3,
@@ -42,7 +42,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 4,
@@ -55,7 +55,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 5,
@@ -68,7 +68,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 6,
@@ -81,7 +81,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 7,
@@ -94,7 +94,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 8,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 9,
@@ -120,7 +120,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 10,
@@ -133,7 +133,7 @@
       }
     },
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 11,

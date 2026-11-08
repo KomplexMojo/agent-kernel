@@ -58,7 +58,7 @@ The TypeScript core is synchronous and does not require a separate binary build 
 
 ## Builder Workflow
 
-Agent, CLI, and UI share the same BuildSpec (`agent-kernel/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load or edit the emitted bundle without translation.
+Agent, CLI, and UI share the same BuildSpec (`agon/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load or edit the emitted bundle without translation.
 
 `create`, `configure`, `room-plan`, `delver-plan`, and `warden-plan` share one canonical preview handoff: `bundle.json`, `manifest.json`, `sim-config.json`, `initial-state.json`, `telemetry.json`, and `resource-bundle.json`.
 

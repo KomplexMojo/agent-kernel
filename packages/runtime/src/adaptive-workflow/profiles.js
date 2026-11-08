@@ -1,7 +1,7 @@
 import { createModelCapabilityProfileV1 } from "./model-adapter.js";
 
 // M7: `RUNTIME_PROFILE_SNAPSHOT_SCHEMA` was a SECOND ORIGIN for
-// `agent-kernel/AdaptiveWorkflowRuntimeProfile`, under a name that reads like a different
+// `agon/AdaptiveWorkflowRuntimeProfile`, under a name that reads like a different
 // schema — PA's census saw this constant and dismissed it as a substring false positive
 // without noticing it declared a duplicate. Both now come from contracts/artifacts.ts.
 import {

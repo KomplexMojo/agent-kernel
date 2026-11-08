@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "agent-kernel-execution-catalog/v1",
+  "schemaVersion": "agon-execution-catalog/v1",
   "family": "combat",
   "scenarios": [
     {

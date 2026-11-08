@@ -69,7 +69,7 @@ function planExecutionSchedule({ catalog = loadExecutionCatalog(), scenarioIds, 
       purpose: scenario.purpose, fullStage, screen, full };
   });
   return {
-    schemaVersion: 'agent-kernel-execution-schedule-plan/v1',
+    schemaVersion: 'agon-execution-schedule-plan/v1',
     identity: {
       executionSuiteHash: catalog.sha256,
       evaluatorVersion: catalog.evaluatorVersion,
@@ -230,7 +230,7 @@ async function runExecutionSchedule({
   const status = qualifyingSummaries.some((entry) => entry.status === 'failed') ? 'failed'
     : qualifyingSummaries.some((entry) => entry.status === 'evidence_unavailable') ? 'evidence_unavailable' : 'completed';
   const summary = {
-    schemaVersion: 'agent-kernel-execution-schedule/v1',
+    schemaVersion: 'agon-execution-schedule/v1',
     identity: plan.identity,
     status,
     startedAt,

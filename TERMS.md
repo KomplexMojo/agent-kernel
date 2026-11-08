@@ -1,7 +1,7 @@
 # Terms of use for Deepward
 
 These terms cover playing Deepward, the game, wherever KomplexMojo publishes it. The source code (the game and its
-engine, agent-kernel) is separately licensed under [PolyForm Strict 1.0.0](LICENSE.md).
+engine, Agon) is separately licensed under [PolyForm Strict 1.0.0](LICENSE.md).
 
 ## You may
 

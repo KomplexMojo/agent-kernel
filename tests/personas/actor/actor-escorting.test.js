@@ -42,7 +42,7 @@ async function run({ actors, escorts, ticks }) {
     rooms: [{ id: "R1", x: 1, y: 1, width: WIDTH - 2, height: HEIGHT - 2 }] };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "escort_sim", runId: "escort", createdAt: FIXED },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: Object.fromEntries(actors.map((actor) => [actor.id, 1])),
   });
@@ -79,7 +79,7 @@ test("the Configurator carries an authored escort beside the roster, and refuses
   const configurator = createConfiguratorPersona({ clock: () => FIXED });
   const base = {
     meta: { id: "s", runId: "s", createdAt: FIXED },
-    simConfigRef: { id: "c", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+    simConfigRef: { id: "c", schema: "agon/SimConfigArtifact", schemaVersion: 1 },
     dimensions: { width: WIDTH, height: HEIGHT },
     terrain: terrain(),
   };

@@ -32,14 +32,14 @@ function makeMeta(id, runId) {
 
 function makeTickFrame(tick, runId) {
   return {
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     meta: makeMeta(`tick_frame_${tick}`, runId),
     tick,
     phase: "execute",
     acceptedActions: [
       {
-        schema: "agent-kernel/Action",
+        schema: "agon/Action",
         schemaVersion: 1,
         actorId: "actor_delver",
         tick,
@@ -74,7 +74,7 @@ async function scaffoldRun(workDir, runId, { maxTick = 10 } = {}) {
   writeJson(join(runDir, "tick-frames.json"), frames);
 
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: makeMeta("run_summary", runId),
     outcome: "success",
@@ -378,7 +378,7 @@ test("cli tick forward when tick-frames.json and run-summary.json are both absen
   // Only write build/sim-config.json — no run dir at all
   const buildDir = join(workDir, "artifacts", "runs", runId, "build");
   writeJson(join(buildDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1,
+    schema: "agon/SimConfigArtifact", schemaVersion: 1,
     meta: makeMeta("sim_config", runId),
     layout: { kind: "grid", width: 5, height: 5,
       data: { width: 5, height: 5, tiles: ["#####", "#...#", "#...#", "#...#", "#####"],

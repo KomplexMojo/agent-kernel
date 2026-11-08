@@ -90,12 +90,12 @@ test("a bad retinue is refused with a reason", async () => {
 
 function spec({ tactics, budget }) {
   return {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: { id: "retinue", runId: "retinue", createdAt: CREATED_AT, source: "runtime-test" },
     intent: { goal: "a boss and its retinue" },
     plan: { hints: { tactics } },
-    ...(budget ? { budget: { budget: { schema: "agent-kernel/BudgetArtifact", schemaVersion: 1,
+    ...(budget ? { budget: { budget: { schema: "agon/BudgetArtifact", schemaVersion: 1,
       meta: { id: "budget", runId: "retinue", createdAt: CREATED_AT, producedBy: "runtime-test" },
       budget: { tokens: budget } } } } : {}),
     configurator: {

@@ -1571,7 +1571,7 @@ async function runContentGen(options) {
     // its absence is what already marks an infrastructure abort unpublishable — and this record
     // says explicitly why the run stopped and that its evidence does not qualify.
     fs.writeFileSync(path.join(resultDir, 'collapse-abort.json'), `${JSON.stringify({
-      schema: 'agent-kernel/ContentGenCollapseAbort',
+      schema: 'agon/ContentGenCollapseAbort',
       schemaVersion: 1,
       abortedAt: new Date().toISOString(),
       publication: false,
@@ -1695,7 +1695,7 @@ async function runAbstractPlan(options) {
           };
         }
         const record = {
-          schemaVersion: 'agent-kernel-abstract-plan-attempt/v1',
+          schemaVersion: 'agon-abstract-plan-attempt/v1',
           timestamp: new Date().toISOString(),
           scenarioIndex: scenario.index,
           scenarioId: scenario.id,
@@ -1734,7 +1734,7 @@ async function runAbstractPlan(options) {
   }
 
   const result = {
-    schemaVersion: 'agent-kernel-abstract-plan-result/v1',
+    schemaVersion: 'agon-abstract-plan-result/v1',
     generatedAt: new Date().toISOString(),
     route: options.route,
     profile: profileName,

@@ -22,7 +22,7 @@ const ipfsAdapter = createIpfsAdapter({
   fetchFn: async () => ({ ok: true, text: async () => ipfsFixture }),
 });
 const ipfsJson = await ipfsAdapter.fetchJson("cid");
-assert.equal(ipfsJson.schema, "agent-kernel/PriceList");
+assert.equal(ipfsJson.schema, "agon/PriceList");
 
 const chainFixture = JSON.parse(await readFile(chainFixturePath, "utf8"));
 const balanceFixture = JSON.parse(await readFile(balanceFixturePath, "utf8"));

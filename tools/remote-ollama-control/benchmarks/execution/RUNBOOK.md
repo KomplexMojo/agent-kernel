@@ -114,7 +114,7 @@ select a positive repeat of a catalog scenario whose expected outcome is `succes
 
 ```json
 {
-  "schemaVersion": "agent-kernel-runtime-build-routes/v1",
+  "schemaVersion": "agon-runtime-build-routes/v1",
   "identity": { "executionSuiteHash": "<sha256>" },
   "routes": { "EX-TR-01": "tests/fixtures/benchmarks/execution/EX-TR-01" }
 }
@@ -122,7 +122,7 @@ select a positive repeat of a catalog scenario whose expected outcome is `succes
 
 ```json
 {
-  "schemaVersion": "agent-kernel-generated-content-routes/v1",
+  "schemaVersion": "agon-generated-content-routes/v1",
   "identity": { "executionSuiteHash": "<sha256>", "scenarioSetHash": "<sha256>" },
   "routes": { "EX-TR-01": { "scenarioIndex": 79, "repeat": 1 } }
 }
@@ -187,7 +187,7 @@ ships enabled and a real pipeline needs a second, separate gate.
 ```
 
 It deploys into `$HOME`, links commands into `$HOME/bin`, copies
-`benchmark-agent.env.example` to `~/.config/agent-kernel-benchmark/benchmark-agent.env` if that file does
+`benchmark-agent.env.example` to `~/.config/agon-benchmark/benchmark-agent.env` if that file does
 not already exist, and installs the user units **without enabling them**. An existing config is never
 overwritten, so operator edits survive a reinstall.
 
@@ -211,7 +211,7 @@ unedited config fails with the agent naming what is missing rather than with a s
 **4. Confirm the dry run before anything else.**
 
 ```bash
-agent-kernel-benchmark --dry-run
+agon-benchmark --dry-run
 ```
 
 A correct result names the exact source commit, the immutable run key, the trigger modes, all three
@@ -230,7 +230,7 @@ contacts no model, and cannot publish.
 
 **5. Authorize real work, one gate at a time.** Only after step 4 reads correctly:
 set `AK_BENCHMARK_LIVE=1` for a real pipeline; enable the timer with
-`systemctl --user enable --now agent-kernel-benchmark.timer` for unattended operation; and set
+`systemctl --user enable --now agon-benchmark.timer` for unattended operation; and set
 `AK_BENCHMARK_RESULTS_REMOTE` for publication. These are three independent decisions — none implies the
 others, and a development session performs none of them.
 

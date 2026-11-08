@@ -1,5 +1,5 @@
 {
-  "name": "@agent-kernel/adapters-cli",
+  "name": "@agon/adapters-cli",
   "private": true,
   "type": "module",
   "exports": {

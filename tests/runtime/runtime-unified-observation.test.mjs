@@ -8,7 +8,7 @@ test('real Actor decisions advance the unified registry from live observations',
   const layout = { width: 6, height: 1, terrain: ['floor', 'floor', 'floor', 'floor', 'floor', 'exit'], exitApproach: { x: 4, y: 0 } };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: 'observation-config', runId: 'observation', createdAt: 'fixed' },
-    planRef: { id: 'plan', schema: 'agent-kernel/PlanArtifact', schemaVersion: 1 },
+    planRef: { id: 'plan', schema: 'agon/PlanArtifact', schemaVersion: 1 },
     layout, movementStamina: { walker: 0 },
   });
   const initialState = configurator.buildInitialStateArtifact({

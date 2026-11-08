@@ -29,7 +29,7 @@ function runCliExpectFailure(args, env = {}) {
 }
 
 test("cli llm-plan defaults to the canonical persisted handoff", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-"));
   runCli(
     [
       "llm-plan",
@@ -50,24 +50,24 @@ test("cli llm-plan defaults to the canonical persisted handoff", () => {
   );
 
   const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
-  assert.equal(spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(spec.schema, "agon/BuildSpec");
   assert.equal(spec.meta.runId, "run_llm_plan_fixture");
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureEntry, undefined);
-  assert.ok(manifest.schemas.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+  assert.ok(manifest.schemas.every((entry) => entry.schema !== "agon/CapturedInputArtifact"));
   assert.equal(existsSync(join(outDir, "intent.json")), false);
   assert.equal(existsSync(join(outDir, "plan.json")), false);
 
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
-  assert.ok(bundle.artifacts.every((artifact) => artifact.schema !== "agent-kernel/CapturedInputArtifact"));
+  assert.ok(bundle.artifacts.every((artifact) => artifact.schema !== "agon/CapturedInputArtifact"));
 });
 
 test("cli llm-plan budget loop writes intermediates only when explicitly requested", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-"));
   runCli(
     [
       "llm-plan",
@@ -91,11 +91,11 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntries = manifest.artifacts.filter(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureEntries.length, 2);
   assert.ok(
-    manifest.artifacts.some((entry) => entry.schema === "agent-kernel/BudgetAllocationArtifact"),
+    manifest.artifacts.some((entry) => entry.schema === "agon/BudgetAllocationArtifact"),
   );
   const captureA = JSON.parse(readFileSync(join(outDir, captureEntries[0].path), "utf8"));
   const captureB = JSON.parse(readFileSync(join(outDir, captureEntries[1].path), "utf8"));
@@ -136,7 +136,7 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
 });
 
 test("cli llm-plan budget loop writes feasibility warnings into telemetry", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-warn-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-warn-"));
   runCli(
     [
       "llm-plan",
@@ -169,7 +169,7 @@ test("cli llm-plan budget loop writes feasibility warnings into telemetry", () =
 });
 
 test("cli llm-plan budget loop honors custom budget pools", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-pools-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-pools-"));
   const fixturePath = join(outDir, "budget-loop-single-actor.json");
   const fixture = JSON.parse(readFileSync(
     resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary-budget-loop.json"),
@@ -232,7 +232,7 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
 });
 
 test("cli budget loop awaits the host-created hybrid solver for an over-budget layout", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-z3-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-z3-"));
   const fixturePath = join(outDir, "budget-loop-z3.json");
   const fixture = JSON.parse(readFileSync(
     resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary-budget-loop.json"),
@@ -286,10 +286,10 @@ test("cli budget loop awaits the host-created hybrid solver for an over-budget l
 });
 
 test("cli llm-plan budget loop requires budget tokens", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-missing-budget-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-loop-missing-budget-"));
   const scenarioPath = join(outDir, "scenario-missing-budget.json");
   const scenario = {
-    schema: "agent-kernel/E2EScenario",
+    schema: "agon/E2EScenario",
     schemaVersion: 1,
     goal: "Missing budget tokens",
     tier: 1,
@@ -325,10 +325,10 @@ test("cli llm-plan budget loop requires budget tokens", () => {
 });
 
 test("cli llm-plan requires budget tokens in single-pass mode", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-missing-budget-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-missing-budget-"));
   const scenarioPath = join(outDir, "scenario-missing-budget.json");
   const scenario = {
-    schema: "agent-kernel/E2EScenario",
+    schema: "agon/E2EScenario",
     schemaVersion: 1,
     goal: "Missing budget tokens",
     tier: 1,
@@ -363,7 +363,7 @@ test("cli llm-plan requires budget tokens in single-pass mode", () => {
 });
 
 test("cli llm-plan strict mode fails but writes capture with errors", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-strict-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-strict-"));
   const runId = "run_llm_plan_strict";
   const result = runCliExpectFailure(
     [
@@ -393,7 +393,7 @@ test("cli llm-plan strict mode fails but writes capture with errors", () => {
 });
 
 test("cli llm-plan resilient mode sanitizes invalid affinities", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-resilient-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-resilient-"));
   runCli(
     [
       "llm-plan",
@@ -415,13 +415,13 @@ test("cli llm-plan resilient mode sanitizes invalid affinities", () => {
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureEntry, undefined);
 });
 
 test("cli llm-plan supports prompt-only mode with catalog", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-prompt-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-prompt-"));
   runCli(
     [
       "llm-plan",
@@ -453,13 +453,13 @@ test("cli llm-plan supports prompt-only mode with catalog", () => {
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureEntry, undefined);
 });
 
 test("cli llm-plan supports text mode without an explicit fixture", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-text-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-text-"));
   runCli(
     [
       "llm-plan",
@@ -485,13 +485,13 @@ test("cli llm-plan supports text mode without an explicit fixture", () => {
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureEntry, undefined);
 });
 
 test("cli llm-plan falls back to scenario summary when AK_LLM_LIVE is off", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-fallback-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-fallback-"));
   runCli(
     [
       "llm-plan",
@@ -514,13 +514,13 @@ test("cli llm-plan falls back to scenario summary when AK_LLM_LIVE is off", () =
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureEntry, undefined);
 });
 
 test("cli llm-plan emits planning sidecars when explicitly requested", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-intermediates-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-intermediates-"));
   runCli(
     [
       "llm-plan",
@@ -546,7 +546,7 @@ test("cli llm-plan emits planning sidecars when explicitly requested", () => {
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.ok(captureEntry);
   assert.equal(existsSync(join(outDir, captureEntry.path)), true);
@@ -559,7 +559,7 @@ test("cli llm-plan emits planning sidecars when explicitly requested", () => {
 });
 
 test("cli llm-plan rejects summaries that do not match catalog entries", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-mismatch-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-plan-mismatch-"));
   const result = runCliExpectFailure(
     [
       "llm-plan",

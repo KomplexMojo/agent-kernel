@@ -1,4 +1,4 @@
-// Shared helpers for driving the agent-kernel CLI (`ak.mjs`) from tests.
+// Shared helpers for driving the agon CLI (`ak.mjs`) from tests.
 // Keeps the per-element matrix and complexity-ladder suites DRY.
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";

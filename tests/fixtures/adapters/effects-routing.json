@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/AdapterEffects",
+  "schema": "agon/AdapterEffects",
   "schemaVersion": 1,
   "effects": [
     {
@@ -7,7 +7,7 @@
       "kind": "need_external_fact",
       "requestId": "fact-1",
       "targetAdapter": "fixtures",
-      "sourceRef": { "id": "fact-1-src", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
+      "sourceRef": { "id": "fact-1-src", "schema": "agon/IntentEnvelope", "schemaVersion": 1 },
       "data": { "query": "fact-1" },
       "fulfillment": "deterministic"
     },

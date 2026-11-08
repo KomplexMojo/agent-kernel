@@ -85,7 +85,7 @@ move between home and away and the same command keeps working. Pin with
 - **Never start the full qualification matrix from a session.** One pass is 700
   calls; three are 2,100, and a full matrix runs for **days**. Subsets, single
   benchmarks, hardware probes, and `run-local` are fine in the loop; the days-long
-  matrix belongs to the box's unattended `agent-kernel-benchmark` systemd timer,
+  matrix belongs to the box's unattended `agon-benchmark` systemd timer,
   not to an interactive Cursor run.
 - **Benchmarks are a discovery instrument, never a gate.** A number never blocks
   or approves a merge, and anything a benchmark surfaces that a deterministic test

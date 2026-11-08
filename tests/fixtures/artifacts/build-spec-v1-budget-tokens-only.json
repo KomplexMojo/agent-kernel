@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BuildSpec",
+  "schema": "agon/BuildSpec",
   "schemaVersion": 1,
   "meta": {
     "id": "build_spec_budget_tokens_only",
@@ -17,7 +17,7 @@
   },
   "budget": {
     "budget": {
-      "schema": "agent-kernel/BudgetArtifact",
+      "schema": "agon/BudgetArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "budget_tokens_only",

@@ -94,7 +94,7 @@ const AK_CREATE_TOOL = {
   function: {
     name: 'ak_create',
     description:
-      'Create agent-kernel game elements (delvers, wardens, rooms, hazards, resources) ' +
+      'Create agon game elements (delvers, wardens, rooms, hazards, resources) ' +
       'for a dungeon scenario. Rooms are generic containers — affinity pressure belongs in ' +
       'hazards, not in room specs.',
     parameters: {

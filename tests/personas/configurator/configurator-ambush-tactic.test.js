@@ -22,7 +22,7 @@ function warden(id, kind) {
 
 function spec({ tactics, kind = null, guards = 3, levelGenShape = null }) {
   return {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: { id: "ambush", runId: "ambush", createdAt: CREATED_AT, source: "runtime-test" },
     intent: { goal: "an ambush" },

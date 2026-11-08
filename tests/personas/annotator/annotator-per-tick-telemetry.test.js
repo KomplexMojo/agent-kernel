@@ -59,7 +59,7 @@ async function runTicks(annotator) {
   const layout = { width: 4, height: 1, terrain: ["floor", "floor", "floor", "exit"], exitApproach: { x: 2, y: 0 } };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "g1-config", runId: "run_g1_telemetry", createdAt: CLOCK() },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { walker: 0 },
   });
@@ -151,7 +151,7 @@ test("G1 annotator/per-tick-telemetry: every record is stamped by the instance t
 
   assert.ok(records.length > 0, "precondition: the run must have produced records");
   for (const record of records) {
-    assert.equal(record.schema, "agent-kernel/TelemetryRecord");
+    assert.equal(record.schema, "agon/TelemetryRecord");
     assert.equal(
       record.meta?.producedBy,
       "annotator",

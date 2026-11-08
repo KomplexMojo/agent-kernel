@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/TelemetryRecord",
+  "schema": "agon/TelemetryRecord",
   "schemaVersion": 1,
   "meta": {
     "id": "golden_g3_telemetry",
@@ -22,37 +22,37 @@
     "artifactRefs": [
       {
         "id": "budget_golden_g3",
-        "schema": "agent-kernel/BudgetArtifact",
+        "schema": "agon/BudgetArtifact",
         "schemaVersion": 1
       },
       {
         "id": "golden_g3_budget_receipt",
-        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schema": "agon/BudgetReceiptArtifact",
         "schemaVersion": 1
       },
       {
         "id": "golden_g3_initial_state",
-        "schema": "agent-kernel/InitialStateArtifact",
+        "schema": "agon/InitialStateArtifact",
         "schemaVersion": 1
       },
       {
         "id": "golden_g3_default_price_list",
-        "schema": "agent-kernel/PriceList",
+        "schema": "agon/PriceList",
         "schemaVersion": 1
       },
       {
         "id": "golden_g3_resource_bundle",
-        "schema": "agent-kernel/ResourceBundleArtifact",
+        "schema": "agon/ResourceBundleArtifact",
         "schemaVersion": 2
       },
       {
         "id": "golden_g3_sim_config",
-        "schema": "agent-kernel/SimConfigArtifact",
+        "schema": "agon/SimConfigArtifact",
         "schemaVersion": 1
       },
       {
         "id": "golden_g3_spend_proposal",
-        "schema": "agent-kernel/SpendProposal",
+        "schema": "agon/SpendProposal",
         "schemaVersion": 1
       }
     ]

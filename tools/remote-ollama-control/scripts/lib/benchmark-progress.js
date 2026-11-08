@@ -28,7 +28,7 @@ const path = require('path');
 const { DEFAULT_THRESHOLDS, canStillQualify } = require('./ak-compare');
 const { DEFAULT_BREAKER } = require('./collapse-breaker');
 
-const SCHEMA_VERSION = 'agent-kernel-benchmark-progress/v1';
+const SCHEMA_VERSION = 'agon-benchmark-progress/v1';
 const PROGRESS_NAME = 'progress.json';
 
 /**

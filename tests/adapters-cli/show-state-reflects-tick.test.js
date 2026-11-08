@@ -96,7 +96,7 @@ describe("ak_show_state reflects the cursor tick", () => {
     const worldState = JSON.parse(readFileSync(join(runDir, "run", "world-state.json"), "utf8"));
     const initialState = JSON.parse(readFileSync(join(runDir, "create", "initial-state.json"), "utf8"));
 
-    assert.equal(worldState.schema, "agent-kernel/WorldStateArtifact");
+    assert.equal(worldState.schema, "agon/WorldStateArtifact");
     assert.equal(worldState.tick, 12, "the snapshot's tick must equal the ticks the run was asked for");
     assert.equal(worldState.actors.length, initialState.actors.length);
 

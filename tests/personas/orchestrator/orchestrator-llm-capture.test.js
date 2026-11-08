@@ -7,7 +7,7 @@ const { buildLlmCaptureArtifact } = await import("../../../packages/runtime/src/
 const { orchestrateBuild } = await import("../../../packages/runtime/src/build/orchestrate-build.js");
 
 const spec = {
-  schema: "agent-kernel/BuildSpec",
+  schema: "agon/BuildSpec",
   schemaVersion: 1,
   meta: {
     id: "spec_capture_fixture",
@@ -32,7 +32,7 @@ const captureResult = buildLlmCaptureArtifact({
 });
 
 assert.equal(captureResult.errors, undefined);
-assert.equal(captureResult.capture.schema, "agent-kernel/CapturedInputArtifact");
+assert.equal(captureResult.capture.schema, "agon/CapturedInputArtifact");
 assert.equal(captureResult.capture.source.adapter, "llm");
 assert.equal(captureResult.capture.source.request.model, "mistral");
 assert.equal(captureResult.capture.payload.prompt, "Return JSON only.");

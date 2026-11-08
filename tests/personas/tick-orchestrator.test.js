@@ -255,7 +255,7 @@ assert.equal(result.actions[0].kind, "custom");
 assert.equal(result.actions[0].params.abilityId, "dark_bolt");
 assert.equal(result.solverResults.length, 1);
 assert.equal(result.solverResults[0].provider.selected, "llm");
-assert.equal(result.solverResults[0].captureRef.schema, "agent-kernel/CapturedInputArtifact");
+assert.equal(result.solverResults[0].captureRef.schema, "agon/CapturedInputArtifact");
 assert.equal(result.artifacts.length, 1);
 assert.equal(result.artifacts[0].source.adapter, "llm");
 assert.equal(result.artifacts[0].payload.requestEnvelope.contract, "runtime-decision-v1");

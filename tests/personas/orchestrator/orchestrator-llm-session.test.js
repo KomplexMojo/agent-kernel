@@ -30,7 +30,7 @@ test("orchestrator llm session captures prompt/response", async () => {
   assert.equal(result.prompt, prompt);
   assert.equal(result.responseText, responseRaw);
   assert.equal(result.summary.dungeonAffinity, "fire");
-  assert.equal(result.capture.schema, "agent-kernel/CapturedInputArtifact");
+  assert.equal(result.capture.schema, "agon/CapturedInputArtifact");
   assert.equal(result.capture.meta.runId, "run_llm_session");
   assert.equal(result.capture.payload.prompt, prompt);
   assert.equal(result.capture.payload.responseRaw, responseRaw);

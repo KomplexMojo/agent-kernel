@@ -88,7 +88,7 @@ async function createGridArtifacts(dir) {
 }
 
 test("cli run emits deterministic actor configs and action logs", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-determinism-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-determinism-"));
   const { simConfigPath, initialStatePath } = await createGridArtifacts(workDir);
   const outDirA = join(workDir, "out-a");
   const outDirB = join(workDir, "out-b");
@@ -126,7 +126,7 @@ test("cli run emits deterministic actor configs and action logs", async () => {
 });
 
 test("cli run normalizes action logs without fixture input", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-determinism-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-determinism-"));
   const { simConfigPath, initialStatePath } = await createGridArtifacts(workDir);
   const outDirA = join(workDir, "out-c");
   const outDirB = join(workDir, "out-d");

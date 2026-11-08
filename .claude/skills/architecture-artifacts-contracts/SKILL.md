@@ -1,6 +1,6 @@
 ---
 name: architecture-artifacts-contracts
-description: Use when adding or evolving versioned agent-kernel artifact schemas, fixtures, or schema-origin/coverage guards in artifacts.ts. Do not use for persona behavior that merely consumes artifacts (use persona-*) or for adapter transport framing alone.
+description: Use when adding or evolving versioned Agon artifact schemas, fixtures, or schema-origin/coverage guards in artifacts.ts. Do not use for persona behavior that merely consumes artifacts (use persona-*) or for adapter transport framing alone.
 ---
 
 # Architecture: Artifacts & contracts
@@ -9,20 +9,20 @@ Scoped change skill for **versioned boundary schemas**. Load this when the work 
 
 ## Use when / Do not use when
 
-**Use when** the change declares or evolves an `agent-kernel/*` schema, adjusts `schemaVersion` / `meta`, adds positive/negative fixtures, or updates schema origin/catalog guards.
+**Use when** the change declares or evolves an `agon/*` schema, adjusts `schemaVersion` / `meta`, adds positive/negative fixtures, or updates schema origin/catalog guards.
 
 **Do not use when** the change only reads artifacts inside one persona (use that `persona-*` skill), only moves bytes over LLM/IPFS/chain (`architecture-adapter-io`), or only fixes package imports (`architecture-dependency-direction`).
 
 ## Allowed edit surfaces
 
-- `packages/runtime/src/contracts/artifacts.ts` — single declaration origin for `agent-kernel/*` schema strings and shapes
+- `packages/runtime/src/contracts/artifacts.ts` — single declaration origin for `agon/*` schema strings and shapes
 - Fixtures: `tests/fixtures/**` (invalid cases under `tests/fixtures/artifacts/invalid/` when adding validation)
 - Guards: `tests/architecture/schema-declaration-origin.test.js`, `tests/architecture/schema-catalog-coverage.test.js`
 - Narrow consumer updates required for a schema bump (prefer the owning persona skill for behavior tests)
 
 ## Forbidden
 
-- Declaring or retyping `agent-kernel/*` string literals outside `artifacts.ts`.
+- Declaring or retyping `agon/*` string literals outside `artifacts.ts`.
 - In-place remove/rename of fields on an existing `schemaVersion` — bump version for breaking changes.
 - Glue stamping `producedBy` with a persona that did not run.
 - Inventing parallel ad-hoc JSON contracts for the same boundary concept.

@@ -195,7 +195,7 @@ function countingZ3Stub() {
 
 function budgetFitProblem(budget) {
   return {
-    schema: "agent-kernel/ConstraintProblem",
+    schema: "agon/ConstraintProblem",
     schemaVersion: 1,
     meta: { id: `ctx_${budget}`, runId: "ctx", createdAt: "2026-09-04T00:00:00.000Z" },
     domain: "allocator_budget_fit",

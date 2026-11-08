@@ -11,7 +11,7 @@ const assert = require("node:assert/strict");
 
 function buildSpec() {
   return {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "rb2_room_characterization",
