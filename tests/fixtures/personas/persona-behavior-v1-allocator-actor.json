@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/PersonaBehavior",
+  "schema": "agon/PersonaBehavior",
   "schemaVersion": 1,
   "allocator": {
     "budget": { "effects": 3 },
@@ -7,7 +7,7 @@
       {
         "kind": "need_external_fact",
         "requestId": "fact-1",
-        "sourceRef": { "id": "fact-1-src", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
+        "sourceRef": { "id": "fact-1-src", "schema": "agon/IntentEnvelope", "schemaVersion": 1 },
         "targetAdapter": "fixtures"
       },
       { "kind": "need_external_fact", "requestId": "fact-2" }
@@ -28,7 +28,7 @@
       {
         "kind": "need_external_fact",
         "requestId": "fact-3",
-        "sourceRef": { "id": "fact-3-src", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
+        "sourceRef": { "id": "fact-3-src", "schema": "agon/IntentEnvelope", "schemaVersion": 1 },
         "targetAdapter": "fixtures"
       },
       { "kind": "need_external_fact", "requestId": "fact-4" }

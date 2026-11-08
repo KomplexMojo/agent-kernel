@@ -64,10 +64,10 @@ test("allocator receipts link to buildspec budget refs", async () => {
   const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-build" });
   assert.ok(buildResult.spendProposal);
   assert.ok(buildResult.budgetReceipt);
-  assert.equal(buildResult.spendProposal.schema, "agent-kernel/SpendProposal");
+  assert.equal(buildResult.spendProposal.schema, "agon/SpendProposal");
 
   const receipt = buildResult.budgetReceipt;
-  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schema, "agon/BudgetReceiptArtifact");
   assert.equal(receipt.meta.runId, buildSpecResult.spec.meta.runId);
   assert.deepEqual(receipt.budgetRef, budgetRef);
   assert.deepEqual(receipt.priceListRef, priceListRef);

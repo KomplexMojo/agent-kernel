@@ -331,7 +331,7 @@ test("a caller who prices a tile at zero is refused, not quietly overruled", asy
   const { AllocatorTilePriceError, evaluateLayoutSpend } = await loadLayoutSpend();
 
   const freeTiles = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     items: [{ id: "tile_floor", kind: "tile", unitCost: 0 }],
   };

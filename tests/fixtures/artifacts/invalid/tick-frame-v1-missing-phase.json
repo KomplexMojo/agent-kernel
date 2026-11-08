@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/TickFrame",
+  "schema": "agon/TickFrame",
   "schemaVersion": 1,
   "meta": {
     "id": "tick_frame_invalid",

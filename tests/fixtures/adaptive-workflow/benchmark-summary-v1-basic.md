@@ -1,4 +1,4 @@
-# Agent-Kernel Content-Gen Benchmark Summary
+# Agon Content-Gen Benchmark Summary
 
 Generated: 2026-07-12T16:56:07.611Z
 Route: external

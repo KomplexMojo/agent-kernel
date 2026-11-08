@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cursor session-start refresh for agent-kernel.
+# Cursor session-start refresh for agon.
 #
 # Brings the workspace to a known-good state at the start of a coding session,
 # on a cloud agent or locally:

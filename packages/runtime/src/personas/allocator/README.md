@@ -608,7 +608,7 @@ When a request is accepted, the Allocator issues a **budget receipt** that:
 
 Downstream personas must operate within the bounds of the receipt.
 
-Budget receipts are emitted as `agent-kernel/BudgetReceiptArtifact` and reference
+Budget receipts are emitted as `agon/BudgetReceiptArtifact` and reference
 the originating `BudgetArtifact` and `PriceList` for auditability.
 
 #### Proposal admissibility (CR.6)

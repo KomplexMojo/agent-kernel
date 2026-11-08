@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const CAPTURE_SCHEMA = "agent-kernel/CapturedInputArtifact";
+const CAPTURE_SCHEMA = "agon/CapturedInputArtifact";
 
 function printUsage() {
   console.log(`Usage: node scripts/llm-prompt-benchmark.mjs [options]

@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/TickFsmTest",
+  "schema": "agon/TickFsmTest",
   "schemaVersion": 1,
   "initialState": "init",
   "cases": [

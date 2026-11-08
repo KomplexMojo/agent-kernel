@@ -66,7 +66,7 @@ function buildFixture(root) {
     });
   }
   const authoringResult = {
-    schemaVersion: 'agent-kernel-content-gen-result/v1',
+    schemaVersion: 'agon-content-gen-result/v1',
     scenarioSet: { count: 1, sha256: 'scenario-a', tierCounts: { simple: 1 } },
     matrix: { sha256: 'matrix-a', configurationIds: configurations.map((entry) => entry.configurationId),
       repeatPolicy: { maximumPasses: 1 } },
@@ -114,7 +114,7 @@ function fixtureExecutionResult(request) {
   };
   scenario.requiredGates.forEach((gate) => apply(gate.predicate));
   return {
-    schemaVersion: 'agent-kernel-execution-result/v1',
+    schemaVersion: 'agon-execution-result/v1',
     identity: { executionSuiteHash: CATALOG.sha256, evaluatorVersion: CATALOG.evaluatorVersion,
       seedSetHash: CATALOG.seedSetHash, tickProfileHash: CATALOG.tickProfileHash },
     scenario: { id: scenario.id, family: scenario.family, profile: scenario.profile },
@@ -233,19 +233,19 @@ test('versioned route manifests bind exact identities and cover every scenario v
   const fixture = buildFixture(root);
   const components = pipelineComponents(fixture.sourceWorktree, CATALOG);
   assert.deepEqual(validateRouteManifestDocument({
-    schemaVersion: 'agent-kernel-runtime-build-routes/v1',
+    schemaVersion: 'agon-runtime-build-routes/v1',
     identity: { executionSuiteHash: CATALOG.sha256 },
     routes: fixture.runtimeRoutes,
   }, { kind: 'runtime', components, catalog: CATALOG, sourceWorktree: fixture.sourceWorktree,
     scenarioSetHash: 'scenario-a' }), fixture.runtimeRoutes);
   assert.deepEqual(validateRouteManifestDocument({
-    schemaVersion: 'agent-kernel-generated-content-routes/v1',
+    schemaVersion: 'agon-generated-content-routes/v1',
     identity: { executionSuiteHash: CATALOG.sha256, scenarioSetHash: 'scenario-a' },
     routes: fixture.generatedRoutes,
   }, { kind: 'generated', components, catalog: CATALOG, sourceWorktree: fixture.sourceWorktree,
     scenarioSetHash: 'scenario-a' }), fixture.generatedRoutes);
   assert.throws(() => validateRouteManifestDocument({
-    schemaVersion: 'agent-kernel-generated-content-routes/v1',
+    schemaVersion: 'agon-generated-content-routes/v1',
     identity: { executionSuiteHash: CATALOG.sha256, scenarioSetHash: 'stale' },
     routes: fixture.generatedRoutes,
   }, { kind: 'generated', components, catalog: CATALOG, sourceWorktree: fixture.sourceWorktree,
@@ -258,7 +258,7 @@ test('versioned route manifests bind exact identities and cover every scenario v
   const escapedRoutes = Object.fromEntries(Object.keys(fixture.runtimeRoutes)
     .map((key) => [key, 'escaped-build']));
   assert.throws(() => validateRouteManifestDocument({
-    schemaVersion: 'agent-kernel-runtime-build-routes/v1',
+    schemaVersion: 'agon-runtime-build-routes/v1',
     identity: { executionSuiteHash: CATALOG.sha256 },
     routes: escapedRoutes,
   }, { kind: 'runtime', components, catalog: CATALOG, sourceWorktree: fixture.sourceWorktree,

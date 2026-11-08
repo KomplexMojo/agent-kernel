@@ -160,7 +160,7 @@ test('no eta is claimed before any attempt has completed', () => {
 test('the summary is serializable, since it crosses a process and a git branch', () => {
   const progress = summarize([attempt('cheap')]);
   assert.deepEqual(JSON.parse(JSON.stringify(progress)), progress);
-  assert.equal(progress.schemaVersion, 'agent-kernel-benchmark-progress/v1');
+  assert.equal(progress.schemaVersion, 'agon-benchmark-progress/v1');
 });
 
 // ## TODO: Test Permutations

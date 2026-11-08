@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/E2EScenario",
+  "schema": "agon/E2EScenario",
   "schemaVersion": 1,
   "goal": "Validate tier 3 room layouts in the end-to-end flow.",
   "tier": 3,

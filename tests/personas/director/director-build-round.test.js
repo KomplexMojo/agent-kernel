@@ -14,7 +14,7 @@ const assert = require("node:assert/strict");
 const DIRECTOR = "../../../packages/runtime/src/personas/director/persona.js";
 
 const INTENT = Object.freeze({
-  schema: "agent-kernel/IntentEnvelope",
+  schema: "agon/IntentEnvelope",
   schemaVersion: 1,
   meta: { id: "intent_test", runId: "run_p21", createdAt: "2026-07-20T00:00:00.000Z" },
   intent: { goal: "a small dark room with one warden", tags: ["dark"] },
@@ -36,7 +36,7 @@ test("beginBuild moves uninitialized → draft_plan and emits the PlanArtifact",
   const { state, planArtifact } = d.beginBuild(INTENT);
   assert.equal(state, "draft_plan");
   assert.equal(d.view().state, "draft_plan");
-  assert.equal(planArtifact.schema, "agent-kernel/PlanArtifact");
+  assert.equal(planArtifact.schema, "agon/PlanArtifact");
   assert.equal(planArtifact.meta.producedBy, "director");
   assert.equal(planArtifact.intentRef.id, "intent_test");
   // The goal survives translation into the objective.

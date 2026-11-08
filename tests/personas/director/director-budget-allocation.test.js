@@ -44,11 +44,11 @@ const result = buildBudgetAllocation({
 
 assert.equal(result.ok, true);
 const allocation = result.allocation;
-assert.equal(allocation.schema, "agent-kernel/BudgetAllocationArtifact");
+assert.equal(allocation.schema, "agon/BudgetAllocationArtifact");
 assert.equal(allocation.schemaVersion, 1);
 assert.deepEqual(allocation.meta, meta);
-assert.equal(allocation.budgetRef.schema, "agent-kernel/BudgetArtifact");
-assert.equal(allocation.priceListRef.schema, "agent-kernel/PriceList");
+assert.equal(allocation.budgetRef.schema, "agon/BudgetArtifact");
+assert.equal(allocation.priceListRef.schema, "agon/PriceList");
 assert.deepEqual(allocation.policy, { reserveTokens: 100, maxActorSpend: 300 });
 
 const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));

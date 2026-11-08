@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/SimConfigArtifact",
+  "schema": "agon/SimConfigArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "benchmark_ex_rs_02_sim_config",
@@ -9,7 +9,7 @@
   },
   "planRef": {
     "id": "benchmark_ex_rs_02_plan",
-    "schema": "agent-kernel/PlanArtifact",
+    "schema": "agon/PlanArtifact",
     "schemaVersion": 1
   },
   "seed": 0,

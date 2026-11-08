@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/banner.png" alt="Deepward: a dungeon game, built on the agent-kernel engine" width="100%">
+  <img src="docs/brand/banner.png" alt="Deepward: a dungeon game, built on the Agon engine" width="100%">
 </p>
 
 <p align="center">
@@ -45,12 +45,12 @@
 ## The game
 
 **Deepward** is a dungeon game: delvers go down through rooms of wardens, traps and resources, and every one of them
-acts through its affinities and motivations. Deepward is the game and the public name; **agent-kernel** is the engine
+acts through its affinities and motivations. Deepward is the game and the public name; **Agon** is the engine
 underneath it, and the name the code, packages and tools still carry.
 
 ## The engine
 
-agent-kernel is the **underlying simulation engine** for Deepward. It is not the game itself.
+Agon is the **underlying simulation engine** for Deepward. It is not the game itself.
 
 The core advances dungeon scenarios deterministically: rooms, actors, affinities, motivations, hazards, resources, combat. Runs are replayable. Given the same inputs, the engine produces the same outcomes — that is the basis for **provable fairness**.
 

@@ -12,8 +12,8 @@ classifier can't parse as interpolated) are recorded with reasons in
 bare-string throw injected into scope fails the guard; a stale allowlist entry also fails it.
 **Audience:** an agent with no memory of the session that produced it.
 **Source of evidence:** `coding-issues-affecting-benchmarking.md` (M3/M4, merged as
-[PR #131](https://github.com/KomplexMojo/agent-kernel/pull/131) /
-[PR #132](https://github.com/KomplexMojo/agent-kernel/pull/132)) and a follow-up 17-scenario local
+[PR #131](https://github.com/KomplexMojo/agon/pull/131) /
+[PR #132](https://github.com/KomplexMojo/agon/pull/132)) and a follow-up 17-scenario local
 benchmark run (`tools/remote-ollama-control/results/2026-08-31T16-03-25-552Z-content-gen/`).
 
 **Where this sits (maintainer, 2026-08-31):** two phases, in this order — **first deterministic

@@ -32,7 +32,7 @@ function assertSortedSchemas(schemaEntries) {
 }
 
 test("cli build accepts --spec and writes mapped artifacts", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-"));
   const result = runCli(["build", "--spec", SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
@@ -50,7 +50,7 @@ test("cli build rejects unknown flags", () => {
 });
 
 test("cli build runs configurator inputs without executing core", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-config-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-config-"));
   const result = runCli(["build", "--spec", CONFIG_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
@@ -60,7 +60,7 @@ test("cli build runs configurator inputs without executing core", () => {
 });
 
 test("cli build writes a sorted manifest for emitted artifacts", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-manifest-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-manifest-"));
   const spec = JSON.parse(readFileSync(CONFIG_SPEC, "utf8"));
   const result = runCli(["build", "--spec", CONFIG_SPEC, "--out-dir", outDir]);
 
@@ -90,14 +90,14 @@ test("cli build writes a sorted manifest for emitted artifacts", () => {
 });
 
 test("cli build writes bundle.json with inlined artifacts", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-bundle-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-bundle-"));
   const result = runCli(["build", "--spec", CONFIG_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
 
-  assert.equal(bundle.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(bundle.spec.schema, "agon/BuildSpec");
   assert.equal(Array.isArray(bundle.artifacts), true);
   assert.equal(bundle.artifacts.length, manifest.artifacts.length);
   assert.deepEqual(bundle.schemas, manifest.schemas);
@@ -121,13 +121,13 @@ test("cli build writes bundle.json with inlined artifacts", () => {
 });
 
 test("cli build writes telemetry on success", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-telemetry-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-telemetry-"));
   const result = runCli(["build", "--spec", CONFIG_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
   const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
-  assert.equal(telemetry.schema, "agent-kernel/TelemetryRecord");
+  assert.equal(telemetry.schema, "agon/TelemetryRecord");
   assert.equal(telemetry.scope, "run");
   assert.equal(telemetry.data.status, "success");
   const manifestRefs = manifest.artifacts.map((entry) => ({
@@ -139,14 +139,14 @@ test("cli build writes telemetry on success", () => {
 });
 
 test("cli build writes telemetry on failure", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-telemetry-fail-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-telemetry-fail-"));
   const result = runCli(["build", "--spec", INVALID_SPEC, "--out-dir", outDir]);
 
   assert.notEqual(result.status, 0);
   assert.equal(existsSync(join(outDir, "manifest.json")), false);
   assert.equal(existsSync(join(outDir, "bundle.json")), false);
   const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
-  assert.equal(telemetry.schema, "agent-kernel/TelemetryRecord");
+  assert.equal(telemetry.schema, "agon/TelemetryRecord");
   assert.equal(telemetry.scope, "run");
   assert.equal(telemetry.data.status, "error");
   assert.equal(Array.isArray(telemetry.data.errors), true);
@@ -154,7 +154,7 @@ test("cli build writes telemetry on failure", () => {
 });
 
 test("cli build runs solver with fixture hints", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-solver-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-solver-"));
   const result = runCli(["build", "--spec", SOLVER_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
@@ -164,7 +164,7 @@ test("cli build runs solver with fixture hints", () => {
 });
 
 test("cli build emits intermediate sidecars only when explicitly requested", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-intermediates-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-intermediates-"));
   const result = runCli([
     "build",
     "--spec",
@@ -182,7 +182,7 @@ test("cli build emits intermediate sidecars only when explicitly requested", () 
 });
 
 test("cli build writes inline budget artifacts when refs are absent", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-budget-inline-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-budget-inline-"));
   const result = runCli(["build", "--spec", BUDGET_INLINE_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
@@ -193,17 +193,17 @@ test("cli build writes inline budget artifacts when refs are absent", () => {
 
   const budget = JSON.parse(readFileSync(budgetPath, "utf8"));
   const priceList = JSON.parse(readFileSync(priceListPath, "utf8"));
-  assert.equal(budget.schema, "agent-kernel/BudgetArtifact");
-  assert.equal(priceList.schema, "agent-kernel/PriceList");
+  assert.equal(budget.schema, "agon/BudgetArtifact");
+  assert.equal(priceList.schema, "agon/PriceList");
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const schemas = manifest.artifacts.map((entry) => entry.schema);
-  assert.ok(schemas.includes("agent-kernel/BudgetArtifact"));
-  assert.ok(schemas.includes("agent-kernel/PriceList"));
+  assert.ok(schemas.includes("agon/BudgetArtifact"));
+  assert.ok(schemas.includes("agon/PriceList"));
 });
 
 test("cli build captures adapter outputs as captured input artifacts", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-capture-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-capture-"));
   const result = runCli(["build", "--spec", ADAPTER_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
@@ -211,19 +211,19 @@ test("cli build captures adapter outputs as captured input artifacts", () => {
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
 
   const capturedEntries = manifest.artifacts.filter(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(capturedEntries.length, 0);
 
   const captureArtifacts = bundle.artifacts.filter(
-    (artifact) => artifact.schema === "agent-kernel/CapturedInputArtifact",
+    (artifact) => artifact.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureArtifacts.length, 0);
-  assert.ok(bundle.schemas.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+  assert.ok(bundle.schemas.every((entry) => entry.schema !== "agon/CapturedInputArtifact"));
 });
 
 test("cli build emits captured input sidecars only when explicitly requested", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-capture-intermediates-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-capture-intermediates-"));
   const result = runCli([
     "build",
     "--spec",
@@ -238,7 +238,7 @@ test("cli build emits captured input sidecars only when explicitly requested", (
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
 
   const capturedEntries = manifest.artifacts.filter(
-    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+    (entry) => entry.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(capturedEntries.length, 3);
   capturedEntries.forEach((entry) => {
@@ -246,10 +246,10 @@ test("cli build emits captured input sidecars only when explicitly requested", (
   });
 
   const captureArtifacts = bundle.artifacts.filter(
-    (artifact) => artifact.schema === "agent-kernel/CapturedInputArtifact",
+    (artifact) => artifact.schema === "agon/CapturedInputArtifact",
   );
   assert.equal(captureArtifacts.length, 3);
-  assert.ok(bundle.schemas.some((entry) => entry.schema === "agent-kernel/CapturedInputArtifact"));
+  assert.ok(bundle.schemas.some((entry) => entry.schema === "agon/CapturedInputArtifact"));
 
   const ipfsEntry = capturedEntries.find((entry) => entry.id === "capture_ipfs_price_list");
   assert.ok(ipfsEntry);
@@ -257,7 +257,7 @@ test("cli build emits captured input sidecars only when explicitly requested", (
   const ipfsArtifact = JSON.parse(readFileSync(join(outDir, ipfsEntry.path), "utf8"));
   assert.equal(ipfsArtifact.source.adapter, "ipfs");
   assert.equal(ipfsArtifact.contentType, "application/json");
-  assert.equal(ipfsArtifact.payload.schema, "agent-kernel/PriceList");
+  assert.equal(ipfsArtifact.payload.schema, "agon/PriceList");
 
   const defaultPaths = capturedEntries
     .filter((entry) => entry.id !== "capture_ipfs_price_list")
@@ -277,7 +277,7 @@ test("cli build emits captured input sidecars only when explicitly requested", (
 });
 
 test("cli build allows local llm baseUrl without AK_ALLOW_NETWORK", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-local-llm-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-local-llm-"));
   const result = runCli(
     ["build", "--spec", ADAPTER_SPEC, "--out-dir", outDir],
     { env: { AK_ALLOW_NETWORK: "0" } },
@@ -286,7 +286,7 @@ test("cli build allows local llm baseUrl without AK_ALLOW_NETWORK", () => {
 });
 
 test("cli build blocks non-local llm baseUrl without AK_ALLOW_NETWORK", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-remote-llm-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-remote-llm-"));
   const result = runCli(
     ["build", "--spec", ADAPTER_REMOTE_SPEC, "--out-dir", outDir],
     { env: { AK_ALLOW_NETWORK: "0" } },
@@ -296,7 +296,7 @@ test("cli build blocks non-local llm baseUrl without AK_ALLOW_NETWORK", () => {
 });
 
 test("cli build defaults to artifacts/runs/<runId>/build under cwd", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-default-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-build-default-"));
   const spec = JSON.parse(readFileSync(SPEC, "utf8"));
   const result = runCli(["build", "--spec", SPEC], { cwd: workDir });
 

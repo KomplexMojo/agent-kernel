@@ -69,7 +69,7 @@ async function artifacts() {
   const layout = { width: 3, height: 1, terrain: ["floor", "floor", "exit"] };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "g1-config", runId: "g1", createdAt: "fixed" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { caster: 0 },
   });

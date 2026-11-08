@@ -4,8 +4,8 @@ async function loadOp() {
   return import("../../packages/adapters-cli/src/adapters/adaptive-workflow/gameplay-bridge.js");
 }
 
-const OK_SPEC = { ok: true, spec: { schema: "agent-kernel/BuildSpec", schemaVersion: 1 } };
-const FAKE_BUNDLE = { spec: OK_SPEC.spec, artifacts: [{ schema: "agent-kernel/SimConfigArtifact" }, { schema: "agent-kernel/InitialStateArtifact" }] };
+const OK_SPEC = { ok: true, spec: { schema: "agon/BuildSpec", schemaVersion: 1 } };
+const FAKE_BUNDLE = { spec: OK_SPEC.spec, artifacts: [{ schema: "agon/SimConfigArtifact" }, { schema: "agon/InitialStateArtifact" }] };
 
 function stubs(overrides = {}) {
   const calls = { assemble: [], compile: [], push: [], onBundle: [] };

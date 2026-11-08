@@ -157,9 +157,9 @@ export async function runAgentBenchmark({
   }
 
   return {
-    schemaVersion: "agent-kernel-adaptive-workflow-benchmark-report/v1",
+    schemaVersion: "agon-adaptive-workflow-benchmark-report/v1",
     scenarioSet: {
-      schemaVersion: "agent-kernel-adaptive-workflow-scenario-set/v1",
+      schemaVersion: "agon-adaptive-workflow-scenario-set/v1",
       id: scenarioSet.id,
       purpose: scenarioSet.purpose,
       scenarioIds: scenarios.map((scenario) => scenario.id),

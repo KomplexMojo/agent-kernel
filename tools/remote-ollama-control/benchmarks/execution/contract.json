@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "agent-kernel-execution-metric-contract/v2",
+  "schemaVersion": "agon-execution-metric-contract/v2",
   "evaluatorVersion": "execution-evaluator-v2",
   "qualification": {
     "meanScore": 75,

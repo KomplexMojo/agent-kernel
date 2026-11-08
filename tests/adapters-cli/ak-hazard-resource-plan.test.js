@@ -32,7 +32,7 @@ function readStdoutJson(result) {
 }
 
 test("cli hazard-plan authors hazards directly from hazard flags", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-hazard-plan-basic-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-hazard-plan-basic-"));
   const result = runCliOk([
     "hazard-plan",
     "--hazard",
@@ -63,14 +63,14 @@ test("cli hazard-plan authors hazards directly from hazard flags", () => {
   assert.deepEqual(spec.intent.hints.poolWeights, [{ id: "hazards", weight: 1 }]);
 
   const artifact = readJson(join(outDir, "hazard-1.json"));
-  assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(artifact.schema, "agon/HazardArtifact");
   assert.equal(artifact.schemaVersion, 3);
   assert.equal(artifact.vitals.mana.regen, 1);
   assert.equal(artifact.meta.producedBy, "cli-hazard-plan");
 });
 
 test("cli hazard-plan writes hazard-only budget receipt categories", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-hazard-plan-budget-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-hazard-plan-budget-"));
   runCliOk([
     "hazard-plan",
     "--hazard",
@@ -96,7 +96,7 @@ test("cli hazard-plan writes hazard-only budget receipt categories", () => {
 });
 
 test("cli hazard-plan rejects insufficient hard budget", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-hazard-plan-budget-fail-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-hazard-plan-budget-fail-"));
   const result = runCli([
     "hazard-plan",
     "--hazard",
@@ -116,7 +116,7 @@ test("cli hazard-plan rejects insufficient hard budget", () => {
 });
 
 test("cli resource-plan authors V3 resources directly from resource flags", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-resource-plan-basic-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-resource-plan-basic-"));
   const result = runCliOk([
     "resource-plan",
     "--resource",
@@ -145,13 +145,13 @@ test("cli resource-plan authors V3 resources directly from resource flags", () =
   assert.deepEqual(spec.intent.hints.poolWeights, [{ id: "resources", weight: 1 }]);
 
   const artifact = readJson(join(outDir, "resource-1.json"));
-  assert.equal(artifact.schema, "agent-kernel/ResourceArtifact");
+  assert.equal(artifact.schema, "agon/ResourceArtifact");
   assert.equal(artifact.schemaVersion, 4);
   assert.equal(artifact.meta.producedBy, "cli-resource-plan");
 });
 
 test("cli resource-plan writes resource-only receipt categories and rejects low budgets", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-resource-plan-budget-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-resource-plan-budget-"));
   runCliOk([
     "resource-plan",
     "--resource",
@@ -173,7 +173,7 @@ test("cli resource-plan writes resource-only receipt categories and rejects low 
   assert.equal(resourcePool.capTokens, 200);
   assert.equal(resourcePool.spentTokens, receipt.totalCost);
 
-  const failDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-resource-plan-budget-fail-"));
+  const failDir = mkdtempSync(join(os.tmpdir(), "agon-resource-plan-budget-fail-"));
   // Permanent V3 resource bills actor_spawn + durability (totalCost 6); budget must be below that.
   const result = runCli([
     "resource-plan",

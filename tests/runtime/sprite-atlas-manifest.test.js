@@ -39,6 +39,6 @@ test("unknown descriptors resolve to null and coverage reports gaps", () => {
 
 test("manifest is serializable and versioned", () => {
   const m = spriteAtlasManifest();
-  assert.equal(m.schema, "agent-kernel/SpriteAtlasManifest");
+  assert.equal(m.schema, "agon/SpriteAtlasManifest");
   assert.deepEqual(JSON.parse(JSON.stringify(m)), m);
 });

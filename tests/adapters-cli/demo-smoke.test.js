@@ -12,7 +12,7 @@ function readJson(filePath) {
 }
 
 test("demo script produces fixture-backed artifacts", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-demo-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-demo-"));
   const result = spawnSync("bash", [SCRIPT, outDir], {
     cwd: ROOT,
     encoding: "utf8",
@@ -40,9 +40,9 @@ test("demo script produces fixture-backed artifacts", () => {
 
   const solverRequest = readJson(expected[0]);
   const solverResult = readJson(expected[1]);
-  assert.equal(solverRequest.schema, "agent-kernel/SolverRequest");
-  assert.equal(solverResult.schema, "agent-kernel/SolverResult");
-  assert.equal(solverResult.requestRef?.schema, "agent-kernel/SolverRequest");
+  assert.equal(solverRequest.schema, "agon/SolverRequest");
+  assert.equal(solverResult.schema, "agon/SolverResult");
+  assert.equal(solverResult.requestRef?.schema, "agon/SolverRequest");
 
   const ipfsPayload = readJson(expected[6]);
   assert.ok(ipfsPayload.items || ipfsPayload.data || ipfsPayload.rows, "ipfs payload should be JSON");

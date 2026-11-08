@@ -9,7 +9,7 @@ function artifacts() {
   const layout = { width: 3, height: 1, terrain: ['floor', 'floor', 'exit'] };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: 'actions-config', runId: 'actions', createdAt: '2026-09-13T00:00:00.000Z', producedBy: 'test' },
-    planRef: { id: 'plan', schema: 'agent-kernel/PlanArtifact', schemaVersion: 1 },
+    planRef: { id: 'plan', schema: 'agon/PlanArtifact', schemaVersion: 1 },
     layout,
     movementStamina: { caster: 1, source: 0 },
   });
@@ -91,7 +91,7 @@ test('runtime routes unified actions through one ActorTurn and records replay st
   await runtime.step();
   const applyFrames = runtime.getTickFrames().filter(frame => frame.phaseDetail === 'apply');
   expect(applyFrames.flatMap(frame => frame.acceptedActions)
-    .every(action => action.schema === 'agent-kernel/Action' && action.schemaVersion === 1)).toBe(true);
+    .every(action => action.schema === 'agon/Action' && action.schemaVersion === 1)).toBe(true);
   expect(applyFrames.flatMap(frame => frame.acceptedActions).some(action => action.kind === 'attack')).toBe(false);
   expect(applyFrames.at(-1).preCoreRejections).toEqual([
     { action: { actorId: 'caster', tick: 4, kind: 'attack', params: { targetId: 'source', damage: 99 } }, reason: 'unsupported_action_kind' },

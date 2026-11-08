@@ -239,7 +239,7 @@ export function createDefaultResourceBundleArtifact({
     schema: RESOURCE_BUNDLE_SCHEMA,
     schemaVersion,
     meta: createMeta({ producedBy, runId }),
-    bundleId: emitVisualAssets ? "agent-kernel-visual-resource-bundle" : "agent-kernel-default-resource-bundle",
+    bundleId: emitVisualAssets ? "agon-visual-resource-bundle" : "agon-default-resource-bundle",
     bundleVersion: schemaVersion,
     tileWidth: DEFAULT_RESOURCE_TILE_SIZE,
     tileHeight: DEFAULT_RESOURCE_TILE_SIZE,

@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/FrameBufferLog",
+  "schema": "agon/FrameBufferLog",
   "schemaVersion": 1,
   "baseTiles": [
     "#########",

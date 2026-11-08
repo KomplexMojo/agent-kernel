@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const CATALOG_VERSION = 'agent-kernel-abstract-plan-catalog/v1';
+const CATALOG_VERSION = 'agon-abstract-plan-catalog/v1';
 const PROBLEM_VERSION = 'abstract-component-selection/v1';
 const ABSTRACT_CATALOG_DIR = path.resolve(__dirname, '..', '..', 'benchmarks', 'abstract-plan');
 const ABSTRACT_CATALOG_PATH = path.resolve(

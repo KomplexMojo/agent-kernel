@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/TickFrame",
+  "schema": "agon/TickFrame",
   "schemaVersion": 1,
   "meta": {
     "id": "tick_frame_basic",
@@ -12,7 +12,7 @@
   "phaseDetail": "apply",
   "acceptedActions": [
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "actor_1",
       "tick": 1,
@@ -24,7 +24,7 @@
   ],
   "emittedEffects": [
     {
-      "schema": "agent-kernel/Effect",
+      "schema": "agon/Effect",
       "schemaVersion": 1,
       "tick": 1,
       "fulfillment": "deterministic",
@@ -37,7 +37,7 @@
   "fulfilledEffects": [
     {
       "effect": {
-        "schema": "agent-kernel/Effect",
+        "schema": "agon/Effect",
         "schemaVersion": 1,
         "tick": 1,
         "fulfillment": "deterministic",

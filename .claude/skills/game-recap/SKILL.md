@@ -1,6 +1,6 @@
 ---
 name: game-recap
-description: Tell the story of an agent-kernel run that just happened. Usage /game-recap [runId].
+description: Tell the story of an Agon run that just happened. Usage /game-recap [runId].
 disable-model-invocation: true
 argument-hint: [runId]
 ---

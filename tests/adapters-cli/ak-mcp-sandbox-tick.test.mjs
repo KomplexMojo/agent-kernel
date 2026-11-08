@@ -26,7 +26,7 @@ const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 
 const VAULT_DIR =
-  "/Users/darren/Documents/Obsidian/agent-kernel-vault/Sample Calls to agent-kernel MCP and Results";
+  "/Users/darren/Documents/Obsidian/agent-kernel-vault/Sample Calls to agon MCP and Results";
 const BUDGET_RECEIPT_FIXTURE = resolve(
   ROOT,
   "tests/fixtures/artifacts/budget-receipt-artifact-v1-basic.json",
@@ -84,14 +84,14 @@ async function scaffoldTickRun(runId, { maxTick = 10, actorId = "actor_delver" }
   writeJson(join(buildDir, "initial-state.json"), initialState);
 
   const frames = Array.from({ length: maxTick }, (_, i) => ({
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     meta: makeMeta(`tick_frame_${i + 1}`, runId),
     tick: i + 1,
     phase: "execute",
     acceptedActions: [
       {
-        schema: "agent-kernel/Action",
+        schema: "agon/Action",
         schemaVersion: 1,
         actorId,
         tick: i + 1,
@@ -103,7 +103,7 @@ async function scaffoldTickRun(runId, { maxTick = 10, actorId = "actor_delver" }
   writeJson(join(runDir, "tick-frames.json"), frames);
 
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: makeMeta("run_summary", runId),
     outcome: "success",
@@ -119,11 +119,11 @@ async function scaffoldTickRun(runId, { maxTick = 10, actorId = "actor_delver" }
 function makeDeniedReceipt(outDir) {
   const path = join(outDir, "denied-receipt.json");
   writeJson(path, {
-    schema: "agent-kernel/BudgetReceiptArtifact",
+    schema: "agon/BudgetReceiptArtifact",
     schemaVersion: 1,
     meta: { id: "denied_receipt", runId: "run_denied", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
-    budgetRef: { id: "b1", schema: "agent-kernel/BudgetArtifact", schemaVersion: 1 },
-    priceListRef: { id: "pl1", schema: "agent-kernel/PriceList", schemaVersion: 1 },
+    budgetRef: { id: "b1", schema: "agon/BudgetArtifact", schemaVersion: 1 },
+    priceListRef: { id: "pl1", schema: "agon/PriceList", schemaVersion: 1 },
     status: "denied",
     totalCost: 0,
     remaining: 0,
@@ -267,7 +267,7 @@ test("S1-06: ak_sandbox_create sandbox-session.json has correct schema fields", 
   await executeSandboxCreate({ budgetReceipt: BUDGET_RECEIPT_FIXTURE, outDir });
 
   const session = readJson(join(outDir, "sandbox-session.json"));
-  assert.equal(session.schema, "agent-kernel/SandboxSessionArtifact");
+  assert.equal(session.schema, "agon/SandboxSessionArtifact");
   assert.equal(session.schemaVersion, 1);
   assert.ok(session.meta?.id, "meta.id must be present");
   assert.ok(session.meta?.runId, "meta.runId must be present");
@@ -516,7 +516,7 @@ test("S3-03: ak_sandbox_move consecutive moves increment tick numbers", async ()
   assert.equal(r2.tick, 2);
 
   const seq = readJson(actionsOut);
-  assert.equal(seq.schema, "agent-kernel/ActionSequence");
+  assert.equal(seq.schema, "agon/ActionSequence");
   assert.equal(seq.actions.length, 2);
 });
 
@@ -952,14 +952,14 @@ test("INT-01: sandbox session → place entities → navigate 5 ticks forward th
 
   const MAX_TICKS = 10;
   const frames = Array.from({ length: MAX_TICKS }, (_, i) => ({
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     meta: makeMeta(`tick_frame_int_${i + 1}`, runId),
     tick: i + 1,
     phase: "execute",
     acceptedActions: [
       {
-        schema: "agent-kernel/Action",
+        schema: "agon/Action",
         schemaVersion: 1,
         actorId: "delver_fire",
         tick: i + 1,
@@ -970,7 +970,7 @@ test("INT-01: sandbox session → place entities → navigate 5 ticks forward th
   }));
   writeJson(join(runDir, "tick-frames.json"), frames);
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: makeMeta("run_summary_int", runId),
     outcome: "success",
@@ -1088,7 +1088,7 @@ test("VSR-01: scenario 01 (single delver) CLI create exits 0 and writes sim-conf
   assert.equal(status, 0, `CLI exited ${status}: ${stderr}`);
   assert.ok(existsSync(join(outDir, "sim-config.json")), "sim-config.json must be written");
   const simConfig = readJson(join(outDir, "sim-config.json"));
-  assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+  assert.equal(simConfig.schema, "agon/SimConfigArtifact");
   assert.equal(simConfig.schemaVersion, 1);
   assert.ok(simConfig.meta?.id, "sim-config must have meta.id");
 });
@@ -1102,7 +1102,7 @@ test("VSR-02: scenario 09 (delver vs warden arena) CLI create writes initial-sta
   }
   assert.equal(status, 0, `CLI exited ${status}: ${stderr}`);
   const state = readJson(join(outDir, "initial-state.json"));
-  assert.equal(state.schema, "agent-kernel/InitialStateArtifact");
+  assert.equal(state.schema, "agon/InitialStateArtifact");
   assert.ok(Array.isArray(state.actors) && state.actors.length > 0, "initial-state must have actors");
 });
 
@@ -1123,7 +1123,7 @@ test("VSR-03: scenario 53 (tick session ready dungeon) CLI create writes all cor
   assert.ok(existsSync(join(outDir, "budget-receipt.json")), "budget-receipt.json must exist");
 
   const simConfig = readJson(join(outDir, "sim-config.json"));
-  assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+  assert.equal(simConfig.schema, "agon/SimConfigArtifact");
 
   const initialState = readJson(join(outDir, "initial-state.json"));
   assert.ok(Array.isArray(initialState.actors) && initialState.actors.length > 0,
@@ -1162,7 +1162,7 @@ test("VSR-04: scenario 53 CLI output then tick-navigable via MCP handlers", asyn
   writeFileSync(join(buildDst, "initial-state.json"), readFileSync(join(outDir, "initial-state.json")));
 
   const frames = Array.from({ length: 10 }, (_, i) => ({
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     meta: makeMeta(`tf_vsr53_${i + 1}`, runId),
     tick: i + 1,
@@ -1171,7 +1171,7 @@ test("VSR-04: scenario 53 CLI output then tick-navigable via MCP handlers", asyn
   }));
   writeJson(join(runDst, "tick-frames.json"), frames);
   writeJson(join(runDst, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: makeMeta("rs_vsr53", runId),
     outcome: "success",
@@ -1228,7 +1228,7 @@ test("S1 ak_sandbox_create with zero-token budget artifact returns budgetInsuffi
   const tmpDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-sandbox-zero-budget-"));
   const budgetPath = join(tmpDir, "zero-budget.json");
   writeJson(budgetPath, {
-    schema: "agent-kernel/BudgetArtifact",
+    schema: "agon/BudgetArtifact",
     schemaVersion: 1,
     meta: { id: "zero_budget", runId: "run_zero", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
     budget: { tokens: 0 },

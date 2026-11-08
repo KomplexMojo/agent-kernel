@@ -31,7 +31,7 @@ export function anomaliesOf(run) {
 
 export function buildCard(run) {
   return {
-    schema: "agent-kernel/PlaySimCard",
+    schema: "agon/PlaySimCard",
     version: 1,
     scenario: run.scenario,
     seed: run.seed,
@@ -87,7 +87,7 @@ export function buildCohort(runs) {
     const dExit = (arms.treatment.exitRate ?? 0) - (arms.baseline.exitRate ?? 0);
     if (dExit !== 0) flags.push({ flag: "exit_rate_delta", delta: Math.round(dExit * 1000) / 1000 });
   }
-  return { schema: "agent-kernel/PlaySimCohort", version: 1, arms, flags };
+  return { schema: "agon/PlaySimCohort", version: 1, arms, flags };
 }
 
 /** Write cards/ and cohort.json under `dir`; returns { cards, cohort }. */

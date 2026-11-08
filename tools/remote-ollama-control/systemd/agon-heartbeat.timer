@@ -1,8 +1,8 @@
 [Unit]
-Description=Publish the Agent Kernel benchmark heartbeat
+Description=Publish the Agon benchmark heartbeat
 
 [Timer]
-Unit=agent-kernel-heartbeat.service
+Unit=agon-heartbeat.service
 # OnActiveSec covers install/daemon-reload/enable in an already-running user session: OnBootSec
 # only arms after a real boot, and OnUnitActiveSec alone leaves NEXT blank until something has
 # already fired the service once — which is how a redeploy left the beacon unscheduled.

@@ -10,12 +10,12 @@ test("initializeCoreFromArtifacts rejects layout.resources", async () => {
   );
   assert.throws(() => initializeCoreFromArtifacts({
     simConfig: {
-      schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1, meta: { id: "cfg" },
+      schema: "agon/SimConfigArtifact", schemaVersion: 1, meta: { id: "cfg" },
       layout: { kind: "grid", data: { width: 1, height: 1, terrain: ["floor"], resources: [{}] } },
     },
     initialState: {
-      schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1, meta: { id: "st" },
-      simConfigRef: { id: "cfg", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+      schema: "agon/InitialStateArtifact", schemaVersion: 1, meta: { id: "st" },
+      simConfigRef: { id: "cfg", schema: "agon/SimConfigArtifact", schemaVersion: 1 },
       actors: [], presentation: {},
     },
   }), /category storage/);

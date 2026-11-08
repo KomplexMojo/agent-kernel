@@ -176,7 +176,7 @@ test("prices omitted by a caller's list come from base-costs, not from a second 
 
   // A list that prices floor tiles only — the documented CLI override shape.
   const partial = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     items: [{ id: "tile_floor", kind: "tile", unitCost: 7 }],
   };

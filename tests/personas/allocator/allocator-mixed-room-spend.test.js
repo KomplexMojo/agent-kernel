@@ -93,7 +93,7 @@ test("mixed-room pricing refuses malformed partitions and incomplete prices", as
     ],
   };
   const incompletePriceList = {
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: META,
     items: [{ id: "tile_floor", kind: "tile", unitCost: 1, formula: "linear" }],

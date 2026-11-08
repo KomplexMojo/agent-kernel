@@ -548,7 +548,7 @@ expected-red because 23 legacy setup exports and applyAttack are now unreachable
 remove those exports with their legacy core test consumers during the prescribed
 export/test cutover.
 
-Repository: `KomplexMojo/agent-kernel`. Continue the existing isolated worktree on
+Repository: `KomplexMojo/agon`. Continue the existing isolated worktree on
 `codex/unified-actor`, preserving its local commits and any working changes. Do not reset to
 main or the published handoff checkpoint: neither contains the current local work.
 The original rewrite base was `9a9168f8c63b07b1e9e789daa598a6edaa061cbd`.

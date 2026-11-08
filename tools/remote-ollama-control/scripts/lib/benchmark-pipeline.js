@@ -84,7 +84,7 @@ function validateAuthoringEvidence(evidence, scenarioSetHash, matrixHash, valida
 }
 
 function validateExecutionSchedule(schedule, executionSuiteHash, label) {
-  if (schedule?.schemaVersion !== 'agent-kernel-execution-schedule/v1'
+  if (schedule?.schemaVersion !== 'agon-execution-schedule/v1'
     || schedule.identity?.executionSuiteHash !== executionSuiteHash
     || !Array.isArray(schedule.scenarios) || !Array.isArray(schedule.attempts)) {
     throw new Error(`${label} execution evidence identity is invalid`);
@@ -165,8 +165,8 @@ function validateRouteManifestDocument(document, {
   kind, components, catalog, sourceWorktree, scenarioSetHash, requireEnvelope = true,
 }) {
   const schemaVersion = kind === 'runtime'
-    ? 'agent-kernel-runtime-build-routes/v1'
-    : 'agent-kernel-generated-content-routes/v1';
+    ? 'agon-runtime-build-routes/v1'
+    : 'agon-generated-content-routes/v1';
   if (!document || typeof document !== 'object' || Array.isArray(document)) {
     throw new Error(`${kind} route manifest must be an object`);
   }

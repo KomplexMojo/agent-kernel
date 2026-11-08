@@ -24,7 +24,7 @@ function runCliOk(args, env = {}) {
 }
 
 test("ak create records the placement decision and inspect prints it", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-solver-decisions-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-solver-decisions-"));
   runCliOk([
     "create",
     "--text", "One room with an unplaced resource and one delver.",

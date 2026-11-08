@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/ActionSequence",
+  "schema": "agon/ActionSequence",
   "schemaVersion": 1,
   "meta": {
     "id": "action-sequence-move-test",
@@ -9,17 +9,17 @@
   },
   "simConfigRef": {
     "id": "sim-config-move_test_run",
-    "schema": "agent-kernel/SimConfigArtifact",
+    "schema": "agon/SimConfigArtifact",
     "schemaVersion": 1
   },
   "initialStateRef": {
     "id": "initial-state-move_test_run",
-    "schema": "agent-kernel/InitialStateArtifact",
+    "schema": "agon/InitialStateArtifact",
     "schemaVersion": 1
   },
   "actions": [
     {
-      "schema": "agent-kernel/Action",
+      "schema": "agon/Action",
       "schemaVersion": 1,
       "actorId": "delver_1",
       "tick": 1,

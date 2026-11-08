@@ -173,7 +173,7 @@ export async function runStrategySources({ scenarios, seeds = DEFAULT_SEEDS, out
     rmSync(workDir, { recursive: true, force: true });
   }
   const comparison = compare(runs);
-  const summary = { schema: "agent-kernel/PlaySimStrategySources", version: 1, strategy, seeds, maxTicks,
+  const summary = { schema: "agon/PlaySimStrategySources", version: 1, strategy, seeds, maxTicks,
     matrix: "local-unversioned", ...(model ? { model } : {}), ...(fixture ? { fixture } : {}), comparison, runs };
   writeFileSync(join(outDir, "strategy-sources.json"), `${JSON.stringify(summary, null, 2)}\n`);
   writeFileSync(join(outDir, "strategy-sources.md"), renderReport({ runs, comparison, model, fixture, strategy, maxTicks }));

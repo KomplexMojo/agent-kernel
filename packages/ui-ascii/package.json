@@ -1,5 +1,5 @@
 {
-  "name": "@agent-kernel/ui-ascii",
+  "name": "@agon-engine/ui-ascii",
   "private": true,
   "type": "module",
   "exports": {

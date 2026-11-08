@@ -18,7 +18,7 @@ function passingResult(request) {
     status: 'available', value: 1, unit: contract.unit, evidence: 'artifact',
   }]));
   return {
-    schemaVersion: 'agent-kernel-execution-result/v1',
+    schemaVersion: 'agon-execution-result/v1',
     identity: {
       executionSuiteHash: catalog.sha256,
       evaluatorVersion: catalog.evaluatorVersion,

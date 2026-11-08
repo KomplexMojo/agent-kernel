@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/SpendProposal",
+  "schema": "agon/SpendProposal",
   "schemaVersion": 1,
   "meta": {
     "id": "proposal_vam",
@@ -14,7 +14,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -24,7 +24,7 @@
       "quantity": 2,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -34,7 +34,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -44,7 +44,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -54,7 +54,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -67,7 +67,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -80,7 +80,7 @@
       "quantity": 2,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -93,7 +93,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -106,7 +106,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -116,7 +116,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -126,7 +126,7 @@
       "quantity": 10,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -136,7 +136,7 @@
       "quantity": 2,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -146,7 +146,7 @@
       "quantity": 3,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -156,7 +156,7 @@
       "quantity": 4,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -166,7 +166,7 @@
       "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     }

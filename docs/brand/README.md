@@ -1,13 +1,13 @@
 # Deepward brand kit
 
-Assets for the repository README. **Deepward** is the game and the public name; **agent-kernel** is its engine and the
+Assets for the repository README. **Deepward** is the game and the public name; **Agon** is its engine and the
 internal name (packages, `ak`, the MCP server, schema ids).
 
 ## Voice
 
 Notes for the person building this — not a product pitch.
 
-- Lead with the game, Deepward; then say what the engine is: agent-kernel, the core under it, with CLI and MCP surfaces.
+- Lead with the game, Deepward; then say what the engine is: Agon, the core under it, with CLI and MCP surfaces.
 - Say the constraints plainly: decentralized, distributed, provably fair, enforced token economics.
 - Do not write as if there is an audience to convert. No “what you get”, no install funnel.
 - Keep personas and package architecture under **For developers**.

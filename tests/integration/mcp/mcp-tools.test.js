@@ -137,7 +137,7 @@ class McpServerHarness {
     const result = await this.request("initialize", {
       protocolVersion: "2025-03-26",
       capabilities: {},
-      clientInfo: { name: "agent-kernel-mcp-tools-test", version: "1.0.0" },
+      clientInfo: { name: "agon-mcp-tools-test", version: "1.0.0" },
     });
     this.notify("notifications/initialized", {});
     return result;
@@ -200,7 +200,7 @@ test("mcp ak_build produces a bundle from a build spec with core-ts", async () =
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-build-");
+    const outDir = makeTempDir("agon-mcp-build-");
     const result = await harness.callTool("ak_build", {
       spec: BUILD_SPEC,
       outDir,
@@ -219,7 +219,7 @@ test("mcp ak_budget returns budget receipt envelope from fixture artifacts", asy
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-budget-");
+    const outDir = makeTempDir("agon-mcp-budget-");
     const result = await harness.callTool("ak_budget", {
       budget: BUDGET,
       priceList: PRICE_LIST,
@@ -227,9 +227,9 @@ test("mcp ak_budget returns budget receipt envelope from fixture artifacts", asy
       outDir,
     });
     assert.equal(result.command, "budget");
-    assert.equal(result.budget?.schema, "agent-kernel/BudgetArtifact");
-    assert.equal(result.priceList?.schema, "agent-kernel/PriceList");
-    assert.equal(result.receipt?.schema, "agent-kernel/BudgetReceiptArtifact");
+    assert.equal(result.budget?.schema, "agon/BudgetArtifact");
+    assert.equal(result.priceList?.schema, "agon/PriceList");
+    assert.equal(result.receipt?.schema, "agon/BudgetReceiptArtifact");
   } finally {
     await harness.close();
   }
@@ -239,7 +239,7 @@ test("mcp ak_configurator assembles sim-config and initial-state from fixtures",
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-configurator-");
+    const outDir = makeTempDir("agon-mcp-configurator-");
     const result = await harness.callTool("ak_configurator", {
       levelGen: LEVEL_GEN,
       actors: ACTORS,
@@ -250,7 +250,7 @@ test("mcp ak_configurator assembles sim-config and initial-state from fixtures",
     assert.equal(existsSync(join(outDir, "sim-config.json")), true, "sim-config.json must be written");
     assert.equal(existsSync(join(outDir, "initial-state.json")), true, "initial-state.json must be written");
     const simConfig = JSON.parse(readFileSync(join(outDir, "sim-config.json"), "utf8"));
-    assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+    assert.equal(simConfig.schema, "agon/SimConfigArtifact");
   } finally {
     await harness.close();
   }
@@ -262,7 +262,7 @@ test("mcp ak_llm writes LLM response JSON using fixture adapter", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-llm-");
+    const outDir = makeTempDir("agon-mcp-llm-");
     const result = await harness.callTool("ak_llm", {
       prompt: "hello",
       model: "fixture",
@@ -281,7 +281,7 @@ test("mcp ak_ollama writes LLM response JSON using fixture adapter (ollama alias
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-ollama-");
+    const outDir = makeTempDir("agon-mcp-ollama-");
     const result = await harness.callTool("ak_ollama", {
       prompt: "hello",
       model: "fixture",
@@ -302,7 +302,7 @@ test("mcp ak_ipfs fetches content via fixture without network", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-ipfs-");
+    const outDir = makeTempDir("agon-mcp-ipfs-");
     const result = await harness.callTool("ak_ipfs", {
       cid: "bafyfixture",
       json: true,
@@ -313,7 +313,7 @@ test("mcp ak_ipfs fetches content via fixture without network", async () => {
     assert.ok(typeof result.stdout === "string" && result.stdout.includes("ipfs: wrote"), "stdout must name written path");
     assert.equal(existsSync(join(outDir, "ipfs.json")), true, "ipfs.json must be written");
     const payload = JSON.parse(readFileSync(join(outDir, "ipfs.json"), "utf8"));
-    assert.equal(payload.schema, "agent-kernel/PriceList");
+    assert.equal(payload.schema, "agon/PriceList");
   } finally {
     await harness.close();
   }
@@ -323,7 +323,7 @@ test("mcp ak_ipfs_publish publishes via fixture-cid without network", async () =
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-ipfs-publish-");
+    const outDir = makeTempDir("agon-mcp-ipfs-publish-");
     const result = await harness.callTool("ak_ipfs_publish", {
       artifactMap: IPFS_ARTIFACT_MAP,
       fixtureCid: "bafypublishfixture",
@@ -345,7 +345,7 @@ test("mcp ak_ipfs_load fetches artifact map files via fixture without network", 
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-ipfs-load-");
+    const outDir = makeTempDir("agon-mcp-ipfs-load-");
     const result = await harness.callTool("ak_ipfs_load", {
       cid: "bafyfixture",
       fixtureMap: IPFS_ARTIFACT_MAP,
@@ -366,7 +366,7 @@ test("mcp ak_blockchain returns chainId and balance from fixture files", async (
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-blockchain-");
+    const outDir = makeTempDir("agon-mcp-blockchain-");
     const result = await harness.callTool("ak_blockchain", {
       rpcUrl: "http://local",
       address: "0xabc",
@@ -389,7 +389,7 @@ test("mcp ak_blockchain_mint returns minted token metadata from fixture files", 
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-blockchain-mint-");
+    const outDir = makeTempDir("agon-mcp-blockchain-mint-");
     const result = await harness.callTool("ak_blockchain_mint", {
       rpcUrl: "http://local",
       card: CARD_CONFIG,
@@ -413,7 +413,7 @@ test("mcp ak_blockchain_load returns card payload from fixture files", async () 
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-mcp-blockchain-load-");
+    const outDir = makeTempDir("agon-mcp-blockchain-load-");
     const result = await harness.callTool("ak_blockchain_load", {
       rpcUrl: "http://local",
       tokenId: "token_fixture_1",
@@ -646,7 +646,7 @@ test("mcp ak_replay re-executes tick frames deterministically", async () => {
 
     // Produce tick-frames from a run first. Leftover hazard/affinity fixtures
     // disagree on simConfigRef and still store category tiles.
-    const runOutDir = makeTempDir("agent-kernel-mcp-replay-run-");
+    const runOutDir = makeTempDir("agon-mcp-replay-run-");
     const artifacts = await writeUnifiedRunArtifacts(runOutDir);
     const runResult = await harness.callTool("ak_run", {
       simConfig: artifacts.simConfigPath,
@@ -656,7 +656,7 @@ test("mcp ak_replay re-executes tick frames deterministically", async () => {
     const tickFramesPath = join(runOutDir, "tick-frames.json");
     assert.equal(existsSync(tickFramesPath), true, "run must produce tick-frames.json");
 
-    const replayOutDir = makeTempDir("agent-kernel-mcp-replay-");
+    const replayOutDir = makeTempDir("agon-mcp-replay-");
     const replayResult = await harness.callTool("ak_replay", {
       simConfig: artifacts.simConfigPath,
       initialState: artifacts.initialStatePath,
@@ -683,7 +683,7 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
     await harness.initialize();
 
     // Produce tick-frames from a run first. Same leftover-fixture refusal as replay.
-    const runOutDir = makeTempDir("agent-kernel-mcp-narrate-run-");
+    const runOutDir = makeTempDir("agon-mcp-narrate-run-");
     const artifacts = await writeUnifiedRunArtifacts(runOutDir);
     await harness.callTool("ak_run", {
       simConfig: artifacts.simConfigPath,
@@ -693,7 +693,7 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
     const tickFramesPath = join(runOutDir, "tick-frames.json");
     assert.equal(existsSync(tickFramesPath), true, "run must produce tick-frames.json");
 
-    const narrateOutDir = makeTempDir("agent-kernel-mcp-narrate-");
+    const narrateOutDir = makeTempDir("agon-mcp-narrate-");
     const narrateResult = await harness.callTool("ak_narrate", {
       tickFrames: tickFramesPath,
       initialState: artifacts.initialStatePath,
@@ -702,14 +702,14 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
     assert.equal(narrateResult.command, "narrate");
     assert.equal(existsSync(join(narrateOutDir, "narrative.json")), true, "narrate must produce narrative.json");
     const narrative = JSON.parse(readFileSync(join(narrateOutDir, "narrative.json"), "utf8"));
-    assert.equal(narrative.schema, "agent-kernel/NarrativeArtifact");
+    assert.equal(narrative.schema, "agon/NarrativeArtifact");
   } finally {
     await harness.close();
   }
 });
 
 test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a full-dungeon run", async () => {
-  const workDir = makeTempDir("agent-kernel-mcp-tick-session-");
+  const workDir = makeTempDir("agon-mcp-tick-session-");
   const artifactsDir = join(workDir, "artifacts");
   const runId = "ring_mcp_tick_session";
   const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");

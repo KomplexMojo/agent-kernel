@@ -1,6 +1,6 @@
 ---
 name: game-load
-description: Resume an agent-kernel game saved with /game-save. Usage /game-load <name or path>.
+description: Resume an Agon game saved with /game-save. Usage /game-load <name or path>.
 disable-model-invocation: true
 argument-hint: <name or path>
 ---

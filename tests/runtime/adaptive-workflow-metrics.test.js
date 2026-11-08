@@ -65,7 +65,7 @@ test("summarizes a completed run with required Prompt.md fields", async () => {
     clock: () => "2026-07-12T00:01:00.000Z",
   });
 
-  assert.equal(metrics.schema, "agent-kernel/AdaptiveWorkflowMetrics");
+  assert.equal(metrics.schema, "agon/AdaptiveWorkflowMetrics");
   assert.equal(metrics.schemaVersion, 1);
   assert.equal(metrics.runId, "run_metrics");
   assert.equal(metrics.meta.runId, "run_metrics");

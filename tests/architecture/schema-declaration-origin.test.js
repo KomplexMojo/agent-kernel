@@ -1,12 +1,12 @@
 /**
- * M7 (2026-08-08) — every `agent-kernel/*` schema used in production is DECLARED in
+ * M7 (2026-08-08) — every `agon/*` schema used in production is DECLARED in
  * `contracts/artifacts.ts`.
  *
  * ═══ THE DEFECT THIS EXISTS FOR ═══════════════════════════════════════════════════════════
  * The AdaptiveWorkflow schema cluster was counted three times and was wrong three times:
  *
  *   9  — the milestone spec: counted only `contracts/artifacts.ts`
- *   15 — M6's census: counted only `const X = "agent-kernel/…"` DECLARATIONS
+ *   15 — M6's census: counted only `const X = "agon/…"` DECLARATIONS
  *   20 — the truth: six schemas had no constant anywhere, only inline literals
  *
  * Twelve of the twenty were declared outside `artifacts.ts`, which the charter forbids for
@@ -19,8 +19,8 @@
  * invisible to any instrument that looks for constants.
  *
  * PERTURBATION-VERIFIED 2026-08-08:
- *   - re-add a local `const X = "agent-kernel/AdaptiveWorkflowPlan"`  → DETECTED
- *   - inline a bare `"agent-kernel/Whatever"` literal in a prod file  → DETECTED
+ *   - re-add a local `const X = "agon/AdaptiveWorkflowPlan"`  → DETECTED
+ *   - inline a bare `"agon/Whatever"` literal in a prod file  → DETECTED
  *   - remove a name from KNOWN_OUTSTANDING                            → DETECTED (it is exact)
  *
  * ═══ M8 (2026-08-11) ══════════════════════════════════════════════════════════════════════
@@ -36,9 +36,9 @@
  *      perturbation found in its own first guard.
  *
  * PERTURBATION-VERIFIED 2026-08-11 (each in the shape of the defect it prevents):
- *   - retype `"agent-kernel/GameplayBundle"` in core-facade.js       → DETECTED
- *   - re-declare a second `const … = "agent-kernel/GameplayBundle"`  → DETECTED
- *   - add a new undeclared `"agent-kernel/Nonexistent"` literal      → DETECTED
+ *   - retype `"agon/GameplayBundle"` in core-facade.js       → DETECTED
+ *   - re-declare a second `const … = "agon/GameplayBundle"`  → DETECTED
+ *   - add a new undeclared `"agon/Nonexistent"` literal      → DETECTED
  *   - add a fixed schema back to KNOWN_OUTSTANDING                   → DETECTED
  *
  * ═══ M9 (2026-08-11) — THE RULE NO LONGER NEEDS A LIST ════════════════════════════════════
@@ -47,7 +47,7 @@
  * declared, including 68 rival `const` declarations, five of them in `contracts/` itself.
  *
  * So the retype check dropped its scope: no production file outside artifacts.ts may write
- * an `agent-kernel/*` literal at all. A guard that enumerates what it protects is a guard
+ * an `agon/*` literal at all. A guard that enumerates what it protects is a guard
  * someone has to remember to extend — M8's named set of ten would have silently failed to
  * cover the 172 sites it did not name.
  *
@@ -74,7 +74,7 @@ const ARTIFACTS = "packages/runtime/src/contracts/artifacts.ts";
  * instead of a search. It worked: M8 was executable from this list alone.
  *
  * An empty list is the point, not a formality. With nothing exempted the rule is absolute —
- * no production file outside artifacts.ts may write an `agent-kernel/*` literal — and
+ * no production file outside artifacts.ts may write an `agon/*` literal — and
  * growing this list again takes a deliberate edit to this file and a stated reason.
  *
  * ⚠️ It is ONE list on purpose. M9 briefly had an exemption that silenced the declaration
@@ -88,7 +88,7 @@ const KNOWN_OUTSTANDING = Object.freeze([]);
  *
  * ⚠️ THIS IS A DIFFERENT AND STRICTER PROPERTY than "declared in artifacts.ts", and the
  * distinction is the whole reason M7's first guard passed its own defect. A file that writes
- * `"agent-kernel/GameplayBundle"` inline satisfies the declaration check — the schema *is*
+ * `"agon/GameplayBundle"` inline satisfies the declaration check — the schema *is*
  * declared, it simply is not being used from the declaration — while remaining free to drift
  * from it. That was not hypothetical: before M8, `GAMEPLAY_BUNDLE_SCHEMA` was declared
  * independently in the CLI that writes bundles and in the browser module that reads them.
@@ -96,7 +96,7 @@ const KNOWN_OUTSTANDING = Object.freeze([]);
  * ✅ M9 (2026-08-11) MADE THIS EVERY SCHEMA. It was a named set of ten — M7's cluster plus
  * M8's seven — because 182 sites across 50 files still retyped a centrally declared schema.
  * That backlog is closed, so the rule needs no list: **no production file outside
- * artifacts.ts may write an `agent-kernel/*` literal at all.** A set that has to enumerate
+ * artifacts.ts may write an `agon/*` literal at all.** A set that has to enumerate
  * what it protects is a set someone has to remember to add to; this one cannot go stale
  * because there is nothing in it to update.
  */
@@ -120,7 +120,7 @@ function schemaLiteralsIn(source) {
   for (const line of source.split("\n")) {
     const trimmed = line.trim();
     if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
-    for (const m of line.matchAll(/"(agent-kernel\/[A-Za-z0-9_]+)"/g)) found.add(m[1]);
+    for (const m of line.matchAll(/"(agon\/[A-Za-z0-9_]+)"/g)) found.add(m[1]);
   }
   return found;
 }
@@ -157,7 +157,7 @@ test("every single-origin schema is declared in exactly one place", () => {
     source.split("\n").forEach((line, index) => {
       const trimmed = line.trim();
       if (trimmed.startsWith("//") || trimmed.startsWith("*")) return;
-      const m = line.match(/const\s+[A-Za-z0-9_]+\s*=\s*"(agent-kernel\/[A-Za-z0-9_]+)"/);
+      const m = line.match(/const\s+[A-Za-z0-9_]+\s*=\s*"(agon\/[A-Za-z0-9_]+)"/);
       if (!m) return;
       if (!declarations.has(m[1])) declarations.set(m[1], []);
       declarations.get(m[1]).push(`${file}:${index + 1}`);
@@ -183,7 +183,7 @@ test("every single-origin schema is declared in exactly one place", () => {
  * ⚠️ THIS TEST EXISTS BECAUSE THE FIRST VERSION OF THIS GUARD DID NOT CATCH ITS OWN DEFECT.
  *
  * Perturbation P2 — replacing `ADAPTIVE_WORKFLOW_PLAN_SCHEMA` in `runner.js` with the bare
- * literal `"agent-kernel/AdaptiveWorkflowPlan"` — PASSED the checks above. They verify a
+ * literal `"agon/AdaptiveWorkflowPlan"` — PASSED the checks above. They verify a
  * schema is DECLARED centrally; they say nothing about whether a use site imports that
  * declaration or retypes the string. Retyping is the actual defect: it is how six schemas
  * came to have no constant at all, and a "declared in artifacts.ts" check cannot see it
@@ -203,7 +203,7 @@ test("no schema is retyped as an inline literal outside artifacts.ts", () => {
     source.split("\n").forEach((line, index) => {
       const trimmed = line.trim();
       if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
-      for (const m of line.matchAll(/"(agent-kernel\/[A-Za-z0-9_]+)"/g)) {
+      for (const m of line.matchAll(/"(agon\/[A-Za-z0-9_]+)"/g)) {
         if (!isSingleOrigin(m[1])) continue;
         if (!retyped.has(m[1])) retyped.set(m[1], []);
         retyped.get(m[1]).push(`${file}:${index + 1}`);

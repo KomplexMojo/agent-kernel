@@ -64,7 +64,7 @@ function tmpOut(name) {
 }
 
 function assertValidResult(result, persona) {
-  assert.equal(result.schema, "agent-kernel/PersonaResult");
+  assert.equal(result.schema, "agon/PersonaResult");
   assert.equal(result.schemaVersion, 1);
   assert.equal(result.persona, persona);
   for (const key of ["id", "runId", "createdAt", "producedBy"]) {
@@ -184,7 +184,7 @@ test("a missing state key is refused — absent is not the same as explicitly nu
 });
 
 test("schema, schemaVersion and meta are enforced", () => {
-  expectRejection((f) => { f.schema = "agent-kernel/Nope"; }, /schema: expected agent-kernel\/PersonaInvocation/);
+  expectRejection((f) => { f.schema = "agon/Nope"; }, /schema: expected agon\/PersonaInvocation/);
   expectRejection((f) => { f.schemaVersion = 2; }, /schemaVersion: expected 1/);
   expectRejection((f) => { delete f.meta; }, /meta: expected object/);
   expectRejection((f) => { f.meta.runId = ""; }, /meta\.runId: expected non-empty string/);

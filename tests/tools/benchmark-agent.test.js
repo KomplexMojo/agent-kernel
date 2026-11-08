@@ -127,10 +127,10 @@ test("agent deduplicates, ignores irrelevant/results commits, coalesces, and pub
   assert.equal(first.status, "published");
   assert.equal(runs, 1);
   const firstPublished = readJsonFromBranch(repo.remote, "benchmark-results", "latest.json");
-  assert.equal(firstPublished.schemaVersion, "agent-kernel-benchmark-result/v2");
+  assert.equal(firstPublished.schemaVersion, "agon-benchmark-result/v2");
   assert.equal(firstPublished.run.status, "completed");
   assert.equal(firstPublished.run.runnerContractVersion, POLICY.runnerContractVersion);
-  assert.equal(firstPublished.source.repository, "agent-kernel");
+  assert.equal(firstPublished.source.repository, "agon");
   assert.match(firstPublished.source.tree, /^[a-f0-9]{40,64}$/);
   assert.equal(firstPublished.scenarioSet.sha256, "scenario-a");
   assert.equal(firstPublished.matrix.sha256, "matrix-a");
@@ -208,18 +208,18 @@ test("lock refusal and non-force push races leave operator and remote state inta
     remote: repo.remote,
     branch: "benchmark-results",
     workDir: join(repo.root, "publisher-a"),
-    record: { schemaVersion: "agent-kernel-benchmark-result/v1", run: { id: "base", key: "base", status: "completed" } },
+    record: { schemaVersion: "agon-benchmark-result/v1", run: { id: "base", key: "base", status: "completed" } },
   });
   await assert.rejects(() => publishResult({
     remote: repo.remote,
     branch: "benchmark-results",
     workDir: join(repo.root, "publisher-b"),
-    record: { schemaVersion: "agent-kernel-benchmark-result/v1", run: { id: "loser", key: "loser", status: "completed" } },
+    record: { schemaVersion: "agon-benchmark-result/v1", run: { id: "loser", key: "loser", status: "completed" } },
     beforePush: () => publishResult({
       remote: repo.remote,
       branch: "benchmark-results",
       workDir: join(repo.root, "publisher-racer"),
-      record: { schemaVersion: "agent-kernel-benchmark-result/v1", run: { id: "winner", key: "winner", status: "completed" } },
+      record: { schemaVersion: "agon-benchmark-result/v1", run: { id: "winner", key: "winner", status: "completed" } },
     }),
   }), /push rejected/i);
   assert.equal(readJsonFromBranch(repo.remote, "benchmark-results", "latest.json").run.id, "winner");

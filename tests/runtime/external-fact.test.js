@@ -20,7 +20,7 @@ const core = {
 const effectFactory = ({ tick, kind }) => {
   const hasSource = kind === 900;
   return {
-    schema: "agent-kernel/Effect",
+    schema: "agon/Effect",
     schemaVersion: 1,
     tick,
     fulfillment: "deterministic",
@@ -29,7 +29,7 @@ const effectFactory = ({ tick, kind }) => {
       query: "fixture",
     },
     sourceRef: hasSource
-      ? { id: "fixture_fact", schema: "agent-kernel/IntentEnvelope", schemaVersion: 1 }
+      ? { id: "fixture_fact", schema: "agon/IntentEnvelope", schemaVersion: 1 }
       : undefined,
   };
 };

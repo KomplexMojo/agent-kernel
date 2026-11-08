@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-kernel.local/schemas/content-gen-catalog-v1.json",
-  "title": "Agent Kernel content-generation benchmark catalog",
+  "$id": "https://agon.local/schemas/content-gen-catalog-v1.json",
+  "title": "Agon content-generation benchmark catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "tier", "scenarios"],
   "properties": {
     "schemaVersion": {
-      "const": "agent-kernel-content-gen-catalog/v1"
+      "const": "agon-content-gen-catalog/v1"
     },
     "tier": {
       "enum": ["simple", "affinity", "complex", "constrained"]

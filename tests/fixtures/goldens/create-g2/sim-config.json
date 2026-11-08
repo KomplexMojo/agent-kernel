@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/SimConfigArtifact",
+  "schema": "agon/SimConfigArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "golden_g2_sim_config",
@@ -11,19 +11,19 @@
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g2_budget_receipt",
-        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schema": "agon/BudgetReceiptArtifact",
         "schemaVersion": 1
       },
       "proposalRef": {
         "id": "golden_g2_spend_proposal",
-        "schema": "agent-kernel/SpendProposal",
+        "schema": "agon/SpendProposal",
         "schemaVersion": 1
       }
     }
   },
   "planRef": {
     "id": "golden_g2_plan",
-    "schema": "agent-kernel/PlanArtifact",
+    "schema": "agon/PlanArtifact",
     "schemaVersion": 1
   },
   "seed": 0,
@@ -261,7 +261,7 @@
   },
   "budgetReceiptRef": {
     "id": "golden_g2_budget_receipt",
-    "schema": "agent-kernel/BudgetReceiptArtifact",
+    "schema": "agon/BudgetReceiptArtifact",
     "schemaVersion": 1
   }
 }

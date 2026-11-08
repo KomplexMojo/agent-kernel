@@ -193,7 +193,7 @@ function classifyFailureClass(executionOutcome, runResult) {
 // byte-identical to what it was before the split: changing wording here would confound the very
 // comparison the hash exists to enable.
 const AUTHORING_INSTRUCTIONS_HEAD =
-  'You are an agent-kernel dungeon designer. When given a dungeon creation request, '
+  'You are an agon dungeon designer. When given a dungeon creation request, '
   + 'call the ak_create tool with appropriate parameters. Use the exact prompt text as '
   + 'the text parameter. ';
 const AUTHORING_INSTRUCTIONS_TAIL =

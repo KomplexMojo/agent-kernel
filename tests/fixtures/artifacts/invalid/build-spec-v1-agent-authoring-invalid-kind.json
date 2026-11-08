@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BuildSpec",
+  "schema": "agon/BuildSpec",
   "schemaVersion": 1,
   "meta": {
     "id": "build_spec_agent_authoring_invalid",
@@ -16,7 +16,7 @@
       "boss"
     ],
     "request": {
-      "schema": "agent-kernel/AgentCommandRequestArtifact",
+      "schema": "agon/AgentCommandRequestArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "agent_command_request_invalid_kind",

@@ -20,12 +20,12 @@ const {
 const catalog = loadExecutionCatalog();
 
 function action(actorId, tick, kind, params = {}) {
-  return { schema: 'agent-kernel/Action', schemaVersion: 1, actorId, tick, kind, params };
+  return { schema: 'agon/Action', schemaVersion: 1, actorId, tick, kind, params };
 }
 
 function frame(tick, acceptedActions = [], extras = {}) {
   return {
-    schema: 'agent-kernel/TickFrame', schemaVersion: 1,
+    schema: 'agon/TickFrame', schemaVersion: 1,
     meta: { id: `frame_${tick}`, runId: 'fixture', createdAt: '2026-01-01T00:00:00.000Z', producedBy: 'moderator' },
     tick, phase: 'execute', phaseDetail: extras.phaseDetail || 'apply', acceptedActions,
     emittedEvents: extras.emittedEvents || [], emittedEffects: extras.emittedEffects || [],
@@ -50,19 +50,19 @@ function artifacts(overrides = {}) {
   ];
   return {
     simConfig: {
-      schema: 'agent-kernel/SimConfigArtifact', schemaVersion: 1,
+      schema: 'agon/SimConfigArtifact', schemaVersion: 1,
       layout: { kind: 'grid', data: { width: 4, height: 3, tiles: ['####', '#..#', '####'],
         rooms: [{ id: 'R1', x: 1, y: 1, width: 2, height: 1 }] } },
     },
     initialState: {
-      schema: 'agent-kernel/InitialStateArtifact', schemaVersion: 1,
+      schema: 'agon/InitialStateArtifact', schemaVersion: 1,
       actors: [{ id: 'delver_1', kind: 'ambulatory', position: { x: 1, y: 1 },
         motivation: { kind: 'exploring' }, vitals: { health: { current: 10, max: 10, regen: 0 } } }],
     },
     tickFrames,
     effectLog: [],
-    actionLog: { schema: 'agent-kernel/ActionSequence', schemaVersion: 1, actions: [] },
-    runSummary: { schema: 'agent-kernel/RunSummary', schemaVersion: 1, outcome: 'success', metrics: { ticks: 4, frames: 20, effects: 0 } },
+    actionLog: { schema: 'agon/ActionSequence', schemaVersion: 1, actions: [] },
+    runSummary: { schema: 'agon/RunSummary', schemaVersion: 1, outcome: 'success', metrics: { ticks: 4, frames: 20, effects: 0 } },
     requestedTicks: 4,
     wallTimeMs: 8,
     ...overrides,
@@ -78,7 +78,7 @@ function scoredResult(scenario, seed, repeat = 1, score = 80, variant) {
 
 function checkpoint(tick, health = { current: 10, max: 10, regen: 0 }) {
   return {
-    schema: 'agent-kernel/WorldStateArtifact', schemaVersion: 2,
+    schema: 'agon/WorldStateArtifact', schemaVersion: 2,
     meta: { id: `checkpoint_${tick}`, runId: 'fixture', createdAt: '2026-01-01T00:00:00.000Z', producedBy: 'fixture' },
     tick, dimensions: { width: 4, height: 3 }, hazards: [], resources: [],
     actors: [{ id: 'delver_1', position: { x: 1, y: 1 }, vitals: { health } }],
@@ -223,7 +223,7 @@ test('aggregate reports the worst seed and unavailable evidence outranks partial
 });
 
 test('diagnostic metrics remain visible but cannot block or satisfy qualification', () => {
-  assert.equal(catalog.contract.schemaVersion, 'agent-kernel-execution-metric-contract/v2');
+  assert.equal(catalog.contract.schemaVersion, 'agon-execution-metric-contract/v2');
   assert.equal(catalog.contract.metrics.affinity_sensitivity.purpose, 'diagnostic');
   const results = [];
   for (const seed of [0, 1, 2, 3, 4]) {
@@ -345,7 +345,7 @@ test('checkpoint reader consumes only declared WorldStateArtifact ticks and repo
   const checkpointDir = join(dir, 'world-state-checkpoints');
   mkdirSync(checkpointDir, { recursive: true });
   const checkpoint = (tick) => ({
-    schema: 'agent-kernel/WorldStateArtifact',
+    schema: 'agon/WorldStateArtifact',
     schemaVersion: 2,
     meta: { id: `state_${tick}`, runId: 'fixture', createdAt: '2026-01-01T00:00:00.000Z', producedBy: 'annotator' },
     tick,

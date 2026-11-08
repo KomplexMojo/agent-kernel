@@ -39,7 +39,7 @@ function readJson(filePath) {
 }
 
 test("cli configurator builds sim config and initial state artifacts", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-configurator-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-configurator-"));
   const outDir = join(workDir, "out");
 
   runCli([
@@ -66,7 +66,7 @@ test("cli configurator builds sim config and initial state artifacts", () => {
   const initialState = readJson(join(outDir, "initial-state.json"));
   const expectedSim = readJson(EXPECTED_SIM_CONFIG);
 
-  assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+  assert.equal(simConfig.schema, "agon/SimConfigArtifact");
   assert.equal(simConfig.schemaVersion, 1);
   assert.equal(simConfig.layout.kind, "grid");
   assert.equal(Object.hasOwn(simConfig.layout.data, "hazards"), false);
@@ -77,7 +77,7 @@ test("cli configurator builds sim config and initial state artifacts", () => {
   assert.equal(simConfig.seed, expectedSim.seed);
   assert.deepEqual(simConfig.planRef, expectedSim.planRef);
 
-  assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
+  assert.equal(initialState.schema, "agon/InitialStateArtifact");
   assert.equal(initialState.schemaVersion, 1);
   const hazard = initialState.actors.find((actor) => initialState.presentation?.[actor.id]?.category === "hazard");
   assert.ok(hazard, "mapped hazard must land in initial-state actors");
@@ -88,7 +88,7 @@ test("cli configurator builds sim config and initial state artifacts", () => {
 });
 
 test("cli configurator emits a budget receipt from budget inputs", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-configurator-budget-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-configurator-budget-"));
   const outDir = join(workDir, "out");
   const receiptOut = join(workDir, "receipt.json");
 
@@ -114,7 +114,7 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const receiptOutData = readJson(receiptOut);
 
-  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schema, "agon/BudgetReceiptArtifact");
   assert.equal(receipt.schemaVersion, 1);
   assert.equal(receipt.status, "partial");
   assert.equal(receipt.totalCost, 20); // actor health(16) + actor mana(1) + hazard mana(3)

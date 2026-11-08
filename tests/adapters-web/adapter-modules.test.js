@@ -26,7 +26,7 @@ test("ipfs adapter builds URLs and handles fetch errors", async () => {
       };
     },
   });
-  const publish = await publishAdapter.publishJsonMap({ "bundle.json": { spec: { schema: "agent-kernel/BuildSpec" } } }, { pathPrefix: "run_1" });
+  const publish = await publishAdapter.publishJsonMap({ "bundle.json": { spec: { schema: "agon/BuildSpec" } } }, { pathPrefix: "run_1" });
   assert.equal(publish.cid, "bafyroot");
 
   const failing = createIpfsAdapter({

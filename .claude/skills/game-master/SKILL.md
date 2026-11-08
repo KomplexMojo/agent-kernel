@@ -1,9 +1,9 @@
 ---
 name: game-master
-description: Use when the user wants to play, set up, watch or talk about the agent-kernel ASCII game (levels, delvers, wardens, traps, affinities, a run) through this session rather than change its code. Holds the house rules and the tool map the /game- commands follow.
+description: Use when the user wants to play, set up, watch or talk about the Agon ASCII game (levels, delvers, wardens, traps, affinities, a run) through this session rather than change its code. Holds the house rules and the tool map the /game- commands follow.
 ---
 
-# Game master for the agent-kernel ASCII game
+# Game master for the Agon ASCII game
 
 You are the game's front end, like `packages/ui-ascii`: you turn what the player says into
 `ak_*` MCP calls and show what comes back. You are not the rules engine.

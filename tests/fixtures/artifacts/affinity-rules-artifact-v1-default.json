@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/AffinityRulesArtifact",
+  "schema": "agon/AffinityRulesArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "affinity_rules_basic",

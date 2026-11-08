@@ -32,9 +32,9 @@ test("MCP exposes typed workflow tools and safe resources without regressing exi
       assert.equal(Array.isArray(name.endsWith("run") || name.endsWith("validate") ? schema.oneOf : schema.anyOf), true);
       if (name.endsWith("run") || name.endsWith("validate")) { assert.equal(schema.properties.maxModelAttempts.type, "integer"); assert.equal(schema.properties.maxModelAttempts.minimum, 1); assert.equal(schema.properties.createdAt.format, "date-time"); }
     }
-    const resources = await h.request("resources/list"); assert.deepEqual(resources.resources.map((item) => item.uri).sort(), ["agent-kernel://adaptive-workflow/policy", "agent-kernel://adaptive-workflow/run-history", "agent-kernel://adaptive-workflow/runtime-profile", "agent-kernel://adaptive-workflow/validators"]); assert.ok(resources.resources.every((item) => item.mimeType === "application/json"));
-    const validators = await h.request("resources/read", { uri: "agent-kernel://adaptive-workflow/validators" }); assert.equal(validators.contents[0].mimeType, "application/json"); assert.deepEqual(JSON.parse(validators.contents[0].text).validators, [{ id: "workflow_required_keys", version: 1 }]);
-    for (const uri of ["policy", "runtime-profile", "run-history"].map((name) => `agent-kernel://adaptive-workflow/${name}`)) { const read = await h.request("resources/read", { uri }); assert.equal(read.contents[0].uri, uri); assert.doesNotMatch(read.contents[0].text, /secret|credential|token/i); }
+    const resources = await h.request("resources/list"); assert.deepEqual(resources.resources.map((item) => item.uri).sort(), ["agon://adaptive-workflow/policy", "agon://adaptive-workflow/run-history", "agon://adaptive-workflow/runtime-profile", "agon://adaptive-workflow/validators"]); assert.ok(resources.resources.every((item) => item.mimeType === "application/json"));
+    const validators = await h.request("resources/read", { uri: "agon://adaptive-workflow/validators" }); assert.equal(validators.contents[0].mimeType, "application/json"); assert.deepEqual(JSON.parse(validators.contents[0].text).validators, [{ id: "workflow_required_keys", version: 1 }]);
+    for (const uri of ["policy", "runtime-profile", "run-history"].map((name) => `agon://adaptive-workflow/${name}`)) { const read = await h.request("resources/read", { uri }); assert.equal(read.contents[0].uri, uri); assert.doesNotMatch(read.contents[0].text, /secret|credential|token/i); }
   } finally { await h.close(); }
 });
 
@@ -47,7 +47,7 @@ test("workflow calls use temp persistence, remembered lifecycle, and duplicate r
     const replay = await h.call("ak_workflow_replay", { runId: first.runId }); assert.equal(replay.liveModelCalls, 0); assert.equal(replay.liveExecutionCalls, 0);
     assert.equal(readFileSync(join(first.outDir, "state.json"), "utf8"), sourceState); assert.equal(existsSync(join(first.outDir, "replay-state.json")), true);
     const cancel = await h.call("ak_workflow_cancel", { runId: first.runId }); assert.equal(cancel.terminal, true);
-    const history = await h.request("resources/read", { uri: "agent-kernel://adaptive-workflow/run-history" }); assert.equal(JSON.parse(history.contents[0].text).runs[0].runId, first.runId);
+    const history = await h.request("resources/read", { uri: "agon://adaptive-workflow/run-history" }); assert.equal(JSON.parse(history.contents[0].text).runs[0].runId, first.runId);
   } finally { await h.close(); }
 });
 
@@ -59,7 +59,7 @@ test("workflow schema and request-id conflicts fail without killing the server",
     const samePayload = await h.call("ak_workflow_validate", { input: INPUT }, 98); assert.equal(samePayload.valid, true); await assert.rejects(() => h.call("ak_workflow_status", { runId: "anything" }, 98), /request id|conflict/i);
     await assert.rejects(() => h.call("ak_workflow_run", {}, 97), /input form|requires/i); await assert.rejects(() => h.call("ak_workflow_validate", { input: INPUT }, 97), /request id|conflict/i); assert.equal((await h.call("ak_workflow_validate", { input: INPUT }, 96)).valid, true);
     assert.ok((await h.request("tools/list")).tools.some((tool) => tool.name === "ak_create"));
-    await assert.rejects(() => h.request("resources/read", { uri: "agent-kernel://adaptive-workflow/unknown" }), /unknown/i);
+    await assert.rejects(() => h.request("resources/read", { uri: "agon://adaptive-workflow/unknown" }), /unknown/i);
     assert.ok((await h.request("tools/list")).tools.some((tool) => tool.name === "ak_create"));
   } finally { await h.close(); }
 });
@@ -100,7 +100,7 @@ test("explicit persistence and validate-only paths preserve MCP resource availab
     assert.equal((await h.call("ak_workflow_validate", { objective: "no writes", outDir: validateDir })).valid, true); assert.equal(existsSync(validateDir), false);
     await h.call("ak_workflow_validate", { input: INPUT }, 908); const running = h.call("ak_workflow_run", { input: INPUT, outDir }, 901); await new Promise((done) => setTimeout(done, 20));
     const errors = [h.call("ak_workflow_run", {}, 906), h.request("tools/call", { name: "ak_missing", arguments: {} }, 907), h.call("ak_workflow_validate", { objective: "conflict" }, 908)].map((request) => request.then(() => "", (error) => error.message));
-    const [result, listed, resources, policy, validate, invalid, unknown, conflict] = await Promise.all([running, h.request("tools/list", {}, 902), h.request("resources/list", {}, 903), h.request("resources/read", { uri: "agent-kernel://adaptive-workflow/policy" }, 904), h.call("ak_workflow_validate", { input: INPUT }, 905), ...errors]);
+    const [result, listed, resources, policy, validate, invalid, unknown, conflict] = await Promise.all([running, h.request("tools/list", {}, 902), h.request("resources/list", {}, 903), h.request("resources/read", { uri: "agon://adaptive-workflow/policy" }, 904), h.call("ak_workflow_validate", { input: INPUT }, 905), ...errors]);
     assert.equal(result.outDir, outDir); assert.ok(listed.tools.some((tool) => tool.name === "ak_create")); assert.equal(resources.resources.length, 4); assert.equal(JSON.parse(policy.contents[0].text).validationAuthority, "deterministic"); assert.equal(validate.valid, true);
     assert.match(invalid, /input form|requires/i); assert.match(unknown, /unknown tool/i); assert.match(conflict, /request id|conflict/i);
     assert.equal((await h.call("ak_workflow_status", { runId: result.runId })).phase, "complete");

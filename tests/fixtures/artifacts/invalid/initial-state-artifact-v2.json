@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/InitialStateArtifact",
+  "schema": "agon/InitialStateArtifact",
   "schemaVersion": 2,
   "meta": {
     "id": "initial_state_invalid",
@@ -9,7 +9,7 @@
   },
   "simConfigRef": {
     "id": "sim_config_basic",
-    "schema": "agent-kernel/SimConfigArtifact",
+    "schema": "agon/SimConfigArtifact",
     "schemaVersion": 1
   },
   "actors": []

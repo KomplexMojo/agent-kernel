@@ -9,7 +9,7 @@ const { evaluateConfiguratorSpend, readWastedRegen } = require("../../../package
 const { buildDefaultPriceList } = require("../../../packages/runtime/src/personas/allocator/default-price-list.js");
 
 const meta = (id) => ({ id, runId: "run-wasted", createdAt: "2026-10-15T00:00:00Z", producedBy: "test" });
-const budget = { schema: "agent-kernel/BudgetArtifact", schemaVersion: 1, meta: meta("budget"), budget: { tokens: 1000000 } };
+const budget = { schema: "agon/BudgetArtifact", schemaVersion: 1, meta: meta("budget"), budget: { tokens: 1000000 } };
 
 async function receiptFor({ actors = [], layout = { width: 5, height: 5 }, hazards } = {}) {
   const { receipt } = evaluateConfiguratorSpend({

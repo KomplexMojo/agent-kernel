@@ -135,8 +135,8 @@ export const COMPANION_MOTIVATION = "friendly";
 
 /**
  * @param {object} args
- * @param {object} args.simConfig      agent-kernel/SimConfigArtifact (unified terrain)
- * @param {object} args.initialState   agent-kernel/InitialStateArtifact (unified actors)
+ * @param {object} args.simConfig      agon/SimConfigArtifact (unified terrain)
+ * @param {object} args.initialState   agon/InitialStateArtifact (unified actors)
  * @param {string} [args.playerActorId] any configured actor; defaults to the first (by id)
  *                                     `user_controlled` actor, else the first delver, else the first actor
  * @param {object} [args.core]         a core to drive; a fresh one by default

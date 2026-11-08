@@ -1,6 +1,6 @@
 ---
 name: game-watch
-description: Let an agent-kernel level play itself (every actor on its own motivations) and step through the recorded run. Usage /game-watch [runId] [ticks].
+description: Let an Agon level play itself (every actor on its own motivations) and step through the recorded run. Usage /game-watch [runId] [ticks].
 disable-model-invocation: true
 argument-hint: [runId] [ticks]
 ---

@@ -1,7 +1,7 @@
 /**
  * Framework vs game — the boundary the Primordial split cuts along (#739, tracker #747).
  *
- * agent-kernel is the framework: core-ts, runtime (personas, contracts, ports, runner,
+ * agon is the framework: core-ts, runtime (personas, contracts, ports, runner,
  * render view models), the adapters, `ak`, the MCP server and the reference terminal
  * client (ui-ascii, kept by Darren 2026-11-06, #741). The game (Primordial) is a CONSUMER
  * of it, in its own private repository: the phone app, the playtest launcher, the archived
@@ -24,7 +24,7 @@
  * The seam and skin lists are exact: an entry nothing uses any more fails too. The API
  * surface is consumed mostly from Primordial, which this repository cannot see, so here
  * each entry must exist and the published exports must equal it; Primordial's own boundary
- * test checks that every agent-kernel import it makes is listed.
+ * test checks that every agon import it makes is listed.
  */
 const assert = require("node:assert/strict");
 const { readFileSync, realpathSync, statSync } = require("node:fs");

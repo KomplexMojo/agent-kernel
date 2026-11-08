@@ -37,8 +37,8 @@ const HELPERS = "../../packages/runtime/src/personas/_shared/persona-helpers.mts
 test("the LlmRequest/LlmResponse schemas are declared once, in contracts", async () => {
   const { LLM_REQUEST_SCHEMA, LLM_RESPONSE_SCHEMA } = await import(ARTIFACTS);
 
-  assert.equal(LLM_REQUEST_SCHEMA, "agent-kernel/LlmRequest");
-  assert.equal(LLM_RESPONSE_SCHEMA, "agent-kernel/LlmResponse");
+  assert.equal(LLM_REQUEST_SCHEMA, "agon/LlmRequest");
+  assert.equal(LLM_RESPONSE_SCHEMA, "agon/LlmResponse");
 });
 
 test("buildLlmRequestEffect returns an effect as DATA, with no IO performed", async () => {
@@ -54,7 +54,7 @@ test("buildLlmRequestEffect returns an effect as DATA, with no IO performed", as
   assert.equal(effect.kind, "llm_request");
   assert.equal(effect.request.model, "fixture");
   assert.equal(effect.request.prompt, "Return JSON only.");
-  assert.equal(effect.request.schema, "agent-kernel/LlmRequest");
+  assert.equal(effect.request.schema, "agon/LlmRequest");
   assert.equal(effect.request.schemaVersion, 1);
   assert.equal(effect.personaRef, "orchestrator");
   assert.ok(effect.requestId, "a request id is required so the response can be correlated");

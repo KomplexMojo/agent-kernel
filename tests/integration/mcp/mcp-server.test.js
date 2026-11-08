@@ -120,7 +120,7 @@ class McpServerHarness {
       protocolVersion: "2025-03-26",
       capabilities: {},
       clientInfo: {
-        name: "agent-kernel-mcp-test",
+        name: "agon-mcp-test",
         version: "1.0.0",
       },
     });
@@ -206,7 +206,7 @@ test("mcp server lists required tools and schemas round-trips over stdio", async
   });
   try {
     const initializeResult = await harness.initialize();
-    assert.equal(initializeResult.serverInfo.name, "agent-kernel-cli");
+    assert.equal(initializeResult.serverInfo.name, "agon-cli");
 
     const listed = await harness.request("tools/list", {});
     const toolNames = listed.tools.map((tool) => tool.name);
@@ -216,7 +216,7 @@ test("mcp server lists required tools and schemas round-trips over stdio", async
     assert.ok(toolNames.includes("ak_inspect"));
     assert.ok(toolNames.includes("ak_schemas"));
 
-    const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-schemas-"));
+    const outDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-schemas-"));
     const schemas = await harness.callTool("ak_schemas", { outDir });
     assert.equal(schemas.command, "schemas");
     assert.equal(schemas.stdout, `schemas: wrote ${outDir}`);
@@ -224,9 +224,9 @@ test("mcp server lists required tools and schemas round-trips over stdio", async
     const catalog = readJson(join(outDir, "schemas.json"));
     assert.equal(catalog.generatedAt, "2000-01-01T00:00:00.000Z");
     const names = catalog.schemas.map((entry) => entry.schema);
-    assert.ok(names.includes("agent-kernel/BuildSpec"));
-    assert.ok(names.includes("agent-kernel/SimConfigArtifact"));
-    assert.ok(names.includes("agent-kernel/TelemetryRecord"));
+    assert.ok(names.includes("agon/BuildSpec"));
+    assert.ok(names.includes("agon/SimConfigArtifact"));
+    assert.ok(names.includes("agon/TelemetryRecord"));
   } finally {
     await harness.close();
   }
@@ -267,7 +267,7 @@ test("mcp server create and llm-plan tool calls round-trip with fixture inputs",
   try {
     await harness.initialize();
 
-    const createOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-create-"));
+    const createOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-create-"));
     const createResult = await harness.callTool("ak_create", {
       dryRun: true,
       text: "Create one fire delver within a total budget of 200 tokens.",
@@ -283,7 +283,7 @@ test("mcp server create and llm-plan tool calls round-trip with fixture inputs",
     assert.equal(createResult.runId, "run_mcp_create_dry_run");
     assert.equal(existsSync(join(createOutDir, "spec.json")), false);
 
-    const llmPlanOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-llm-plan-"));
+    const llmPlanOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-llm-plan-"));
     const llmPlanResult = await harness.callTool("ak_llm_plan", {
       scenario: E2E_SCENARIO,
       model: "fixture",
@@ -301,9 +301,9 @@ test("mcp server create and llm-plan tool calls round-trip with fixture inputs",
 
     const spec = readJson(join(llmPlanOutDir, "spec.json"));
     const manifest = readJson(join(llmPlanOutDir, "manifest.json"));
-    assert.equal(spec.schema, "agent-kernel/BuildSpec");
+    assert.equal(spec.schema, "agon/BuildSpec");
     assert.equal(spec.meta.runId, "run_mcp_llm_plan_fixture");
-    assert.ok(manifest.artifacts.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+    assert.ok(manifest.artifacts.every((entry) => entry.schema !== "agon/CapturedInputArtifact"));
   } finally {
     await harness.close();
   }
@@ -314,7 +314,7 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
   try {
     await harness.initialize();
 
-    const roomOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-room-plan-"));
+    const roomOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-room-plan-"));
     const roomPlanResult = await harness.callTool("ak_room_plan", {
       room: ["size=small;count=1"],
       runId: "run_mcp_room_plan_preview",
@@ -328,7 +328,7 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
     assert.equal(roomPlanResult.preview.hasActors, false);
     assert.equal(roomPlanResult.preview.runReady, false);
 
-    const delverOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-delver-plan-"));
+    const delverOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-delver-plan-"));
     const delverPlanResult = await harness.callTool("ak_delver_plan", {
       delver: ["count=1;affinity=fire;motivation=attacking"],
       runId: "run_mcp_delver_plan_preview",
@@ -339,7 +339,7 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
     assert.equal(delverPlanResult.preview.hasActors, true);
     assert.equal(delverPlanResult.preview.runReady, false);
 
-    const wardenOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-warden-plan-"));
+    const wardenOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-warden-plan-"));
     const wardenPlanResult = await harness.callTool("ak_warden_plan", {
       warden: ["count=1;affinity=dark;motivation=defending"],
       runId: "run_mcp_warden_plan_preview",
@@ -470,7 +470,7 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
   try {
     await harness.initialize();
 
-    const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-run-"));
+    const runOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-run-"));
     const artifacts = await writeUnifiedRunArtifacts(runOutDir);
     const runResult = await harness.callTool("ak_run", {
       simConfig: artifacts.simConfigPath,
@@ -483,7 +483,7 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
     assert.equal(existsSync(join(runOutDir, "tick-frames.json")), true);
     assert.equal(existsSync(join(runOutDir, "effects-log.json")), true);
 
-    const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-inspect-"));
+    const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-inspect-"));
     const inspectResult = await harness.callTool("ak_inspect", {
       tickFrames: join(runOutDir, "tick-frames.json"),
       effectsLog: join(runOutDir, "effects-log.json"),
@@ -494,7 +494,7 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
     assert.equal(existsSync(join(inspectOutDir, "inspect-summary.json")), true);
 
     const inspectSummary = readJson(join(inspectOutDir, "inspect-summary.json"));
-    assert.equal(inspectSummary.schema, "agent-kernel/TelemetryRecord");
+    assert.equal(inspectSummary.schema, "agon/TelemetryRecord");
     assert.equal(inspectSummary.schemaVersion, 1);
   } finally {
     await harness.close();
@@ -512,7 +512,7 @@ test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design
   try {
     await harness.initialize();
 
-    const hazardOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-hazard-plan-"));
+    const hazardOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-hazard-plan-"));
     const hazardPlanResult = await harness.callTool("ak_hazard_plan", {
       hazard: ["affinity=fire;expression=push;proximityRadius=2"],
       runId: "run_mcp_hazard_plan_preview",
@@ -525,7 +525,7 @@ test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design
     const hazardCardSet = hazardSpec.plan?.hints?.cardSet || [];
     assert.equal(hazardCardSet.some((card) => card.type === "hazard"), true);
 
-    const resourceOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-resource-plan-"));
+    const resourceOutDir = mkdtempSync(join(os.tmpdir(), "agon-mcp-resource-plan-"));
     const resourcePlanResult = await harness.callTool("ak_resource_plan", {
       resource: ["permanenceMode=consumable;vital=health;delta=2"],
       runId: "run_mcp_resource_plan_preview",
@@ -575,7 +575,7 @@ test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver 
     await new Promise((r) => setTimeout(r, 50));
 
     const pushResult = await harness.callTool("ak_push_to_ui", {
-      bundle: { schema: "agent-kernel/GameplayBundle", schemaVersion: 1, artifacts: [] },
+      bundle: { schema: "agon/GameplayBundle", schemaVersion: 1, artifacts: [] },
       targetTab: "design",
     });
 

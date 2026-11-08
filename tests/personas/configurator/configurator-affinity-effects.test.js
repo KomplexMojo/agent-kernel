@@ -7,7 +7,7 @@ const fixture = JSON.parse(readFileSync(resolve(__dirname, "../../fixtures/perso
 test("affinity effects resolve vitals deterministically", async () => {const { resolveAffinityEffects } = await import("../../../packages/runtime/src/personas/configurator/affinity-effects.js");
 const { normalizeAffinityPresetCatalog, normalizeActorLoadoutCatalog } = await import("../../../packages/runtime/src/personas/configurator/affinity-loadouts.js");
 
-assert.equal(fixture.schema, "agent-kernel/AffinityResolutionFixture");
+assert.equal(fixture.schema, "agon/AffinityResolutionFixture");
 assert.equal(fixture.schemaVersion, 1);
 
 const presetResult = normalizeAffinityPresetCatalog({ presets: fixture.input.presets });

@@ -27,7 +27,7 @@ function judgedArtifacts(dir) {
 function assertStamped(dir, label) {
   const artifacts = judgedArtifacts(dir);
   const schemas = new Set(artifacts.map((artifact) => artifact.schema));
-  for (const schema of ["agent-kernel/SimConfigArtifact", "agent-kernel/InitialStateArtifact", "agent-kernel/BudgetReceiptArtifact"]) {
+  for (const schema of ["agon/SimConfigArtifact", "agon/InitialStateArtifact", "agon/BudgetReceiptArtifact"]) {
     assert.ok(schemas.has(schema), `${label} wrote no ${schema}`);
   }
   assert.deepEqual(personaStampViolations(artifacts), [], `${label}: artifacts not stamped by their persona`);
@@ -98,9 +98,9 @@ test("receipts written outside a build are the Allocator's too (sandbox, run ove
 });
 
 test("an artifact stamped by glue instead of its persona is a violation", () => {
-  const glueReceipt = { schema: "agent-kernel/BudgetReceiptArtifact", meta: { id: "r", producedBy: "cli-create" } };
+  const glueReceipt = { schema: "agon/BudgetReceiptArtifact", meta: { id: "r", producedBy: "cli-create" } };
   assert.deepEqual(personaStampViolations([glueReceipt]),
-    [{ schema: "agent-kernel/BudgetReceiptArtifact", id: "r", expected: "allocator", found: "cli-create" }]);
+    [{ schema: "agon/BudgetReceiptArtifact", id: "r", expected: "allocator", found: "cli-create" }]);
 });
 
 // ## TODO: Test Permutations

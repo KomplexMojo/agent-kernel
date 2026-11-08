@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BuildSpec",
+  "schema": "agon/BuildSpec",
   "schemaVersion": 1,
   "meta": {
     "id": "buildspec_budget_inline",
@@ -12,7 +12,7 @@
   },
   "budget": {
     "budget": {
-      "schema": "agent-kernel/BudgetArtifact",
+      "schema": "agon/BudgetArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "budget_inline_only",
@@ -25,7 +25,7 @@
       }
     },
     "priceList": {
-      "schema": "agent-kernel/PriceList",
+      "schema": "agon/PriceList",
       "schemaVersion": 1,
       "meta": {
         "id": "price_inline_only",

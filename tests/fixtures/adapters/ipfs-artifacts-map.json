@@ -1,7 +1,7 @@
 {
   "bundle.json": {
     "spec": {
-      "schema": "agent-kernel/BuildSpec",
+      "schema": "agon/BuildSpec",
       "schemaVersion": 1,
       "meta": {
         "id": "spec_ipfs_fixture",
@@ -13,7 +13,7 @@
     "schemas": [],
     "artifacts": [
       {
-        "schema": "agent-kernel/SimConfigArtifact",
+        "schema": "agon/SimConfigArtifact",
         "schemaVersion": 1,
         "meta": {
           "id": "sim_config_ipfs_fixture",
@@ -40,7 +40,7 @@
         }
       },
       {
-        "schema": "agent-kernel/InitialStateArtifact",
+        "schema": "agon/InitialStateArtifact",
         "schemaVersion": 1,
         "meta": {
           "id": "initial_state_ipfs_fixture",
@@ -62,7 +62,7 @@
     "artifacts": []
   },
   "spec.json": {
-    "schema": "agent-kernel/BuildSpec",
+    "schema": "agon/BuildSpec",
     "schemaVersion": 1,
     "meta": {
       "id": "spec_ipfs_fixture",
@@ -72,7 +72,7 @@
     }
   },
   "sim-config.json": {
-    "schema": "agent-kernel/SimConfigArtifact",
+    "schema": "agon/SimConfigArtifact",
     "schemaVersion": 1,
     "meta": {
       "id": "sim_config_ipfs_fixture",
@@ -99,7 +99,7 @@
     }
   },
   "initial-state.json": {
-    "schema": "agent-kernel/InitialStateArtifact",
+    "schema": "agon/InitialStateArtifact",
     "schemaVersion": 1,
     "meta": {
       "id": "initial_state_ipfs_fixture",

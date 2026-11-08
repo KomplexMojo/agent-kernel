@@ -32,7 +32,7 @@ fi
 REMOTE_PACKAGE_DIR="${LLM_REMOTE_PACKAGE_DIR:-$HOME/remote-ollama-control}"
 REMOTE_SCRIPTS_DIR="${LLM_REMOTE_SCRIPTS_DIR:-$HOME/bin}"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-BENCHMARK_CONFIG_DIR="$CONFIG_HOME/agent-kernel-benchmark"
+BENCHMARK_CONFIG_DIR="$CONFIG_HOME/agon-benchmark"
 SYSTEMD_USER_DIR="$CONFIG_HOME/systemd/user"
 
 mkdir -p "$REMOTE_PACKAGE_DIR" "$REMOTE_SCRIPTS_DIR" "$BENCHMARK_CONFIG_DIR" "$SYSTEMD_USER_DIR"
@@ -82,7 +82,7 @@ else
 fi
 cat > "$REMOTE_PACKAGE_DIR/.install-manifest.json" <<MANIFEST
 {
-  "schemaVersion": "agent-kernel-install-manifest/v1",
+  "schemaVersion": "agon-install-manifest/v1",
   "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "sourceCommit": $INSTALL_COMMIT_JSON,
   "sourceRef": $INSTALL_REF_JSON
@@ -95,16 +95,16 @@ chmod +x "$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile" \
          "$REMOTE_PACKAGE_DIR/scripts/remote-ollama-profile.js" \
          "$REMOTE_PACKAGE_DIR/scripts/remote-ollama-diagnostics.sh" \
          "$REMOTE_PACKAGE_DIR/scripts/ufw-remote-ollama.sh" \
-         "$REMOTE_PACKAGE_DIR/bin/agent-kernel-benchmark" \
+         "$REMOTE_PACKAGE_DIR/bin/agon-benchmark" \
          "$REMOTE_PACKAGE_DIR/scripts/benchmark-agent.js" \
-         "$REMOTE_PACKAGE_DIR/bin/agent-kernel-heartbeat" \
+         "$REMOTE_PACKAGE_DIR/bin/agon-heartbeat" \
          "$REMOTE_PACKAGE_DIR/scripts/benchmark-heartbeat.js"
 
 ln -sf "$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile" "$REMOTE_SCRIPTS_DIR/remote-ollama-profile"
 ln -sf "$REMOTE_PACKAGE_DIR/bin/remote-ollama-diagnostics" "$REMOTE_SCRIPTS_DIR/remote-ollama-diagnostics"
 ln -sf "$REMOTE_PACKAGE_DIR/bin/remote-project-safety-check" "$REMOTE_SCRIPTS_DIR/remote-project-safety-check"
-ln -sf "$REMOTE_PACKAGE_DIR/bin/agent-kernel-benchmark" "$REMOTE_SCRIPTS_DIR/agent-kernel-benchmark"
-ln -sf "$REMOTE_PACKAGE_DIR/bin/agent-kernel-heartbeat" "$REMOTE_SCRIPTS_DIR/agent-kernel-heartbeat"
+ln -sf "$REMOTE_PACKAGE_DIR/bin/agon-benchmark" "$REMOTE_SCRIPTS_DIR/agon-benchmark"
+ln -sf "$REMOTE_PACKAGE_DIR/bin/agon-heartbeat" "$REMOTE_SCRIPTS_DIR/agon-heartbeat"
 
 if [ ! -f "$REMOTE_PACKAGE_DIR/config/llm-host.env" ]; then
   cp "$REMOTE_PACKAGE_DIR/config/llm-host.env.example" "$REMOTE_PACKAGE_DIR/config/llm-host.env"
@@ -114,15 +114,15 @@ if [ ! -f "$BENCHMARK_CONFIG_DIR/benchmark-agent.env" ]; then
   cp "$REMOTE_PACKAGE_DIR/config/benchmark-agent.env.example" "$BENCHMARK_CONFIG_DIR/benchmark-agent.env"
   chmod 600 "$BENCHMARK_CONFIG_DIR/benchmark-agent.env"
 fi
-cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-benchmark.service" "$SYSTEMD_USER_DIR/agent-kernel-benchmark.service"
-cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-benchmark.timer" "$SYSTEMD_USER_DIR/agent-kernel-benchmark.timer"
-cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-heartbeat.service" "$SYSTEMD_USER_DIR/agent-kernel-heartbeat.service"
-cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-heartbeat.timer" "$SYSTEMD_USER_DIR/agent-kernel-heartbeat.timer"
+cp "$REMOTE_PACKAGE_DIR/systemd/agon-benchmark.service" "$SYSTEMD_USER_DIR/agon-benchmark.service"
+cp "$REMOTE_PACKAGE_DIR/systemd/agon-benchmark.timer" "$SYSTEMD_USER_DIR/agon-benchmark.timer"
+cp "$REMOTE_PACKAGE_DIR/systemd/agon-heartbeat.service" "$SYSTEMD_USER_DIR/agon-heartbeat.service"
+cp "$REMOTE_PACKAGE_DIR/systemd/agon-heartbeat.timer" "$SYSTEMD_USER_DIR/agon-heartbeat.timer"
 if [ "${REMOTE_OLLAMA_SKIP_SYSTEMCTL:-0}" != "1" ] && command -v systemctl >/dev/null 2>&1; then
   systemctl --user daemon-reload
   # Units are installed without enabling them, but a reinstall of an already-enabled timer must
   # reactivate it so OnActiveSec can arm a next fire. daemon-reload alone leaves NEXT blank.
-  for timer in agent-kernel-heartbeat.timer agent-kernel-benchmark.timer; do
+  for timer in agon-heartbeat.timer agon-benchmark.timer; do
     if systemctl --user is-enabled "$timer" >/dev/null 2>&1; then
       systemctl --user restart "$timer"
     fi

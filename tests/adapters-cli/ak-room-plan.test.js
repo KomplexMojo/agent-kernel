@@ -46,7 +46,7 @@ function listAffinityTuples(card) {
 }
 
 test("cli room-plan authors room cards directly from room flags", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-basic-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-room-plan-basic-"));
   const result = runCliOk([
     "room-plan",
     "--room",
@@ -73,7 +73,7 @@ test("cli room-plan authors room cards directly from room flags", async () => {
   const spec = readJson(join(outDir, "spec.json"));
   const manifest = readJson(join(outDir, "manifest.json"));
   assert.equal(spec.meta.runId, "run_room_plan_basic");
-  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agon/ResourceBundleArtifact"));
 
   const cards = listRoomCards(spec);
   assert.equal(cards.length, 1);
@@ -84,7 +84,7 @@ test("cli room-plan authors room cards directly from room flags", async () => {
 });
 
 test("cli room-plan produces a generic room card with no affinity tuples", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-defaults-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-room-plan-defaults-"));
   runCliOk([
     "room-plan",
     "--room",
@@ -107,7 +107,7 @@ test("cli room-plan produces a generic room card with no affinity tuples", async
 });
 
 test("cli room-plan supports multiple room configurations in one command", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-multi-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-room-plan-multi-"));
   runCliOk([
     "room-plan",
     "--room",
@@ -133,14 +133,14 @@ test("cli room-plan supports multiple room configurations in one command", async
 });
 
 test("cli room-plan writes budget receipt with room layout spend only — no affinity line items", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budget-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-room-plan-budget-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
   const priceListPath = join(workDir, "price-list.json");
 
   const budgetTokens = 50000;
   writeFileSync(budgetPath, JSON.stringify({
-    schema: "agent-kernel/BudgetArtifact",
+    schema: "agon/BudgetArtifact",
     schemaVersion: 1,
     meta: {
       id: "budget_room_plan",
@@ -152,13 +152,13 @@ test("cli room-plan writes budget receipt with room layout spend only — no aff
       tokens: budgetTokens,
       ownerRef: {
         id: "intent_room_plan_budget",
-        schema: "agent-kernel/IntentEnvelope",
+        schema: "agon/IntentEnvelope",
         schemaVersion: 1,
       },
     },
   }, null, 2));
   writeFileSync(priceListPath, JSON.stringify({
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: {
       id: "price_list_room_plan",
@@ -190,7 +190,7 @@ test("cli room-plan writes budget receipt with room layout spend only — no aff
 
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const simConfig = readJson(join(outDir, "sim-config.json"));
-  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schema, "agon/BudgetReceiptArtifact");
   assert.equal(receipt.status, "approved");
 
   const layoutLine = receipt.lineItems.find((item) => item.id === "tile_floor" && item.kind === "tile");
@@ -240,13 +240,13 @@ test("cli room-plan requires --budget and --price-list together", async () => {
 });
 
 test("cli room-plan maximizes a flexible room within a 400-token budget", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budgeted-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-room-plan-budgeted-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
   const priceListPath = join(workDir, "price-list.json");
 
   writeFileSync(budgetPath, JSON.stringify({
-    schema: "agent-kernel/BudgetArtifact",
+    schema: "agon/BudgetArtifact",
     schemaVersion: 1,
     meta: {
       id: "budget_room_400",
@@ -259,7 +259,7 @@ test("cli room-plan maximizes a flexible room within a 400-token budget", async 
     },
   }, null, 2));
   writeFileSync(priceListPath, JSON.stringify({
-    schema: "agent-kernel/PriceList",
+    schema: "agon/PriceList",
     schemaVersion: 1,
     meta: {
       id: "price_list_room_400",

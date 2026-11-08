@@ -1,5 +1,5 @@
 {
-  "name": "@agent-kernel/runtime",
+  "name": "@agon-engine/runtime",
   "private": true,
   "type": "module",
   "dependencies": {

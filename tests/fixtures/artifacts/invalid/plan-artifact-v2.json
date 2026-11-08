@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/PlanArtifact",
+  "schema": "agon/PlanArtifact",
   "schemaVersion": 2,
   "meta": {
     "id": "plan_invalid",
@@ -9,7 +9,7 @@
   },
   "intentRef": {
     "id": "intent_basic",
-    "schema": "agent-kernel/IntentEnvelope",
+    "schema": "agon/IntentEnvelope",
     "schemaVersion": 1
   },
   "plan": {

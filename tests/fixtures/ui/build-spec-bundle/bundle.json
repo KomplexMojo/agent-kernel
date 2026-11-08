@@ -1,6 +1,6 @@
 {
   "spec": {
-    "schema": "agent-kernel/BuildSpec",
+    "schema": "agon/BuildSpec",
     "schemaVersion": 1,
     "meta": {
       "id": "buildspec_basic",
@@ -78,12 +78,12 @@
   },
   "schemas": [
     {
-      "schema": "agent-kernel/BudgetReceiptArtifact",
+      "schema": "agon/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "description": "Allocator decision on requested caps/limits."
     },
     {
-      "schema": "agent-kernel/BuildSpec",
+      "schema": "agon/BuildSpec",
       "schemaVersion": 1,
       "description": "Agent-facing build specification.",
       "fields": [
@@ -96,7 +96,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/InitialStateArtifact",
+      "schema": "agon/InitialStateArtifact",
       "schemaVersion": 1,
       "description": "Initial actor state for a run.",
       "fields": [
@@ -106,7 +106,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/IntentEnvelope",
+      "schema": "agon/IntentEnvelope",
       "schemaVersion": 1,
       "description": "Normalized intake intent for Director.",
       "fields": [
@@ -117,7 +117,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/PlanArtifact",
+      "schema": "agon/PlanArtifact",
       "schemaVersion": 1,
       "description": "Structured plan produced by Director.",
       "fields": [
@@ -128,7 +128,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/SimConfigArtifact",
+      "schema": "agon/SimConfigArtifact",
       "schemaVersion": 1,
       "description": "Executable simulation configuration.",
       "fields": [
@@ -144,7 +144,7 @@
   ],
   "artifacts": [
     {
-      "schema": "agent-kernel/BudgetReceiptArtifact",
+      "schema": "agon/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "budget_receipt_basic",
@@ -154,12 +154,12 @@
       },
       "budgetRef": {
         "id": "budget_basic",
-        "schema": "agent-kernel/BudgetArtifact",
+        "schema": "agon/BudgetArtifact",
         "schemaVersion": 1
       },
       "priceListRef": {
         "id": "price_list_basic",
-        "schema": "agent-kernel/PriceList",
+        "schema": "agon/PriceList",
         "schemaVersion": 1
       },
       "status": "approved",
@@ -168,7 +168,7 @@
       "lineItems": []
     },
     {
-      "schema": "agent-kernel/InitialStateArtifact",
+      "schema": "agon/InitialStateArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "initial_state_basic",
@@ -178,7 +178,7 @@
       },
       "simConfigRef": {
         "id": "sim_config_basic",
-        "schema": "agent-kernel/SimConfigArtifact",
+        "schema": "agon/SimConfigArtifact",
         "schemaVersion": 1
       },
       "actors": [
@@ -196,7 +196,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/IntentEnvelope",
+      "schema": "agon/IntentEnvelope",
       "schemaVersion": 1,
       "meta": {
         "id": "intent_basic",
@@ -216,7 +216,7 @@
       }
     },
     {
-      "schema": "agent-kernel/PlanArtifact",
+      "schema": "agon/PlanArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "plan_basic",
@@ -226,7 +226,7 @@
       },
       "intentRef": {
         "id": "intent_basic",
-        "schema": "agent-kernel/IntentEnvelope",
+        "schema": "agon/IntentEnvelope",
         "schemaVersion": 1
       },
       "plan": {
@@ -240,7 +240,7 @@
       }
     },
     {
-      "schema": "agent-kernel/SimConfigArtifact",
+      "schema": "agon/SimConfigArtifact",
       "schemaVersion": 1,
       "meta": {
         "id": "sim_config_basic",
@@ -250,17 +250,17 @@
       },
       "planRef": {
         "id": "plan_basic",
-        "schema": "agent-kernel/PlanArtifact",
+        "schema": "agon/PlanArtifact",
         "schemaVersion": 1
       },
       "budgetReceiptRef": {
         "id": "budget_receipt_basic",
-        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schema": "agon/BudgetReceiptArtifact",
         "schemaVersion": 1
       },
       "seed": 42,
       "executionPolicy": {
-        "schema": "agent-kernel/ExecutionPolicy",
+        "schema": "agon/ExecutionPolicy",
         "schemaVersion": 1,
         "ordering": "round_robin",
         "params": {

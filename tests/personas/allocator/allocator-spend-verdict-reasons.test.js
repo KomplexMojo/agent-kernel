@@ -111,7 +111,7 @@ async function load() {
 /** A candidate in the published shape, with the priceable projection we want judged. */
 function candidateWith(vitals, candidateId = "delver[1]#test") {
   return {
-    schema: "agent-kernel/ConfigurationCandidate",
+    schema: "agon/ConfigurationCandidate",
     schemaVersion: 1,
     candidateId,
     card: { ...DELVER, vitals },
@@ -122,7 +122,7 @@ function candidateWith(vitals, candidateId = "delver[1]#test") {
 
 function envelopeOf(capTokens, count = 1) {
   return {
-    schema: "agent-kernel/BudgetEnvelope",
+    schema: "agon/BudgetEnvelope",
     schemaVersion: 1,
     capTokens,
     perUnitCapTokens: Math.floor(capTokens / count),
@@ -345,7 +345,7 @@ test("the build-spec validator accepts exactly the published outcomes", async ()
   // can only pass is not a check. Same lesson as the M2/M3 perturbation results, met from
   // the other side.
   const requestWith = (outcome) => ({
-    schema: "agent-kernel/AgentCommandRequestArtifact",
+    schema: "agon/AgentCommandRequestArtifact",
     schemaVersion: 1,
     meta: {
       id: "req-1",

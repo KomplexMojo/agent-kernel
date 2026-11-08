@@ -77,7 +77,7 @@ async function writeUnifiedAffinityArtifacts(dir) {
 }
 
 test("cli run writes affinity summary", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-affinity-"));
   const outDir = join(workDir, "out");
   const { simConfigPath, initialStatePath } = await writeUnifiedAffinityArtifacts(workDir);
 
@@ -102,7 +102,7 @@ test("cli run writes affinity summary", async () => {
   const summary = JSON.parse(readFileSync(summaryPath, "utf8"));
   const expected = JSON.parse(readFileSync(AFFINITY_FIXTURE, "utf8")).expected;
 
-  assert.equal(summary.schema, "agent-kernel/AffinitySummary");
+  assert.equal(summary.schema, "agon/AffinitySummary");
   assert.equal(summary.schemaVersion, 2);
   assert.deepEqual(summary.actors, expected.actors);
   assert.deepEqual(summary.hazards, []);
@@ -111,7 +111,7 @@ test("cli run writes affinity summary", async () => {
 // #264: v2 presets (no attack/buff/area effects or abilities) resolve to the same summary
 // as the v1 catalog they replace; v1 stays readable.
 test("cli run accepts v2 affinity presets and writes the same summary as v1", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-affinity-v2-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-affinity-v2-"));
   const { simConfigPath, initialStatePath } = await writeUnifiedAffinityArtifacts(workDir);
   const summaries = [PRESETS, PRESETS_V2].map((presets, index) => {
     const outDir = join(workDir, `out-${index}`);
@@ -133,7 +133,7 @@ test("cli run accepts v2 affinity presets and writes the same summary as v1", as
 });
 
 test("cli run rejects affinity summary without presets or loadouts", (t) => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-affinity-"));
   const outDir = join(workDir, "out");
   const result = spawnSync(process.execPath, [
     CLI,
@@ -162,7 +162,7 @@ test("cli run rejects affinity summary without presets or loadouts", (t) => {
 // literal) keeps this from silently passing if the clock seed itself ever changes.
 test("cli run stamps affinity-summary.json meta from the seeded clock, not the wall clock", async () => {
   const runOnce = async () => {
-    const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-determinism-"));
+    const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-affinity-determinism-"));
     const outDir = join(workDir, "out");
     const { simConfigPath, initialStatePath } = await writeUnifiedAffinityArtifacts(workDir);
     runCli([

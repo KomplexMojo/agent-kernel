@@ -12,7 +12,7 @@ test('resource mapping authors a mobile common actor with explicit holdings', ()
   const c = configurator(); const input = request(); const [mapped] = c.mapResources([input]);
   expect(mapped).toMatchObject({ ...input, category: 'resource', alignment: 'dungeon', defeatVital: 'durability' });
   const artifact = c.buildInitialStateArtifact({ meta: { id: 'initial' },
-    simConfigRef: { id: 'config', schema: 'agent-kernel/SimConfigArtifact', schemaVersion: 1 },
+    simConfigRef: { id: 'config', schema: 'agon/SimConfigArtifact', schemaVersion: 1 },
     actors: [mapped], dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'] });
   expect(artifact.actors[0].holdings).toEqual(input.holdings);
   expect(artifact.actors[0].capabilities.canMove).toBe(true);
@@ -119,7 +119,7 @@ test('placed resource is returned as an actor and builds directly into InitialSt
   expect(placed.actors[0].holdings).toEqual(input.holdings);
   expect(placed.actors[0].position).toEqual({ x: 1, y: 0 });
   const initial = c.buildInitialStateArtifact({ meta: { id: 'placed' },
-    simConfigRef: { id: 'config', schema: 'agent-kernel/SimConfigArtifact', schemaVersion: 1 },
+    simConfigRef: { id: 'config', schema: 'agon/SimConfigArtifact', schemaVersion: 1 },
     actors: placed.actors, dimensions: { width: 4, height: 1 }, terrain: layout.terrain });
   expect(initial.actors[0].affinities).toEqual(input.affinities);
 });

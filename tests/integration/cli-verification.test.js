@@ -45,7 +45,7 @@ function makeWorkDir(prefix) {
 
 test("cli verification ring: create -> run -> inspect/narrate/replay", (t) => {
 
-  const workDir = makeWorkDir("agent-kernel-cli-verify-");
+  const workDir = makeWorkDir("agon-cli-verify-");
   const createOut = join(workDir, "create");
   const runOut = join(workDir, "run");
   const inspectOut = join(workDir, "inspect");
@@ -99,7 +99,7 @@ test("cli verification ring: create -> run -> inspect/narrate/replay", (t) => {
   assert.ok(existsSync(inspectSummary), "inspect must produce inspect-summary.json");
   const inspectPayload = readJson(inspectSummary);
   // inspect emits a TelemetryRecord scoped to "run" — the per-run summary surface.
-  assert.equal(inspectPayload.schema, "agent-kernel/TelemetryRecord");
+  assert.equal(inspectPayload.schema, "agon/TelemetryRecord");
   assert.equal(inspectPayload.scope, "run");
   assert.ok(inspectPayload.data && typeof inspectPayload.data.ticks === "number");
 
@@ -127,7 +127,7 @@ test("cli verification ring: create -> run -> inspect/narrate/replay", (t) => {
 });
 
 test("cli verification ring: show resolves a default-path run from artifacts/runs/<id>", (t) => {
-  const workDir = makeWorkDir("agent-kernel-show-verify-");
+  const workDir = makeWorkDir("agon-show-verify-");
 
   // Use the default --out-dir so artifacts land under artifacts/runs/<id>.
   runCliOk([
@@ -154,7 +154,7 @@ test("cli verification ring: show resolves a default-path run from artifacts/run
 });
 
 test("cli verification ring: --from-run chains create into run when default paths are used", (t) => {
-  const workDir = makeWorkDir("agent-kernel-from-run-verify-");
+  const workDir = makeWorkDir("agon-from-run-verify-");
 
   runCliOk([
     "create",
@@ -201,7 +201,7 @@ test("show without --run-id exits non-zero with a stable argument error", () => 
 });
 
 test("cli verification ring: 10-tick full dungeon demo with tick session navigation", (t) => {
-  const workDir = makeWorkDir("agent-kernel-10tick-demo-");
+  const workDir = makeWorkDir("agon-10tick-demo-");
 
   // Step 1: create — full dungeon with hazard, resource, delver, and warden.
   runCliOk([
@@ -275,7 +275,7 @@ function createDemoDungeon(workDir, runId) {
 }
 
 test("10-tick ring tick forward past maxTick returns ok:false with stable boundary error", () => {
-  const workDir = makeWorkDir("agent-kernel-10tick-max-");
+  const workDir = makeWorkDir("agon-10tick-max-");
   createDemoDungeon(workDir, "ring_10tick_max");
   runCliOk(["run", "--from-run", "ring_10tick_max", "--ticks", "2"], { cwd: workDir });
   runCliOk(["tick", "forward", "--run-id", "ring_10tick_max"], { cwd: workDir });
@@ -288,7 +288,7 @@ test("10-tick ring tick forward past maxTick returns ok:false with stable bounda
 });
 
 test("10-tick ring tick backward at tick 0 returns ok:false with stable boundary error", () => {
-  const workDir = makeWorkDir("agent-kernel-10tick-bwd0-");
+  const workDir = makeWorkDir("agon-10tick-bwd0-");
   createDemoDungeon(workDir, "ring_10tick_bwd0");
   runCliOk(["run", "--from-run", "ring_10tick_bwd0", "--ticks", "2"], { cwd: workDir });
   const result = runCli(["tick", "backward", "--run-id", "ring_10tick_bwd0"], { cwd: workDir });
@@ -299,7 +299,7 @@ test("10-tick ring tick backward at tick 0 returns ok:false with stable boundary
 });
 
 test("10-tick ring tick state before forward returns tick 0 and null tickFrame", () => {
-  const workDir = makeWorkDir("agent-kernel-10tick-state0-");
+  const workDir = makeWorkDir("agon-10tick-state0-");
   createDemoDungeon(workDir, "ring_10tick_state0");
   runCliOk(["run", "--from-run", "ring_10tick_state0", "--ticks", "2"], { cwd: workDir });
   const result = runCliOk(["tick", "state", "--run-id", "ring_10tick_state0"], { cwd: workDir });
@@ -311,7 +311,7 @@ test("10-tick ring tick state before forward returns tick 0 and null tickFrame",
 
 
 test("10-tick ring run ticks=1 then tick forward advances to maxTick boundary", () => {
-  const workDir = makeWorkDir("agent-kernel-10tick-one-");
+  const workDir = makeWorkDir("agon-10tick-one-");
   createDemoDungeon(workDir, "ring_10tick_one");
   runCliOk(["run", "--from-run", "ring_10tick_one", "--ticks", "1"], { cwd: workDir });
   const result = runCliOk(["tick", "forward", "--run-id", "ring_10tick_one"], { cwd: workDir });
@@ -324,7 +324,7 @@ test("10-tick ring run ticks=1 then tick forward advances to maxTick boundary", 
 test.skip("10-tick ring create and run with permanent resource surfaces resource events in tick frames", () => {});
 
 test("10-tick ring replaying 10-tick run produces identical frame count", () => {
-  const workDir = makeWorkDir("agent-kernel-10tick-replay-");
+  const workDir = makeWorkDir("agon-10tick-replay-");
   createDemoDungeon(workDir, "ring_10tick_replay");
   runCliOk(["run", "--from-run", "ring_10tick_replay", "--ticks", "10"], { cwd: workDir });
   const runDir = join(workDir, "artifacts", "runs", "ring_10tick_replay");

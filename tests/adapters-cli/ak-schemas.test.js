@@ -31,16 +31,16 @@ test("cli schemas prints catalog to stdout", () => {
   assertSortedSchemas(catalog);
 
   const names = catalog.schemas.map((entry) => entry.schema);
-  assert.ok(names.includes("agent-kernel/AgentCommandRequestArtifact"));
-  assert.ok(names.includes("agent-kernel/BuildSpec"));
-  assert.ok(names.includes("agent-kernel/IntentEnvelope"));
-  assert.ok(names.includes("agent-kernel/SimConfigArtifact"));
-  assert.ok(names.includes("agent-kernel/InitialStateArtifact"));
-  assert.ok(names.includes("agent-kernel/TelemetryRecord"));
+  assert.ok(names.includes("agon/AgentCommandRequestArtifact"));
+  assert.ok(names.includes("agon/BuildSpec"));
+  assert.ok(names.includes("agon/IntentEnvelope"));
+  assert.ok(names.includes("agon/SimConfigArtifact"));
+  assert.ok(names.includes("agon/InitialStateArtifact"));
+  assert.ok(names.includes("agon/TelemetryRecord"));
 });
 
 test("cli schemas writes schemas.json when --out-dir is provided", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-schemas-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-schemas-"));
   const result = runCli(["schemas", "--out-dir", outDir], { env: { AK_SCHEMA_CATALOG_TIME: FIXED_TIME } });
 
   assert.equal(result.status, 0, result.stderr);
@@ -52,7 +52,7 @@ test("cli schemas writes schemas.json when --out-dir is provided", () => {
 });
 
 test("cli schemas without --out-dir emits parseable stdout and writes no file", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-schemas-stdout-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-schemas-stdout-"));
   const result = runCli(["schemas"], { env: { AK_SCHEMA_CATALOG_TIME: FIXED_TIME } });
 
   assert.equal(result.status, 0, result.stderr);
@@ -61,7 +61,7 @@ test("cli schemas without --out-dir emits parseable stdout and writes no file", 
 });
 
 test("cli schemas overwrites the same --out-dir idempotently", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-schemas-overwrite-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-cli-schemas-overwrite-"));
   const stalePath = join(outDir, "schemas.json");
   writeFileSync(stalePath, "{\"stale\":true}\n", "utf8");
 
@@ -81,11 +81,11 @@ test("cli schemas catalog includes key artifact schemas referenced by contracts"
   const names = new Set(catalog.schemas.map((entry) => entry.schema));
 
   [
-    "agent-kernel/BudgetArtifact",
-    "agent-kernel/BudgetReceiptArtifact",
-    "agent-kernel/PriceList",
-    "agent-kernel/SandboxSessionArtifact",
-    "agent-kernel/TickFrame",
+    "agon/BudgetArtifact",
+    "agon/BudgetReceiptArtifact",
+    "agon/PriceList",
+    "agon/SandboxSessionArtifact",
+    "agon/TickFrame",
   ].forEach((schema) => assert.ok(names.has(schema), `${schema} missing from catalog`));
 });
 

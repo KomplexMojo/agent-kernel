@@ -58,7 +58,7 @@ const BASE_META = {
 test("hazard artifact V2 is valid with mana only (no durability)", async () => {
   const { validateHazardArtifact } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/HazardArtifact",
+    schema: "agon/HazardArtifact",
     schemaVersion: 2,
     meta: BASE_META,
     affinity: "fire",
@@ -72,7 +72,7 @@ test("hazard artifact V2 is valid with mana only (no durability)", async () => {
 test("hazard artifact V2 rejects durability field", async () => {
   const { validateHazardArtifact } = await loadValidator();
   const artifact = {
-    schema: "agent-kernel/HazardArtifact",
+    schema: "agon/HazardArtifact",
     schemaVersion: 2,
     meta: BASE_META,
     affinity: "fire",
@@ -126,7 +126,7 @@ test("hazard artifact validation rejects unsupported hazard artifact schema", as
   const { validateHazardArtifact } = await loadValidator();
   const result = validateHazardArtifact(readFixture("invalid/hazard-artifact-v1-public.json"));
   assert.equal(result.ok, false);
-  assert.match(result.errors.join("\n"), /schema: expected agent-kernel\/HazardArtifact/);
+  assert.match(result.errors.join("\n"), /schema: expected agon\/HazardArtifact/);
 });
 
 test("HAZARD_VITAL_KEYS exports canonical hazard vitals", async () => {
@@ -154,7 +154,7 @@ test("ROOM_TILE_VITAL_KEYS exports durability only", async () => {
 test("hazard artifact V2 rejects missing mana field", async () => {
   const { validateHazardArtifact } = await loadValidator();
   const result = validateHazardArtifact({
-    schema: "agent-kernel/HazardArtifact",
+    schema: "agon/HazardArtifact",
     schemaVersion: 2,
     meta: BASE_META,
     affinity: "fire",
@@ -167,7 +167,7 @@ test("hazard artifact V2 rejects missing mana field", async () => {
 test("hazard artifact V2 accepts one-time mana", async () => {
   const { validateHazardArtifact } = await loadValidator();
   const result = validateHazardArtifact({
-    schema: "agent-kernel/HazardArtifact",
+    schema: "agon/HazardArtifact",
     schemaVersion: 2,
     meta: BASE_META,
     affinity: "fire",
@@ -180,7 +180,7 @@ test("hazard artifact V2 accepts one-time mana", async () => {
 test("hazard artifact V2 rejects invalid affinity kind", async () => {
   const { validateHazardArtifact } = await loadValidator();
   const result = validateHazardArtifact({
-    schema: "agent-kernel/HazardArtifact",
+    schema: "agon/HazardArtifact",
     schemaVersion: 2,
     meta: BASE_META,
     affinity: "thunder",
@@ -194,7 +194,7 @@ test("hazard artifact V2 rejects invalid affinity kind", async () => {
 test("hazard artifact V2 accepts draw expression", async () => {
   const { validateHazardArtifact } = await loadValidator();
   const result = validateHazardArtifact({
-    schema: "agent-kernel/HazardArtifact",
+    schema: "agon/HazardArtifact",
     schemaVersion: 2,
     meta: BASE_META,
     affinity: "water",

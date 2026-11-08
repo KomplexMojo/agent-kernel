@@ -37,7 +37,7 @@ export function buildUnifiedLevel({ id, tiles, actors, seed = 0, approaches = {}
   const meta = (kind) => ({ id: `${id}_${kind}`, runId: id, createdAt: CLOCK, producedBy: "test" });
   const simConfig = configurator.buildSimConfigArtifact({
     meta: meta("sim_config"),
-    planRef: { id: `${id}_plan`, schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: `${id}_plan`, schema: "agon/PlanArtifact", schemaVersion: 1 },
     seed,
     layout: { width, height, terrain, ...approaches },
     movementStamina: configurator.assembleMovementStamina({ actors }),

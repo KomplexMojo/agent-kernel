@@ -60,7 +60,7 @@ export const playTools = [
   createTool({
     name: "ak_play_ascii",
     description:
-      "Show a level in the agent-kernel ASCII terminal UI (packages/ui-ascii), and optionally play moves in it, or watch a recorded run in it. "
+      "Show a level in the agon ASCII terminal UI (packages/ui-ascii), and optionally play moves in it, or watch a recorded run in it. "
       + "Use it right after ak_create (or ak_configure/ak_run) to display what was made: pass that call's runId, or its outDir as dir. "
       + "Returns { screen, status, turns, launch }. Show `screen` to the user verbatim in a code block, and give `launch`: "
       + "the command that opens the interactive, coloured game in their own terminal. "

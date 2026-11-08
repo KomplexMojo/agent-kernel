@@ -16,7 +16,7 @@ Evidence is explicit:
 
 - `artifact` metrics can be derived from current public run artifacts.
 - `observation` metrics use opt-in `ak run --world-state-checkpoints` output: individual existing
-  `agent-kernel/WorldStateArtifact` v1 files at the profile-declared ticks.
+  `agon/WorldStateArtifact` v1 files at the profile-declared ticks.
 
 Unavailable observation evidence must be reported as `evidence_unavailable`; it must never silently
 pass. Required gates and global invariants are hard failures. Weighted objectives total 100 per scenario
@@ -26,7 +26,7 @@ E2 adds `scripts/lib/execution-evaluator.js`, a pure black-box evaluator over co
 artifacts. It loads `sim-config.json`, `initial-state.json`, `tick-frames.json`, `effects-log.json`,
 `run-summary.json`, and `action-log.json`; extracts every metric it can prove; evaluates phase,
 legality, participation, stationary, effect, identity, and reconciliation invariants; scores available
-objectives; aggregates worst-seed evidence; and writes `agent-kernel-execution-result/v1` JSON. Result
+objectives; aggregates worst-seed evidence; and writes `agon-execution-result/v1` JSON. Result
 comparison requires matching suite, evaluator, seed-set, and tick-profile identities.
 
 E3 adds a fail-closed checkpoint reader. It requests deterministic filenames only for the declared
@@ -49,7 +49,7 @@ seed/repeat/variant population, and labels 250/500-tick profiles as stress work.
 is reused when it is byte-for-byte the same requested execution. Early stopping is limited to proofs
 that cannot be recovered by remaining runs: process failure, hard invariant failure, required per-run
 gate failure, or violation of the minimum-seed score. Every attempt is retained in atomic
-`agent-kernel-execution-schedule/v1` local JSON.
+`agon-execution-schedule/v1` local JSON.
 
 The catalog still describes scenario setups rather than owning build artifacts. Callers must supply a
 `resolveBuild({ scenario, variant, request })` handoff returning the directory containing
@@ -66,7 +66,7 @@ Runtime/core-only changes request runtime execution without authoring, so they c
 Authoring changes request authoring plus generated execution. Execution-suite changes request both
 runtime and generated execution. The results branch requests no work.
 
-`agent-kernel-combined-benchmark-result/v1` preserves each historical authoring projection and adds
+`agon-combined-benchmark-result/v1` preserves each historical authoring projection and adds
 separate authoring, shared-runtime, and per-configuration generated-execution verdicts. A configuration
 qualifies—and can become the minimum or enter the Pareto frontier—only if all three verdicts pass.
 Missing execution evidence is a failure, not an implicit pass.

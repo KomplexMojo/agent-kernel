@@ -6,7 +6,7 @@ const path = require('path');
 
 const { canonicalJson, loadExecutionCatalog } = require('./execution-catalog');
 
-const RESULT_SCHEMA_VERSION = 'agent-kernel-execution-result/v1';
+const RESULT_SCHEMA_VERSION = 'agon-execution-result/v1';
 const REQUIRED_FILES = Object.freeze({
   simConfig: 'sim-config.json',
   initialState: 'initial-state.json',
@@ -896,7 +896,7 @@ function aggregateExecutionResults(results, contract = loadExecutionCatalog().co
   const qualifies = eligible && complete && mean >= contract.qualification.meanScore
     && median >= contract.qualification.medianScore && minimum >= contract.qualification.minimumSeedScore;
   return {
-    schemaVersion: 'agent-kernel-execution-aggregate/v1',
+    schemaVersion: 'agon-execution-aggregate/v1',
     identity: { ...results[0].identity },
     scenario: { ...results[0].scenario, purpose: selected.purpose },
     runs: results.length,
@@ -960,7 +960,7 @@ function loadWorldStateCheckpoints(runDir, expectedTicks = []) {
     // `state.resources`, and a v1 checkpoint would make every one of them look
     // like a world containing no resources rather than a snapshot that cannot
     // answer the question.
-    if (!isObject(state) || state.schema !== 'agent-kernel/WorldStateArtifact' || state.schemaVersion !== 2
+    if (!isObject(state) || state.schema !== 'agon/WorldStateArtifact' || state.schemaVersion !== 2
       || !isObject(state.meta) || !isObject(state.dimensions)
       || !Array.isArray(state.actors) || !Array.isArray(state.hazards)
       || !Array.isArray(state.resources)) {

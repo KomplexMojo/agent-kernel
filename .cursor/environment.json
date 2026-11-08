@@ -1,4 +1,4 @@
 {
-  "name": "agent-kernel",
+  "name": "agon",
   "install": "bash .cursor/install.sh"
 }

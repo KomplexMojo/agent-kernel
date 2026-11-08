@@ -39,7 +39,7 @@ function createGeneratedBuildResolver({ records, configurationId, routes }) {
 function executionQualifies(result) {
   if (!result || typeof result !== 'object') return false;
   if (typeof result.verdict?.qualifies === 'boolean') return result.verdict.qualifies;
-  if (result.schemaVersion !== 'agent-kernel-execution-schedule/v1'
+  if (result.schemaVersion !== 'agon-execution-schedule/v1'
     || result.status === 'failed' || !Array.isArray(result.scenarios)) return false;
   const qualifying = result.scenarios.filter((scenario) => (
     scenario.purpose || scenario.aggregate?.scenario?.purpose
@@ -73,7 +73,7 @@ function combineBenchmarkQualification({
   runtimeExecution,
   generatedExecutionByConfiguration = {},
 }) {
-  if (authoringResult?.schemaVersion !== 'agent-kernel-content-gen-result/v1'
+  if (authoringResult?.schemaVersion !== 'agon-content-gen-result/v1'
     || !Array.isArray(authoringResult.configurations)) {
     throw new Error('A valid authoring result is required');
   }
@@ -107,7 +107,7 @@ function combineBenchmarkQualification({
     other !== candidate && dominates(other.resourceOrder, candidate.resourceOrder)
   )));
   return {
-    schemaVersion: 'agent-kernel-combined-benchmark-result/v1',
+    schemaVersion: 'agon-combined-benchmark-result/v1',
     scenarioSet: authoringResult.scenarioSet,
     matrix: authoringResult.matrix,
     thresholds: authoringResult.thresholds,

@@ -770,7 +770,7 @@ function writeEvalReport(model, startedAt, finishedAt) {
   const totalIterations = evalRecords.reduce((sum, record) => sum + record.iterations, 0);
   const allFailureClasses = [...new Set(evalRecords.flatMap((record) => record.failureClasses))].sort();
   const payload = {
-    schema: "agent-kernel/LocalTestGenEvalReport",
+    schema: "agon/LocalTestGenEvalReport",
     schemaVersion: 1,
     generatedAt: finishedAt,
     startedAt,

@@ -28,11 +28,11 @@ test("orchestrateBuild uses runtime modules for solver and configurator", async 
     solver: { adapter: solverAdapter, scenario: "scenario", options: { kind: "basic" }, clock: () => specBasic.meta.createdAt },
   });
 
-  assert.equal(resultBasic.intent.schema, "agent-kernel/IntentEnvelope");
-  assert.equal(resultBasic.plan.schema, "agent-kernel/PlanArtifact");
+  assert.equal(resultBasic.intent.schema, "agon/IntentEnvelope");
+  assert.equal(resultBasic.plan.schema, "agon/PlanArtifact");
   assert.equal(resultBasic.plan.intentRef.id, resultBasic.intent.meta.id);
-  assert.equal(resultBasic.solverRequest.schema, "agent-kernel/SolverRequest");
-  assert.equal(resultBasic.solverResult.schema, "agent-kernel/SolverResult");
+  assert.equal(resultBasic.solverRequest.schema, "agon/SolverRequest");
+  assert.equal(resultBasic.solverResult.schema, "agon/SolverResult");
   assert.equal(resultBasic.solverResult.meta.createdAt, specBasic.meta.createdAt);
 
   const resultConfigurator = await orchestrateBuild({
@@ -40,9 +40,9 @@ test("orchestrateBuild uses runtime modules for solver and configurator", async 
     producedBy: "runtime-test",
   });
 
-  assert.equal(resultConfigurator.simConfig.schema, "agent-kernel/SimConfigArtifact");
-  assert.equal(resultConfigurator.initialState.schema, "agent-kernel/InitialStateArtifact");
-  assert.equal(resultConfigurator.resourceBundle.schema, "agent-kernel/ResourceBundleArtifact");
+  assert.equal(resultConfigurator.simConfig.schema, "agon/SimConfigArtifact");
+  assert.equal(resultConfigurator.initialState.schema, "agon/InitialStateArtifact");
+  assert.equal(resultConfigurator.resourceBundle.schema, "agon/ResourceBundleArtifact");
   assert.equal(resultConfigurator.resourceBundle.schemaVersion, 2);
   assert.ok(Array.isArray(resultConfigurator.resourceBundle.assets));
   assert.ok(resultConfigurator.resourceBundle.assets.length > 0);
@@ -344,7 +344,7 @@ test("orchestrateBuild keeps spawn and actor placements distinct", async () => {
   );
 
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "spec_spawn_order",
@@ -402,7 +402,7 @@ test("orchestrateBuild prevents environmental objects and actors from overlaying
   );
 
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "spec_environmental_placement",
@@ -479,7 +479,7 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
   }
 
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "spec_room_affinity",

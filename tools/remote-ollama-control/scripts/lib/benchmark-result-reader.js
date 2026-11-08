@@ -8,8 +8,8 @@ const { buildContentGenMatrix } = require('./benchmark');
 const { loadConfig } = require('./config');
 const { loadExecutionCatalog } = require('./execution-catalog');
 
-const RESULT_SCHEMA_VERSION = 'agent-kernel-benchmark-result/v2';
-const LEGACY_RESULT_SCHEMA_VERSION = 'agent-kernel-benchmark-result/v1';
+const RESULT_SCHEMA_VERSION = 'agon-benchmark-result/v2';
+const LEGACY_RESULT_SCHEMA_VERSION = 'agon-benchmark-result/v1';
 const RESULT_PATHS = Object.freeze({
   latest_attempt: 'latest.json',
   latest_success: 'latest-success.json',

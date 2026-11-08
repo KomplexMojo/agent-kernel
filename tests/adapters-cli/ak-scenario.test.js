@@ -18,7 +18,7 @@ function runCli(args, options = {}) {
 
 test("cli scenario composes llm-plan, run, and inspect into one pipeline", (t) => {
 
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-scenario-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-scenario-"));
   const result = runCli(
     [
       "scenario",
@@ -73,7 +73,7 @@ test("cli scenario composes llm-plan, run, and inspect into one pipeline", (t) =
 
 test("cli scenario resumes run and inspect from --from-run", async () => {
 
-  const workspaceDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-scenario-from-run-"));
+  const workspaceDir = mkdtempSync(join(os.tmpdir(), "agon-scenario-from-run-"));
   const sourceRunId = "run_llm_plan_resume";
   const sourceDir = join(workspaceDir, "artifacts", "runs", sourceRunId, "llm-plan");
   const outDir = join(workspaceDir, "artifacts", "runs", sourceRunId);
@@ -126,7 +126,7 @@ test("cli scenario resumes run and inspect from --from-run", async () => {
 });
 
 test("cli scenario dry-run validates the llm-plan/build path with core-ts or artifact writes", () => {
-  const rootDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-scenario-dry-run-"));
+  const rootDir = mkdtempSync(join(os.tmpdir(), "agon-scenario-dry-run-"));
   const outDir = join(rootDir, "out");
   const result = runCli(
     [

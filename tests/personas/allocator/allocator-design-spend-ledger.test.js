@@ -113,7 +113,7 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
       },
     ],
     priceList: {
-      schema: "agent-kernel/PriceList",
+      schema: "agon/PriceList",
       schemaVersion: 1,
       items: [
         // CR.9 M5: a list that prices no tiles is INCOMPLETE and the Allocator now refuses
@@ -280,7 +280,7 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
       ],
     },
     priceList: {
-      schema: "agent-kernel/PriceList",
+      schema: "agon/PriceList",
       schemaVersion: 1,
       items: [
         { id: "tile_floor", kind: "tile", costTokens: 1 },

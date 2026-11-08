@@ -1,9 +1,9 @@
 {
-  "schema": "agent-kernel/PersonaBehavior",
+  "schema": "agon/PersonaBehavior",
   "schemaVersion": 1,
   "director": {
-    "intentRef": { "id": "intent-1", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
-    "planRef": { "id": "plan-1", "schema": "agent-kernel/PlanArtifact", "schemaVersion": 1 },
+    "intentRef": { "id": "intent-1", "schema": "agon/IntentEnvelope", "schemaVersion": 1 },
+    "planRef": { "id": "plan-1", "schema": "agon/PlanArtifact", "schemaVersion": 1 },
     "solver": {
       "requestId": "solver-director",
       "targetAdapter": "fixtures",
@@ -11,8 +11,8 @@
     }
   },
   "configurator": {
-    "planRef": { "id": "plan-1", "schema": "agent-kernel/PlanArtifact", "schemaVersion": 1 },
-    "configRef": { "id": "sim-1", "schema": "agent-kernel/SimConfigArtifact", "schemaVersion": 1 },
+    "planRef": { "id": "plan-1", "schema": "agon/PlanArtifact", "schemaVersion": 1 },
+    "configRef": { "id": "sim-1", "schema": "agon/SimConfigArtifact", "schemaVersion": 1 },
     "solver": {
       "requestId": "solver-config",
       "targetAdapter": "solver",

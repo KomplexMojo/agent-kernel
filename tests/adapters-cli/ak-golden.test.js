@@ -68,18 +68,18 @@ async function writeUnifiedRunArtifacts(dir) {
 }
 
 test("cli solve produces stable solver request fields", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-solve-golden-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-solve-golden-"));
   runCli(["solve", "--plan", PLAN, "--out-dir", outDir]);
   const request = readJson(join(outDir, "solver-request.json"));
   const result = readJson(join(outDir, "solver-result.json"));
-  assert.equal(request.schema, "agent-kernel/SolverRequest");
+  assert.equal(request.schema, "agon/SolverRequest");
   assert.equal(request.planRef.id, "plan_basic");
-  assert.equal(result.schema, "agent-kernel/SolverResult");
-  assert.equal(result.requestRef.schema, "agent-kernel/SolverRequest");
+  assert.equal(result.schema, "agon/SolverResult");
+  assert.equal(result.requestRef.schema, "agon/SolverRequest");
 });
 
 test("cli run outputs deterministic frames for fixed inputs", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-run-golden-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-run-golden-"));
   const { simConfigPath, initialStatePath } = await writeUnifiedRunArtifacts(workDir);
   const outDirA = join(workDir, "out-a");
   const outDirB = join(workDir, "out-b");
@@ -113,7 +113,7 @@ test("cli run outputs deterministic frames for fixed inputs", async () => {
 });
 
 test("cli replay and inspect produce stable schemas", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-run-c-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-run-c-"));
   const { simConfigPath, initialStatePath } = await writeUnifiedRunArtifacts(workDir);
   const runOutDir = join(workDir, "run-out");
   runCli([
@@ -131,7 +131,7 @@ test("cli replay and inspect produce stable schemas", async () => {
   const tickFramesPath = join(runOutDir, "tick-frames.json");
   const effectsLogPath = join(runOutDir, "effects-log.json");
 
-  const replayOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-replay-"));
+  const replayOutDir = mkdtempSync(join(os.tmpdir(), "agon-replay-"));
   runCli([
     "replay",
     "--sim-config",
@@ -147,7 +147,7 @@ test("cli replay and inspect produce stable schemas", async () => {
   const replaySummary = readJson(join(replayOutDir, "replay-summary.json"));
   assert.equal(replaySummary.match, true);
 
-  const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-inspect-"));
+  const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agon-inspect-"));
   runCli([
     "inspect",
     "--tick-frames",
@@ -159,6 +159,6 @@ test("cli replay and inspect produce stable schemas", async () => {
   ]);
 
   const inspectSummary = readJson(join(inspectOutDir, "inspect-summary.json"));
-  assert.equal(inspectSummary.schema, "agent-kernel/TelemetryRecord");
+  assert.equal(inspectSummary.schema, "agon/TelemetryRecord");
   assert.equal(inspectSummary.schemaVersion, 1);
 });

@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) in this repository. **agent-kernel** is the public framework
+Guidance for Claude Code (claude.ai/code) in this repository. **Agon** is the public framework
 (packages, `ak`, the MCP server, schema ids). **Primordial** is the game built on it, in a separate private
 repository (`../primordial`); the line between them is charter → "Framework vs Game".
 
-**Ownership (Darren, 2026-11-06): Claude owns agent-kernel's architecture and design, and never writes to Primordial. Cursor owns Primordial's UI/UX, and never writes to agent-kernel.** When the game needs a framework change, Cursor opens an `api-request` issue here. When the framework needs the game to change, Claude opens a `ui-request` issue in KomplexMojo/Primordial. Full rule: `AGENTS.md → Repository ownership`.
+**Ownership (Darren, 2026-11-06): Claude owns Agon's architecture and design, and never writes to Primordial. Cursor owns Primordial's UI/UX, and never writes to Agon.** When the game needs a framework change, Cursor opens an `api-request` issue here. When the framework needs the game to change, Claude opens a `ui-request` issue in KomplexMojo/Primordial. Full rule: `AGENTS.md → Repository ownership`.
 
 Claude is the **orchestration, implementation, and documentation engine**. Codex drives ideation, adversarial verification, and mechanical implementation from complete milestone specs.
 
@@ -82,13 +82,13 @@ The full roster (models, effort levels, tools, scope limits) is in `AGENTS.md �
 | Author or scaffold a test to an existing recipe | `/structured-test-authoring` + the `ak_test_*` MCP tools |
 | Summarize / classify / extract structured data | `local_*` MCP tools (Ollama) |
 
-**Routing to a scoped skill is mandatory, not a suggestion.** Before planning or editing agent-kernel domain/architecture code, load the owning skill and stay inside it — do not default to a full-app sweep. `/agentic-change-planning` holds the routing table; the plan it produces must name the exact owner id, copy that skill's allowed edit surfaces, and cite its narrow validation command. Each owner skill then supplies *Allowed edit surfaces · Forbidden · Workflow · Validation · Escalate*, and its Validation block — the persona's own tests plus its specific `tests/architecture/*-authority.test.js` guards — is the gate to run before commit, in place of the full suite. Ambiguous ownership, or a change spanning two owners without a thin artifact handoff, is an **escalation**, not a wider plan.
+**Routing to a scoped skill is mandatory, not a suggestion.** Before planning or editing Agon domain/architecture code, load the owning skill and stay inside it — do not default to a full-app sweep. `/agentic-change-planning` holds the routing table; the plan it produces must name the exact owner id, copy that skill's allowed edit surfaces, and cite its narrow validation command. Each owner skill then supplies *Allowed edit surfaces · Forbidden · Workflow · Validation · Escalate*, and its Validation block — the persona's own tests plus its specific `tests/architecture/*-authority.test.js` guards — is the gate to run before commit, in place of the full suite. Ambiguous ownership, or a change spanning two owners without a thin artifact handoff, is an **escalation**, not a wider plan.
 
 The skills live in `.claude/skills/`; their roster and mirroring rules are `AGENTS.md → Repo-owned skills`. Cursor gets this same requirement from `.cursor/rules/agentic-skill-routing.mdc` (`alwaysApply: true`) — this paragraph is what keeps the two harnesses at parity, so it is not optional here just because nothing enforces it mechanically.
 
 **Before any milestone code:** state assumptions, surface ambiguity (stop and ask rather than guess), present the tradeoff if a simpler path exists. Implementation order is (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand the stubs to Ollama.
 
-**The `agent-kernel-cli` MCP server** (`pnpm run mcp:serve`, tools `ak_*`) is the preferred surface for authoring, simulation, inspection, LLM planning, and adapter operations — use it instead of shelling out to `ak.mjs` when it is connected.
+**The `agon-cli` MCP server** (`pnpm run mcp:serve`, tools `ak_*`) is the preferred surface for authoring, simulation, inspection, LLM planning, and adapter operations — use it instead of shelling out to `ak.mjs` when it is connected.
 
 **Ollama is strategic, not legacy.** It is the no-cost path for decomposable subtasks; the remote dual-GPU box runs heavy batch work. Subagents cannot run on Ollama models, so that tier stays skill/MCP-mediated by design.
 
@@ -131,7 +131,7 @@ pnpm run sim:sweep                                    # Simulation sweep: rules 
 pnpm run typecheck                                    # Typecheck gate (core-ts + its tests, strict)
 pnpm run typecheck:report                             # Cost of widening the gate, per package
 pnpm run typecheck:report -- --check-js               # ...including .js: the all-TypeScript size
-pnpm run mcp:serve                                    # agent-kernel-cli MCP server (ak_* tools)
+pnpm run mcp:serve                                    # agon-cli MCP server (ak_* tools)
 pnpm run demo:cli                                     # CLI demo
 ```
 
@@ -187,7 +187,7 @@ New personas require `controller.js`, `state-machine.js`, `persona.js`, `contrac
 
 **Adapters** — all external IO (LLM, IPFS, blockchain, solver, logging) lives only in `adapters-web/-cli/-test`. Adapters receive effects from `runtime/src/ports/effects.js`; they do not pull state. Test adapters are fixture-based and fully deterministic.
 
-**Artifacts** — all boundary-crossing data uses a versioned schema from `packages/runtime/src/contracts/artifacts.ts`: `{ schema: "agent-kernel/ArtifactName", schemaVersion: 1, meta: ArtifactMeta }`. Evolve `schemaVersion` on breaking changes; never remove or rename fields in place.
+**Artifacts** — all boundary-crossing data uses a versioned schema from `packages/runtime/src/contracts/artifacts.ts`: `{ schema: "agon/ArtifactName", schemaVersion: 1, meta: ArtifactMeta }`. Evolve `schemaVersion` on breaking changes; never remove or rename fields in place.
 
 ---
 

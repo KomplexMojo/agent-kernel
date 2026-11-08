@@ -20,7 +20,7 @@ function warden(id, kind) {
 
 function spec(actors) {
   return {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: { id: "warden_spread", runId: "warden_spread", createdAt: "2026-10-18T00:00:00.000Z", source: "runtime-test" },
     intent: { goal: "spread wardens" },

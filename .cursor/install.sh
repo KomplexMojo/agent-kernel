@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cloud Agent install script for agent-kernel.
+# Cloud Agent install script for agon.
 #
 # Idempotent repository bootstrap: it selects a Node runtime with native
 # TypeScript support and installs workspace dependencies. Safe to re-run.
@@ -58,7 +58,7 @@ if [ -z "$NODE_BIN_DIR" ]; then
 fi
 
 # Persist the runtime choice for future interactive shells (idempotent).
-MARKER="# agent-kernel: prefer Node with native TypeScript support"
+MARKER="# agon: prefer Node with native TypeScript support"
 if [ -n "$NODE_BIN_DIR" ] && ! grep -qF "$MARKER" "$HOME/.bashrc" 2>/dev/null; then
   {
     echo ""
@@ -117,7 +117,7 @@ setup_serena() {
 
   # Persist ~/.local/bin on PATH so a dashboard-registered `serena` command
   # resolves in future interactive shells and agent processes.
-  local serena_marker="# agent-kernel: serena tooling on PATH"
+  local serena_marker="# agon: serena tooling on PATH"
   if ! grep -qF "$serena_marker" "$HOME/.bashrc" 2>/dev/null; then
     {
       echo ""
@@ -133,4 +133,4 @@ if ! setup_serena; then
   echo "warning: Serena setup skipped (optional tooling). See scripts/setup/README.md." >&2
 fi
 
-echo "agent-kernel install complete."
+echo "agon install complete."

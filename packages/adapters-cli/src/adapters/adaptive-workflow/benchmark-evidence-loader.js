@@ -64,11 +64,11 @@ function parseSummary(raw) {
     id: matchHeader(lines, /^Scenario set:\s*(.+)$/),
     purpose: matchHeader(lines, /^Purpose:\s*(.+)$/),
   } : {
-    schemaVersion: "agent-kernel-content-gen-scenario-set/v1",
+    schemaVersion: "agon-content-gen-scenario-set/v1",
     id: "content-gen",
     purpose: "qualification",
   };
-  if (adaptive && (scenarioSet.schemaVersion !== "agent-kernel-adaptive-workflow-scenario-set/v1"
+  if (adaptive && (scenarioSet.schemaVersion !== "agon-adaptive-workflow-scenario-set/v1"
     || typeof scenarioSet.id !== "string" || !["smoke", "qualification"].includes(scenarioSet.purpose))) {
     scenarioSet.purpose = "unclassified";
   }

@@ -82,7 +82,7 @@ async function buildArtifacts() {
   ];
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "ds1_faction_sim", runId: "ds1_faction", createdAt: CLOCK, producedBy: "test" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width: WIDTH, height: HEIGHT, terrain, exitApproach: { x: WIDTH - 2, y: 1 } },
     movementStamina: { delver_a: 0, delver_b: 0, warden_1: 0 },
   });

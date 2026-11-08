@@ -79,7 +79,7 @@ if [ "$CHECK_REMOTE" = "1" ]; then
     # 5. The dangerous one: a stale pin produces no error, just meaningless comparisons.
     local_id=$(node "$ROOT/tools/remote-ollama-control/scripts/print-benchmark-identity.js" 2>/dev/null)
     remote_env=$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$host" \
-      'cat ~/.config/agent-kernel-benchmark/benchmark-agent.env 2>/dev/null' 2>/dev/null)
+      'cat ~/.config/agon-benchmark/benchmark-agent.env 2>/dev/null' 2>/dev/null)
     for pair in "scenarioSet:AK_BENCHMARK_SCENARIO_HASH" "matrix:AK_BENCHMARK_MATRIX_HASH"; do
       key="${pair%%:*}"; var="${pair##*:}"
       here=$(echo "$local_id" | python3 -c "import json,sys;print(json.load(sys.stdin)['$key']['sha256'])" 2>/dev/null)

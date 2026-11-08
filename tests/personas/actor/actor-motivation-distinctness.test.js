@@ -40,7 +40,7 @@ const BASE_TILES = [
 
 function simConfig() {
   return {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: "agon/SimConfigArtifact",
     schemaVersion: 1,
     meta: { id: "m", runId: "m", createdAt: "2026-01-01T00:00:00.000Z" },
     seed: 0,

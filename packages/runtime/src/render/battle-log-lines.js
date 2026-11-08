@@ -156,7 +156,7 @@ function flavorWith(kind, expression) {
 }
 
 /**
- * @param {object} entry   an `agent-kernel/BattleLogEntry`
+ * @param {object} entry   an `agon/BattleLogEntry`
  * @param {object} [who]
  * @param {string} [who.seatId]               the actor the player is playing: named "you"
  * @param {(id: string) => (string|null)} [who.labelOf]  the glyph label of an actor, when it has one

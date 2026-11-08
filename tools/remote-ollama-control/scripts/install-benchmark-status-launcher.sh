@@ -72,7 +72,7 @@ GRANT_TARGET="$grant_target"
 SH
 
   cat >> "$destination" <<'SH'
-OUT="$HOME/.local/state/agent-kernel/benchmark-status.html"
+OUT="$HOME/.local/state/agon/benchmark-status.html"
 mkdir -p "$(dirname "$OUT")"
 
 # Takes the message as an ARGUMENT ($1) plus the remediation to show ($2). Piping into it would run
@@ -172,7 +172,7 @@ install_app() {
 <dict>
   <key>CFBundleName</key><string>Benchmark Status</string>
   <key>CFBundleDisplayName</key><string>Benchmark Status</string>
-  <key>CFBundleIdentifier</key><string>com.komplexmojo.agent-kernel.benchmark-status</string>
+  <key>CFBundleIdentifier</key><string>com.komplexmojo.agon.benchmark-status</string>
   <key>CFBundleVersion</key><string>1.0</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -275,5 +275,5 @@ if [ "$MODE" = "command" ] || [ "$MODE" = "both" ]; then
 fi
 
 echo "Reads:     $REPO_DIR"
-echo "Opens:     \$HOME/.local/state/agent-kernel/benchmark-status.html"
+echo "Opens:     \$HOME/.local/state/agon/benchmark-status.html"
 exit 0

@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/SpendProposal",
+  "schema": "agon/SpendProposal",
   "schemaVersion": 1,
   "meta": {
     "id": "golden_g4_spend_proposal",
@@ -15,7 +15,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -26,7 +26,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -37,7 +37,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -48,7 +48,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -62,7 +62,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       },
       "detail": {
@@ -76,7 +76,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -87,7 +87,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -98,7 +98,7 @@
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ActorArtifact",
+        "schema": "agon/ActorArtifact",
         "schemaVersion": 1
       }
     }

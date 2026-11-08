@@ -28,7 +28,7 @@ test("abstract planning catalog exposes a domain-neutral pilot with hidden mappi
   const catalog = loadAbstractPlanCatalog();
   const source = readFileSync(ABSTRACT_CATALOG_PATH, "utf8");
 
-  assert.equal(catalog.schemaVersion, "agent-kernel-abstract-plan-catalog/v1");
+  assert.equal(catalog.schemaVersion, "agon-abstract-plan-catalog/v1");
   assert.equal(catalog.scenarios.length, 1);
   assert.match(source, /"mapping"/);
   assert.doesNotMatch(JSON.stringify(catalog.scenarios[0].problem), /room|hazard|delver|warden|dungeon|affinity/i);
@@ -314,7 +314,7 @@ test("A4 compact evidence preserves its source pin, complete pairs, and null can
   const result = JSON.parse(readFileSync(join(A4_FIXTURE_ROOT, "result.json"), "utf8"));
   const summary = readFileSync(join(A4_FIXTURE_ROOT, "summary.md"), "utf8");
 
-  assert.equal(result.schemaVersion, "agent-kernel-a4-paired-qualification/v1");
+  assert.equal(result.schemaVersion, "agon-a4-paired-qualification/v1");
   assert.deepEqual(result.source, {
     commit: "cd9019ff6b84f4a623242490a76c4ad57b240d3b",
     tree: "7c2a2e6c53dc00927590926c9cca75950453d23b",

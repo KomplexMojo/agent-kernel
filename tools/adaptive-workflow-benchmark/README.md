@@ -81,7 +81,7 @@ evidence and (explicitly) promoted into a strategy policy via
 `promoteBenchmarkPolicy(...)`. Map the `agent` profile to a strategy id, e.g.
 `{ strategyIdByProfile: { agent: "flagship_full_context_v1" } }`.
 
-Reports carry `agent-kernel-adaptive-workflow-scenario-set/v1` plus a `smoke` or
+Reports carry `agon-adaptive-workflow-scenario-set/v1` plus a `smoke` or
 `qualification` purpose. Only the `hard` set is qualification evidence. The `all`
 set remains smoke-purpose because mixing easy smoke cases into a score would dilute
 the discriminating set; smoke and unclassified adaptive reports cannot enter policy selection.

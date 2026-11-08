@@ -76,7 +76,7 @@ function findResourceArtifacts(dir) {
       node.forEach(walk);
       return;
     }
-    if (node.schema === "agent-kernel/ResourceArtifact") found.push(node);
+    if (node.schema === "agon/ResourceArtifact") found.push(node);
     Object.values(node).forEach(walk);
   };
   all.forEach(walk);

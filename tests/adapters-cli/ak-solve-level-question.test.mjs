@@ -24,7 +24,7 @@ function runCliJson(args, env) {
   return JSON.parse(result.stdout);
 }
 
-const workDir = mkdtempSync(join(tmpdir(), "agent-kernel-solve-question-"));
+const workDir = mkdtempSync(join(tmpdir(), "agon-solve-question-"));
 const levelDir = join(workDir, "level");
 runCliJson([
   "create",

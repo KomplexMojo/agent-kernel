@@ -12,7 +12,7 @@ const baseMeta = {
 
 function makeBudget(tokens) {
   return {
-    schema: "agent-kernel/BudgetArtifact",
+    schema: "agon/BudgetArtifact",
     schemaVersion: 1,
     meta: { id: "budget-1", runId: "run-1", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     budget: { tokens },
@@ -21,18 +21,18 @@ function makeBudget(tokens) {
 
 function makeAllocation(pools) {
   return {
-    schema: "agent-kernel/BudgetAllocationArtifact",
+    schema: "agon/BudgetAllocationArtifact",
     schemaVersion: 1,
     meta: { id: "allocation-1", runId: "run-1", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
-    budgetRef: { id: "budget-1", schema: "agent-kernel/BudgetArtifact", schemaVersion: 1 },
-    priceListRef: { id: "price-list-1", schema: "agent-kernel/PriceList", schemaVersion: 1 },
+    budgetRef: { id: "budget-1", schema: "agon/BudgetArtifact", schemaVersion: 1 },
+    priceListRef: { id: "price-list-1", schema: "agon/PriceList", schemaVersion: 1 },
     pools,
   };
 }
 
 test("buildDefaultPriceList returns a valid PriceList artifact", () => {
   const pl = buildDefaultPriceList();
-  assert.equal(pl.schema, "agent-kernel/PriceList");
+  assert.equal(pl.schema, "agon/PriceList");
   assert.equal(pl.schemaVersion, 1);
   assert.ok(Array.isArray(pl.items) && pl.items.length > 0);
 });
@@ -95,7 +95,7 @@ test("buildPriceMap exposes only canonical kind:id price entries", () => {
 test("validateSpendProposal uses default price list when priceList omitted but items are present", () => {
   const pl = buildDefaultPriceList();
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-1" },
     items: [
@@ -117,7 +117,7 @@ test("validateSpendProposal uses default price list when priceList omitted but i
 test("validateSpendProposal attaches attribution fields from proposal items if present", () => {
   const pl = buildDefaultPriceList();
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-2" },
     items: [
@@ -126,7 +126,7 @@ test("validateSpendProposal attaches attribution fields from proposal items if p
         kind: "vital",
         quantity: 5,
         category: "delvers",
-        subjectRef: { id: "delver-1", schema: "agent-kernel/DelverArtifact", schemaVersion: 1 },
+        subjectRef: { id: "delver-1", schema: "agon/DelverArtifact", schemaVersion: 1 },
       },
     ],
   };
@@ -146,7 +146,7 @@ test("validateSpendProposal attaches attribution fields from proposal items if p
 test("validateSpendProposal denies when total cost exceeds budget", () => {
   const pl = buildDefaultPriceList();
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-3" },
     items: [
@@ -165,7 +165,7 @@ test("validateSpendProposal denies when total cost exceeds budget", () => {
 
 test("validateSpendProposal applies quadratic price formulas", () => {
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-quadratic" },
     items: [
@@ -186,7 +186,7 @@ test("validateSpendProposal applies quadratic price formulas", () => {
 
 test("validateSpendProposal keeps legacy partial status for mixed known and unknown spend without allocation", () => {
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-partial" },
     items: [
@@ -208,7 +208,7 @@ test("validateSpendProposal keeps legacy partial status for mixed known and unkn
 
 test("validateSpendProposal denies category pool overspend even when total budget remains", () => {
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-pool-over" },
     items: [
@@ -233,7 +233,7 @@ test("validateSpendProposal denies category pool overspend even when total budge
 
 test("validateSpendProposal denies unattributed spend when allocation is enforced", () => {
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-unattributed" },
     items: [
@@ -254,7 +254,7 @@ test("validateSpendProposal denies unattributed spend when allocation is enforce
 
 test("validateSpendProposal normalizes quantity zero to one", () => {
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-zero-quantity" },
     items: [
@@ -274,7 +274,7 @@ test("validateSpendProposal normalizes quantity zero to one", () => {
 
 test("validateSpendProposal denies all proposal items when priceList is null", () => {
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-no-price-list" },
     items: [
@@ -295,7 +295,7 @@ test("validateSpendProposal denies all proposal items when priceList is null", (
 
 test("validateSpendProposal approves empty proposal items with zero total cost", () => {
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-empty" },
     items: [],

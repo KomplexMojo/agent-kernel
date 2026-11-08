@@ -160,7 +160,7 @@ export function buildParallelScenario(source, sourceSetHash) {
 export function buildParallelCatalog() {
   const source = loadScenarioCatalog();
   return {
-    schemaVersion: "agent-kernel-abstract-plan-catalog/v1",
+    schemaVersion: "agon-abstract-plan-catalog/v1",
     sourceScenarioSet: { count: source.count, sha256: source.sha256 },
     scenarios: source.scenarios.map((scenario) => buildParallelScenario(scenario, source.sha256)),
   };

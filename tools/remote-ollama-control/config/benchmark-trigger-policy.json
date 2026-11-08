@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "agent-kernel-benchmark-trigger-policy/v1",
+  "schemaVersion": "agon-benchmark-trigger-policy/v1",
   "runnerContractVersion": "benchmark-agent-v2",
   "sourceRef": "main",
   "resultBranch": "benchmark-results",

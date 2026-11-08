@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schema": "agon/BudgetReceiptArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "receipt_unknown_item",
@@ -9,17 +9,17 @@
   },
   "budgetRef": {
     "id": "budget_basic",
-    "schema": "agent-kernel/BudgetArtifact",
+    "schema": "agon/BudgetArtifact",
     "schemaVersion": 1
   },
   "priceListRef": {
     "id": "price_list_basic",
-    "schema": "agent-kernel/PriceList",
+    "schema": "agon/PriceList",
     "schemaVersion": 1
   },
   "proposalRef": {
     "id": "proposal_unknown_item",
-    "schema": "agent-kernel/SpendProposal",
+    "schema": "agon/SpendProposal",
     "schemaVersion": 1
   },
   "status": "denied",

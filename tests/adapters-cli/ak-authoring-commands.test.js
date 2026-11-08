@@ -60,10 +60,10 @@ test("cli help documents generic create and configure authoring commands", () =>
 });
 
 test("cli create emits a complete playable artifact bundle for agent requests", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-authoring-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-create-authoring-"));
   const budgetPath = join(outDir, "budget-input.json");
   writeFileSync(budgetPath, JSON.stringify({
-    schema: "agent-kernel/BudgetArtifact",
+    schema: "agon/BudgetArtifact",
     schemaVersion: 1,
     meta: {
       id: "budget_create_authoring_1200",
@@ -131,7 +131,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   const manifest = readJson(join(outDir, "manifest.json"));
   const telemetry = readJson(join(outDir, "telemetry.json"));
 
-  assert.equal(request.schema, "agent-kernel/AgentCommandRequestArtifact");
+  assert.equal(request.schema, "agon/AgentCommandRequestArtifact");
   assert.equal(request.command.action, "author");
   assert.equal(request.command.text, "Create a fire room with a hazard, one delver, and one warden. Total budget 1200 tokens.");
   assert.deepEqual(
@@ -171,9 +171,9 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   )));
   assert.ok(manifest.artifacts.every((entry) => entry.path !== "request.json"));
   assert.ok(manifest.artifacts.some((entry) => entry.path === "spend-proposal.json"));
-  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
-  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SpendProposal"));
-  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agon/ResourceBundleArtifact"));
+  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agon/SpendProposal"));
+  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agon/ResourceBundleArtifact"));
   assert.deepEqual(
     telemetry.data.artifactRefs,
     manifest.artifacts.map((entry) => ({
@@ -185,7 +185,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
 });
 
 test("cli create emits intermediate sidecars only when explicitly requested", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-authoring-intermediates-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-create-authoring-intermediates-"));
   const result = runCliOk([
     "create",
     "--text",
@@ -217,11 +217,11 @@ test("cli create emits intermediate sidecars only when explicitly requested", ()
   const bundle = readJson(join(outDir, "bundle.json"));
   assert.ok(manifest.artifacts.some((entry) => entry.path === "request.json"));
   assert.ok(manifest.artifacts.some((entry) => entry.path === "spend-proposal.json"));
-  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SpendProposal"));
+  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agon/SpendProposal"));
 });
 
 test("cli create dry-run validates authored requests without writing artifacts", () => {
-  const rootDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-dry-run-"));
+  const rootDir = mkdtempSync(join(os.tmpdir(), "agon-create-dry-run-"));
   const outDir = join(rootDir, "out");
   const result = runCliOk([
     "create",
@@ -253,7 +253,7 @@ test("cli create dry-run validates authored requests without writing artifacts",
 });
 
 test("cli create dry-run returns valid false for infeasible budgets and still exits cleanly", () => {
-  const rootDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-dry-run-invalid-"));
+  const rootDir = mkdtempSync(join(os.tmpdir(), "agon-create-dry-run-invalid-"));
   const outDir = join(rootDir, "out");
   const result = runCli([
     "create",
@@ -281,7 +281,7 @@ test("cli create dry-run returns valid false for infeasible budgets and still ex
 });
 
 test("cli configure preserves generic parsing but records configure action", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-configure-authoring-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-configure-authoring-"));
   const result = runCliOk([
     "configure",
     "--text",
@@ -336,7 +336,7 @@ test("cli create rejects conflicting hard budget inputs", () => {
 });
 
 test("cli create keeps budget-only input as a hard constraint without maximize-spend goal", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-budget-only-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-create-budget-only-"));
   runCliOk([
     "create",
     "--text",
@@ -363,7 +363,7 @@ test("cli create keeps budget-only input as a hard constraint without maximize-s
 });
 
 test("cli create maximizes delver spend deterministically when explicitly asked to maximize spend", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-delver-max-spend-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-create-delver-max-spend-"));
   runCliOk([
     "create",
     "--text",
@@ -412,7 +412,7 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
 });
 
 test("cli create maximizes room size within valid spend — rooms carry no affinities", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-room-max-spend-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-create-room-max-spend-"));
   runCliOk([
     "create",
     "--text",
@@ -437,7 +437,7 @@ test("cli create maximizes room size within valid spend — rooms carry no affin
 });
 
 test("cli room-plan rejects insufficient hard budgets instead of silently degrading the request", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-insufficient-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-room-plan-insufficient-"));
   const result = runCli([
     "room-plan",
     "--room",
@@ -462,7 +462,7 @@ test("cli room-plan rejects insufficient hard budgets instead of silently degrad
 });
 
 test("cli delver-plan rejects conflicting hard requirements with deterministic explanations", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-conflict-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-conflict-"));
   const result = runCli([
     "delver-plan",
     "--goal",

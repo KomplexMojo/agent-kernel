@@ -1,6 +1,6 @@
 # ui-ascii
 
-A playable terminal front end for agent-kernel: you are `@`, find the exit `E`, and mind the traps `☼`.
+A playable terminal front end for Agon: you are `@`, find the exit `E`, and mind the traps `☼`.
 
 It is reachable from the `ak` CLI and the MCP server, so any harness can create a level and show it:
 
@@ -142,4 +142,4 @@ Every bundled level is `ak create` output: the Configurator lays out the rooms a
 
 Tests that need an exact board shape use the hand-written levels in `tests/fixtures/ui-ascii/levels/`.
 
-**Phone app.** The phone app (PWA) moved to the private Primordial repository (#744). It runs this package's game controller in the page through the published API (`@agent-kernel/ui-ascii`: `game.js`, `screen.js`, `keymap.js`, `html.js`, listed in `tests/architecture/framework-game-boundary.json`), so the touch surface `game.js` offers (`slots()`, `tuneSlot`, `panelChoices()`, `toggleSlotAffinity`, `screen({ parts })`) is framework API and is tested here (`tests/ui-ascii/ui-ascii-controller.test.js`).
+**Phone app.** The phone app (PWA) moved to the private Primordial repository (#744). It runs this package's game controller in the page through the published API (`@agon-engine/ui-ascii`: `game.js`, `screen.js`, `keymap.js`, `html.js`, listed in `tests/architecture/framework-game-boundary.json`), so the touch surface `game.js` offers (`slots()`, `tuneSlot`, `panelChoices()`, `toggleSlotAffinity`, `screen({ parts })`) is framework API and is tested here (`tests/ui-ascii/ui-ascii-controller.test.js`).

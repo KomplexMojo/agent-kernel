@@ -18,9 +18,9 @@ const ROOT = resolve(__dirname, "../..");
 // Use the configurator spec — it has levelGen + actors and produces SimConfig + InitialState + ResourceBundle
 const SPEC_PATH = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-configurator.json");
 
-const SCHEMA_SIM_CONFIG = "agent-kernel/SimConfigArtifact";
-const SCHEMA_INITIAL_STATE = "agent-kernel/InitialStateArtifact";
-const SCHEMA_RESOURCE_BUNDLE = "agent-kernel/ResourceBundleArtifact";
+const SCHEMA_SIM_CONFIG = "agon/SimConfigArtifact";
+const SCHEMA_INITIAL_STATE = "agon/InitialStateArtifact";
+const SCHEMA_RESOURCE_BUNDLE = "agon/ResourceBundleArtifact";
 
 test("compileBuildSpecToGameplayBundle returns { spec, artifacts[] } with SimConfig and ResourceBundle", async () => {
   const { compileBuildSpecToGameplayBundle } = await import(

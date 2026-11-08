@@ -160,8 +160,8 @@ test("bundled levels are exactly what `ak create` makes from their recipes", () 
 
 test("bundled and fixture levels are versioned artifacts", () => {
   for (const { simConfig, initialState } of [...loadBundledLevels(), ...fixtureLevels()]) {
-    assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
-    assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
+    assert.equal(simConfig.schema, "agon/SimConfigArtifact");
+    assert.equal(initialState.schema, "agon/InitialStateArtifact");
     assert.equal(simConfig.schemaVersion, 1);
     assert.equal(initialState.simConfigRef.id, simConfig.meta.id);
   }
@@ -300,7 +300,7 @@ test("the cli records a game into a directory that does not exist yet", () => {
     const recorded = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", "d", "--record", capturePath], { encoding: "utf8" });
     assert.equal(recorded.status, 0, recorded.stderr);
     const capture = JSON.parse(require("node:fs").readFileSync(capturePath, "utf8"));
-    assert.equal(capture.schema, "agent-kernel/CapturedInputArtifact");
+    assert.equal(capture.schema, "agon/CapturedInputArtifact");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -318,7 +318,7 @@ test("the cli records a game and replays it to the same place", () => {
     const recorded = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", half, "--record", capturePath], { encoding: "utf8" });
     assert.equal(recorded.status, 0, recorded.stderr);
     const capture = JSON.parse(require("node:fs").readFileSync(capturePath, "utf8"));
-    assert.equal(capture.schema, "agent-kernel/CapturedInputArtifact");
+    assert.equal(capture.schema, "agon/CapturedInputArtifact");
     assert.equal(capture.source.adapter, "player");
     assert.equal(capture.payload.commands.length, half.length);
 

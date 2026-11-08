@@ -6,7 +6,7 @@ const path = require('path');
 
 function loadTriggerPolicy(rootDir) {
   const policy = JSON.parse(fs.readFileSync(path.join(rootDir, 'config', 'benchmark-trigger-policy.json'), 'utf8'));
-  if (policy.schemaVersion !== 'agent-kernel-benchmark-trigger-policy/v1'
+  if (policy.schemaVersion !== 'agon-benchmark-trigger-policy/v1'
     || !policy.runnerContractVersion || !Array.isArray(policy.relevantPaths)
     || !policy.pathClasses || !['authoring', 'runtimeExecution', 'generatedExecution']
       .every((name) => Array.isArray(policy.pathClasses[name]))) {

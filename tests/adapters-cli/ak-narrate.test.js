@@ -42,18 +42,18 @@ function createMeta(overrides = {}) {
 }
 
 test("cli narrate writes a turn-by-turn narrative artifact", () => {
-  const workDir = makeTempDir("agent-kernel-narrate-");
+  const workDir = makeTempDir("agon-narrate-");
   const initialStatePath = join(workDir, "initial-state.json");
   const tickFramesPath = join(workDir, "tick-frames.json");
   const outDir = join(workDir, "narrate-out");
 
   const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: "agon/InitialStateArtifact",
     schemaVersion: 1,
     meta: createMeta({ id: "initial_state" }),
     simConfigRef: {
       id: "sim_config",
-      schema: "agent-kernel/SimConfigArtifact",
+      schema: "agon/SimConfigArtifact",
       schemaVersion: 1,
     },
     actors: [
@@ -63,7 +63,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
   };
 
   const telemetryEffect = {
-    schema: "agent-kernel/Effect",
+    schema: "agon/Effect",
     schemaVersion: 1,
     id: "effect_1",
     tick: 1,
@@ -75,7 +75,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
 
   const tickFrames = [
     {
-      schema: "agent-kernel/TickFrame",
+      schema: "agon/TickFrame",
       schemaVersion: 1,
       meta: createMeta({ id: "frame_1", producedBy: "moderator" }),
       tick: 1,
@@ -83,7 +83,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
       phaseDetail: "apply",
       acceptedActions: [
         {
-          schema: "agent-kernel/Action",
+          schema: "agon/Action",
           schemaVersion: 1,
           actorId: "actor_1",
           tick: 1,
@@ -93,7 +93,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
       ],
       emittedEvents: [
         {
-          // PA.4 retired the agent-kernel/Event envelope; events are a plain shape on
+          // PA.4 retired the agon/Event envelope; events are a plain shape on
           // TickFrame.emittedEvents. Narration reads kind/actorId/data only.
           tick: 1,
           kind: "actor_moved",
@@ -111,7 +111,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
       ],
     },
     {
-      schema: "agent-kernel/TickFrame",
+      schema: "agon/TickFrame",
       schemaVersion: 1,
       meta: createMeta({ id: "frame_2", producedBy: "moderator" }),
       tick: 2,
@@ -119,7 +119,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
       phaseDetail: "apply",
       acceptedActions: [
         {
-          schema: "agent-kernel/Action",
+          schema: "agon/Action",
           schemaVersion: 1,
           actorId: "actor_2",
           tick: 2,
@@ -130,7 +130,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
       preCoreRejections: [
         {
           action: {
-            schema: "agent-kernel/Action",
+            schema: "agon/Action",
             schemaVersion: 1,
             actorId: "actor_1",
             tick: 2,
@@ -171,7 +171,7 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
   assert.ok(existsSync(stdout.artifactPaths.narrative));
 
   const narrative = readJson(join(outDir, "narrative.json"));
-  assert.equal(narrative.schema, "agent-kernel/NarrativeArtifact");
+  assert.equal(narrative.schema, "agon/NarrativeArtifact");
   assert.equal(narrative.schemaVersion, 1);
   assert.equal(narrative.source.frames, 2);
   assert.equal(narrative.source.ticks, 2);

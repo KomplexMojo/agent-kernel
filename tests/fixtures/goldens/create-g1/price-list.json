@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/PriceList",
+  "schema": "agon/PriceList",
   "schemaVersion": 1,
   "meta": {
     "id": "golden_g1_default_price_list",

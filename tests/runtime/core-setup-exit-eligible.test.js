@@ -15,7 +15,7 @@ test("delver records can exit; wardens cannot", async () => {
   const layout = { width: 3, height: 1, terrain: ["floor", "floor", "exit"], exitApproach: { x: 1, y: 0 } };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "cfg", runId: "r", createdAt: "fixed" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { delver: 0, warden: 0 },
   });

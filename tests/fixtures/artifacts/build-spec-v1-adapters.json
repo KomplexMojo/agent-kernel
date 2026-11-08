@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BuildSpec",
+  "schema": "agon/BuildSpec",
   "schemaVersion": 1,
   "meta": {
     "id": "buildspec_adapters",
@@ -23,7 +23,7 @@
         },
         "outputRef": {
           "id": "capture_ipfs_price_list",
-          "schema": "agent-kernel/CapturedInputArtifact",
+          "schema": "agon/CapturedInputArtifact",
           "schemaVersion": 1
         }
       },

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-kernel.local/schemas/execution-catalog-v1.json",
-  "title": "Agent Kernel execution benchmark family catalog",
+  "$id": "https://agon.local/schemas/execution-catalog-v1.json",
+  "title": "Agon execution benchmark family catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "family", "scenarios"],
   "properties": {
-    "schemaVersion": { "const": "agent-kernel-execution-catalog/v1" },
+    "schemaVersion": { "const": "agon-execution-catalog/v1" },
     "family": { "enum": ["traversal", "combat", "hazards", "resources", "stress"] },
     "scenarios": {
       "type": "array",

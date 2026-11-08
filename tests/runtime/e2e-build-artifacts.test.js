@@ -97,7 +97,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   if (inputs) {
     const presetId = "affinity_fire_push";
     const presetsArtifact = {
-      schema: "agent-kernel/AffinityPresetArtifact",
+      schema: "agon/AffinityPresetArtifact",
       schemaVersion: 1,
       meta: {
         id: "affinity_presets_e2e",
@@ -119,7 +119,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
       ],
     };
     const loadoutsArtifact = {
-      schema: "agent-kernel/ActorLoadoutArtifact",
+      schema: "agon/ActorLoadoutArtifact",
       schemaVersion: 1,
       meta: {
         id: "affinity_loadouts_e2e",
@@ -248,19 +248,19 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
     clock: () => buildSpecResult.spec.meta.createdAt,
   });
 
-  assert.equal(bundle.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(bundle.spec.schema, "agon/BuildSpec");
   assert.equal(bundle.artifacts.length, manifest.artifacts.length);
-  assert.equal(telemetry.schema, "agent-kernel/TelemetryRecord");
+  assert.equal(telemetry.schema, "agon/TelemetryRecord");
   assert.equal(telemetry.scope, "run");
   assert.equal(telemetry.data.status, "success");
   assert.equal(telemetry.meta.runId, buildSpecResult.spec.meta.runId);
   assert.deepEqual(telemetry.data.artifactRefs, buildArtifactRefs(manifestEntries));
 
-  const requiredSchemas = new Set(["agent-kernel/IntentEnvelope", "agent-kernel/PlanArtifact"]);
+  const requiredSchemas = new Set(["agon/IntentEnvelope", "agon/PlanArtifact"]);
   const manifestSchemas = new Set(manifest.artifacts.map((entry) => entry.schema));
   requiredSchemas.forEach((schema) => assert.ok(manifestSchemas.has(schema)));
-  assert.ok(manifestSchemas.has("agent-kernel/CapturedInputArtifact"));
-  assert.ok(manifestSchemas.has("agent-kernel/ResourceBundleArtifact"));
+  assert.ok(manifestSchemas.has("agon/CapturedInputArtifact"));
+  assert.ok(manifestSchemas.has("agon/ResourceBundleArtifact"));
 
   const sortedManifest = [...manifest.artifacts].sort((a, b) => {
     if (a.schema === b.schema) {

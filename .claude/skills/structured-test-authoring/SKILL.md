@@ -1,11 +1,11 @@
 ---
 name: structured-test-authoring
-description: Use when authoring, scaffolding, or locating a test in agent-kernel — reach for the ak_test_* MCP tools and an existing recipe before hand-writing a file. Do not use for diagnosing a failing suite (tiered-test-optimizer), expanding `## TODO: Test Permutations` stubs (local-test-gen), or deciding what behavior a persona should have (persona-*).
+description: Use when authoring, scaffolding, or locating a test in Agon — reach for the ak_test_* MCP tools and an existing recipe before hand-writing a file. Do not use for diagnosing a failing suite (tiered-test-optimizer), expanding `## TODO: Test Permutations` stubs (local-test-gen), or deciding what behavior a persona should have (persona-*).
 ---
 
 # Structured Test Authoring
 
-Use the agent-kernel MCP test tools before writing or running tests manually.
+Use the Agon MCP test tools before writing or running tests manually.
 
 ## Rules
 - Prefer `ak_test_list_suites` and `ak_test_discover_patterns` before authoring a new test.

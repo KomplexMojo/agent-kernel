@@ -146,12 +146,12 @@ test("fitTacticHazards drops hazards from the end until the share is approved", 
 
 function spec({ tactics, budget }) {
   return {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: { id: "minefield", runId: "minefield", createdAt: CREATED_AT, source: "runtime-test" },
     intent: { goal: "a room of hazards with a safe line" },
     plan: { hints: { tactics } },
-    ...(budget ? { budget: { budget: { schema: "agent-kernel/BudgetArtifact", schemaVersion: 1,
+    ...(budget ? { budget: { budget: { schema: "agon/BudgetArtifact", schemaVersion: 1,
       meta: { id: "budget", runId: "minefield", createdAt: CREATED_AT, producedBy: "runtime-test" },
       budget: { tokens: budget } } } } : {}),
     configurator: {

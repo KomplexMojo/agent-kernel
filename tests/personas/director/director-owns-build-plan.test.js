@@ -29,7 +29,7 @@ test("mapBuildSpecToArtifacts's plan is produced by the Director", async () => {
 
   const { plan } = mapBuildSpecToArtifacts(spec, { producedBy: "cli-create" });
 
-  assert.equal(plan.schema, "agent-kernel/PlanArtifact");
+  assert.equal(plan.schema, "agon/PlanArtifact");
   assert.equal(plan.schemaVersion, 1);
   // Provenance is the Director's, not the glue producer we passed in.
   assert.equal(plan.meta.producedBy, "director");

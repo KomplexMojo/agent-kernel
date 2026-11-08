@@ -69,7 +69,7 @@ test('host and route detail cannot ride along into the published document', () =
 });
 
 test('an in-flight run carries its progress, and an idle agent reports null rather than omitting it', () => {
-  const progress = { schemaVersion: 'agent-kernel-benchmark-progress/v1', attempts: { recorded: 12 } };
+  const progress = { schemaVersion: 'agon-benchmark-progress/v1', attempts: { recorded: 12 } };
   const running = composeHeartbeat({ publishedAt: AT, status: 'running', progress });
   assert.deepEqual(running.progress, progress);
   const idle = composeHeartbeat({ publishedAt: AT, status: 'idle' });
@@ -171,7 +171,7 @@ test('a runner with no install manifest reports null provenance rather than fail
 test('install provenance is read from the manifest the installer writes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ak-manifest-'));
   writeFileSync(join(dir, INSTALL_MANIFEST_NAME), JSON.stringify({
-    schemaVersion: 'agent-kernel-install-manifest/v1',
+    schemaVersion: 'agon-install-manifest/v1',
     installedAt: AT,
     sourceCommit: 'abc123abc123abc123abc123abc123abc123abcd',
     sourceRef: 'main',

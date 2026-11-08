@@ -15,7 +15,7 @@ const assert = require("node:assert/strict");
 
 function validateBase(snap) {
   assert.ok(snap !== null && typeof snap === "object", "snapshot must be an object");
-  assert.equal(snap.schema, "agent-kernel/VisualizationSnapshot");
+  assert.equal(snap.schema, "agon/VisualizationSnapshot");
   assert.equal(snap.schemaVersion, 1);
   assert.ok(snap.meta && typeof snap.meta === "object", "meta must be present");
   assert.equal(typeof snap.meta.runId, "string");
@@ -81,7 +81,7 @@ test("runtime exports createVisualizationSnapshot", async () => {
 
 test("VisualizationSnapshot ascii shape satisfies contract", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs1", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "ascii",
@@ -112,7 +112,7 @@ test("VisualizationSnapshot ascii shape satisfies contract", () => {
 
 test("VisualizationSnapshot image shape satisfies contract", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs2", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "image",
@@ -126,7 +126,7 @@ test("VisualizationSnapshot image shape satisfies contract", () => {
 
 test("VisualizationSnapshot image shape also satisfies contract via visualizationPath (#144)", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs2b", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "image",
@@ -142,7 +142,7 @@ test("VisualizationSnapshot image shape also satisfies contract via visualizatio
 
 test("VisualizationSnapshot rejects unknown mode", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs3", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "video",
@@ -154,7 +154,7 @@ test("VisualizationSnapshot rejects unknown mode", () => {
 
 test("ascii snapshot rejects missing layers", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs4", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "ascii",
@@ -167,7 +167,7 @@ test("ascii snapshot rejects missing layers", () => {
 
 test("image snapshot rejects file path instead of data URI", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs5", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "image",
@@ -192,7 +192,7 @@ test("actorDetail with empty affinities array is valid", () => {
 
 test("ascii snapshot with empty actorDetails array is valid", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs6", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "ascii",
@@ -214,7 +214,7 @@ test("ascii snapshot with empty actorDetails array is valid", () => {
 test("ascii snapshot with identical empty layers is valid", () => {
   const emptyLayer = "   \n   \n   ";
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs7", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "ascii",
@@ -235,7 +235,7 @@ test("ascii snapshot with identical empty layers is valid", () => {
 
 test("image snapshot permits null ascii field", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs8", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "image",
@@ -285,7 +285,7 @@ test("actorDetail accepts fractional position", () => {
 
 test("VisualizationSnapshot rejects schemaVersion 0 or undefined", () => {
   const base = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     meta: { id: "vs9", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "ascii",
     tick: 1,
@@ -297,7 +297,7 @@ test("VisualizationSnapshot rejects schemaVersion 0 or undefined", () => {
 
 test("VisualizationSnapshot rejects meta missing runId", () => {
   const snap = {
-    schema: "agent-kernel/VisualizationSnapshot",
+    schema: "agon/VisualizationSnapshot",
     schemaVersion: 1,
     meta: { id: "vs10", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
     mode: "ascii",

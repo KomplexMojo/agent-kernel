@@ -110,7 +110,7 @@ test("bridge-server: pushGameplayBundle delivers exact envelope to connected cli
       createdAt: new Date().toISOString(),
       targetTab: "gameplay",
       payload: {
-        bundle: { simConfig: { schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1, meta: { id: "sc1" } } },
+        bundle: { simConfig: { schema: "agon/SimConfigArtifact", schemaVersion: 1, meta: { id: "sc1" } } },
         source: { tool: "ak_sandbox_push_ui" },
       },
     };

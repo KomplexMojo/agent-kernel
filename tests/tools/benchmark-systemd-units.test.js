@@ -6,7 +6,7 @@ const SYSTEMD_DIR = resolve(__dirname, '../../tools/remote-ollama-control/system
 
 // Both of these reach GitHub over SSH: the benchmark service to publish results, the heartbeat to
 // publish its beacon.
-const PUBLISHING_UNITS = ['agent-kernel-benchmark.service', 'agent-kernel-heartbeat.service'];
+const PUBLISHING_UNITS = ['agon-benchmark.service', 'agon-heartbeat.service'];
 
 function unit(name) {
   return readFileSync(join(SYSTEMD_DIR, name), 'utf8');
@@ -62,7 +62,7 @@ test('every shipped unit is syntactically a systemd unit', () => {
 // the benchmark timer's OnUnitInactiveSec would make it wait for that run to finish first, which is
 // precisely the window it is meant to cover.
 test('the heartbeat timer fires on a fixed cadence rather than after the previous run', () => {
-  const timer = unit('agent-kernel-heartbeat.timer');
+  const timer = unit('agon-heartbeat.timer');
   assert.match(timer, /^OnUnitActiveSec=/m);
   assert.doesNotMatch(timer, /^OnUnitInactiveSec=/m);
 });
@@ -71,7 +71,7 @@ test('the heartbeat timer fires on a fixed cadence rather than after the previou
 // once. A redeploy that only daemon-reloads then never schedules again. OnActiveSec arms the first
 // fire relative to the timer unit itself becoming active.
 test('both timers arm a first fire when the timer unit itself activates', () => {
-  for (const name of ['agent-kernel-heartbeat.timer', 'agent-kernel-benchmark.timer']) {
+  for (const name of ['agon-heartbeat.timer', 'agon-benchmark.timer']) {
     assert.match(unit(name), /^OnActiveSec=/m, `${name} must schedule relative to timer activation`);
   }
 });

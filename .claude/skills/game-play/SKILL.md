@@ -1,6 +1,6 @@
 ---
 name: game-play
-description: Play an agent-kernel level turn by turn in the chat. Usage /game-play [runId | bundled level name] [keys or plain-language moves].
+description: Play an Agon level turn by turn in the chat. Usage /game-play [runId | bundled level name] [keys or plain-language moves].
 disable-model-invocation: true
 argument-hint: [runId | level] [moves]
 ---

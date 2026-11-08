@@ -229,7 +229,7 @@ export async function runPlaySim({ scenarios, seeds = DEFAULT_SEEDS, outDir, bas
   }
   const usedModel = Boolean(llm || picker || seatPicker);
   // A model run is a probe, like a benchmark --local run: never a qualifying baseline, never a gate.
-  const summary = { schema: "agent-kernel/PlaySimRun", version: 1, strategy, seeds, maxTicks,
+  const summary = { schema: "agon/PlaySimRun", version: 1, strategy, seeds, maxTicks,
     ...(usedModel ? { matrix: "local-unversioned", model } : {}),
     runs: runs.map(({ file, scenario, seed, arm, outcome, ticks, ruleHits: hits }) => ({ file, scenario, seed, arm, outcome, ticks, ruleHits: hits.map((hit) => hit.rule) })) };
   writeFileSync(join(outDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);

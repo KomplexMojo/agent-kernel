@@ -1,6 +1,6 @@
 ---
 name: agentic-change-planning
-description: Use when planning, scoping, or writing a milestone/plan for an agent-kernel change — especially before coding. Routes the plan to the owning persona-* or architecture-* skill so work stays scoped instead of a full-app sweep. Do not use as a substitute for those domain skills during implementation.
+description: Use when planning, scoping, or writing a milestone/plan for an Agon change — especially before coding. Routes the plan to the owning persona-* or architecture-* skill so work stays scoped instead of a full-app sweep. Do not use as a substitute for those domain skills during implementation.
 ---
 
 # Agentic change planning

@@ -117,16 +117,16 @@ test("command kernel solve writes solver artifacts via injected host services", 
   const solverRequest = files.get("/out/solve/solver-request.json");
   const solverResult = files.get("/out/solve/solver-result.json");
 
-  assert.equal(solverRequest.schema, "agent-kernel/SolverRequest");
+  assert.equal(solverRequest.schema, "agon/SolverRequest");
   assert.equal(solverRequest.schemaVersion, 1);
   assert.equal(solverRequest.meta.runId, "run_kernel_solve");
   assert.equal(solverRequest.problem.language, "custom");
   assert.equal(solverRequest.problem.data, "two actors conflict");
 
-  assert.equal(solverResult.schema, "agent-kernel/SolverResult");
+  assert.equal(solverResult.schema, "agon/SolverResult");
   assert.equal(solverResult.schemaVersion, 1);
   assert.equal(solverResult.meta.runId, "run_kernel_solve");
-  assert.equal(solverResult.requestRef.schema, "agent-kernel/SolverRequest");
+  assert.equal(solverResult.requestRef.schema, "agon/SolverRequest");
   assert.equal(solverResult.result.note, "stubbed_solver_result");
 
   assert.equal(logs[0], "solve: wrote /out/solve");

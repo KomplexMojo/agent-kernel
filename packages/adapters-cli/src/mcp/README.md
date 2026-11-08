@@ -1,10 +1,10 @@
-# agent-kernel MCP Server
+# Agon MCP Server
 
 ## Overview
 
-`packages/adapters-cli/src/mcp/server.mjs` exposes the `agent-kernel-cli` Model Context Protocol server over stdio.
+`packages/adapters-cli/src/mcp/server.mjs` exposes the `agon-cli` Model Context Protocol server over stdio.
 
-- Server name: `agent-kernel-cli`
+- Server name: `agon-cli`
 - Server version: `1.0.0`
 - Transport: stdio
 - Tool count: `57`
@@ -17,7 +17,7 @@ The server is a thin adapter over the CLI command surface in `packages/adapters-
 The MCP server is the structured-tool version of `ak.mjs`. It does not create a separate runtime path:
 
 ```text
-MCP client -> agent-kernel-cli MCP server -> adapters-cli command -> runtime -> core-ts
+MCP client -> agon-cli MCP server -> adapters-cli command -> runtime -> core-ts
 ```
 
 Use MCP when a harness can call tools directly and needs JSON-shaped inputs and outputs. Use the CLI when you are manually debugging, scripting outside an MCP client, or want to inspect raw stdout/stderr behavior.
@@ -115,7 +115,7 @@ function request(method, params) {
   const init = await request('initialize', {
     protocolVersion: '2025-03-26',
     capabilities: {},
-    clientInfo: { name: 'agent-kernel-readme-check', version: '1.0.0' },
+    clientInfo: { name: 'Agon-readme-check', version: '1.0.0' },
   });
   send({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
   const listed = await request('tools/list', {});
@@ -136,7 +136,7 @@ Expected output shape:
 ```json
 {
   "server": {
-    "name": "agent-kernel-cli",
+    "name": "agon-cli",
     "version": "1.0.0"
   },
   "toolCount": 50,
@@ -155,19 +155,19 @@ Expected output shape:
 #### Claude Code
 
 The repository root carries a project-scoped `.mcp.json` that registers this server as
-`agent-kernel-cli`. It starts from the repository root whatever directory Claude Code was
+`agon-cli`. It starts from the repository root whatever directory Claude Code was
 opened in, and `.claude/settings.json` enables it and pre-allows the game tools
 (`ak_play_ascii`, `ak_create`, `ak_run`, `ak_show`, the tick tools and the other read-only
 inspection tools), so a session in this repository needs no setup. Check it with:
 
 ```bash
-claude mcp get agent-kernel-cli
+claude mcp get agon-cli
 ```
 
 To register it by hand instead (for example from outside the repository), use `claude mcp add`:
 
 ```bash
-claude mcp add --transport stdio agent-kernel-cli -- \
+claude mcp add --transport stdio agon-cli -- \
   node /Users/darren/Documents/GitHub/agent-kernel/packages/adapters-cli/src/mcp/server.mjs
 ```
 
@@ -182,7 +182,7 @@ If your Claude harness accepts a JSON `mcpServers` block, use:
 ```json
 {
   "mcpServers": {
-    "agent-kernel-cli": {
+    "agon-cli": {
       "type": "stdio",
       "command": "node",
       "args": [
@@ -197,7 +197,7 @@ If your Claude harness accepts a JSON `mcpServers` block, use:
 For prompt-level steering in `CLAUDE.md`, add:
 
 ```md
-Use the `agent-kernel-cli` MCP server for agent-kernel authoring, simulation, inspection, LLM planning, and external adapter operations. Prefer the `ak_*` MCP tools over shelling out to the CLI when the MCP server is available.
+Use the `agon-cli` MCP server for Agon authoring, simulation, inspection, LLM planning, and external adapter operations. Prefer the `ak_*` MCP tools over shelling out to the CLI when the MCP server is available.
 ```
 
 #### Codex
@@ -205,17 +205,17 @@ Use the `agent-kernel-cli` MCP server for agent-kernel authoring, simulation, in
 Current Codex docs store actual MCP registration in `~/.codex/config.toml` or project-scoped `.codex/config.toml`:
 
 ```toml
-[mcp_servers.agent-kernel-cli]
+[mcp_servers.agon-cli]
 command = "node"
 args = ["/Users/darren/Documents/GitHub/agent-kernel/packages/adapters-cli/src/mcp/server.mjs"]
 
-[mcp_servers.agent-kernel-cli.env]
+[mcp_servers.agon-cli.env]
 ```
 
 CLI equivalent:
 
 ```bash
-codex mcp add agent-kernel-cli -- \
+codex mcp add agon-cli -- \
   node /Users/darren/Documents/GitHub/agent-kernel/packages/adapters-cli/src/mcp/server.mjs
 ```
 
@@ -230,7 +230,7 @@ In `AGENTS.md`, add an instruction block so Codex actually uses the configured s
 ```md
 ## MCP
 
-Use the `agent-kernel-cli` MCP server when working in this repository. Prefer the `ak_*` tools over shell commands for authoring, simulation, inspection, LLM planning, IPFS, and blockchain operations.
+Use the `agon-cli` MCP server when working in this repository. Prefer the `ak_*` tools over shell commands for authoring, simulation, inspection, LLM planning, IPFS, and blockchain operations.
 ```
 
 #### Ollama via Claude/Codex harness
@@ -367,7 +367,7 @@ Example call:
   "dryRun": true,
   "runId": "run_mcp_create_dry_run",
   "createdAt": "2026-04-10T00:00:00.000Z",
-  "outDir": "/tmp/agent-kernel/create"
+  "outDir": "/tmp/agon/create"
 }
 ```
 
@@ -380,7 +380,7 @@ Expected output shape:
   "runId": "run_mcp_create_dry_run",
   "dryRun": true,
   "valid": true,
-  "outDir": "/tmp/agent-kernel/create"
+  "outDir": "/tmp/agon/create"
 }
 ```
 
@@ -417,7 +417,7 @@ Example call:
   "room": ["size=small;count=2;affinities=dark:emit:2"],
   "hazard": ["x=2;y=3;affinity=fire;stacks=1"],
   "runId": "run_configure_rooms",
-  "outDir": "/tmp/agent-kernel/configure"
+  "outDir": "/tmp/agon/configure"
 }
 ```
 
@@ -428,12 +428,12 @@ Expected output shape:
   "ok": true,
   "command": "configure",
   "runId": "run_configure_rooms",
-  "outDir": "/tmp/agent-kernel/configure",
+  "outDir": "/tmp/agon/configure",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/configure/spec.json",
-    "plan": "/tmp/agent-kernel/configure/plan.json",
-    "simConfig": "/tmp/agent-kernel/configure/sim-config.json",
-    "initialState": "/tmp/agent-kernel/configure/initial-state.json"
+    "spec": "/tmp/agon/configure/spec.json",
+    "plan": "/tmp/agon/configure/plan.json",
+    "simConfig": "/tmp/agon/configure/sim-config.json",
+    "initialState": "/tmp/agon/configure/initial-state.json"
   }
 }
 ```
@@ -465,7 +465,7 @@ Example call:
   ],
   "budgetTokens": 120,
   "runId": "run_room_plan",
-  "outDir": "/tmp/agent-kernel/room-plan"
+  "outDir": "/tmp/agon/room-plan"
 }
 ```
 
@@ -476,11 +476,11 @@ Expected output shape:
   "ok": true,
   "command": "room-plan",
   "runId": "run_room_plan",
-  "outDir": "/tmp/agent-kernel/room-plan",
+  "outDir": "/tmp/agon/room-plan",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/room-plan/spec.json",
-    "plan": "/tmp/agent-kernel/room-plan/plan.json",
-    "manifest": "/tmp/agent-kernel/room-plan/manifest.json"
+    "spec": "/tmp/agon/room-plan/spec.json",
+    "plan": "/tmp/agon/room-plan/plan.json",
+    "manifest": "/tmp/agon/room-plan/manifest.json"
   }
 }
 ```
@@ -511,7 +511,7 @@ Example call:
     "count=2;affinity=fire;motivation=attacking;goals=max_mana:high,mana_regen:high"
   ],
   "runId": "run_delver_plan",
-  "outDir": "/tmp/agent-kernel/delver-plan"
+  "outDir": "/tmp/agon/delver-plan"
 }
 ```
 
@@ -522,11 +522,11 @@ Expected output shape:
   "ok": true,
   "command": "delver-plan",
   "runId": "run_delver_plan",
-  "outDir": "/tmp/agent-kernel/delver-plan",
+  "outDir": "/tmp/agon/delver-plan",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/delver-plan/spec.json",
-    "plan": "/tmp/agent-kernel/delver-plan/plan.json",
-    "manifest": "/tmp/agent-kernel/delver-plan/manifest.json"
+    "spec": "/tmp/agon/delver-plan/spec.json",
+    "plan": "/tmp/agon/delver-plan/plan.json",
+    "manifest": "/tmp/agon/delver-plan/manifest.json"
   }
 }
 ```
@@ -557,7 +557,7 @@ Example call:
     "count=1;affinity=dark;motivation=defending"
   ],
   "runId": "run_warden_plan",
-  "outDir": "/tmp/agent-kernel/warden-plan"
+  "outDir": "/tmp/agon/warden-plan"
 }
 ```
 
@@ -568,11 +568,11 @@ Expected output shape:
   "ok": true,
   "command": "warden-plan",
   "runId": "run_warden_plan",
-  "outDir": "/tmp/agent-kernel/warden-plan",
+  "outDir": "/tmp/agon/warden-plan",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/warden-plan/spec.json",
-    "plan": "/tmp/agent-kernel/warden-plan/plan.json",
-    "manifest": "/tmp/agent-kernel/warden-plan/manifest.json"
+    "spec": "/tmp/agon/warden-plan/spec.json",
+    "plan": "/tmp/agon/warden-plan/plan.json",
+    "manifest": "/tmp/agon/warden-plan/manifest.json"
   }
 }
 ```
@@ -603,7 +603,7 @@ Example call:
     "x=2;y=3;affinity=fire;stacks=1"
   ],
   "runId": "run_hazard_plan",
-  "outDir": "/tmp/agent-kernel/hazard-plan"
+  "outDir": "/tmp/agon/hazard-plan"
 }
 ```
 
@@ -614,11 +614,11 @@ Expected output shape:
   "ok": true,
   "command": "hazard-plan",
   "runId": "run_hazard_plan",
-  "outDir": "/tmp/agent-kernel/hazard-plan",
+  "outDir": "/tmp/agon/hazard-plan",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/hazard-plan/spec.json",
-    "plan": "/tmp/agent-kernel/hazard-plan/plan.json",
-    "manifest": "/tmp/agent-kernel/hazard-plan/manifest.json"
+    "spec": "/tmp/agon/hazard-plan/spec.json",
+    "plan": "/tmp/agon/hazard-plan/plan.json",
+    "manifest": "/tmp/agon/hazard-plan/manifest.json"
   }
 }
 ```
@@ -649,7 +649,7 @@ Example call:
     "id=res_mana;tier=1;stat=mana;delta=5;dropRate=0.5"
   ],
   "runId": "run_resource_plan",
-  "outDir": "/tmp/agent-kernel/resource-plan"
+  "outDir": "/tmp/agon/resource-plan"
 }
 ```
 
@@ -660,11 +660,11 @@ Expected output shape:
   "ok": true,
   "command": "resource-plan",
   "runId": "run_resource_plan",
-  "outDir": "/tmp/agent-kernel/resource-plan",
+  "outDir": "/tmp/agon/resource-plan",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/resource-plan/spec.json",
-    "plan": "/tmp/agent-kernel/resource-plan/plan.json",
-    "manifest": "/tmp/agent-kernel/resource-plan/manifest.json"
+    "spec": "/tmp/agon/resource-plan/spec.json",
+    "plan": "/tmp/agon/resource-plan/plan.json",
+    "manifest": "/tmp/agon/resource-plan/manifest.json"
   }
 }
 ```
@@ -688,7 +688,7 @@ Example call:
 ```json
 {
   "spec": "tests/fixtures/artifacts/build-spec-v1-basic.json",
-  "outDir": "/tmp/agent-kernel/build"
+  "outDir": "/tmp/agon/build"
 }
 ```
 
@@ -699,12 +699,12 @@ Expected output shape:
   "ok": true,
   "command": "build",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/build",
+  "outDir": "/tmp/agon/build",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/build/spec.json",
-    "bundle": "/tmp/agent-kernel/build/bundle.json",
-    "manifest": "/tmp/agent-kernel/build/manifest.json",
-    "telemetry": "/tmp/agent-kernel/build/telemetry.json"
+    "spec": "/tmp/agon/build/spec.json",
+    "bundle": "/tmp/agon/build/bundle.json",
+    "manifest": "/tmp/agon/build/manifest.json",
+    "telemetry": "/tmp/agon/build/telemetry.json"
   }
 }
 ```
@@ -727,7 +727,7 @@ Example call:
 ```json
 {
   "scenario": "Build a dark dungeon with one fire delver.",
-  "outDir": "/tmp/agent-kernel/solve",
+  "outDir": "/tmp/agon/solve",
   "runId": "run_solve_basic"
 }
 ```
@@ -739,13 +739,13 @@ Expected output shape:
   "ok": true,
   "command": "solve",
   "runId": "run_solve_basic",
-  "outDir": "/tmp/agent-kernel/solve",
+  "outDir": "/tmp/agon/solve",
   "solved": false,
   "status": "deferred",
   "reason": "constraint_domain_unsupported",
   "artifactPaths": {
-    "solver_request": "/tmp/agent-kernel/solve/solver-request.json",
-    "solver_result": "/tmp/agent-kernel/solve/solver-result.json"
+    "solver_request": "/tmp/agon/solve/solver-request.json",
+    "solver_result": "/tmp/agon/solve/solver-result.json"
   }
 }
 ```
@@ -791,7 +791,7 @@ Example call:
   "ticks": 4,
   "seed": 0,
   "progress": true,
-  "outDir": "/tmp/agent-kernel/run",
+  "outDir": "/tmp/agon/run",
   "runId": "run_mcp_readme"
 }
 ```
@@ -803,14 +803,14 @@ Expected output shape:
   "ok": true,
   "command": "run",
   "runId": "run_mcp_readme",
-  "outDir": "/tmp/agent-kernel/run",
+  "outDir": "/tmp/agon/run",
   "ticks": 4,
   "artifactPaths": {
-    "tick_frames": "/tmp/agent-kernel/run/tick-frames.json",
-    "effects_log": "/tmp/agent-kernel/run/effects-log.json",
-    "runtime_decision_captures": "/tmp/agent-kernel/run/runtime-decision-captures.json",
-    "run_summary": "/tmp/agent-kernel/run/run-summary.json",
-    "action_log": "/tmp/agent-kernel/run/action-log.json"
+    "tick_frames": "/tmp/agon/run/tick-frames.json",
+    "effects_log": "/tmp/agon/run/effects-log.json",
+    "runtime_decision_captures": "/tmp/agon/run/runtime-decision-captures.json",
+    "run_summary": "/tmp/agon/run/run-summary.json",
+    "action_log": "/tmp/agon/run/action-log.json"
   }
 }
 ```
@@ -839,7 +839,7 @@ Example call:
 {
   "levelGen": "tests/fixtures/configurator/level-gen-v1-basic.json",
   "actors": "tests/fixtures/configurator/actors-v1-basic.json",
-  "outDir": "/tmp/agent-kernel/configurator",
+  "outDir": "/tmp/agon/configurator",
   "runId": "run_configurator_basic"
 }
 ```
@@ -851,10 +851,10 @@ Expected output shape:
   "ok": true,
   "command": "configurator",
   "runId": "run_configurator_basic",
-  "outDir": "/tmp/agent-kernel/configurator",
+  "outDir": "/tmp/agon/configurator",
   "artifactPaths": {
-    "simConfig": "/tmp/agent-kernel/configurator/sim-config.json",
-    "initialState": "/tmp/agent-kernel/configurator/initial-state.json"
+    "simConfig": "/tmp/agon/configurator/sim-config.json",
+    "initialState": "/tmp/agon/configurator/initial-state.json"
   }
 }
 ```
@@ -878,7 +878,7 @@ Example call:
 {
   "budget": "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
   "priceList": "tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
-  "outDir": "/tmp/agent-kernel/budget"
+  "outDir": "/tmp/agon/budget"
 }
 ```
 
@@ -889,9 +889,9 @@ Expected output shape:
   "ok": true,
   "command": "budget",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/budget",
+  "outDir": "/tmp/agon/budget",
   "artifactPaths": {
-    "receipt": "/tmp/agent-kernel/budget/budget-receipt.json"
+    "receipt": "/tmp/agon/budget/budget-receipt.json"
   }
 }
 ```
@@ -917,7 +917,7 @@ Example call:
   "simConfig": "artifacts/runs/run_123/run/sim-config.json",
   "initialState": "artifacts/runs/run_123/run/initial-state.json",
   "tickFrames": "artifacts/runs/run_123/run/tick-frames.json",
-  "outDir": "/tmp/agent-kernel/replay"
+  "outDir": "/tmp/agon/replay"
 }
 ```
 
@@ -928,9 +928,9 @@ Expected output shape:
   "ok": true,
   "command": "replay",
   "runId": "run_123",
-  "outDir": "/tmp/agent-kernel/replay",
+  "outDir": "/tmp/agon/replay",
   "artifactPaths": {
-    "run_summary": "/tmp/agent-kernel/replay/run-summary.json"
+    "run_summary": "/tmp/agon/replay/run-summary.json"
   }
 }
 ```
@@ -970,7 +970,7 @@ Example call:
   "fixture": "tests/fixtures/adapters/llm-generate-summary.json",
   "model": "fixture",
   "ticks": 4,
-  "outDir": "/tmp/agent-kernel/scenario",
+  "outDir": "/tmp/agon/scenario",
   "runId": "run_scenario_fixture"
 }
 ```
@@ -982,13 +982,13 @@ Expected output shape:
   "ok": true,
   "command": "scenario",
   "runId": "run_scenario_fixture",
-  "outDir": "/tmp/agent-kernel/scenario",
+  "outDir": "/tmp/agon/scenario",
   "artifactPaths": {
-    "llm_plan_spec": "/tmp/agent-kernel/scenario/llm-plan/spec.json",
-    "llm_plan_simConfig": "/tmp/agent-kernel/scenario/llm-plan/sim-config.json",
-    "tick_frames": "/tmp/agent-kernel/scenario/run/tick-frames.json",
-    "run_summary": "/tmp/agent-kernel/scenario/run/run-summary.json",
-    "inspect_summary": "/tmp/agent-kernel/scenario/inspect/inspect-summary.json"
+    "llm_plan_spec": "/tmp/agon/scenario/llm-plan/spec.json",
+    "llm_plan_simConfig": "/tmp/agon/scenario/llm-plan/sim-config.json",
+    "tick_frames": "/tmp/agon/scenario/run/tick-frames.json",
+    "run_summary": "/tmp/agon/scenario/run/run-summary.json",
+    "inspect_summary": "/tmp/agon/scenario/inspect/inspect-summary.json"
   }
 }
 ```
@@ -1009,7 +1009,7 @@ Example call:
 
 ```json
 {
-  "outDir": "/tmp/agent-kernel/schemas"
+  "outDir": "/tmp/agon/schemas"
 }
 ```
 
@@ -1019,7 +1019,7 @@ Expected output shape:
 {
   "ok": true,
   "command": "schemas",
-  "stdout": "schemas: wrote /tmp/agent-kernel/schemas"
+  "stdout": "schemas: wrote /tmp/agon/schemas"
 }
 ```
 
@@ -1039,7 +1039,7 @@ Example call:
 {
   "tickFrames": "artifacts/runs/run_123/run/tick-frames.json",
   "effectsLog": "artifacts/runs/run_123/run/effects-log.json",
-  "outDir": "/tmp/agent-kernel/inspect"
+  "outDir": "/tmp/agon/inspect"
 }
 ```
 
@@ -1050,9 +1050,9 @@ Expected output shape:
   "ok": true,
   "command": "inspect",
   "runId": "run_123",
-  "outDir": "/tmp/agent-kernel/inspect",
+  "outDir": "/tmp/agon/inspect",
   "artifactPaths": {
-    "inspect_summary": "/tmp/agent-kernel/inspect/inspect-summary.json"
+    "inspect_summary": "/tmp/agon/inspect/inspect-summary.json"
   }
 }
 ```
@@ -1073,7 +1073,7 @@ Example call:
 {
   "tickFrames": "artifacts/runs/run_123/run/tick-frames.json",
   "initialState": "artifacts/runs/run_123/llm-plan/initial-state.json",
-  "outDir": "/tmp/agent-kernel/narrate"
+  "outDir": "/tmp/agon/narrate"
 }
 ```
 
@@ -1084,9 +1084,9 @@ Expected output shape:
   "ok": true,
   "command": "narrate",
   "runId": "run_123",
-  "outDir": "/tmp/agent-kernel/narrate",
+  "outDir": "/tmp/agon/narrate",
   "artifactPaths": {
-    "narrative": "/tmp/agent-kernel/narrate/narrative.json"
+    "narrative": "/tmp/agon/narrate/narrative.json"
   }
 }
 ```
@@ -1233,7 +1233,7 @@ Example call:
   "prompt": "Summarize this dungeon concept as JSON.",
   "model": "phi4",
   "baseUrl": "http://localhost:11434",
-  "outDir": "/tmp/agent-kernel/llm"
+  "outDir": "/tmp/agon/llm"
 }
 ```
 
@@ -1244,9 +1244,9 @@ Expected output shape:
   "ok": true,
   "command": "llm",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/llm",
+  "outDir": "/tmp/agon/llm",
   "artifactPaths": {
-    "response": "/tmp/agent-kernel/llm/llm.json"
+    "response": "/tmp/agon/llm/llm.json"
   }
 }
 ```
@@ -1272,7 +1272,7 @@ Example call:
 {
   "prompt": "Return JSON only.",
   "model": "phi4",
-  "outDir": "/tmp/agent-kernel/ollama"
+  "outDir": "/tmp/agon/ollama"
 }
 ```
 
@@ -1283,9 +1283,9 @@ Expected output shape:
   "ok": true,
   "command": "ollama",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/ollama",
+  "outDir": "/tmp/agon/ollama",
   "artifactPaths": {
-    "response": "/tmp/agent-kernel/ollama/llm.json"
+    "response": "/tmp/agon/ollama/llm.json"
   }
 }
 ```
@@ -1322,7 +1322,7 @@ Example call:
   "fixture": "tests/fixtures/adapters/llm-generate-summary.json",
   "runId": "run_mcp_llm_plan_fixture",
   "createdAt": "2025-01-01T00:00:00Z",
-  "outDir": "/tmp/agent-kernel/llm-plan"
+  "outDir": "/tmp/agon/llm-plan"
 }
 ```
 
@@ -1333,12 +1333,12 @@ Expected output shape:
   "ok": true,
   "command": "llm-plan",
   "runId": "run_mcp_llm_plan_fixture",
-  "outDir": "/tmp/agent-kernel/llm-plan",
+  "outDir": "/tmp/agon/llm-plan",
   "artifactPaths": {
-    "spec": "/tmp/agent-kernel/llm-plan/spec.json",
-    "simConfig": "/tmp/agent-kernel/llm-plan/sim-config.json",
-    "initialState": "/tmp/agent-kernel/llm-plan/initial-state.json",
-    "manifest": "/tmp/agent-kernel/llm-plan/manifest.json"
+    "spec": "/tmp/agon/llm-plan/spec.json",
+    "simConfig": "/tmp/agon/llm-plan/sim-config.json",
+    "initialState": "/tmp/agon/llm-plan/initial-state.json",
+    "manifest": "/tmp/agon/llm-plan/manifest.json"
   }
 }
 ```
@@ -1370,7 +1370,7 @@ Example call:
   "cid": "bafyexamplecid",
   "path": "manifest.json",
   "json": true,
-  "outDir": "/tmp/agent-kernel/ipfs"
+  "outDir": "/tmp/agon/ipfs"
 }
 ```
 
@@ -1381,9 +1381,9 @@ Expected output shape:
   "ok": true,
   "command": "ipfs",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/ipfs",
+  "outDir": "/tmp/agon/ipfs",
   "artifactPaths": {
-    "response": "/tmp/agent-kernel/ipfs/ipfs.json"
+    "response": "/tmp/agon/ipfs/ipfs.json"
   }
 }
 ```
@@ -1407,7 +1407,7 @@ Example call:
 {
   "artifactMap": "tests/fixtures/adapters/ipfs-artifact-map-v1-basic.json",
   "fixtureCid": "bafyfixturecid",
-  "outDir": "/tmp/agent-kernel/ipfs-publish"
+  "outDir": "/tmp/agon/ipfs-publish"
 }
 ```
 
@@ -1418,9 +1418,9 @@ Expected output shape:
   "ok": true,
   "command": "ipfs-publish",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/ipfs-publish",
+  "outDir": "/tmp/agon/ipfs-publish",
   "artifactPaths": {
-    "response": "/tmp/agent-kernel/ipfs-publish/ipfs-publish.json"
+    "response": "/tmp/agon/ipfs-publish/ipfs-publish.json"
   }
 }
 ```
@@ -1446,7 +1446,7 @@ Example call:
   "cid": "bafyexamplecid",
   "file": ["spec.json", "manifest.json"],
   "fixtureMap": "tests/fixtures/adapters/ipfs-load-map-v1-basic.json",
-  "outDir": "/tmp/agent-kernel/ipfs-load"
+  "outDir": "/tmp/agon/ipfs-load"
 }
 ```
 
@@ -1457,8 +1457,8 @@ Expected output shape:
   "ok": true,
   "command": "ipfs-load",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/ipfs-load",
-  "stdout": "ipfs-load: wrote /tmp/agent-kernel/ipfs-load"
+  "outDir": "/tmp/agon/ipfs-load",
+  "stdout": "ipfs-load: wrote /tmp/agon/ipfs-load"
 }
 ```
 
@@ -1483,7 +1483,7 @@ Example call:
   "address": "0x1234",
   "fixtureChainId": "tests/fixtures/adapters/chain-id.json",
   "fixtureBalance": "tests/fixtures/adapters/balance.json",
-  "outDir": "/tmp/agent-kernel/blockchain"
+  "outDir": "/tmp/agon/blockchain"
 }
 ```
 
@@ -1494,9 +1494,9 @@ Expected output shape:
   "ok": true,
   "command": "blockchain",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/blockchain",
+  "outDir": "/tmp/agon/blockchain",
   "artifactPaths": {
-    "response": "/tmp/agent-kernel/blockchain/blockchain.json"
+    "response": "/tmp/agon/blockchain/blockchain.json"
   }
 }
 ```
@@ -1526,7 +1526,7 @@ Example call:
   "tokenId": "card-1",
   "fixtureChainId": "tests/fixtures/adapters/chain-id.json",
   "fixtureMint": "tests/fixtures/adapters/mint.json",
-  "outDir": "/tmp/agent-kernel/blockchain-mint"
+  "outDir": "/tmp/agon/blockchain-mint"
 }
 ```
 
@@ -1537,9 +1537,9 @@ Expected output shape:
   "ok": true,
   "command": "blockchain-mint",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/blockchain-mint",
+  "outDir": "/tmp/agon/blockchain-mint",
   "artifactPaths": {
-    "response": "/tmp/agent-kernel/blockchain-mint/blockchain-mint.json"
+    "response": "/tmp/agon/blockchain-mint/blockchain-mint.json"
   }
 }
 ```
@@ -1567,7 +1567,7 @@ Example call:
   "tokenId": "card-1",
   "fixtureChainId": "tests/fixtures/adapters/chain-id.json",
   "fixtureLoad": "tests/fixtures/adapters/load.json",
-  "outDir": "/tmp/agent-kernel/blockchain-load"
+  "outDir": "/tmp/agon/blockchain-load"
 }
 ```
 
@@ -1578,9 +1578,9 @@ Expected output shape:
   "ok": true,
   "command": "blockchain-load",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/blockchain-load",
+  "outDir": "/tmp/agon/blockchain-load",
   "artifactPaths": {
-    "response": "/tmp/agent-kernel/blockchain-load/blockchain-load.json"
+    "response": "/tmp/agon/blockchain-load/blockchain-load.json"
   }
 }
 ```
@@ -1613,7 +1613,7 @@ Example call:
   "budget": "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
   "width": 10,
   "height": 10,
-  "outDir": "/tmp/agent-kernel/sandbox"
+  "outDir": "/tmp/agon/sandbox"
 }
 ```
 
@@ -1624,9 +1624,9 @@ Expected output shape:
   "ok": true,
   "command": "sandbox-create",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/sandbox",
+  "outDir": "/tmp/agon/sandbox",
   "artifactPaths": {
-    "session": "/tmp/agent-kernel/sandbox/sandbox-session.json"
+    "session": "/tmp/agon/sandbox/sandbox-session.json"
   }
 }
 ```
@@ -1647,7 +1647,7 @@ Example call:
 
 ```json
 {
-  "session": "/tmp/agent-kernel/sandbox/sandbox-session.json",
+  "session": "/tmp/agon/sandbox/sandbox-session.json",
   "entityType": "delver",
   "spec": "id=delver_1;x=1;y=1;affinity=water;motivation=exploring"
 }
@@ -1659,7 +1659,7 @@ Expected output shape:
 {
   "ok": true,
   "command": "sandbox-place",
-  "session": "/tmp/agent-kernel/sandbox/sandbox-session.json",
+  "session": "/tmp/agon/sandbox/sandbox-session.json",
   "entityType": "delver",
   "entityId": "delver_1"
 }
@@ -1682,10 +1682,10 @@ Example call:
 
 ```json
 {
-  "session": "/tmp/agent-kernel/sandbox/sandbox-session.json",
+  "session": "/tmp/agon/sandbox/sandbox-session.json",
   "actorId": "delver_1",
   "direction": "east",
-  "actionsOut": "/tmp/agent-kernel/sandbox/actions.json"
+  "actionsOut": "/tmp/agon/sandbox/actions.json"
 }
 ```
 
@@ -1697,13 +1697,13 @@ Expected output shape:
   "command": "sandbox-move",
   "actorId": "delver_1",
   "direction": "east",
-  "actionsOut": "/tmp/agent-kernel/sandbox/actions.json"
+  "actionsOut": "/tmp/agon/sandbox/actions.json"
 }
 ```
 
 #### `ak_push_to_ui`
 
-Delivers a compiled `agent-kernel/GameplayBundle` (produced by `ak_create` + `ak_run`) to the connected browser UI over the sandbox WebSocket bridge. Accepts an explicit `bundlePath`, an `outDir` containing `bundle.json`, or an inline `bundle` object. Returns `ok: false` with `bundleNotFound: true`, `SANDBOX_UI_NOT_CONNECTED`, or `SANDBOX_BRIDGE_START_FAILED` for the corresponding failure.
+Delivers a compiled `agon/GameplayBundle` (produced by `ak_create` + `ak_run`) to the connected browser UI over the sandbox WebSocket bridge. Accepts an explicit `bundlePath`, an `outDir` containing `bundle.json`, or an inline `bundle` object. Returns `ok: false` with `bundleNotFound: true`, `SANDBOX_UI_NOT_CONNECTED`, or `SANDBOX_BRIDGE_START_FAILED` for the corresponding failure.
 
 > The bridge is a raw WebSocket port opened directly by the MCP server process and requires the browser loading the UI to reach that same port on the same machine. If the MCP server runs in a different network namespace than the calling harness's own browser/preview surface, prefer `ak_show_state` / `ak_tick_forward` / `ak_tick_backward` with a `visualization` mode instead — those return state over the MCP response itself, with no second network hop.
 
@@ -1723,7 +1723,7 @@ Example call:
 
 ```json
 {
-  "outDir": "/tmp/agent-kernel/run",
+  "outDir": "/tmp/agon/run",
   "targetTab": "gameplay"
 }
 ```
@@ -1746,7 +1746,7 @@ Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`.
 ```json
 { "ok": true, "command": "play", "level": "trap-rooms-mcp", "turns": 0,
   "status": { "tick": 0, "exited": false, "atExit": false, "defeated": false },
-  "screen": "agent-kernel maze — ...\n  ####H.@..#\n...",
+  "screen": "Agon maze — ...\n  ####H.@..#\n...",
   "launch": "node packages/adapters-cli/src/cli/ak.mjs play --sim-config ... --initial-state ..." }
 ```
 
@@ -1996,7 +1996,7 @@ Example call:
 ```json
 {
   "objective": "Plan a small fire dungeon.",
-  "outDir": "/tmp/agent-kernel/workflow"
+  "outDir": "/tmp/agon/workflow"
 }
 ```
 
@@ -2008,7 +2008,7 @@ Expected output shape:
   "command": "workflow",
   "action": "run",
   "runId": "run_xxx",
-  "outDir": "/tmp/agent-kernel/workflow"
+  "outDir": "/tmp/agon/workflow"
 }
 ```
 
@@ -2030,7 +2030,7 @@ Expected output shape:
   "ok": true,
   "command": "workflow",
   "action": "status",
-  "outDir": "/tmp/agent-kernel/workflow",
+  "outDir": "/tmp/agon/workflow",
   "status": "completed"
 }
 ```
@@ -2054,7 +2054,7 @@ Expected output shape:
   "ok": true,
   "command": "workflow",
   "action": "cancel",
-  "outDir": "/tmp/agent-kernel/workflow",
+  "outDir": "/tmp/agon/workflow",
   "cancelled": true
 }
 ```

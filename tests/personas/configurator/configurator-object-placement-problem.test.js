@@ -219,7 +219,7 @@ test("current build placement remains hazards-first and row-major", async () => 
     "../../../packages/runtime/src/build/orchestrate-build.js"
   );
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: { id: "z9_current", runId: "z9_current", createdAt: "2026-09-01T00:00:00.000Z", source: "runtime-test" },
     intent: { goal: "characterize placement" },

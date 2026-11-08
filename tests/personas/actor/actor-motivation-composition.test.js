@@ -30,7 +30,7 @@ const ROOMS = [{ id: "R1", x: 1, y: 1, width: 7, height: 5 }];
 
 function simConfig() {
   return {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: "agon/SimConfigArtifact",
     schemaVersion: 1,
     meta: { id: "compose_sim", runId: "compose", createdAt: "2026-01-01T00:00:00.000Z" },
     seed: 0,

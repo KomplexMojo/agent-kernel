@@ -5,7 +5,7 @@ const simConfig = readFixture("sim-config-artifact-v1-configurator-hazard.json")
 const initialState = readFixture("initial-state-artifact-v1-configurator-affinity.json");
 
 test("configurator artifact fixtures include hazards and affinity traits", () => {
-  assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+  assert.equal(simConfig.schema, "agon/SimConfigArtifact");
   assert.equal(simConfig.schemaVersion, 1);
   assert.equal(simConfig.layout.kind, "grid");
   assert.equal(simConfig.layout.data.entryRoomId, "R1");
@@ -21,7 +21,7 @@ test("configurator artifact fixtures include hazards and affinity traits", () =>
   // The regenerated fixture maps the authored hazard (2,2) into room R1 at (1,1) -> absolute (3,3).
   assert.equal(simConfig.layout.data.kinds[3][3], 2);
 
-  assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
+  assert.equal(initialState.schema, "agon/InitialStateArtifact");
   assert.equal(initialState.schemaVersion, 1);
   const actorMvp = initialState.actors.find((actor) => actor.id === "actor_mvp");
   assert.deepEqual(actorMvp.traits.affinities, { "fire:push": 2, "growth:pull": 1 });

@@ -22,7 +22,7 @@ test("initializeCoreFromArtifacts loads a full terrain grid in one snapshot", as
   terrain[width + 1] = "exit";
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "cfg", runId: "r", createdAt: "fixed" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width, height, terrain, exitApproach: { x: 1, y: 1 } },
     movementStamina: { walker: 0 },
   });

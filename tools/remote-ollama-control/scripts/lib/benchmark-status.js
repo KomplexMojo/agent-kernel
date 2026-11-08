@@ -27,7 +27,7 @@
  * This module only reports. It never starts, stops, or publishes anything.
  */
 
-const STATUS_SCHEMA_VERSION = 'agent-kernel-benchmark-status/v1';
+const STATUS_SCHEMA_VERSION = 'agon-benchmark-status/v1';
 
 /**
  * The program that runs ON the box. Self-contained by design (see above): `node:fs`, `node:os` and
@@ -39,7 +39,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const stateDir = process.env.AK_BENCHMARK_STATE_DIR
-  || path.join(os.homedir(), '.local/state/agent-kernel-benchmark');
+  || path.join(os.homedir(), '.local/state/agon-benchmark');
 
 const MAX_ATTEMPT_RECORDS = 4000;
 const MAX_STDERR_CHARS = 4000;

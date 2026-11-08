@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/TelemetryRecord",
+  "schema": "agon/TelemetryRecord",
   "schemaVersion": 1,
   "meta": {
     "id": "telemetry_basic",

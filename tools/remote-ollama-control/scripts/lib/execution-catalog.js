@@ -49,7 +49,7 @@ function validateContract(contract) {
   assertKeys(contract, new Set([
     'schemaVersion', 'evaluatorVersion', 'qualification', 'profiles', 'invariants', 'metrics',
   ]), 'execution contract');
-  if (contract.schemaVersion !== 'agent-kernel-execution-metric-contract/v2') throw new Error('invalid execution metric contract');
+  if (contract.schemaVersion !== 'agon-execution-metric-contract/v2') throw new Error('invalid execution metric contract');
   if (typeof contract.evaluatorVersion !== 'string' || contract.evaluatorVersion === '') throw new Error('evaluatorVersion is required');
   if (!isObject(contract.profiles) || !isObject(contract.metrics) || !isObject(contract.invariants)) {
     throw new Error('profiles, metrics, and invariants are required');
@@ -262,7 +262,7 @@ function loadExecutionCatalog(catalogDir = EXECUTION_CATALOG_DIR) {
   for (const family of FAMILIES) {
     const document = readJson(path.join(catalogDir, `${family}.json`));
     assertKeys(document, new Set(['schemaVersion', 'family', 'scenarios']), `execution catalog ${family}`);
-    if (document.schemaVersion !== 'agent-kernel-execution-catalog/v1' || document.family !== family) {
+    if (document.schemaVersion !== 'agon-execution-catalog/v1' || document.family !== family) {
       throw new Error(`execution catalog ${family} has implicit or mismatched family`);
     }
     if (!Array.isArray(document.scenarios) || document.scenarios.length !== 5) {
@@ -282,7 +282,7 @@ function loadExecutionCatalog(catalogDir = EXECUTION_CATALOG_DIR) {
   }
   const profileIdentity = Object.fromEntries(Object.entries(contract.profiles).map(([name, value]) => [name, value]));
   return {
-    schemaVersion: 'agent-kernel-execution-catalog/v1',
+    schemaVersion: 'agon-execution-catalog/v1',
     evaluatorVersion: contract.evaluatorVersion,
     count: scenarios.length,
     familyCounts,

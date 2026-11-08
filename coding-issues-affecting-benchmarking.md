@@ -1,7 +1,7 @@
 # Coding issues affecting benchmarking
 
 **Status (2026-08-30):** All five milestones (M0–M5) complete, merged to `main` as
-[PR #131](https://github.com/KomplexMojo/agent-kernel/pull/131) (merge commit `5a66fb7`). **One item
+[PR #131](https://github.com/KomplexMojo/agon/pull/131) (merge commit `5a66fb7`). **One item
 remains genuinely open** — not a milestone, a gap the plan itself never scoped (see `## All five
 milestones complete` at the end of `## Findings`). **Audience:** an agent with no memory of the
 session that produced it — read `## Findings` at the end of this file before doing anything else;
@@ -107,7 +107,7 @@ unset `OLLAMA_MODELS` makes `ollama list` return EMPTY rather than erroring.
 - Published, compact, per-scenario: `git show origin/benchmark-results:latest.json`
   (`configurations[].perScenario` — added recently; older runs do NOT have it).
 - Raw, per-attempt, with error text: on the benchmark box only, never published:
-  `~/.local/state/agent-kernel-benchmark/runs/*/authoring/*-content-gen/runs.jsonl`
+  `~/.local/state/agon-benchmark/runs/*/authoring/*-content-gen/runs.jsonl`
   Reach it with `ssh llm-wan`. If ssh fails with `Permission denied`, the agent has no key —
   `ssh-add --apple-use-keychain ~/.ssh/ubuntu_llm_ed25519` first. A timeout on `llm-lan` off-LAN is
   expected; use `llm-wan`.
@@ -219,7 +219,7 @@ hit") made every actor ~2.5x more expensive — a delver minimum went 21 -> 52 t
   may now be too tight for tile-heavy scenarios.
 
 **Do:**
-1. Find the previous run's `runs.jsonl` on the box (`ls -1dt ~/.local/state/agent-kernel-benchmark/
+1. Find the previous run's `runs.jsonl` on the box (`ls -1dt ~/.local/state/agon-benchmark/
    runs/*/authoring/*-content-gen`). Identify which runs are pre-floor by the `sourceCommit` in the
    run directory name and `git log` on the floor commit.
 2. Compare the per-cause counts for the same scenario indices across pre- and post-floor runs.
@@ -359,7 +359,7 @@ Full-matrix confirmation is the maintainer's to run, not yours.
 
 Changing the scenario catalog moves `scenarioSetHash`; changing `models.json` profiles or contexts
 moves `matrixHash`. Both are pinned on the runner in
-`~/.config/agent-kernel-benchmark/benchmark-agent.env` and **nothing errors when they are stale** —
+`~/.config/agon-benchmark/benchmark-agent.env` and **nothing errors when they are stale** —
 the run simply compares incomparable evidence.
 
 1. Say so prominently in the PR.

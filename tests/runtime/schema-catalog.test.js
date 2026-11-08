@@ -16,15 +16,15 @@ test("schema catalog includes core runtime schemas", async () => {
   assert.deepEqual(names, sorted);
 
   const required = [
-    "agent-kernel/AgentCommandRequestArtifact",
-    "agent-kernel/IntentEnvelope",
-    "agent-kernel/PlanArtifact",
-    "agent-kernel/BuildSpec",
-    "agent-kernel/SimConfigArtifact",
-    "agent-kernel/InitialStateArtifact",
-    "agent-kernel/ResourceBundleArtifact",
-    "agent-kernel/NarrativeArtifact",
-    "agent-kernel/TelemetryRecord",
+    "agon/AgentCommandRequestArtifact",
+    "agon/IntentEnvelope",
+    "agon/PlanArtifact",
+    "agon/BuildSpec",
+    "agon/SimConfigArtifact",
+    "agon/InitialStateArtifact",
+    "agon/ResourceBundleArtifact",
+    "agon/NarrativeArtifact",
+    "agon/TelemetryRecord",
   ];
   required.forEach((schema) => assert.ok(names.includes(schema), "Missing " + schema));
 
@@ -38,10 +38,10 @@ test("schema catalog includes core runtime schemas", async () => {
     assert.equal(resolved?.category, SCHEMA_CATEGORIES.CANONICAL_RUNTIME_HANDOFF);
   });
 
-  // The LIVE receipt contract. PA.3 retired the legacy `agent-kernel/BudgetReceipt`,
+  // The LIVE receipt contract. PA.3 retired the legacy `agon/BudgetReceipt`,
   // so BudgetReceiptArtifact is now the only receipt schema.
   assert.ok(
-    byKey.get("agent-kernel/BudgetReceiptArtifact@1"),
+    byKey.get("agon/BudgetReceiptArtifact@1"),
     "BudgetReceiptArtifact is the canonical receipt contract and must stay catalogued",
   );
 
@@ -49,14 +49,14 @@ test("schema catalog includes core runtime schemas", async () => {
   // production producer and no consumer; re-adding one should fail loudly rather than
   // quietly regrow the surface PA exists to shrink.
   [
-    "agent-kernel/Observation@1",
-    "agent-kernel/DebugDump@1",
-    "agent-kernel/BudgetRequest@1",
-    "agent-kernel/ActorState@1",
-    "agent-kernel/BudgetReceipt@1",
-    "agent-kernel/Event@1",
-    "agent-kernel/Snapshot@1",
-    "agent-kernel/BudgetLedgerArtifact@1",
+    "agon/Observation@1",
+    "agon/DebugDump@1",
+    "agon/BudgetRequest@1",
+    "agon/ActorState@1",
+    "agon/BudgetReceipt@1",
+    "agon/Event@1",
+    "agon/Snapshot@1",
+    "agon/BudgetLedgerArtifact@1",
   ].forEach((key) => {
     assert.equal(byKey.get(key), undefined, `${key} was dropped and must not reappear in the catalog`);
   });

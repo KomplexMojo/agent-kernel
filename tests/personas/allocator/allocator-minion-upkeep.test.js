@@ -18,7 +18,7 @@ test("the run loader hands core the Allocator's rate with the level's action cos
   const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
   const { buildSimConfigArtifact, buildInitialStateArtifact } = await import(`${P}configurator/artifact-builders.js`);
   const meta = { id: "upkeep-run", runId: "r", createdAt: CLOCK(), producedBy: "test" };
-  const simConfig = buildSimConfigArtifact({ meta, planRef: { id: "p", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+  const simConfig = buildSimConfigArtifact({ meta, planRef: { id: "p", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width: 3, height: 1, terrain: ["floor", "floor", "floor"] }, movementStamina: {} });
   const initialState = buildInitialStateArtifact({ meta: { ...meta, id: "upkeep-state" },
     simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },

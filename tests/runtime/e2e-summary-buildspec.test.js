@@ -76,7 +76,7 @@ test("summary -> pool -> budget -> buildspec chain uses fixtures deterministical
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(result.spec.schema, "agon/BuildSpec");
 
   const actorCount = trimmedSelections
     .filter((sel) => sel.kind === "actor")

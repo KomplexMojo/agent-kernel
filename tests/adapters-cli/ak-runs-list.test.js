@@ -26,13 +26,13 @@ function writeJson(filePath, value) {
 }
 
 test("cli runs list indexes run-scoped command outputs", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runs-list-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-runs-list-"));
   const buildOutDir = join(workDir, "artifacts", "runs", "run_alpha", "build");
   const runOutDir = join(workDir, "artifacts", "runs", "run_alpha", "run");
   const createOutDir = join(workDir, "artifacts", "runs", "run_beta", "create");
 
   writeJson(join(buildOutDir, "spec.json"), {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "spec_alpha",
@@ -43,7 +43,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
     },
   });
   writeJson(join(buildOutDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: "agon/SimConfigArtifact",
     schemaVersion: 1,
     meta: {
       id: "sim_alpha",
@@ -58,7 +58,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
     },
   });
   writeJson(join(buildOutDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: "agon/InitialStateArtifact",
     schemaVersion: 1,
     meta: {
       id: "initial_alpha",
@@ -77,7 +77,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
     artifacts: [],
   });
   writeJson(join(buildOutDir, "telemetry.json"), {
-    schema: "agent-kernel/TelemetryRecord",
+    schema: "agon/TelemetryRecord",
     schemaVersion: 1,
     meta: {
       id: "telemetry_alpha",
@@ -92,7 +92,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
   });
 
   writeJson(join(runOutDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: "agon/SimConfigArtifact",
     schemaVersion: 1,
     meta: {
       id: "run_sim_alpha",
@@ -107,7 +107,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
     },
   });
   writeJson(join(runOutDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: "agon/InitialStateArtifact",
     schemaVersion: 1,
     meta: {
       id: "run_initial_alpha",
@@ -118,7 +118,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
     actors: [{ id: "warden_runtime" }],
   });
   writeJson(join(runOutDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: {
       id: "run_summary_alpha",
@@ -135,7 +135,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
   writeJson(join(runOutDir, "effects-log.json"), []);
 
   writeJson(join(createOutDir, "request.json"), {
-    schema: "agent-kernel/AgentCommandRequestArtifact",
+    schema: "agon/AgentCommandRequestArtifact",
     schemaVersion: 1,
     meta: {
       id: "request_beta",
@@ -145,7 +145,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
     },
   });
   writeJson(join(createOutDir, "spec.json"), {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     schemaVersion: 1,
     meta: {
       id: "spec_beta",
@@ -196,7 +196,7 @@ test("cli runs list indexes run-scoped command outputs", () => {
 });
 
 test("cli runs list returns an empty index when artifacts/runs is missing", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runs-empty-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-runs-empty-"));
   const result = runCli(["runs", "list"], { cwd: workDir });
   assert.equal(result.ok, true);
   assert.equal(result.command, "runs");
@@ -204,7 +204,7 @@ test("cli runs list returns an empty index when artifacts/runs is missing", () =
 });
 
 test("cli runs list returns empty runs when artifacts/runs exists but is empty", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runs-empty-dir-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-runs-empty-dir-"));
   mkdirSync(join(workDir, "artifacts", "runs"), { recursive: true });
 
   const result = runCli(["runs", "list"], { cwd: workDir });
@@ -214,7 +214,7 @@ test("cli runs list returns empty runs when artifacts/runs exists but is empty",
 });
 
 test("cli runs list surfaces a run directory with no command subfolders", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runs-no-commands-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-runs-no-commands-"));
   mkdirSync(join(workDir, "artifacts", "runs", "run_empty"), { recursive: true });
 
   const result = runCli(["runs", "list"], { cwd: workDir });
@@ -226,12 +226,12 @@ test("cli runs list surfaces a run directory with no command subfolders", () => 
 });
 
 test.skip("cli runs list reports malformed command artifacts without aborting the listing by documented GAP", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runs-malformed-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-runs-malformed-"));
   const malformedSpec = join(workDir, "artifacts", "runs", "run_bad", "build", "spec.json");
   mkdirSync(dirname(malformedSpec), { recursive: true });
   writeFileSync(malformedSpec, "{bad json", "utf8");
   writeJson(join(workDir, "artifacts", "runs", "run_ok", "build", "spec.json"), {
-    schema: "agent-kernel/BuildSpec",
+    schema: "agon/BuildSpec",
     meta: { id: "spec_ok", runId: "run_ok", createdAt: "2026-04-08T00:00:00.000Z" },
   });
 
@@ -243,10 +243,10 @@ test.skip("cli runs list reports malformed command artifacts without aborting th
 });
 
 test("cli runs list ordering is stable across repeated calls", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runs-order-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-runs-order-"));
   ["run_c", "run_a", "run_b"].forEach((runId) => {
     writeJson(join(workDir, "artifacts", "runs", runId, "build", "spec.json"), {
-      schema: "agent-kernel/BuildSpec",
+      schema: "agon/BuildSpec",
       meta: { id: `spec_${runId}`, runId, createdAt: "2026-04-08T00:00:00.000Z" },
     });
   });

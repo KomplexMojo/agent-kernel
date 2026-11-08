@@ -54,7 +54,7 @@ else ticked — it needs CR.8's refusal, and this ablation will not catch it.
 
 **The battle log (#554) is the same shape as per-tick telemetry.** On the EMIT phase the Annotator
 turns what the tick applied (casts, takes, lifecycle changes, exits; supplied on the observation as
-`battle`) into `agent-kernel/BattleLogEntry` artifacts, carried on the tick's telemetry as
+`battle`) into `agon/BattleLogEntry` artifacts, carried on the tick's telemetry as
 `battleLog`. Entries are structured and carry no vitals: a cast shows its affinity and whether it
 struck (#497). A cast that struck another also carries words for how it landed (#692): `condition`,
 a band on the target's defeat vital after the tick (`unhurt` / `hurt` / `bloodied` / `near_defeat`),

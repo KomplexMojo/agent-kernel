@@ -37,7 +37,7 @@ test("e2e actor fixtures include deterministic, varied actor sets", async () => 
 
   files.forEach((name) => {
     const fixture = readJson(resolve(FIXTURES_DIR, name));
-    assert.equal(fixture.schema, "agent-kernel/E2EActors");
+    assert.equal(fixture.schema, "agon/E2EActors");
     assert.equal(fixture.schemaVersion, 1);
 
     assert.ok(Number.isInteger(fixture.tier));

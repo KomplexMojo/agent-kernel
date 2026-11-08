@@ -15,7 +15,7 @@ function artifacts() {
   };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: 'config', runId: 'run', createdAt: '2026-09-13T00:00:00.000Z', producedBy: 'test' },
-    planRef: { id: 'plan', schema: 'agent-kernel/PlanArtifact', schemaVersion: 1 },
+    planRef: { id: 'plan', schema: 'agon/PlanArtifact', schemaVersion: 1 },
     layout,
     movementStamina: { delver: 1, barrier: 0 },
   });

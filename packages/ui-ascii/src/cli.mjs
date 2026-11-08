@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ak-maze — play an agent-kernel level in the terminal.
+ * ak-maze — play an agon level in the terminal.
  *
  * The terminal is the only thing this file owns: argument parsing, raw-mode
  * keypresses, redraws. See README.md for usage.

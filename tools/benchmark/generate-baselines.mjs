@@ -301,7 +301,7 @@ function writeCatalog(scenarios) {
 }
 
 function renderIndex(rows, scenarioSet) {
-  return `# Agent Kernel MCP Prompt Baselines
+  return `# Agon MCP Prompt Baselines
 
 Generated: ${new Date().toISOString()}
 

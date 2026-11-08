@@ -18,7 +18,7 @@ async function loadAllocator() {
 
 function makeBudget(tokens = 500) {
   return {
-    schema: "agent-kernel/BudgetArtifact",
+    schema: "agon/BudgetArtifact",
     schemaVersion: 1,
     meta: { id: "budget_spend_proposal_item", runId: META.runId, createdAt: META.createdAt, producedBy: "test" },
     budget: { tokens },
@@ -28,7 +28,7 @@ function makeBudget(tokens = 500) {
 test("validateSpendProposal preserves proposal attribution fields on approved line items", async () => {
   const { validateSpendProposal, buildDefaultPriceList } = await loadAllocator();
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { id: "proposal_spend_proposal_item", runId: META.runId, createdAt: META.createdAt, producedBy: "test" },
     items: [
@@ -37,10 +37,10 @@ test("validateSpendProposal preserves proposal attribution fields on approved li
         kind: "vital",
         quantity: 5,
         category: "delvers",
-        artifactRef: { id: "artifact_actor_1", schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1 },
-        // PA.2 retired agent-kernel/ActorState. actor_1 lives inside the InitialStateArtifact,
+        artifactRef: { id: "artifact_actor_1", schema: "agon/InitialStateArtifact", schemaVersion: 1 },
+        // PA.2 retired agon/ActorState. actor_1 lives inside the InitialStateArtifact,
         // so pointing the subject at that schema is both live and more accurate.
-        subjectRef: { id: "actor_1", schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1 },
+        subjectRef: { id: "actor_1", schema: "agon/InitialStateArtifact", schemaVersion: 1 },
         detail: { vital: "health", target: "actor_1" },
       },
     ],
@@ -75,7 +75,7 @@ test("validateSpendProposal preserves proposal attribution fields on approved li
 test("validateSpendProposal denies malformed and unknown proposal items through the real allocator", async () => {
   const { validateSpendProposal, buildDefaultPriceList } = await loadAllocator();
   const proposal = {
-    schema: "agent-kernel/SpendProposal",
+    schema: "agon/SpendProposal",
     schemaVersion: 1,
     meta: { id: "proposal_spend_proposal_item_denied", runId: META.runId, createdAt: META.createdAt, producedBy: "test" },
     items: [
@@ -112,7 +112,7 @@ test("artifact fixture proposal exercises the real allocator instead of a copied
   });
 
   assert.ok(result.receipt);
-  assert.equal(result.receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(result.receipt.schema, "agon/BudgetReceiptArtifact");
   assert.equal(result.receipt.proposalRef.id, proposal.meta.id);
   assert.ok(result.receipt.lineItems.length > 0);
   assert.ok(result.receipt.lineItems.every((item) => typeof item.id === "string"));

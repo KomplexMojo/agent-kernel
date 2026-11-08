@@ -7,7 +7,7 @@ const META = {
   producedBy: "test",
 };
 
-function ref(id, schema = "agent-kernel/TestArtifact", schemaVersion = 1) {
+function ref(id, schema = "agon/TestArtifact", schemaVersion = 1) {
   return { id, schema, schemaVersion };
 }
 
@@ -18,14 +18,14 @@ function loadContracts() {
 test("adaptive workflow contract constants export versioned artifact schemas", async () => {
   const contracts = await loadContracts();
 
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA, "agent-kernel/AdaptiveWorkflowRunState");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_POLICY_SCHEMA, "agent-kernel/AdaptiveWorkflowPolicy");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA, "agent-kernel/AdaptiveWorkflowRuntimeProfile");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA, "agent-kernel/AdaptiveWorkflowValidationResult");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_FAILURE_SCHEMA, "agent-kernel/AdaptiveWorkflowFailure");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA, "agent-kernel/AdaptiveWorkflowPatchRequest");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA, "agent-kernel/AdaptiveWorkflowPatchReceipt");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA, "agent-kernel/AdaptiveWorkflowExecutionEvent");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA, "agon/AdaptiveWorkflowRunState");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_POLICY_SCHEMA, "agon/AdaptiveWorkflowPolicy");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA, "agon/AdaptiveWorkflowRuntimeProfile");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA, "agon/AdaptiveWorkflowValidationResult");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_FAILURE_SCHEMA, "agon/AdaptiveWorkflowFailure");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA, "agon/AdaptiveWorkflowPatchRequest");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA, "agon/AdaptiveWorkflowPatchReceipt");
+  assert.equal(contracts.ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA, "agon/AdaptiveWorkflowExecutionEvent");
   assert.equal(contracts.ADAPTIVE_WORKFLOW_SCHEMA_VERSION, 1);
 });
 
@@ -136,17 +136,17 @@ test("adaptive workflow state records state version, refs, replay responses, can
     stateVersion: "adaptive-workflow-state-v1",
     runId: "run_adaptive_workflow",
     phase: "repair",
-    policyRef: ref("policy", "agent-kernel/AdaptiveWorkflowPolicy"),
-    runtimeProfileRef: ref("profile", "agent-kernel/AdaptiveWorkflowRuntimeProfile"),
+    policyRef: ref("policy", "agon/AdaptiveWorkflowPolicy"),
+    runtimeProfileRef: ref("profile", "agon/AdaptiveWorkflowRuntimeProfile"),
     objective: {
       text: "build a deterministic dungeon",
-      intakeRef: ref("intent", "agent-kernel/IntentEnvelope"),
+      intakeRef: ref("intent", "agon/IntentEnvelope"),
     },
     refs: {
-      planRef: ref("plan", "agent-kernel/PlanArtifact"),
-      configurationRef: ref("config", "agent-kernel/SimConfigArtifact"),
-      validationResultRefs: [ref("validation", "agent-kernel/AdaptiveWorkflowValidationResult")],
-      failureRefs: [ref("failure", "agent-kernel/AdaptiveWorkflowFailure")],
+      planRef: ref("plan", "agon/PlanArtifact"),
+      configurationRef: ref("config", "agon/SimConfigArtifact"),
+      validationResultRefs: [ref("validation", "agon/AdaptiveWorkflowValidationResult")],
+      failureRefs: [ref("failure", "agon/AdaptiveWorkflowFailure")],
       replayResponseRefs: [
         {
           algorithm: "sha256",
@@ -155,7 +155,7 @@ test("adaptive workflow state records state version, refs, replay responses, can
           mediaType: "application/json",
         },
       ],
-      patchReceiptRefs: [ref("patch", "agent-kernel/AdaptiveWorkflowPatchReceipt")],
+      patchReceiptRefs: [ref("patch", "agon/AdaptiveWorkflowPatchReceipt")],
     },
     counters: {
       modelTransportRetries: 0,
@@ -215,9 +215,9 @@ test("adaptive workflow patch request and receipt require immutable paths and va
     runId: "run_adaptive_workflow",
     phase: "repair",
     kind: "semantic_patch",
-    targetRef: ref("config", "agent-kernel/SimConfigArtifact"),
+    targetRef: ref("config", "agon/SimConfigArtifact"),
     reason: {
-      validationResultRef: ref("validation", "agent-kernel/AdaptiveWorkflowValidationResult"),
+      validationResultRef: ref("validation", "agon/AdaptiveWorkflowValidationResult"),
       summary: "repair invalid configuration field",
     },
     operations: [{ op: "replace", path: "/rooms/0/name", value: "entry" }],
@@ -233,7 +233,7 @@ test("adaptive workflow patch request and receipt require immutable paths and va
     appliedOperations: request.operations,
     rejectedOperations: [],
     rerunValidatorIds: ["schema", "domain"],
-    resultRef: ref("config_repaired", "agent-kernel/SimConfigArtifact"),
+    resultRef: ref("config_repaired", "agon/SimConfigArtifact"),
   };
 
   assert.equal(validateAdaptiveWorkflowPatchRequest(request).ok, true);
@@ -284,7 +284,7 @@ test("adaptive workflow validators reject shallow nested policy and state mismat
     stateVersion: "stale-state",
     runId: "run_adaptive_workflow",
     phase: "plan",
-    policyRef: ref("policy", "agent-kernel/AdaptiveWorkflowPolicy"),
+    policyRef: ref("policy", "agon/AdaptiveWorkflowPolicy"),
     refs: {
       validationResultRefs: [],
       failureRefs: [],

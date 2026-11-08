@@ -193,7 +193,7 @@ class McpServerHarness {
     await this.request("initialize", {
       protocolVersion: "2025-03-26",
       capabilities: {},
-      clientInfo: { name: "agent-kernel-benchmark-validation", version: "1.0.0" },
+      clientInfo: { name: "agon-benchmark-validation", version: "1.0.0" },
     });
     this.process.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} })}\n`);
   }

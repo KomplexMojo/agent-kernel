@@ -62,7 +62,7 @@ function buildArtifacts(actors) {
   const cells = terrain();
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "decide_order_sim", runId: "decide_order", createdAt: CLOCK, producedBy: "test" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout: { width: WIDTH, height: HEIGHT, terrain: cells, exitApproach: { ...EXIT } },
     movementStamina: Object.fromEntries(actors.map(actor => [actor.id, 0])),
   });

@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "agent-kernel-abstract-plan-catalog/v1",
+  "schemaVersion": "agon-abstract-plan-catalog/v1",
   "sourceScenarioSet": {
     "count": 100,
-    "sha256": "6059100a4434d16f0eb7120dee2e52c44509c100e093171d0b82813b05c4c059"
+    "sha256": "1e8b6665aa485e8fba34338c7ed784ccb082d84a97ac28b035bead4be40afcc2"
   },
   "scenarios": [
     {
@@ -64,7 +64,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a single fire Delver tuned for attack, with explicit fire affinity, mana, stamina, and health settings. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a single fire Delver tuned for attack, with explicit fire affinity, mana, stamina, and health settings. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-229741609f58": {
@@ -137,7 +137,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a single dark Warden tuned for defense, with explicit dark affinity and durable vitals. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a single dark Warden tuned for defense, with explicit dark affinity and durable vitals. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-e2e0977496d0": {
@@ -239,7 +239,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one medium dark starter room with a localized dark field. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one medium dark starter room with a localized dark field. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "dark"
         },
@@ -380,7 +380,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-01] create one mobile exploring Delver whose route crosses the field of one non-blocking fire emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-HZ-01] create one mobile exploring Delver whose route crosses the field of one non-blocking fire emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-420e4eaef5c3": {
@@ -527,7 +527,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with a dark emit hazard strong enough to test darkness stack handling. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with a dark emit hazard strong enough to test darkness stack handling. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "dark"
         },
@@ -726,7 +726,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-05] create three connected medium rooms containing exactly four actors spanning exploring, patrolling, random, and stationary motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-TR-05] create three connected medium rooms containing exactly four actors spanning exploring, patrolling, random, and stationary motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-25728c4a2d72": {
@@ -856,7 +856,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-person Delver party with one fire attacker and one growth-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a two-person Delver party with one fire attacker and one growth-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6e2b6a39034c": {
@@ -966,7 +966,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-03] create a connected two-room corridor loop with exactly one patrolling Warden and no other actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-TR-03] create a connected two-room corridor loop with exactly one patrolling Warden and no other actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-ef0455547934": {
@@ -1105,7 +1105,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-01] create one medium arena where one attacking Delver and one defending Warden begin adjacent or otherwise within immediate encounter distance. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-CB-01] create one medium arena where one attacking Delver and one defending Warden begin adjacent or otherwise within immediate encounter distance. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-4ff4326f7be7": {
@@ -1306,7 +1306,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large fire trial room with two emit hazards and a water Delver counter-pick. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a large fire trial room with two emit hazards and a water Delver counter-pick. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "fire"
         },
@@ -1500,7 +1500,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a water-themed recovery encounter with a growth support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a water-themed recovery encounter with a growth support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "water"
         },
@@ -1686,7 +1686,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create an earth ambush room with an earth emit hazard and a fortify Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create an earth ambush room with an earth emit hazard and a fortify Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "earth"
         },
@@ -1901,7 +1901,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two medium wind patrol rooms with a wind Warden and an earth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create two medium wind patrol rooms with a wind Warden and an earth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "wind"
         },
@@ -2153,7 +2153,7 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a growth shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a growth shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "growth"
         },
@@ -2355,7 +2355,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a decay cell with a decay mana hazard and a defending decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a decay cell with a decay mana hazard and a defending decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "decay"
         },
@@ -2541,7 +2541,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-04] create one attacking Delver crossing a temporary fire-push affinity resource with two stacks, finite mana 12, and zero mana regeneration, with a defending Warden available as a target. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-RS-04] create one attacking Delver crossing a temporary fire-push affinity resource with two stacks, finite mana 12, and zero mana regeneration, with a defending Warden available as a target. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-ff93936940f1": {
@@ -2696,7 +2696,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-05] create one blocking fortify emit hazard controlling the short route while an alternate legal route remains for one exploring Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-HZ-05] create one blocking fortify emit hazard controlling the short route while an alternate legal route remains for one exploring Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-467a8f0497a3": {
@@ -2872,7 +2872,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a light scout entry room that counters a dark hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a light scout entry room that counters a dark hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "light"
         },
@@ -3058,7 +3058,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a dark sentinel room with a stationary dark Warden and darkness pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a dark sentinel room with a stationary dark Warden and darkness pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "dark"
         },
@@ -3215,7 +3215,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-03] create one arena with exactly two attacking Delvers facing one high-durability defending Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-CB-03] create one arena with exactly two attacking Delvers facing one high-durability defending Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-f8b80f54edff": {
@@ -3387,7 +3387,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-05] create exactly three combat actors combining attacking mobility, defending posture, and reflexive cognition motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-CB-05] create exactly three combat actors combining attacking mobility, defending posture, and reflexive cognition motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-417504974af6": {
@@ -3542,7 +3542,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-02] create one large room containing exactly one random mobile Delver and ten random mobile Wardens, all with positive stamina and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-ST-02] create one large room containing exactly one random mobile Delver and ten random mobile Wardens, all with positive stamina and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-c7b4ec7ea31b": {
@@ -3689,7 +3689,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-04] create one attacking Delver facing one defending Warden with high health and positive health regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-CB-04] create one attacking Delver facing one defending Warden with high health and positive health regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-032dfb89ba9f": {
@@ -4194,7 +4194,7 @@
         "minimumCost": 323
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-03] create four connected rooms with exactly six mobile actors, six hazards spanning all four expressions, and six resources spanning vital and affinity lifecycles. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-ST-03] create four connected rooms with exactly six mobile actors, six hazards spanning all four expressions, and six resources spanning vital and affinity lifecycles. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-7155ad1761ac": {
@@ -4611,7 +4611,7 @@
         "minimumCost": 135
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-01] create three connected rooms containing exactly four mobile actors with attacking, defending, patrolling, and random motivations, two hazards, and two resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-ST-01] create three connected rooms containing exactly four mobile actors with attacking, defending, patrolling, and random motivations, two hazards, and two resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-4869176770fd": {
@@ -4860,7 +4860,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-05] create one Delver and one Warden each crossing a distinct permanent fire-emit affinity resource with two stacks, mana 12, and mana regeneration 2. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-RS-05] create one Delver and one Warden each crossing a distinct permanent fire-emit affinity resource with two stacks, mana 12, and mana regeneration 2. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-4c54fa7067b9": {
@@ -5023,7 +5023,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#neutral] create the neutral member of a paired otherwise-identical duel: one attacking Delver and one defending Warden with no declared attacker advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-CB-02#neutral] create the neutral member of a paired otherwise-identical duel: one attacking Delver and one defending Warden with no declared attacker advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-eba6ba6a2896": {
@@ -5170,7 +5170,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#advantaged] create the advantaged member of a paired otherwise-identical duel: one attacking fire-push Delver and the same defending Warden, changing only the declared attacker affinity advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-CB-02#advantaged] create the advantaged member of a paired otherwise-identical duel: one attacking fire-push Delver and the same defending Warden, changing only the declared attacker affinity advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-69f91e733cec": {
@@ -5375,7 +5375,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests growth support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a room that tests growth support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6ecc78acc2e4": {
@@ -5588,7 +5588,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-04] create two connected rooms with exactly two Delvers and two Wardens combining attacking, defending, patrolling, and random behavior, all with positive vitals and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-ST-04] create two connected rooms with exactly two Delvers and two Wardens combining attacking, defending, patrolling, and random behavior, all with positive vitals and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-8627a51dd12d": {
@@ -5780,7 +5780,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a stationary puzzle room with one hazard and two stationary Wardens. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a stationary puzzle room with one hazard and two stationary Wardens. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "fortify"
         },
@@ -5995,7 +5995,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a dark infiltration room with stealth Delver and patrolling Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a dark infiltration room with stealth Delver and patrolling Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6b482835f404": {
@@ -6216,7 +6216,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a reflexive dark Warden test case with a simple Delver opponent. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a reflexive dark Warden test case with a simple Delver opponent. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-d70fa9d122b3": {
@@ -6437,7 +6437,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a goal-oriented wind Delver test case with one guarding Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a goal-oriented wind Delver test case with one guarding Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-e3b233889e86": {
@@ -6658,7 +6658,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a strategy-focused Warden test case with layered dark and decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a strategy-focused Warden test case with layered dark and decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-a0890c8d81ce": {
@@ -6850,7 +6850,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a Delver configured with user setup mode so agents must preserve setup-mode in the request. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a Delver configured with user setup mode so agents must preserve setup-mode in the request. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-04881a025474": {
@@ -7034,7 +7034,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a Delver configured with hybrid setup mode and two affinities. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a Delver configured with hybrid setup mode and two affinities. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "water"
         },
@@ -7270,7 +7270,7 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver squad with mana regeneration goals and mixed water and growth affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a two-Delver squad with mana regeneration goals and mixed water and growth affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6f0a0cf9afb2": {
@@ -7499,7 +7499,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a choke room with a blocking hazard and one patrolling Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a choke room with a blocking hazard and one patrolling Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6dae14a6b7a1": {
@@ -7741,7 +7741,7 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a hazard field with three non-blocking emit hazards and a light scout. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a hazard field with three non-blocking emit hazards and a light scout. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-9f803a073045": {
@@ -7912,7 +7912,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a hazard with explicit mana and durability vitals so the cost receipt shows hazard vital spend. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a hazard with explicit mana and durability vitals so the cost receipt shows hazard vital spend. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "fire"
         },
@@ -8061,7 +8061,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a hazard with explicit mana reserve and regeneration so the cost receipt shows hazard mana spend. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a hazard with explicit mana reserve and regeneration so the cost receipt shows hazard mana spend. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "water"
         },
@@ -8239,7 +8239,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create three connected rooms with one exploring Delver route baseline. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create three connected rooms with one exploring Delver route baseline. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "wind"
         },
@@ -8425,7 +8425,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create three connected rooms with patrolling Wardens and a hazard checkpoint. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create three connected rooms with patrolling Wardens and a hazard checkpoint. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "earth"
         },
@@ -8715,7 +8715,7 @@
         "minimumCost": 116
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create three rooms with two Delvers, two Wardens, and a balanced light-dark hazard mix. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create three rooms with two Delvers, two Wardens, and a balanced light-dark hazard mix. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-9376c4bd1741": {
@@ -9010,7 +9010,7 @@
         "minimumCost": 98
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large dark maze-style level baseline with multiple dark hazards and one light scout. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a large dark maze-style level baseline with multiple dark hazards and one light scout. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "dark"
         },
@@ -9299,7 +9299,7 @@
         "minimumCost": 98
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large fire arena with fire hazards, a water Delver, and a fire Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a large fire arena with fire hazards, a water Delver, and a fire Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "fire"
         },
@@ -9667,7 +9667,7 @@
         "minimumCost": 155
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large dungeon with several resources and mixed actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a large dungeon with several resources and mixed actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "growth"
         },
@@ -10030,7 +10030,7 @@
         "minimumCost": 135
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a dungeon that includes every affinity family at least once across hazards and actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a dungeon that includes every affinity family at least once across hazards and actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6db78ed0c1f1": {
@@ -10562,7 +10562,7 @@
         "minimumCost": 296
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a full evaluation dungeon with multiple rooms, hazards, resources, Delvers, and Wardens. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a full evaluation dungeon with multiple rooms, hazards, resources, Delvers, and Wardens. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-3ac2b4143da0": {
@@ -10892,7 +10892,7 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a puzzle-style hazard room where wardens hold stationary positions guarding hazard zones, with blocking hazards at key choke points and an exploring Delver. Use a 1200 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a puzzle-style hazard room where wardens hold stationary positions guarding hazard zones, with blocking hazards at key choke points and an exploring Delver. Use a 1200 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 1200
         },
@@ -11173,7 +11173,7 @@
         "minimumCost": 98
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a resource-capture dungeon where a Delver collects level-up resources while avoiding fire hazards guarded by a defending Warden. Use a 1600 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a resource-capture dungeon where a Delver collects level-up resources while avoiding fire hazards guarded by a defending Warden. Use a 1600 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 1600
         },
@@ -11412,7 +11412,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a tick-session-ready dungeon with an exploring Delver, a stationary Warden, a fire hazard emitting affinity stacks, and a level resource pickup. Use a 1300 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a tick-session-ready dungeon with an exploring Delver, a stationary Warden, a fire hazard emitting affinity stacks, and a level resource pickup. Use a 1300 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 1300
         },
@@ -11656,7 +11656,7 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a mixed-motivation encounter with one exploring Delver, one attacking Delver, one defending Warden, one stationary Warden, and a dark-affinity hazard. Use a 600 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a mixed-motivation encounter with one exploring Delver, one attacking Delver, one defending Warden, one stationary Warden, and a dark-affinity hazard. Use a 600 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 600
         },
@@ -11800,7 +11800,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with a single exploring delver and no extra configuration. Use a 250 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with a single exploring delver and no extra configuration. Use a 250 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 250
         },
@@ -11912,7 +11912,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with a single defending warden and no extra configuration. Use a 250 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with a single defending warden and no extra configuration. Use a 250 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 250
         },
@@ -12053,7 +12053,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with one attacking delver and one defending warden. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with one attacking delver and one defending warden. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 450
         },
@@ -12173,7 +12173,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two exploring delvers. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with two exploring delvers. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 450
         },
@@ -12285,7 +12285,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two patrolling wardens. Use a 469 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with two patrolling wardens. Use a 469 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 469
         },
@@ -12426,7 +12426,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two attacking delvers and two defending wardens. Use a 750 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with two attacking delvers and two defending wardens. Use a 750 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 750
         },
@@ -12546,7 +12546,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two base rooms with a single exploring delver. Use a 650 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create two base rooms with a single exploring delver. Use a 650 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 650
         },
@@ -12687,7 +12687,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with twelve floor tiles and one stationary warden. Use a 250 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with twelve floor tiles and one stationary warden. Use a 250 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 250
         },
@@ -12865,7 +12865,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with one exploring delver, one defending warden, and a single basic hazard. Use a 550 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with one exploring delver, one defending warden, and a single basic hazard. Use a 550 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 550
         },
@@ -12993,7 +12993,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with three defending wardens. Use a 1500 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a base room with three defending wardens. Use a 1500 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 1500
         },
@@ -13134,7 +13134,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-01] create one injured mobile exploring Delver crossing one consumable health resource that grants current health only. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-RS-01] create one injured mobile exploring Delver crossing one consumable health resource that grants current health only. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-e63cbac9457e": {
@@ -13281,7 +13281,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-02] create one mobile exploring Delver crossing one level-scoped resource that raises maximum health. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-RS-02] create one mobile exploring Delver crossing one level-scoped resource that raises maximum health. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6943b9669d86": {
@@ -13428,7 +13428,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-03] create one injured mobile exploring Delver crossing one regeneration-only health resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-RS-03] create one injured mobile exploring Delver crossing one regeneration-only health resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-b6440bd5315e": {
@@ -13604,7 +13604,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-04] create one mobile Delver crossing a water draw hazard while a second stationary interaction target is nearby. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-HZ-04] create one mobile Delver crossing a water draw hazard while a second stationary interaction target is nearby. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-e3334b6b535e": {
@@ -13759,7 +13759,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-02] create one mobile exploring actor approaching a non-blocking wind push hazard with legal walkable displacement space behind the actor. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-HZ-02] create one mobile exploring actor approaching a non-blocking wind push hazard with legal walkable displacement space behind the actor. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-37a163243d70": {
@@ -13906,7 +13906,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-03] create one mobile exploring actor approaching an earth pull hazard from outside its focused radius with legal space toward the hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-HZ-03] create one mobile exploring actor approaching an earth pull hazard from outside its focused radius with legal space toward the hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-ae131ab586dd": {
@@ -14053,7 +14053,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with sixteen floor tiles and one light emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with sixteen floor tiles and one light emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "light"
         },
@@ -14144,7 +14144,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one small room with no actors or hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one small room with no actors or hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-2c4314817d8f": {
@@ -14217,7 +14217,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one medium room with no actors or hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one medium room with no actors or hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-24bf8e0d7ab2": {
@@ -14290,7 +14290,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one large room with no actors or hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one large room with no actors or hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-3bb1dc9e746a": {
@@ -14392,7 +14392,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-02] create three connected medium rooms with exactly one exploring Delver beginning on the route from the entry room. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-TR-02] create three connected medium rooms with exactly one exploring Delver beginning on the route from the entry room. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-11ec36595ed6": {
@@ -14473,7 +14473,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one fire Delver with a high-priority maximum-mana goal. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one fire Delver with a high-priority maximum-mana goal. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-8d85f409431c": {
@@ -14546,7 +14546,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one water Delver with a high-priority mana-regeneration goal. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one water Delver with a high-priority mana-regeneration goal. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-8fc56e9a660b": {
@@ -14648,7 +14648,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-04] create one open medium room with exactly one stationary Warden who must not move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-TR-04] create one open medium room with exactly one stationary Warden who must not move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-efed782341fa": {
@@ -14758,7 +14758,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-01] create one open medium room with exactly one exploring Delver who has positive stamina and room to move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-TR-01] create one open medium room with exactly one exploring Delver who has positive stamina and room to move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-a43997da1350": {
@@ -14839,7 +14839,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one defending dark Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one defending dark Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-482402ba0da3": {
@@ -14995,7 +14995,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-05] create one open large room with exactly three uniquely identified random mobile actors, one Delver and two Wardens, each with positive stamina and several legal movement branches, and no hazards or resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, for execution contract [EX-ST-05] create one open large room with exactly three uniquely identified random mobile actors, one Delver and two Wardens, each with positive stamina and several legal movement branches, and no hazards or resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-fcaf37f5d64c": {
@@ -15150,7 +15150,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a water Delver with two draw stacks opposing a fire hazard with two push stacks. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a water Delver with two draw stacks opposing a fire hazard with two push stacks. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-892e09ca3564": {
@@ -15326,7 +15326,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a growth Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a growth Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "growth"
         },
@@ -15483,7 +15483,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two dark Wardens sharing two pull stacks against a dark pull hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create two dark Wardens sharing two pull stacks against a dark pull hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "dark"
         },
@@ -15686,7 +15686,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large room with exploring and friendly Delvers, a defending Warden, and a level vital resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a large room with exploring and friendly Delvers, a defending Warden, and a level vital resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-29ab65fa5736": {
@@ -15903,7 +15903,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a three-room route with thirty floor tiles, fire and water hazards, and one earth explorer. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a three-room route with thirty floor tiles, fire and water hazards, and one earth explorer. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-6b4b76a7ad56": {
@@ -16145,7 +16145,7 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a guarded cache with permanent regeneration and level affinity resources, one Delver, and two Wardens. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a guarded cache with permanent regeneration and level affinity resources, one Delver, and two Wardens. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-7697ed07eaf7": {
@@ -16312,7 +16312,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver party with opposed affinities and explicit maximum-mana and mana-regeneration goals. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a two-Delver party with opposed affinities and explicit maximum-mana and mana-regeneration goals. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-cc06f0bdd89f": {
@@ -16646,7 +16646,7 @@
         "minimumCost": 155
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two rooms with hazards, resources, two Delvers, and two Wardens spanning six affinities. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create two rooms with hazards, resources, two Delvers, and two Wardens spanning six affinities. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-5d43e64e79f0": {
@@ -16791,7 +16791,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver at its minimum passing budget. Use a 103 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one exploring fire Delver at its minimum passing budget. Use a 103 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 103
         },
@@ -16866,7 +16866,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 102 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 102 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 102
         },
@@ -16941,7 +16941,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one defending dark Warden at its minimum passing budget. Use a 97 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one defending dark Warden at its minimum passing budget. Use a 97 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 97
         },
@@ -17016,7 +17016,7 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one defending dark Warden one token below its minimum passing budget. Use a 96 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one defending dark Warden one token below its minimum passing budget. Use a 96 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 96
         },
@@ -17149,7 +17149,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 315 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 315 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 315
         },
@@ -17298,7 +17298,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 314 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 314 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 314
         },
@@ -17418,7 +17418,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 214 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 214 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 214
         },
@@ -17559,7 +17559,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 274 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 274 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 274
         },
@@ -17708,7 +17708,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly growth Delver five tokens above the minimum passing budget. Use a 253 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one level vital resource and one friendly growth Delver five tokens above the minimum passing budget. Use a 253 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 253
         },
@@ -17828,7 +17828,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 427 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 427 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 427
         },
@@ -17969,7 +17969,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with a dark pull hazard and two defending dark Wardens at the minimum passing budget. Use a 533 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with a dark pull hazard and two defending dark Wardens at the minimum passing budget. Use a 533 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 533
         },

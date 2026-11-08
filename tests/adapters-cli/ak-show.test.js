@@ -33,7 +33,7 @@ function normalizePrivatePath(value) {
 }
 
 test("cli show summarizes a prior run directory", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-show-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-show-"));
   const runId = "run_show_basic";
   const buildDir = join(workDir, "artifacts", "runs", runId, "build");
   const runDir = join(workDir, "artifacts", "runs", runId, "run");
@@ -41,7 +41,7 @@ test("cli show summarizes a prior run directory", () => {
   mkdirSync(runDir, { recursive: true });
 
   writeJson(join(buildDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: "agon/SimConfigArtifact",
     schemaVersion: 1,
     meta: createMeta(runId, "sim_config"),
     layout: {
@@ -53,7 +53,7 @@ test("cli show summarizes a prior run directory", () => {
   });
 
   writeJson(join(buildDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: "agon/InitialStateArtifact",
     schemaVersion: 1,
     meta: createMeta(runId, "initial_state"),
     actors: [
@@ -63,11 +63,11 @@ test("cli show summarizes a prior run directory", () => {
   });
 
   writeJson(join(buildDir, "budget-receipt.json"), {
-    schema: "agent-kernel/BudgetReceiptArtifact",
+    schema: "agon/BudgetReceiptArtifact",
     schemaVersion: 1,
     meta: createMeta(runId, "budget_receipt"),
-    budgetRef: { id: "budget", schema: "agent-kernel/BudgetArtifact", schemaVersion: 1 },
-    priceListRef: { id: "price_list", schema: "agent-kernel/PriceList", schemaVersion: 1 },
+    budgetRef: { id: "budget", schema: "agon/BudgetArtifact", schemaVersion: 1 },
+    priceListRef: { id: "price_list", schema: "agon/PriceList", schemaVersion: 1 },
     status: "approved",
     totalCost: 42,
     remaining: 58,
@@ -93,7 +93,7 @@ test("cli show summarizes a prior run directory", () => {
   });
 
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: createMeta(runId, "run_summary"),
     outcome: "success",
@@ -132,7 +132,7 @@ test("cli show summarizes a prior run directory", () => {
 });
 
 test("cli show returns structured failure for unknown runs", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-show-missing-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-cli-show-missing-"));
   const result = runCli(["show", "--run-id", "run_missing"], { cwd: workDir });
 
   assert.notEqual(result.status, 0);

@@ -25,7 +25,7 @@ function runCli(args) {
 }
 
 test("cli ipfs command writes fetched JSON", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-ipfs-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-ipfs-"));
   runCli([
     "ipfs",
     "--cid",
@@ -39,11 +39,11 @@ test("cli ipfs command writes fetched JSON", async () => {
     outDir,
   ]);
   const payload = JSON.parse(readFileSync(join(outDir, "ipfs.json"), "utf8"));
-  assert.equal(payload.schema, "agent-kernel/PriceList");
+  assert.equal(payload.schema, "agon/PriceList");
 });
 
 test("cli ipfs-load command writes canonical artifact files from fixture map", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-ipfs-load-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-ipfs-load-"));
   runCli([
     "ipfs-load",
     "--cid",
@@ -59,13 +59,13 @@ test("cli ipfs-load command writes canonical artifact files from fixture map", a
   assert.ok(summary.fetchedFiles.includes("manifest.json"));
 
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
-  assert.equal(bundle.spec.schema, "agent-kernel/BuildSpec");
+  assert.equal(bundle.spec.schema, "agon/BuildSpec");
   const simConfig = JSON.parse(readFileSync(join(outDir, "sim-config.json"), "utf8"));
-  assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+  assert.equal(simConfig.schema, "agon/SimConfigArtifact");
 });
 
 test("cli ipfs-publish command writes publish summary from canonical artifact map", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-ipfs-publish-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-ipfs-publish-"));
   runCli([
     "ipfs-publish",
     "--artifact-map",
@@ -83,7 +83,7 @@ test("cli ipfs-publish command writes publish summary from canonical artifact ma
 });
 
 test("cli blockchain command writes chainId and balance", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-blockchain-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-blockchain-"));
   runCli([
     "blockchain",
     "--rpc-url",
@@ -103,7 +103,7 @@ test("cli blockchain command writes chainId and balance", async () => {
 });
 
 test("cli blockchain-mint command writes minted token metadata", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-blockchain-mint-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-blockchain-mint-"));
   runCli([
     "blockchain-mint",
     "--rpc-url",
@@ -126,7 +126,7 @@ test("cli blockchain-mint command writes minted token metadata", async () => {
 });
 
 test("cli blockchain-load command writes minted card payload", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-blockchain-load-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-blockchain-load-"));
   runCli([
     "blockchain-load",
     "--rpc-url",
@@ -148,7 +148,7 @@ test("cli blockchain-load command writes minted card payload", async () => {
 });
 
 test("cli llm command writes response JSON", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-"));
   runCli([
     "llm",
     "--model",
@@ -167,7 +167,7 @@ test("cli llm command writes response JSON", async () => {
 });
 
 test("cli llm command defaults model to phi4 when omitted", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-default-model-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-llm-default-model-"));
   runCli([
     "llm",
     "--prompt",

@@ -26,7 +26,7 @@ async function artifacts({ walkerMotivation = "exploring", stamina = 6 } = {}) {
   };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "world_state_sim", runId: "world_state", createdAt: CLOCK },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { walker: 1 },
   });
@@ -78,7 +78,7 @@ test("captureWorldState records every actor's final position, matching the regis
   const snapshot = runtime.captureWorldState({ meta: META });
   const live = runtime.getActorSnapshot();
 
-  assert.equal(snapshot.schema, "agent-kernel/WorldStateArtifact");
+  assert.equal(snapshot.schema, "agon/WorldStateArtifact");
   assert.equal(snapshot.schemaVersion, 2);
   assert.equal(snapshot.tick, TICKS);
   assert.deepEqual(snapshot.actors, live.actors);

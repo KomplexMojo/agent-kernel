@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup-km.sh — Knowledge Management setup for agent-kernel
+# setup-km.sh — Knowledge Management setup for agon
 #
 # Sets up an Obsidian vault, Claude wiki skills, MCP filesystem server,
 # and migrates non-essential repo docs into the vault.
@@ -506,7 +506,7 @@ phase_8_verify() {
 # ============================================================================
 
 template_index() { cat <<'EOF'
-# Vault Index — agent-kernel
+# Vault Index — agon
 
 > The compounding wiki for this project. Code is the truth for *what is*; this vault is the truth for *why we did it*.
 
@@ -528,7 +528,7 @@ EOF
 }
 
 template_overview() { cat <<'EOF'
-# Overview — agent-kernel
+# Overview — agon
 
 Two-paragraph executive summary kept up to date by hand. Updated whenever a milestone lands or scope shifts.
 
@@ -546,18 +546,18 @@ EOF
 
 template_vault_claude() { cat <<'EOF'
 ---
-description: Vault-local instructions for Claude inside the agent-kernel knowledge vault
+description: Vault-local instructions for Claude inside the agon knowledge vault
 ---
 
 # CLAUDE.md (vault)
 
-You are inside the agent-kernel knowledge vault. The repo lives elsewhere; this vault is the
+You are inside the agon knowledge vault. The repo lives elsewhere; this vault is the
 *compounding wiki* — decisions, plans, rationale, ingested sources.
 
 ## Rules
 
 1. **Code is not here.** Do not write production code in this vault. If a question requires
-   code, switch to the agent-kernel repo.
+   code, switch to the agon repo.
 2. **One-way ingest.** Vault may cite CCG nodes. Vault never *generates* code structure.
 3. **Cross-machine handoff rides on `plans/active/Plan.md`.** There is no hot cache: `hot.md` was
    removed 2026-08-18 because nothing ever wrote to it. Do not reintroduce one without a write side.

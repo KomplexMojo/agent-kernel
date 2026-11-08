@@ -81,7 +81,7 @@ import {
 } from "./artifacts.ts";
 
 /**
- * PA.5a — what KIND of thing each `agent-kernel/*` schema actually is.
+ * PA.5a — what KIND of thing each `agon/*` schema actually is.
  *
  * 🔴 THE PROBLEM THIS SOLVES IS A MEASUREMENT ONE. The maintainer's 2026-07-22 review
  * intent was "artifacts.ts defines 48 distinct schemas, that is too many — consolidate".

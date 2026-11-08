@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-kernel.local/schemas/execution-metric-contract-v1.json",
-  "title": "Agent Kernel execution metric contract",
+  "$id": "https://agon.local/schemas/execution-metric-contract-v1.json",
+  "title": "Agon execution metric contract",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "evaluatorVersion", "qualification", "profiles", "invariants", "metrics"],
   "properties": {
-    "schemaVersion": { "const": "agent-kernel-execution-metric-contract/v1" },
+    "schemaVersion": { "const": "agon-execution-metric-contract/v1" },
     "evaluatorVersion": { "type": "string", "minLength": 1 },
     "qualification": {
       "type": "object",

@@ -1,6 +1,6 @@
 # Architecture Charter (Ports & Adapters)
 
-This charter governs **agent-kernel**, the engine under **Deepward** (the game and the public name).
+This charter governs **Agon**, the engine under **Deepward** (the game and the public name).
 
 `packages/core-ts` is the deterministic core. It must not depend on UI, network, storage, filesystem, clocks, process state, or Node APIs.
 
@@ -437,7 +437,7 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 
 ## Framework vs Game (adopted 2026-11-06, #739, tracker #747)
 
-agent-kernel is the **framework**: `core-ts`, `runtime` (personas, contracts, ports, runner, render view models), the adapters, `ak`, the MCP server and the reference terminal client (`ui-ascii`). The game (**Primordial**, a separate private repository) is a **consumer** of it: the phone app, `ui-web`, the playtest launcher and PWA scripts, lore, brand and art.
+Agon is the **framework**: `core-ts`, `runtime` (personas, contracts, ports, runner, render view models), the adapters, `ak`, the MCP server and the reference terminal client (`ui-ascii`). The game (**Primordial**, a separate private repository) is a **consumer** of it: the phone app, `ui-web`, the playtest launcher and PWA scripts, lore, brand and art.
 
 ```text
 game (Primordial: clients, scenarios, art) -> framework API (runtime / adapters / ak / MCP) -> core-ts
@@ -491,8 +491,8 @@ Enforced by `tests/architecture/framework-game-boundary.test.js` against `tests/
 - Model, MCP, and CLI calls are mockable; deterministic tests use fixtures and never hit a live service. Benchmark measurements are offline evidence only and cannot rewrite routing policy without an explicit, versioned promotion.
 - CLI (`ak workflow …`) and MCP (`ak_workflow_*`) surfaces are additive; existing commands and tools are unchanged. See [`adaptive-workflow.md`](adaptive-workflow.md).
 - **Every schema in this cluster is declared in `packages/runtime/src/contracts/artifacts.ts` and imported from there (CR.4 M7, 2026-08-08).** This is the general artifact rule, recorded here because this cluster is where it was broken worst: twelve of its twenty schemas were declared elsewhere — six in `adaptive-workflow/` modules, one in an *adapter* — and **six had no constant at all**, the string retyped at each use site. `tests/architecture/schema-declaration-origin.test.js` enforces it by matching **literals, not declarations**: a schema with no constant is invisible to any instrument that looks for constants, which is precisely how the cluster was miscounted three times (9 → 15 → 20). The guard's `KNOWN_OUTSTANDING` list enumerated the seven production schemas elsewhere in the tree that still violated the rule; it was an inventory of debt, not a silencer. **M8 (2026-08-11) emptied it** — every production schema literal in the tree is declared in `artifacts.ts`, so the declaration rule has no exemptions left and a new undeclared schema fails on arrival.
-- **Declared centrally and *used from* the declaration are different properties, and only the second is single origin.** A file that retypes `"agent-kernel/Whatever"` inline passes a declaration check — the schema *is* declared, it simply is not being read from there — while remaining free to drift from it. Both prior failures were exactly this: `RUNTIME_PROFILE_SNAPSHOT_SCHEMA`, a second origin under a name that read like a different schema, and `GAMEPLAY_BUNDLE_SCHEMA`, declared once in the CLI that writes bundles and once in the browser module that reads them.
-- **THE RULE IS NOW ABSOLUTE (M9, 2026-08-11): no production file outside `artifacts.ts` may write an `agent-kernel/*` string literal at all.** M7 and M8 held a *named set* of schemas to this stricter rule while 182 sites across 50 files still retyped a centrally declared schema — 68 of them rival `const` declarations, five inside `contracts/` itself. That backlog is closed, so the guard needs no list: a rule that enumerates what it protects is a rule someone has to remember to extend, and M8's named ten would have covered none of the other 172. The single `KNOWN_OUTSTANDING` list is now the only exemption, is empty, and is honoured by every check — an exemption that silences one check but not another is not an escape hatch, it just looks like one.
+- **Declared centrally and *used from* the declaration are different properties, and only the second is single origin.** A file that retypes `"agon/Whatever"` inline passes a declaration check — the schema *is* declared, it simply is not being read from there — while remaining free to drift from it. Both prior failures were exactly this: `RUNTIME_PROFILE_SNAPSHOT_SCHEMA`, a second origin under a name that read like a different schema, and `GAMEPLAY_BUNDLE_SCHEMA`, declared once in the CLI that writes bundles and once in the browser module that reads them.
+- **THE RULE IS NOW ABSOLUTE (M9, 2026-08-11): no production file outside `artifacts.ts` may write an `agon/*` string literal at all.** M7 and M8 held a *named set* of schemas to this stricter rule while 182 sites across 50 files still retyped a centrally declared schema — 68 of them rival `const` declarations, five inside `contracts/` itself. That backlog is closed, so the guard needs no list: a rule that enumerates what it protects is a rule someone has to remember to extend, and M8's named ten would have covered none of the other 172. The single `KNOWN_OUTSTANDING` list is now the only exemption, is empty, and is honoured by every check — an exemption that silences one check but not another is not an escape hatch, it just looks like one.
 
 ## Builder Port
 
@@ -616,7 +616,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Sandbox Bridge (MCP → CLI → UI)
 
-- The `ak_push_to_ui` MCP tool delivers an `agent-kernel/GameplayBundle` to a connected UI client over the sandbox WebSocket bridge (`packages/adapters-cli/src/mcp/bridge-server.mjs`, default port 38487, override with `AK_SANDBOX_BRIDGE_PORT`).
+- The `ak_push_to_ui` MCP tool delivers an `agon/GameplayBundle` to a connected UI client over the sandbox WebSocket bridge (`packages/adapters-cli/src/mcp/bridge-server.mjs`, default port 38487, override with `AK_SANDBOX_BRIDGE_PORT`).
 - The tool accepts an inline `bundle`, a `bundlePath`, or an `outDir` containing `bundle.json`. The framework ships no browser client since `ui-web` was archived (#744), and no longer serves or opens one (`openBrowser` is gone); the bridge is the port a game client connects to.
 - CLI `run` stitches a post-run `GameplayBundle` (`bundle.json`) only when its inputs came from an authored `create` outDir; fixture-driven runs stay bundle-free so CLI output remains artifact-for-artifact equivalent to the browser host's run output.
 - The bridge is an adapter-layer concern: bundle assembly reuses runtime contracts, and no bridge or WebSocket code lives in `runtime` or `core-ts`.

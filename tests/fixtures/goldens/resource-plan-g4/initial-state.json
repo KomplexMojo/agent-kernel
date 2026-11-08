@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/InitialStateArtifact",
+  "schema": "agon/InitialStateArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "golden_g4_initial_state",
@@ -11,19 +11,19 @@
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g4_budget_receipt",
-        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schema": "agon/BudgetReceiptArtifact",
         "schemaVersion": 1
       },
       "proposalRef": {
         "id": "golden_g4_spend_proposal",
-        "schema": "agent-kernel/SpendProposal",
+        "schema": "agon/SpendProposal",
         "schemaVersion": 1
       }
     }
   },
   "simConfigRef": {
     "id": "golden_g4_sim_config",
-    "schema": "agent-kernel/SimConfigArtifact",
+    "schema": "agon/SimConfigArtifact",
     "schemaVersion": 1
   },
   "actors": [

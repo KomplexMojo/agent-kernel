@@ -19,7 +19,7 @@ test("runtime persist-or-spawn hazard uses registry quantities when unified", as
   const layout = { width: 3, height: 1, terrain: ["floor", "floor", "exit"] };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "arm-config", runId: "arm", createdAt: "fixed" },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { caster: 0 },
   });

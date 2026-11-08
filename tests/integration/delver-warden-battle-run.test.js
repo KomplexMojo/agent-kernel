@@ -70,7 +70,7 @@ function accepted(runtime) {
 
 test("unified battle artifacts carry Configurator actors with attacking/defending motivations", async () => {
   const { initialState } = await battleArtifacts();
-  assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
+  assert.equal(initialState.schema, "agon/InitialStateArtifact");
   assert.equal(initialState.actors.length, 2);
   const delver = initialState.actors.find((actor) => actor.id === "delver_1");
   const warden = initialState.actors.find((actor) => actor.id === "warden_1");

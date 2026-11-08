@@ -1,6 +1,6 @@
 {
   "simConfig": {
-    "schema": "agent-kernel/SimConfigArtifact",
+    "schema": "agon/SimConfigArtifact",
     "schemaVersion": 1,
     "meta": {
       "id": "sim-config-bundle-test",
@@ -19,7 +19,7 @@
     }
   },
   "initialState": {
-    "schema": "agent-kernel/InitialStateArtifact",
+    "schema": "agon/InitialStateArtifact",
     "schemaVersion": 1,
     "meta": {
       "id": "initial-state-bundle-test",

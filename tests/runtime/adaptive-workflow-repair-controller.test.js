@@ -22,7 +22,7 @@ test("repair actions are deterministic across syntax schema domain and escalatio
   assert.equal(chooseRepairAction({ history: ["a", "b", "a", "b"], canFlagship: true }).action, "flagship_escalation");
   assert.equal(chooseRepairAction({ history: ["a", "b", "a", "b"] }).action, "fail");
   const machine = createAdaptiveWorkflowStateMachine({ runId: "repair-guard", clock: clock() });
-  const ref = { id: "candidate", schema: "agent-kernel/Candidate", schemaVersion: 1 };
+  const ref = { id: "candidate", schema: "agon/Candidate", schemaVersion: 1 };
   machine.advance(AdaptiveWorkflowEvents.SUBMIT_OBJECTIVE, { objective: "guard repair evidence" });
   machine.advance(AdaptiveWorkflowEvents.PLAN_READY, { planRef: ref });
   machine.advance(AdaptiveWorkflowEvents.CONFIGURATION_READY, { configurationRef: ref });
@@ -62,7 +62,7 @@ test("patch contract rejects immutable overlap root and prototype paths and neve
   assert.throws(() => applyPatchRequest({ rooms: [0, 1] }, { ...basic, operations: [{ op: "replace", path: "/rooms/01", value: 2 }] }), /index/i);
   assert.throws(() => applyPatchRequest({ rooms: [] }, { ...basic, operations: [{ op: "remove", path: "/rooms/0" }] }), /index/i);
   assert.throws(() => applyPatchRequest({ container: { asset: { algorithm: "sha256", digest: "abc" } } }, { ...basic, operations: [{ op: "replace", path: "/container", value: {} }] }), /immutable/i);
-  assert.throws(() => applyPatchRequest({ container: { resultRef: { id: "result", schema: "agent-kernel/Result", schemaVersion: 1 } } }, { ...basic, operations: [{ op: "replace", path: "/container", value: {} }] }), /immutable/i);
+  assert.throws(() => applyPatchRequest({ container: { resultRef: { id: "result", schema: "agon/Result", schemaVersion: 1 } } }, { ...basic, operations: [{ op: "replace", path: "/container", value: {} }] }), /immutable/i);
 });
 
 test("accepted patch reruns every affected validator and records a receipt", async () => {
@@ -135,7 +135,7 @@ test("runner applies targeted patch with validate repair validate transitions", 
     ports: {
       model: { generate: async () => { modelCalls += 1; return { response: JSON.stringify({ rooms: [{ name: "bad" }], actors: [] }) }; } },
       validator: [{ id: "rooms", paths: ["/rooms"], validate: (value, context) => { validatorCalls.push(context.stage); return value.rooms[0].count === 2 ? { ok: true } : { ok: false, issues: [{ code: "domain_invalid", path: "/rooms/0/count" }] }; } }],
-      artifactStore: { put: async (artifact) => { patchStored.push(artifact); return artifact.schema === "agent-kernel/AdaptiveWorkflowPatchReceipt" ? { id: artifact.id, schema: "agent-kernel/WrongReceipt" } : { id: artifact.id, schema: artifact.schema, schemaVersion: 1 }; } },
+      artifactStore: { put: async (artifact) => { patchStored.push(artifact); return artifact.schema === "agon/AdaptiveWorkflowPatchReceipt" ? { id: artifact.id, schema: "agon/WrongReceipt" } : { id: artifact.id, schema: artifact.schema, schemaVersion: 1 }; } },
       clock: clock(),
     },
   });
@@ -147,9 +147,9 @@ test("runner applies targeted patch with validate repair validate transitions", 
   const repairEvent = result.events.find(({ kind }) => kind === "repair");
   assert.equal(repairEvent.details.patchRequest.requestId, basic.requestId);
   assert.equal(repairEvent.details.patchReceipt.accepted, true);
-  const storedReceipt = patchStored.find(({ schema }) => schema === "agent-kernel/AdaptiveWorkflowPatchReceipt");
+  const storedReceipt = patchStored.find(({ schema }) => schema === "agon/AdaptiveWorkflowPatchReceipt");
   assert.equal(storedReceipt.id, repairEvent.details.patchReceipt.meta.id);
-  assert.equal(storedReceipt.value.schema, "agent-kernel/AdaptiveWorkflowPatchReceipt");
+  assert.equal(storedReceipt.value.schema, "agon/AdaptiveWorkflowPatchReceipt");
   assert.deepEqual(result.state.refs.patchReceiptRefs[0], { id: storedReceipt.id, schema: storedReceipt.schema, schemaVersion: 1 });
 
   const wrongRun = await runAdaptiveWorkflow({

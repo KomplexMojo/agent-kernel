@@ -12,6 +12,7 @@ the one question it exists to answer: an unlisted directory reads as "no owner d
 |---|---|
 | `README.md` | Project overview, Ports & Adapters structure, quick-start commands. |
 | `docs/README.md` | Architecture law, design intent, vision constraints, and the reading order for the rest of `docs/`. |
+| `docs/engine-api.md` | The public engine API list (from `apiSurface`) and the 0.x stability policy. |
 | `docs/vitals-decision-audit.md` | What each vital decides, what spends and restores it, and the wait-regen grind metric. |
 | `docs/design/actor-tactic-catalogue.md` | Tactics mined from LLM seat runs, classed works / doesn't / z3 solve / list, with data in the sibling JSON (#673). |
 | `docs/design/strategy-sources-2026-11-02.md` | Strategy sources (catalogue vs LLM tactic plan) compared by play-sim outcome, with the tool and the honest limits of the first run (#677). |
@@ -51,7 +52,7 @@ behaviors have a passing G1 test and which do not. Those blocks mirror
 | README Path | What belongs here |
 |---|---|
 | `packages/adapters-cli/README.md` | Node CLI commands and CLI-specific adapter wiring. |
-| `packages/adapters-cli/src/mcp/README.md` | The `agent-kernel-cli` MCP server exposed over stdio. |
+| `packages/adapters-cli/src/mcp/README.md` | The `agon-cli` MCP server exposed over stdio. |
 | `packages/adapters-cli/src/adapters/llm/README.md` | CLI LLM adapter against an Ollama/OpenAI-compatible HTTP endpoint. |
 | `packages/adapters-cli/src/adapters/ipfs/README.md` | CLI IPFS fetches via an HTTP gateway. |
 | `packages/adapters-cli/src/adapters/blockchain/README.md` | CLI blockchain reads over JSON-RPC. |

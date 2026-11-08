@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/test-fixture/GuidanceLevelGenCharacterization",
+  "schema": "agon/test-fixture/GuidanceLevelGenCharacterization",
   "generatedFor": "CR.4 D8.1",
   "note": "Captured from personas/configurator/guidance-level-builder.js BEFORE it stopped importing director/buildspec-assembler.js. Any diff is a behavior change in the derived levelGen.",
   "cases": [
@@ -43,7 +43,7 @@
         "cardSet": [
           {
             "kind": "room",
-            "schema": "agent-kernel/RoomCard",
+            "schema": "agon/RoomCard",
             "size": "medium",
             "affinity": "fire"
           }
@@ -65,13 +65,13 @@
         "cardSet": [
           {
             "kind": "room",
-            "schema": "agent-kernel/RoomCard",
+            "schema": "agon/RoomCard",
             "size": "medium",
             "affinity": "fire"
           },
           {
             "kind": "room",
-            "schema": "agent-kernel/RoomCard",
+            "schema": "agon/RoomCard",
             "size": "large",
             "affinity": "fire"
           }
@@ -93,7 +93,7 @@
         "cards": [
           {
             "kind": "room",
-            "schema": "agent-kernel/RoomCard",
+            "schema": "agon/RoomCard",
             "size": "medium",
             "affinity": "fire"
           }

@@ -41,7 +41,7 @@ function listDelverCards(spec) {
 }
 
 test("cli delver-plan authors delver cards directly from delver flags", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-basic-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-basic-"));
   const result = runCliOk([
     "delver-plan",
     "--delver",
@@ -68,7 +68,7 @@ test("cli delver-plan authors delver cards directly from delver flags", async ()
   const spec = readJson(join(outDir, "spec.json"));
   const manifest = readJson(join(outDir, "manifest.json"));
   assert.equal(spec.meta.runId, "run_delver_plan_basic");
-  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agon/ResourceBundleArtifact"));
 
   const cards = listDelverCards(spec);
   assert.equal(cards.length, 1);
@@ -79,7 +79,7 @@ test("cli delver-plan authors delver cards directly from delver flags", async ()
 });
 
 test("cli delver-plan applies default delver motivation and affinity fallback", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-defaults-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-defaults-"));
   runCliOk([
     "delver-plan",
     "--delver",
@@ -104,7 +104,7 @@ test("cli delver-plan applies default delver motivation and affinity fallback", 
 });
 
 test("cli delver-plan supports multiple delver configurations in one command", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-multi-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-multi-"));
   runCliOk([
     "delver-plan",
     "--delver",
@@ -130,7 +130,7 @@ test("cli delver-plan supports multiple delver configurations in one command", a
 });
 
 test("cli delver-plan supports advanced affinities, vitals, setup mode, and receipt accounting", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-advanced-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-advanced-"));
   runCliOk([
     "delver-plan",
     "--delver",
@@ -238,7 +238,7 @@ test("cli delver-plan requires --budget and --price-list together", async () => 
 });
 
 test("cli delver-plan maximizes mana-focused spend within a 200-token budget", async () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-budgeted-"));
+  const workDir = mkdtempSync(join(os.tmpdir(), "agon-delver-plan-budgeted-"));
   const outDir = join(workDir, "out");
 
   runCliOk([

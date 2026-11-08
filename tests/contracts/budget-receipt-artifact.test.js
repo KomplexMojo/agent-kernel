@@ -61,7 +61,7 @@ test("orchestrateBuild emits a real BudgetReceiptArtifact with expanded scenario
   const buildResult = await buildReceipt();
   const receipt = buildResult.budgetReceipt;
 
-  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schema, "agon/BudgetReceiptArtifact");
   assert.equal(receipt.schemaVersion, 1);
   assert.equal(receipt.proposalRef.id, buildResult.spendProposal.meta.id);
   assert.ok(receipt.scenarioSpendReport);

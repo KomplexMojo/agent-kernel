@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 
-function ref(id, schema = "agent-kernel/TestArtifact", schemaVersion = 1) {
+function ref(id, schema = "agon/TestArtifact", schemaVersion = 1) {
   return { id, schema, schemaVersion };
 }
 
@@ -35,21 +35,21 @@ test("adaptive workflow state machine follows deterministic happy path transitio
   assert.equal(machine.view().phase, AdaptiveWorkflowPhases.INTAKE);
 
   machine.advance(AdaptiveWorkflowEvents.SUBMIT_OBJECTIVE, { objective: "build a test dungeon" });
-  machine.advance(AdaptiveWorkflowEvents.PLAN_READY, { planRef: ref("plan", "agent-kernel/PlanArtifact") });
+  machine.advance(AdaptiveWorkflowEvents.PLAN_READY, { planRef: ref("plan", "agon/PlanArtifact") });
   machine.advance(AdaptiveWorkflowEvents.CONFIGURATION_READY, {
-    configurationRef: ref("config", "agent-kernel/SimConfigArtifact"),
+    configurationRef: ref("config", "agon/SimConfigArtifact"),
   });
   machine.advance(AdaptiveWorkflowEvents.VALIDATION_PASSED, {
-    validationResultRef: ref("validation", "agent-kernel/AdaptiveWorkflowValidationResult"),
+    validationResultRef: ref("validation", "agon/AdaptiveWorkflowValidationResult"),
   });
   machine.advance(AdaptiveWorkflowEvents.EXECUTION_SUCCEEDED, {
-    artifactRefs: [ref("execution", "agent-kernel/ExecutionResult")],
+    artifactRefs: [ref("execution", "agon/ExecutionResult")],
   });
   const result = machine.advance(AdaptiveWorkflowEvents.VERIFICATION_PASSED, {
     validationResult: {
       outcome: "passed",
     },
-    validationResultRef: ref("verify", "agent-kernel/AdaptiveWorkflowValidationResult"),
+    validationResultRef: ref("verify", "agon/AdaptiveWorkflowValidationResult"),
   });
 
   assert.equal(result.phase, AdaptiveWorkflowPhases.COMPLETE);
@@ -100,7 +100,7 @@ test("adaptive workflow state machine enters cancelled deterministically from re
   machine.advance(AdaptiveWorkflowEvents.PLAN_READY, { planRef: ref("plan") });
   machine.advance(AdaptiveWorkflowEvents.CONFIGURATION_READY, { configurationRef: ref("config") });
   machine.advance(AdaptiveWorkflowEvents.VALIDATION_FAILED, {
-    validationResultRef: ref("validation", "agent-kernel/AdaptiveWorkflowValidationResult"),
+    validationResultRef: ref("validation", "agon/AdaptiveWorkflowValidationResult"),
   });
   const result = machine.advance(AdaptiveWorkflowEvents.CANCEL, { reason: "user requested stop" });
 

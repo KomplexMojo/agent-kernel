@@ -24,14 +24,14 @@ function makeMeta(id, runId) {
 
 function makeTickFrame(tick, runId) {
   return {
-    schema: "agent-kernel/TickFrame",
+    schema: "agon/TickFrame",
     schemaVersion: 1,
     meta: makeMeta(`tick_frame_${tick}`, runId),
     tick,
     phase: "execute",
     acceptedActions: [
       {
-        schema: "agent-kernel/Action",
+        schema: "agon/Action",
         schemaVersion: 1,
         actorId: "actor_delver",
         tick,
@@ -68,7 +68,7 @@ async function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
   writeJson(join(runDir, "tick-frames.json"), frames);
 
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary",
+    schema: "agon/RunSummary",
     schemaVersion: 1,
     meta: makeMeta("run_summary", runId),
     outcome: "success",
@@ -91,7 +91,7 @@ test("cursor schema and meta fields are complete after tick forward", async () =
   assert.ok(existsSync(cursorPath), "cursor.json must exist after tick forward");
 
   const cursor = JSON.parse(readFileSync(cursorPath, "utf8"));
-  assert.equal(cursor.schema, "agent-kernel/TickCursor");
+  assert.equal(cursor.schema, "agon/TickCursor");
   assert.equal(cursor.schemaVersion, 1);
   assert.ok(cursor.meta, "cursor.meta must be present");
   assert.equal(cursor.meta.runId, runId);
@@ -285,7 +285,7 @@ test("tick state with missing tick-frames.json but run-summary.json present retu
   writeJson(join(buildDir, "sim-config.json"), simConfig);
   writeJson(join(buildDir, "initial-state.json"), initialState);
   writeJson(join(runDir, "run-summary.json"), {
-    schema: "agent-kernel/RunSummary", schemaVersion: 1,
+    schema: "agon/RunSummary", schemaVersion: 1,
     meta: makeMeta("run_summary", runId),
     outcome: "success", metrics: { ticks: 5 },
   });

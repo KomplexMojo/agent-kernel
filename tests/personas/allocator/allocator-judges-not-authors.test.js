@@ -103,7 +103,7 @@ function singleCandidateAuthor(realAuthoring, vitals) {
   return {
     ...realAuthoring,
     proposeDelverCandidates: () => ([{
-      schema: "agent-kernel/ConfigurationCandidate",
+      schema: "agon/ConfigurationCandidate",
       schemaVersion: 1,
       candidateId: "ablation#only",
       card: { ...DELVER, vitals },

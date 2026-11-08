@@ -11,7 +11,7 @@ test("director emits artifact_proposal effects for affinity rooms proportional t
   const persona = createDirectorPersona({ clock });
   persona.advance({ phase: "decide", event: "bootstrap", payload: {
     intentEnvelope: {
-      schema: "agent-kernel/IntentEnvelope",
+      schema: "agon/IntentEnvelope",
       schemaVersion: 1,
       meta: { id: "intent_art_test", runId: "run_art_test", createdAt: CLOCK, producedBy: "orchestrator" },
       source: "test",
@@ -20,7 +20,7 @@ test("director emits artifact_proposal effects for affinity rooms proportional t
   }, tick: 0 });
 
   const intentEnvelope = {
-    schema: "agent-kernel/IntentEnvelope",
+    schema: "agon/IntentEnvelope",
     schemaVersion: 1,
     meta: { id: "intent_art_test", runId: "run_art_test", createdAt: CLOCK, producedBy: "orchestrator" },
     source: "test",
@@ -70,7 +70,7 @@ test("director emits artifact_proposal effects for affinity rooms proportional t
   assert.equal(fireProposal.personaRef, "director");
 
   assert.ok(fireProposal.planRef, "artifact proposal should carry planRef");
-  assert.equal(fireProposal.planRef.schema, "agent-kernel/PlanArtifact");
+  assert.equal(fireProposal.planRef.schema, "agon/PlanArtifact");
 
   assert.equal(artifactEffects.filter((e) => e.roomIndex === 2).length, 0,
     "rest room with no affinity should not produce an artifact_proposal");
@@ -90,7 +90,7 @@ test("director emits artifact_proposal with zero budget when dungeonBreakdown.ar
   const persona = createDirectorPersona({ clock });
   persona.advance({ phase: "decide", event: "bootstrap", payload: {
     intentEnvelope: {
-      schema: "agent-kernel/IntentEnvelope",
+      schema: "agon/IntentEnvelope",
       schemaVersion: 1,
       meta: { id: "intent_no_budget", runId: "run_no_budget", createdAt: CLOCK, producedBy: "orchestrator" },
       source: "test",
@@ -103,7 +103,7 @@ test("director emits artifact_proposal with zero budget when dungeonBreakdown.ar
     event: "ingest_intent",
     payload: {
       intentEnvelope: {
-        schema: "agent-kernel/IntentEnvelope",
+        schema: "agon/IntentEnvelope",
         schemaVersion: 1,
         meta: { id: "intent_no_budget", runId: "run_no_budget", createdAt: CLOCK, producedBy: "orchestrator" },
         source: "test",
@@ -137,7 +137,7 @@ test("director uses room-level artifactVitals and artifactPermanent overrides in
   const persona = createDirectorPersona({ clock });
   persona.advance({ phase: "decide", event: "bootstrap", payload: {
     intentEnvelope: {
-      schema: "agent-kernel/IntentEnvelope",
+      schema: "agon/IntentEnvelope",
       schemaVersion: 1,
       meta: { id: "intent_custom", runId: "run_custom", createdAt: CLOCK, producedBy: "orchestrator" },
       source: "test",
@@ -150,7 +150,7 @@ test("director uses room-level artifactVitals and artifactPermanent overrides in
     event: "ingest_intent",
     payload: {
       intentEnvelope: {
-        schema: "agent-kernel/IntentEnvelope",
+        schema: "agon/IntentEnvelope",
         schemaVersion: 1,
         meta: { id: "intent_custom", runId: "run_custom", createdAt: CLOCK, producedBy: "orchestrator" },
         source: "test",

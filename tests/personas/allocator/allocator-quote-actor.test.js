@@ -44,7 +44,7 @@ test("quoteActor refuses an unpriced input by naming it, never by defaulting", a
   const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
   const { createConfiguratorPersona } = await import(`${P}configurator/persona.js`);
   const normalizeMotivations = createConfiguratorPersona({ clock: CLOCK }).normalizeMotivations;
-  const bare = createAllocatorPersona({ clock: CLOCK, normalizeMotivations, priceList: { schema: "agent-kernel/PriceList", schemaVersion: 1, meta: { id: "x" }, items: [] } });
+  const bare = createAllocatorPersona({ clock: CLOCK, normalizeMotivations, priceList: { schema: "agon/PriceList", schemaVersion: 1, meta: { id: "x" }, items: [] } });
   assert.ok(bare.pricing.quoteActor({ vitals: { health: { max: 5, regen: 1 } }, motivations: [] }).errors.length > 0);
   assert.ok(a.pricing.quoteActor(ENTRY).errors === undefined);
 });

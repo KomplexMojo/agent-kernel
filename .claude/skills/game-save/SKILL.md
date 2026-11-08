@@ -1,6 +1,6 @@
 ---
 name: game-save
-description: Save the agent-kernel game being played in this conversation to a file. Usage /game-save [name].
+description: Save the Agon game being played in this conversation to a file. Usage /game-save [name].
 disable-model-invocation: true
 argument-hint: [name]
 ---

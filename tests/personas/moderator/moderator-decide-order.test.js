@@ -67,7 +67,7 @@ async function decideOrders({ delverMotivation, delverPos, wardenPos, ticks = 2 
   };
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "decide_sim", runId: "decide", createdAt: FIXED },
-    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    planRef: { id: "plan", schema: "agon/PlanArtifact", schemaVersion: 1 },
     layout,
     movementStamina: { a_warden: 0, z_delver: 0 },
   });

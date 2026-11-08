@@ -6,12 +6,12 @@
   },
   "schemas": [
     {
-      "schema": "agent-kernel/BudgetReceiptArtifact",
+      "schema": "agon/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "description": "Allocator decision on requested caps/limits."
     },
     {
-      "schema": "agent-kernel/BuildSpec",
+      "schema": "agon/BuildSpec",
       "schemaVersion": 1,
       "description": "Agent-facing build specification.",
       "fields": [
@@ -24,7 +24,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/InitialStateArtifact",
+      "schema": "agon/InitialStateArtifact",
       "schemaVersion": 1,
       "description": "Initial actor state for a run.",
       "fields": [
@@ -34,7 +34,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/IntentEnvelope",
+      "schema": "agon/IntentEnvelope",
       "schemaVersion": 1,
       "description": "Normalized intake intent for Director.",
       "fields": [
@@ -45,7 +45,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/PlanArtifact",
+      "schema": "agon/PlanArtifact",
       "schemaVersion": 1,
       "description": "Structured plan produced by Director.",
       "fields": [
@@ -56,7 +56,7 @@
       ]
     },
     {
-      "schema": "agent-kernel/SimConfigArtifact",
+      "schema": "agon/SimConfigArtifact",
       "schemaVersion": 1,
       "description": "Executable simulation configuration.",
       "fields": [
@@ -73,31 +73,31 @@
   "artifacts": [
     {
       "id": "budget_receipt_basic",
-      "schema": "agent-kernel/BudgetReceiptArtifact",
+      "schema": "agon/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "path": "budget-receipt.json"
     },
     {
       "id": "initial_state_basic",
-      "schema": "agent-kernel/InitialStateArtifact",
+      "schema": "agon/InitialStateArtifact",
       "schemaVersion": 1,
       "path": "initial-state.json"
     },
     {
       "id": "intent_basic",
-      "schema": "agent-kernel/IntentEnvelope",
+      "schema": "agon/IntentEnvelope",
       "schemaVersion": 1,
       "path": "intent.json"
     },
     {
       "id": "plan_basic",
-      "schema": "agent-kernel/PlanArtifact",
+      "schema": "agon/PlanArtifact",
       "schemaVersion": 1,
       "path": "plan.json"
     },
     {
       "id": "sim_config_basic",
-      "schema": "agent-kernel/SimConfigArtifact",
+      "schema": "agon/SimConfigArtifact",
       "schemaVersion": 1,
       "path": "sim-config.json"
     }

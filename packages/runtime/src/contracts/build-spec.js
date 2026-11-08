@@ -11,7 +11,7 @@ import {
 // ⚠️ THE HAZARD THIS FILE RECORDED IS GONE, AND CHECKING THAT WAS THE POINT. A comment
 // here warned that its local `BUDGET_RECEIPT_SCHEMA` deliberately avoided the artifacts.ts
 // export of that name, whose value was the DIFFERENT (now retired, PA.3)
-// "agent-kernel/BudgetReceipt" — importing by name would have silently validated against
+// "agon/BudgetReceipt" — importing by name would have silently validated against
 // the wrong schema. artifacts.ts no longer exports that name at all, so the trap is dead;
 // the const was already renamed to `BUDGET_RECEIPT_ARTIFACT_SCHEMA` for the same reason.
 // M9 keys every replacement on the schema VALUE rather than the constant name precisely so

@@ -28,7 +28,7 @@ export const AGENT_BENCHMARK_SCENARIOS = Object.freeze([
   }),
 ]);
 
-const POOL_CATALOG = Object.freeze({ schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] });
+const POOL_CATALOG = Object.freeze({ schema: "agon/PoolCatalog", schemaVersion: 1, entries: [] });
 
 function fail(path, code) {
   return { ok: false, issues: [{ path, code, message: code }] };

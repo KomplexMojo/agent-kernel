@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-kernel.local/schemas/execution-result-v1.json",
-  "title": "Agent Kernel execution benchmark result",
+  "$id": "https://agon.local/schemas/execution-result-v1.json",
+  "title": "Agon execution benchmark result",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "identity", "scenario", "run", "artifactSummary", "metrics", "invariants", "requiredGates", "score", "verdict"],
   "properties": {
-    "schemaVersion": { "const": "agent-kernel-execution-result/v1" },
+    "schemaVersion": { "const": "agon-execution-result/v1" },
     "identity": {
       "type": "object",
       "additionalProperties": false,

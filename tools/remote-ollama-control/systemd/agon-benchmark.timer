@@ -1,8 +1,8 @@
 [Unit]
-Description=Poll Agent Kernel benchmark inputs
+Description=Poll Agon benchmark inputs
 
 [Timer]
-Unit=agent-kernel-benchmark.service
+Unit=agon-benchmark.service
 # OnActiveSec arms a first poll after install/restart in a live user session. OnBootSec alone does
 # not, and OnUnitInactiveSec alone leaves NEXT=infinity until the service has run once — so a
 # redeploy that only daemon-reloads can leave the agent permanently unscheduled.
