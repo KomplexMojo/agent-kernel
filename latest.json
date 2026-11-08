@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-08T22-05-38-809Z-e74aaf0dbe73-2cf76652a026",
-    "key": "2cf76652a026f97fca7396cd5d1efa715b8fded9105856f6ee59329fc240d2ae",
+    "id": "2026-11-08T22-45-42-256Z-2fe86304b0c5-9b44a8a1e384",
+    "key": "9b44a8a1e384b1ce1c31b06124e0277ba6211bc549eb382573675b39fd560e81",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-08T22:05:38.809Z",
-    "completedAt": "2026-11-08T22:09:07.684Z",
-    "durationMs": 208875,
+    "startedAt": "2026-11-08T22:45:42.256Z",
+    "completedAt": "2026-11-08T22:49:10.547Z",
+    "durationMs": 208291,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "e74aaf0dbe73a5a7e07f57433eee23636f11bd2c",
-    "tree": "de464b5efb173da0e7fa64e28086b060b34c77c9"
+    "commit": "2fe86304b0c5026e587b19a0e41c908cec353764",
+    "tree": "debaef626d958eb295fa4928f8760c3ae9be9f34"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -735,7 +735,7 @@
     "infrastructure": {
       "count": 1,
       "reasons": [
-        "Cannot find module '/home/darren/.local/state/agent-kernel-benchmark/source-worktrees/2cf76652a026f97fca7396cd5d1efa715b8fded9105856f6ee59329fc240d2ae/tools/remote-ollama-control/scripts/lib/ak-compare.js'\nRequire stack:\n- /home/darren/remote-ollama-control/scripts/lib/benchmark-pipeline.js\n- /home/darren/remote-ollama-control/scripts/benchmark-agent.js"
+        "Cannot find module '/home/darren/.local/state/agent-kernel-benchmark/source-worktrees/9b44a8a1e384b1ce1c31b06124e0277ba6211bc549eb382573675b39fd560e81/tools/remote-ollama-control/scripts/lib/ak-compare.js'\nRequire stack:\n- /home/darren/remote-ollama-control/scripts/lib/benchmark-pipeline.js\n- /home/darren/remote-ollama-control/scripts/benchmark-agent.js"
       ]
     }
   },
