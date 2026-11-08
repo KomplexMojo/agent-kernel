@@ -30,6 +30,7 @@ import { equipActorAffinity, equippedActorAffinityKeys } from "../../../../core-
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
 import { affinityTableRow } from "../../../../core-ts/src/state/affinity-table.ts";
+import { actorConditionBand } from "../../../../core-ts/src/rules/actor-condition.ts";
 import {
   DEFAULT_DELTAS,
   buildMoveProposal,
@@ -1506,7 +1507,58 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
   });
 }
 
-function buildMotivatedProposals({ observation, payload, simConfig, personaSeed, rememberedContact = null, lastTurn = null }) {
+/**
+ * #622 (Darren, 2026-11-01): an actor steps out of a lethal field instead of casting at its
+ * emitter. A cell is lethal when the fields there, this turn, would harm the actor's defeat
+ * vital and leave it near defeat (core's condition band: 25% of max or less). Standing in one,
+ * the actor's proposals give way to the step to the best neighbouring cell: one that is not
+ * lethal, else the least harmful, and only if it beats staying. Out of one, it proposes no move
+ * into one, so it does not walk back in after the hostile it left. Reads only the fields the
+ * actor observes, through the same field preview the ranking's `fieldSafety` uses.
+ */
+function guardLethalFields(proposals, { record, observation, view, payload, simConfig }) {
+  const defeat = record?.vitals?.[record?.defeatVital];
+  if (!record?.position || record.lifecycle !== "alive" || !defeat || !(defeat.max > 0)) return proposals;
+  const defeatCode = Number(Object.keys(VITAL_KEYS_BY_CODE).find((code) => VITAL_KEYS_BY_CODE[code] === record.defeatVital));
+  const outcome = (cell) => {
+    const ranks = fieldUtilityRanks({ endPosition: cell, actorRecord: record,
+      affinityFields: observation?.affinityFields, affinityContributions: observation?.affinityContributions });
+    const effect = ranks.effects.find((entry) => entry.vital === defeatCode)?.effect ?? 0;
+    return { safety: ranks.safety,
+      lethal: effect < 0 && actorConditionBand(defeat.current + effect, defeat.max) === "near_defeat" };
+  };
+  const here = outcome(record.position);
+  if (!here.lethal) {
+    const kept = proposals.filter((proposal) => proposal?.kind !== "move" || !proposal.params?.target
+      || !outcome(proposal.params.target).lethal);
+    return kept.length > 0 || proposals.length === 0 ? kept : [{ kind: "wait" }];
+  }
+  if (record.capabilities?.canMove === false) return proposals;
+  const tileKinds = resolveTileKinds(view, payload);
+  const baseTiles = resolveBaseTiles(payload, view, simConfig);
+  let best = null;
+  for (const delta of DEFAULT_DELTAS) {
+    const cell = { x: record.position.x + delta.dx, y: record.position.y + delta.dy };
+    if (!isPassable(cell, tileKinds, baseTiles) || isOccupied(cell, view, record.id)
+      || !isDiagonalStepAllowed(record.position, cell, tileKinds, baseTiles)) continue;
+    const next = outcome(cell);
+    const better = !best || (best.lethal && !next.lethal) || (best.lethal === next.lethal && next.safety > best.safety);
+    if (better) best = { cell, ...next };
+  }
+  if (!best || (best.lethal && best.safety <= here.safety)) return proposals;
+  return [{ kind: "move", params: { target: best.cell } }];
+}
+
+function buildMotivatedProposals(args) {
+  const proposals = composeMotivatedProposals(args);
+  const view = resolveObservationView(args.observation);
+  if (!view) return proposals;
+  const record = resolveActorRecord(view, args.payload?.actorId, args.observation);
+  return guardLethalFields(proposals, { record, observation: args.observation, view, payload: args.payload,
+    simConfig: args.simConfig });
+}
+
+function composeMotivatedProposals({ observation, payload, simConfig, personaSeed, rememberedContact = null, lastTurn = null }) {
   const view = resolveObservationView(observation);
   if (!view) return buildMoveProposal({ observation, payload, simConfig });
 
