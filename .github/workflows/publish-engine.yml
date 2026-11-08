@@ -1,0 +1,47 @@
+# Publishes @agon-engine/engine to the public npm registry when a version tag is pushed.
+#   git tag v0.1.0 && git push origin v0.1.0
+# The tag must equal packages/engine/package.json "version". Needs the NPM_TOKEN repo secret
+# (granular token, read+write, scoped to @agon-engine). Manual runs do a dry run only.
+name: Publish engine
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(node -p "require('./packages/engine/package.json').version")
+          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != package version v$version"; exit 1; }
+      - name: Gates (architecture guards and the bundle test)
+        run: pnpm run test:vitest -- tests/architecture
+      - name: Build
+        run: pnpm run build:engine -- --write-exports
+      - name: Publish
+        working-directory: packages/engine
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            npm publish --provenance --access public
+          else
+            npm publish --dry-run --access public
+          fi

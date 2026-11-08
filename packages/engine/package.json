@@ -1,0 +1,39 @@
+{
+  "name": "@agon-engine/engine",
+  "version": "0.1.0",
+  "description": "Agon, a deterministic simulation engine where players and AI agents contest under one rule set. Built bundle of the public API.",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KomplexMojo/agon.git"
+  },
+  "files": [
+    "dist",
+    "LICENSE.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./adapters-cli/cli/playtest-scenarios.js": "./dist/adapters-cli/cli/playtest-scenarios.js",
+    "./adapters-web/adapters/solver-recorded/index.js": "./dist/adapters-web/adapters/solver-recorded/index.js",
+    "./runtime/commands/author-level.js": "./dist/runtime/commands/author-level.js",
+    "./runtime/contracts/domain-constants.js": "./dist/runtime/contracts/domain-constants.js",
+    "./runtime/contracts/game-elements.js": "./dist/runtime/contracts/game-elements.js",
+    "./runtime/contracts/sound-cues.js": "./dist/runtime/contracts/sound-cues.js",
+    "./runtime/render/affinity-role.js": "./dist/runtime/render/affinity-role.js",
+    "./runtime/render/client-surface.js": "./dist/runtime/render/client-surface.js",
+    "./runtime/render/entity-sprite-composer.js": "./dist/runtime/render/entity-sprite-composer.js",
+    "./runtime/render/window-size.js": "./dist/runtime/render/window-size.js",
+    "./runtime/runner/character-sheet.js": "./dist/runtime/runner/character-sheet.js",
+    "./ui-ascii/game.js": "./dist/ui-ascii/game.js",
+    "./ui-ascii/html.js": "./dist/ui-ascii/html.js",
+    "./ui-ascii/keymap.js": "./dist/ui-ascii/keymap.js",
+    "./ui-ascii/screen.js": "./dist/ui-ascii/screen.js"
+  }
+}
