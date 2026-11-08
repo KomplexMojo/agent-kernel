@@ -114,20 +114,20 @@ export const MATRIX = [
   // rationale as axis C's diagonal hazard positions but for an actor rather than a static hazard.
   // create/configure has no x/y field for delver/warden (level-gen auto-places actors), so this
   // reuses E1's exact authored config and repositions the auto-placed warden at RUN time via
-  // `ak run --actor <id>,<x>,<y>` (run-configuration-permutation-sweep.mjs's actorOverride hook)
+  // `ak run --actor <id>,<x>,<y>,<category>` (run-configuration-permutation-sweep.mjs's actorOverride hook)
   // — id "card_warden_1-1" confirmed from E1's own initial-state.json (single warden, count=1).
-  // Corners are absolute grid coordinates: the room's walkable interior is confirmed absolute
-  // 1..5 on each axis (9x9 grid, 1-tile border wall, room origin at (1,1) — see axis C's comment
-  // for the room-relative 0..4 that these are offset by +1 from).
+  // Corners are absolute grid coordinates of the current default room R1 (12x12 grid, room at
+  // (3,2), 5 wide x 8 high, so walkable x 3..7, y 2..9). Re-read sim-config.json if the default
+  // room moves again (#494).
   ...[
-    { id: "topleft", x: 1, y: 1 },
-    { id: "bottomright", x: 5, y: 5 },
-    { id: "topright", x: 5, y: 1 },
-    { id: "bottomleft", x: 1, y: 5 },
+    { id: "topleft", x: 3, y: 2 },
+    { id: "bottomright", x: 7, y: 9 },
+    { id: "topright", x: 7, y: 2 },
+    { id: "bottomleft", x: 3, y: 9 },
   ].map(({ id, x, y }) =>
     scenario(`E-warden-diagonal-${id}`, "E", `warden repositioned to diagonal-${id} (${x},${y})`, {
       warden: ["count=1;affinity=dark;motivation=defending"],
-      actorOverride: [`card_warden_1-1,${x},${y}`],
+      actorOverride: [`card_warden_1-1,${x},${y},warden`],
     })),
 
   // Axis F — resource authoring (V3 spec: vital payload, affinity payload, and both).
@@ -142,11 +142,9 @@ export const MATRIX = [
   }),
 
   // Axis G — multi-hazard stress (id/index collision surface distinct from axis E's multi-actor).
-  // G2's third hazard is deliberately placed outside the room's bounds — this is the exact repro
-  // for #148 (level-gen error formatter bakes literal "undefined" into hazard_outside_room
-  // messages) and is left in place on purpose as a regression probe: it should keep reporting
-  // ANOMALY_UNEXPECTED (bad message text) until #148 is fixed, not VALIDATION_REJECTION (which
-  // would require the message to actually say what's wrong).
+  // G2's third hazard sits on the room's last column (room-relative x=4; the interior is 5 wide).
+  // It used to be placed outside the room on purpose, as the #148 repro; the formatter is fixed
+  // and the level-gen rejection now says what is wrong, so it is a valid placement again (#494).
   scenario("G1-multi-hazard", "G", "2 hazards, distinct affinity/expression/stacks", {
     hazard: [
       "x=3;y=3;affinity=fire;expression=emit;stacks=1",
@@ -157,7 +155,7 @@ export const MATRIX = [
     hazard: [
       "x=3;y=3;affinity=fire;expression=emit;stacks=1",
       "x=1;y=4;affinity=water;expression=pull;stacks=2",
-      "x=5;y=1;affinity=dark;expression=push;stacks=3",
+      "x=4;y=1;affinity=dark;expression=push;stacks=3",
     ],
   }),
 ];
