@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-09T17-27-17-449Z-5edc04ab89dd-0f7a4ca84ec9",
-    "key": "0f7a4ca84ec911590f15488faa014612170b5a832ee56ae746a4df3ca6ba1f2a",
+    "id": "2026-11-09T18-06-07-057Z-ea4d39bc1933-724c52efdb0d",
+    "key": "724c52efdb0d390a36951fc8b5563794ff9966640c8cacb8726004b6499f6b3c",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-09T17:27:17.449Z",
-    "completedAt": "2026-11-09T17:27:45.027Z",
-    "durationMs": 27578,
+    "startedAt": "2026-11-09T18:06:07.057Z",
+    "completedAt": "2026-11-09T18:06:34.460Z",
+    "durationMs": 27403,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "5edc04ab89dd0b5fa1ce30a562d4fd2dbec0cba4",
-    "tree": "1b7549a4d04c55684cfd9ea9e9f8e9dda6630aaf"
+    "commit": "ea4d39bc19336fbe551f2b4e09e376d65769d07a",
+    "tree": "2b1f0fd04198d736c361d58d717d53e50918e14d"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -227,7 +227,6 @@
       "packages/runtime/src/render/source-assets/actor-medallions/approved-affinity-sprite-sheet.png",
       "packages/runtime/src/render/source-assets/actor-medallions/frame-template-components.png",
       "packages/runtime/src/render/source-assets/actor-medallions/motivation-symbol-components.png",
-      "packages/runtime/src/render/sprite-atlas-manifest.js",
       "packages/runtime/src/render/visual-assets/actor-medallions/actor-medallion-generated-assets.json",
       "packages/runtime/src/render/visual-assets/actor-medallions/components/actor-delver.png",
       "packages/runtime/src/render/visual-assets/actor-medallions/components/actor-warden.png",
@@ -740,7 +739,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/0f7a4ca84ec911590f15488faa014612170b5a832ee56ae746a4df3ca6ba1f2a"
+    "retentionId": "preflights/724c52efdb0d390a36951fc8b5563794ff9966640c8cacb8726004b6499f6b3c"
   },
   "qualifies": false
 }
