@@ -2474,8 +2474,6 @@ export type NarrativeArtifact = NarrativeArtifactV1;
 // -------------------------
 
 export const RESOURCE_BUNDLE_SCHEMA = "agon/ResourceBundleArtifact";
-/** Sprite atlas manifest: which atlas frame draws which game thing (render/sprite-atlas-manifest.js). */
-export const SPRITE_ATLAS_SCHEMA = "agon/SpriteAtlasManifest";
 /** A game's painted art laid over a ResourceBundle, asset id by asset id (render/resource-bundle.js). */
 export const RESOURCE_BUNDLE_DRESSING_SCHEMA = "agon/ResourceBundleDressing";
 
