@@ -311,6 +311,7 @@ Inputs/outputs:
 - One level source: `--dir` (an `agon create --out-dir` or run directory), `--from-run <runId>`,
   `--sim-config` + `--initial-state`, or `--level <bundled name>`; none plays the bundled levels in order.
 - With no `--keys` and no `--json` the UI takes the terminal until the player quits (it needs a TTY).
+- `--logical-keys '["ArrowUp","Enter","d"]'` (also `play-session`, and `logicalKeys` on the MCP play tools) plays keys by name, after `--keys`: the arrows, `Shift+` arrows (sprint), `Enter`, `Tab`, `Escape`, `Space`, or any single character.
 - `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
   pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map, `--window N` sets the play window (odd, default sized to the terminal) and `--no-window` shows the whole board instead (scripted and MCP runs always do). MCP: `agon_play_ascii`.

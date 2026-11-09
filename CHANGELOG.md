@@ -6,6 +6,7 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ### Added
 
+- `agon play` / `play-session` take `--logical-keys` (a JSON array of key names such as `["ArrowUp","Enter","Escape"]`), and the `agon_play_*` MCP tools take `logicalKeys`, played after `keys` (#811). Raw `keys` work as before.
 - A guard that the benchmark's `agon_create` tool schema uses the runtime's affinity, expression, motivation and vital vocabularies (`tests/tools/agon-tool-schema-vocabulary.test.js`, #765). The schema itself is unchanged, so benchmark results stay comparable.
 - The game controller moved into runtime (#505, step 1b): `runtime/controls/game-controller.js` (`createGameController`: intents to play-session commands, the open panel, `frame()` for any client to draw). `ui-ascii`'s `createGame` wraps it and adds only the ASCII screen and panel layout; its return value and every export are unchanged. The new module is in the API surface.
 - The shared controls moved into runtime (#505, step 1a): `runtime/controls/intents.js` (intents, default key bindings as data by logical key name, help text) and `runtime/controls/messages.js` (rejection wording, battle, vital and loot lines, order choices). `ui-ascii` keeps terminal key decoding and drawing and re-exports everything it exported before, so nothing changes for its callers. Both new modules are in the API surface.

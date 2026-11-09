@@ -1,4 +1,4 @@
-import { booleanSchema, buildArgv, createTool, integerSchema, pathSchema, stringSchema } from "./shared.mjs";
+import { booleanSchema, buildArgv, createTool, integerSchema, pathSchema, stringArraySchema, stringSchema } from "./shared.mjs";
 
 // A live game (`agon play-session`): one file per session name, replayed and saved on every call.
 const sessionSpec = [{ key: "session" }];
@@ -11,10 +11,12 @@ const levelSpec = [
   { key: "initialState", flag: "initial-state" },
   { key: "level" },
 ];
+const logicalKeysSpec = { key: "logicalKeys", flag: "logical-keys", format: (value) => JSON.stringify(value) };
 const actingSpec = [
   { key: "actor" },
   { key: "commands", format: (value) => JSON.stringify(value) },
   { key: "keys" },
+  logicalKeysSpec,
 ];
 
 const SESSION_RESULT = "Returns { screen, status, turns, active, party, orders?, inSight, hud, results? }: show `screen` verbatim in a code block. "
@@ -36,6 +38,7 @@ const actingProperties = {
       + "Every command except switch is one turn for the whole level, refused or not.",
     items: { type: "object", additionalProperties: true },
   },
+ logicalKeys: stringArraySchema("Keys by name, played after `keys`, for keys that are awkward in a string: ArrowUp/ArrowDown/ArrowLeft/ArrowRight, Shift+ArrowUp (sprint), Enter, Tab, Escape, Space, or any single character such as \"d\". The names the browser and the terminal share (the same bindings in every interface)."),
   keys: stringSchema("Keys to play after commands, as in agon_play_ascii: w/a/s/d or h/j/k/l move, y/u/b/n diagonals, upper case (or x before a move) sprints two tiles, '.' waits, g takes loot. Each acting key is one turn."),
 };
 
@@ -46,6 +49,7 @@ const playSpec = [
   { key: "initialState", flag: "initial-state" },
   { key: "level" },
   { key: "keys" },
+  logicalKeysSpec,
   { key: "color", boolean: true },
   { key: "record" },
   { key: "replay" },
@@ -78,6 +82,7 @@ export const playTools = [
         initialState: pathSchema("InitialState artifact path (with simConfig)."),
         level: stringSchema("A bundled ui-ascii level by name (packages/ui-ascii/levels). Omit to start at the first."),
         keys: stringSchema("Keys to play before returning the screen, e.g. \"ddss.\". Omit for the starting board. With watch: '.' or 'l' steps a tick forward, ',' or 'h' back, '[' and ']' jump to the first and last tick."),
+        logicalKeys: stringArraySchema("Keys by name, played after `keys`, for keys that are awkward in a string: ArrowUp/ArrowDown/ArrowLeft/ArrowRight, Shift+ArrowUp (sprint), Enter, Tab, Escape, Space, or any single character such as \"d\". The names the browser and the terminal share (the same bindings in every interface)."),
         color: booleanSchema("Include 24-bit ANSI colour in `screen` (only useful where escape codes render)."),
         fog: booleanSchema("Fog of war (default true): the player sees only what @ sees. false is a debug view of the whole level."),
         record: pathSchema("Save the played commands to this path as a CapturedInputArtifact."),

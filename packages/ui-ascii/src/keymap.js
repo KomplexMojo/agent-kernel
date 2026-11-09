@@ -38,6 +38,22 @@ export function logicalKeyForTerminalKey(key) {
   return typeof key === "string" ? (LOGICAL_KEYS[key] ?? key) : key;
 }
 
+/**
+ * Logical key names (`ArrowUp`, `Enter`, `Escape`, `Shift+ArrowUp`, `d`, ...) as the terminal keys that
+ * play them, so a caller that cannot write raw bytes (a JSON tool call) can still press any key (#811).
+ * @param {string[]} names
+ */
+export function terminalKeysForLogicalKeys(names) {
+  const reverse = new Map();
+  for (const [seq, name] of Object.entries(LOGICAL_KEYS)) if (!reverse.has(name)) reverse.set(name, seq);
+  reverse.set("Enter", "\r");
+  reverse.set("Space", " ");
+  return names.map((name) => {
+    if (typeof name !== "string" || name === "") throw new Error("logicalKeys needs non-empty key names.");
+    return reverse.get(name) ?? (name.length === 1 ? name : (() => { throw new Error(`Unknown logical key "${name}".`); })());
+  }).join("");
+}
+
 /** @returns {{type: string, direction?: string, index?: number} | null} */
 export function intentForKey(key) {
   return intentForLogicalKey(logicalKeyForTerminalKey(key));

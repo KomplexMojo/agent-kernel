@@ -227,7 +227,7 @@ function usage() {
   node ${rel} runs list
   node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--realtime ms] [--web [--port n] [--lan] [--debug]] [--record path] [--replay path]
   node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
-  node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
+  node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys] [--logical-keys json]
   node ${rel} play-session start [--session id] --load path
   node ${rel} play-session act|view|legal|switch|end [--session id] [--actor id|label] [--commands json] [--keys keys] [--save path]
   node ${rel} play-session order [--session id] --actor id|label --strategy goals|json|file.json
@@ -355,6 +355,7 @@ Options:
   --dir           play: an \`agon create --out-dir\` or run directory holding sim-config.json + initial-state.json
                   solve --question: the same kind of built level directory
   --level         play: a bundled ui-ascii level (default: all bundled levels, in order)
+  --logical-keys  play, play-session: key names as a JSON array (e.g. ["ArrowUp","Enter","d"]), played after --keys
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
   --no-fog        play: debug view of the whole map (play is always under fog of war)
@@ -4712,6 +4713,20 @@ async function tickCommand(argv) {
 }
 
 /**
+ * `--keys` (terminal characters) followed by `--logical-keys` (a JSON array of key names such as
+ * ["ArrowUp","Enter","Escape","d"]) as one terminal key string (#811).
+ */
+async function resolveKeys(args) {
+  const keys = args.keys === true ? "" : args.keys;
+  if (args["logical-keys"] === undefined) return keys;
+  let names;
+  try { names = JSON.parse(args["logical-keys"]); } catch { names = null; }
+  if (!Array.isArray(names)) throw new Error("--logical-keys needs a JSON array of key names.");
+  const { terminalKeysForLogicalKeys } = await import("../../../ui-ascii/src/keymap.js");
+  return (keys ?? "") + terminalKeysForLogicalKeys(names);
+}
+
+/**
  * `agon play`: the level a create/run produced, in the terminal UI. Which level
  * is the only thing decided here; the UI program does the rest.
  */
@@ -4721,7 +4736,7 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime", "web", "port", "lan", "debug"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "logical-keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime", "web", "port", "lan", "debug"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   if (args.watch) {
@@ -4734,7 +4749,7 @@ async function playCommand(argv) {
   const color = args["no-color"] ? false : args.color ? true : undefined;
   const fog = !args["no-fog"];
   // parseArgs reads a bare `--keys ""` as a flag.
-  const keys = args.keys === true ? "" : args.keys;
+  const keys = await resolveKeys(args);
   // #204: record the played commands, or re-run a recorded game first.
   const capture = {
     recordPath: isNonEmptyString(args.record) ? resolvePath(args.record) : undefined,
@@ -4850,7 +4865,7 @@ async function playSessionCommand(argv) {
   if (!PLAY_SESSION_ACTIONS.has(action)) {
     throw new Error(`play-session needs an action: ${[...PLAY_SESSION_ACTIONS].join(", ")}.`);
   }
-  const allowed = new Set(["_", "session", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "commands", "actor", "json", "color", "no-fog", "save", "load", "strategy", "ticks", "until", "actor-commands"]);
+  const allowed = new Set(["_", "session", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "logical-keys", "commands", "actor", "json", "color", "no-fog", "save", "load", "strategy", "ticks", "until", "actor-commands"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play-session does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   const name = args.session === undefined ? "game" : String(args.session);
@@ -4895,7 +4910,7 @@ async function playSessionCommand(argv) {
     if (!Array.isArray(commands)) throw new Error("play-session --commands needs a JSON array.");
   }
   let actor = Array.isArray(args.actor) ? args.actor.at(-1) : args.actor;
-  const keys = args.keys === true ? "" : args.keys;
+  const keys = await resolveKeys(args);
   // An order and an advance are structured commands the game plays; the order's --actor
   // names who takes it, not a seat change.
   if (action === "order") {
@@ -4968,7 +4983,7 @@ async function watchRunCommand(args) {
     tick = Number(args.tick);
   }
   const color = args["no-color"] ? false : args.color ? true : undefined;
-  const keys = args.keys === true ? "" : args.keys;
+  const keys = await resolveKeys(args);
   if (keys === undefined && !args.json) {
     process.exitCode = await watchAsciiInteractive({ runDir, tick, color });
     return;
