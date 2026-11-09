@@ -6,6 +6,7 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ### Added
 
+- The shared controls moved into runtime (#505, step 1a): `runtime/controls/intents.js` (intents, default key bindings as data by logical key name, help text) and `runtime/controls/messages.js` (rejection wording, battle, vital and loot lines, order choices). `ui-ascii` keeps terminal key decoding and drawing and re-exports everything it exported before, so nothing changes for its callers. Both new modules are in the API surface.
 - A `watcher` configuration recipe (#564): a warden or delver whose emit and pull take a kind from the affinity table's `reveals` column (`kindColumn`), the first by default, rather than a kind the data names. `kind=` accepts only kinds with that column. The catalogue is 21 recipes.
 - A warden that has read a hostile's affinity ranks a pack swap to the counter kind above staying, behind the same `counterKinds` decision point (#564). Casting at the hostile still outranks an equip, so the swap happens on a turn the warden cannot usefully cast; a counter it could not aim (a restoring push) is never swapped to.
 - A revealing kind's push or pull that struck an actor reveals it the next turn at the slot's intensity, less any concealing field there; `readActorRegistryRevealLevels` and `readActorRegistryReadings` take the last turn, and the player's fog view and the Actor's readings share the rule (#564). Changes what the player sees after a light push or pull.
