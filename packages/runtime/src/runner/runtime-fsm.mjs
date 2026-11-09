@@ -892,7 +892,7 @@ export function createFsmRuntime({
     // player's view); only actors in its scoped view, and nothing else about them leaks.
     const fullObservation = actorRegistry ? readCachedObservation() : null;
     const visibleIds = new Set((actorObservation?.actors ?? []).map((other) => other.id));
-    const allReadings = fullObservation ? readActorRegistryReadings(fullObservation, observingActorId) : {};
+    const allReadings = fullObservation ? readActorRegistryReadings(fullObservation, observingActorId, lastActorTurn) : {};
     const readings = Object.fromEntries(Object.entries(allReadings).filter(([id]) => visibleIds.has(id)));
     const actorPayload = {
       ...base,
@@ -1744,7 +1744,7 @@ export function createFsmRuntime({
      */
     readRevealLevels(actorId) {
       const observation = readCachedObservation();
-      return observation ? readActorRegistryRevealLevels(observation, actorId) : {};
+      return observation ? readActorRegistryRevealLevels(observation, actorId, lastActorTurn) : {};
     },
 
     /**

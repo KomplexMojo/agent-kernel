@@ -284,7 +284,8 @@ export function readActorRegistryVisibleCells(observation: RegistryObservation, 
  * as it never darkens its own sight (#409). Whether the observer sees the actor at all is
  * sight's call; this does not say. Who counts as one's own party is the caller's.
  */
-export function readActorRegistryRevealLevels(observation: RegistryObservation, observerId: string): Record<string, number> {
+export function readActorRegistryRevealLevels(observation: RegistryObservation, observerId: string,
+  lastTurn?: ReceivedTurn | null): Record<string, number> {
   const byCell = new Map<string, typeof observation.affinityContributions>();
   for (const cell of observation.affinityContributions) {
     if (cell.sourceId === observerId && hasColumn(cell.kind, 'conceals')) continue;
@@ -292,10 +293,25 @@ export function readActorRegistryRevealLevels(observation: RegistryObservation, 
     byCell.set(key, [...(byCell.get(key) ?? []), cell]);
   }
   const fields = [...byCell.values()].flatMap(cells => resolveActorFieldOverlap(cells));
-  const { lightByCell } = resolveNetLightDark(fieldIntensityByCell(fields, 'reveals'), fieldIntensityByCell(fields, 'conceals'));
-  return Object.fromEntries(observation.actors
+  const concealByCell = fieldIntensityByCell(fields, 'conceals');
+  const { lightByCell } = resolveNetLightDark(fieldIntensityByCell(fields, 'reveals'), concealByCell);
+  const levels = Object.fromEntries(observation.actors
     .filter(actor => actor.id !== observerId && actor.lifecycle === 'alive')
     .map(actor => [actor.id, lightByCell[`${actor.position.x},${actor.position.y}`] ?? 0]));
+  // #564 (Darren, 2026-10-25): a revealing push or pull that struck an actor last turn reads it
+  // at the intensity of the slot that cast it, less any concealing field on its cell. It lasts
+  // the turn after the cast, like any one-turn reading; a miss reveals nothing.
+  const observer = observation.actors.find(actor => actor.id === observerId);
+  for (const cast of lastTurn?.casts ?? []) {
+    if (cast.sourceId !== observerId || !cast.targetId || (cast.expression !== 'push' && cast.expression !== 'pull')
+      || !hasColumn(cast.kind, 'reveals') || !(cast.targetId in levels)) continue;
+    const slot = observer?.affinities.find(pair => pair.kind === cast.kind && pair.expression === cast.expression);
+    const target = observation.actors.find(actor => actor.id === cast.targetId);
+    if (!slot || !target) continue;
+    const dark = concealByCell[`${target.position.x},${target.position.y}`] ?? 0;
+    levels[cast.targetId] = Math.max(levels[cast.targetId], (slot.intensity ?? 1) - dark);
+  }
+  return levels;
 }
 
 /** One equipped affinity as an observer reads it (#564): kind and expression, intensity capped by the reveal level. */
@@ -307,8 +323,9 @@ export interface ActorAffinityReading { kind: string; expression: string; intens
  * by that level as `revealedValue` does. An actor nothing reveals is absent: the observer learns
  * nothing from standing near it. Same hidden-information cap as the player's view (#497).
  */
-export function readActorRegistryReadings(observation: RegistryObservation, observerId: string): Record<string, ActorAffinityReading[]> {
-  const levels = readActorRegistryRevealLevels(observation, observerId);
+export function readActorRegistryReadings(observation: RegistryObservation, observerId: string,
+  lastTurn?: ReceivedTurn | null): Record<string, ActorAffinityReading[]> {
+  const levels = readActorRegistryRevealLevels(observation, observerId, lastTurn);
   const readings: Record<string, ActorAffinityReading[]> = {};
   for (const actor of observation.actors) {
     const level = levels[actor.id] ?? 0;
