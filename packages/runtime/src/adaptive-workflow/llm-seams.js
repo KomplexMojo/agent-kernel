@@ -3,7 +3,8 @@ import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../commands/llm-host.js";
-import { beginDirectorBuildCapabilities } from "../commands/director-round.js";
+import { beginDirectorRound, directorBuildCapabilities, beginDirectorBuildCapabilities } from "../commands/director-round.js";
+import { createHostedLayoutBudgetFitter } from "../commands/solver-host.js";
 
 export async function runFlagshipLlmSeam({
   adapter,
@@ -50,7 +51,20 @@ export async function runSectionalBudgetLlmSeam({
   poolWeights,
   poolPolicy,
   optionsByPhase,
+  solver,
 } = {}) {
+  // #381: a host that supplies a solver adapter gets the budget fit posed to it; without one the
+  // Allocator answers with its greedy fallback, as before.
+  const director = beginDirectorRound({ runId, createdAt: clock(), goal });
+  const capabilities = directorBuildCapabilities(director);
+  if (solver) {
+    capabilities.fitLayout = createHostedLayoutBudgetFitter({
+      prepare: director.prepareLayoutBudgetFit,
+      complete: director.completeLayoutBudgetFit,
+      adapter: solver,
+      clock,
+    });
+  }
   const result = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
         runSession: runLlmSessionHosted,
@@ -58,7 +72,7 @@ export async function runSectionalBudgetLlmSeam({
         // behind an open build round. This root had no Director at all until now.
         // M5b.2b: the same round also answers the three Allocator pricing questions the
         // loop used to compute inline.
-        ...beginDirectorBuildCapabilities({ runId, createdAt: clock(), goal }),
+        ...capabilities,
     adapter,
     model,
     goal,

@@ -5,6 +5,8 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 ## Unreleased
 
 ### Fixed
+
+- The adaptive-workflow sectional seam hosts the Allocator's budget fit when a `ports.solver` adapter is supplied, instead of always using the greedy fallback; an architecture guard now requires every build-capability spread to host the fit or be named (#381).
 - The Actor's seeded draws (random movement, yield coins, tie-breaks) now use the level's run seed (#791). They all fell back to seed 0 before, so two levels built with different seeds drew the same coins for the same actor and tick. Levels with a seed and a random actor play differently; runs still replay exactly. The simulation sweep (62 scenarios, which carry no seed) is unchanged.
 
 ### Removed
