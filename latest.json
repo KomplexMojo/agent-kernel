@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-09T20-40-06-115Z-cf8aca517c35-c80d4756b535",
-    "key": "c80d4756b535d614ad4655b3595c403af9a6599669b532a01a81b690cf79c85e",
+    "id": "2026-11-09T21-18-59-550Z-a2adbf220e24-933d9e2186b7",
+    "key": "933d9e2186b751e5ce633d593325a178e20c456ffcefe87c5612bee91aa00a4a",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-09T20:40:06.115Z",
-    "completedAt": "2026-11-09T20:40:33.787Z",
-    "durationMs": 27672,
+    "startedAt": "2026-11-09T21:18:59.550Z",
+    "completedAt": "2026-11-09T21:19:26.969Z",
+    "durationMs": 27419,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "cf8aca517c35171987539423ece35316fbe7d99b",
-    "tree": "61d32f0e990ad141283140ad2a59e9be4086df2f"
+    "commit": "a2adbf220e2415b55d3eec0e9d1c53c7e7f68c98",
+    "tree": "88edb447cded58c1e92b491b205796329c3172bc"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -105,6 +105,8 @@
       "packages/runtime/src/contracts/persona-stamps.js",
       "packages/runtime/src/contracts/schema-catalog.js",
       "packages/runtime/src/contracts/sound-cues.js",
+      "packages/runtime/src/controls/intents.js",
+      "packages/runtime/src/controls/messages.js",
       "packages/runtime/src/index.js",
       "packages/runtime/src/mvp/movement.js",
       "packages/runtime/src/personas/_shared/persona-helpers.mts",
@@ -741,7 +743,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/c80d4756b535d614ad4655b3595c403af9a6599669b532a01a81b690cf79c85e"
+    "retentionId": "preflights/933d9e2186b751e5ce633d593325a178e20c456ffcefe87c5612bee91aa00a4a"
   },
   "qualifies": false
 }
