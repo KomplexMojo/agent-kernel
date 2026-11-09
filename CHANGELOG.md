@@ -4,6 +4,9 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ## Unreleased
 
+### Fixed
+- The Actor's seeded draws (random movement, yield coins, tie-breaks) now use the level's run seed (#791). They all fell back to seed 0 before, so two levels built with different seeds drew the same coins for the same actor and tick. Levels with a seed and a random actor play differently; runs still replay exactly. The simulation sweep (62 scenarios, which carry no seed) is unchanged.
+
 ### Removed
 - `render/sprite-atlas-manifest.js` and the `agon/SpriteAtlasManifest` schema (#772). The ResourceBundle, dressed by a game with a `ResourceBundleDressing`, is the one art contract. It was never on `apiSurface`; a game packaging an Aseprite atlas turns it into a dressing.
 
