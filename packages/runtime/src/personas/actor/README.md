@@ -299,6 +299,10 @@ That explicit manual mode now runs on the same `solver_request` transport:
 
 ---
 
+## Reading others (#564)
+
+An actor learns another actor's equipped affinities only when a revealing field (the table's `reveals` column) reaches it, with the same intensity cap as the player's view. The runtime hands the Actor `payload.readings`; the strategy path remembers each as `{ kinds, tick }` (a snapshot with an age) and a cast at that target prefers the opposite kind among the slots that reach. `counterKinds` in `strategy.js` is the one decision point #395 replaces. The attacking/defending path has no memory and uses only this turn's readings.
+
 ## Commanded actors
 
 A `propose` payload may carry `command`, the decision of whoever controls that actor (a player, a

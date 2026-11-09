@@ -4,6 +4,10 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ## Unreleased
 
+### Added
+
+- Actors read other actors' affinities only through revealing fields (core `readActorRegistryReadings`, capped by the reveal level as the player's view is); a read kind is remembered with its tick, and a cast prefers the opposite kind among slots that reach, through one replaceable decision point `counterKinds` (#564). No inspect, no new pricing.
+
 ### Fixed
 
 - The adaptive-workflow sectional seam hosts the Allocator's budget fit when a `ports.solver` adapter is supplied, instead of always using the greedy fallback; an architecture guard now requires every build-capability spread to host the fit or be named (#381).

@@ -39,6 +39,7 @@ import {
 } from "./proposal-helpers.js";
 import { actorHoldingsClaimableBy, actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
 import { equippedActorAffinities, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
+import { readOppositeAffinityKind } from "../../../../core-ts/src/rules/actor-observation.ts";
 import { AFFINITY_KINDS } from "../../contracts/domain-constants.js";
 
 export const STRATEGY_GOAL_KINDS = Object.freeze(["reach", "defeat", "guard", "follow", "lead", "take", "hold", "survive"]);
@@ -594,6 +595,26 @@ const goalMemory = (from) => Object.fromEntries(GOAL_MEMORY.filter((key) => from
  *   waitStalled  { vital: value }: a recovery wait that did not raise that vital (fields eat the regen,
  *                say); the wait is passed over while the vital stays at or below that value.
  */
+/**
+ * #564: the one decision point for answering what a warden has read of a target. Given a remembered
+ * reading ({ kinds, tick }) it names the kinds to favour when casting at that target: today the
+ * opposite of each kind read. Strategy and tactics (#395) replace this function, nothing else.
+ */
+export function counterKinds(reading) {
+  const kinds = Array.isArray(reading?.kinds) ? reading.kinds : [];
+  return [...new Set(kinds.map((kind) => readOppositeAffinityKind(kind)).filter(Boolean))];
+}
+
+/** #564: fold this turn's readings into the remembered snapshots; each keeps the tick it was taken. */
+function learnReadings(entry, context) {
+  const readings = Object.fromEntries(Object.entries(entry.readings ?? {}).map(([id, reading]) => [id, { ...reading }]));
+  for (const [id, read] of Object.entries(context.readings ?? {})) {
+    const kinds = [...new Set((Array.isArray(read) ? read : []).map((item) => String(item.kind)))].sort();
+    if (kinds.length > 0) readings[id] = { kinds, tick: Number.isFinite(context.tick) ? context.tick : 0 };
+  }
+  return readings;
+}
+
 function learnFromTurn(entry, context) {
   const futileCasts = Object.fromEntries(Object.entries(entry.futileCasts ?? {}).map(([id, keys]) => [id, [...keys]]));
   for (const cast of Array.isArray(context.dealt) ? context.dealt : []) {
@@ -611,7 +632,9 @@ function learnFromTurn(entry, context) {
   if (waited && waited.tick === context.tick - 1 && context.record?.vitals?.[waited.vital]?.current <= waited.value) {
     waitStalled[waited.vital] = waited.value;
   }
+  const readings = learnReadings(entry, context);
   return {
+    ...(Object.keys(readings).length > 0 ? { readings } : {}),
     ...(Object.keys(futileCasts).length > 0 ? { futileCasts } : {}),
     ...(Object.keys(waitStalled).length > 0 ? { waitStalled } : {}),
   };
@@ -647,8 +670,10 @@ export function followStrategy({ strategy, depth, entry = {}, context: observed 
   const ignored = ignoredStrategyParts(strategy, depth);
   const learned = depth === STRATEGY_DEPTH.NONE ? {} : learnFromTurn(entry, observed);
   // An unnamed cast skips what this actor saw do nothing to that target.
-  const context = learned.futileCasts
-    ? { ...observed, castAt: (target, distance) => observed.castAt(target, distance, learned.futileCasts[target.id] ?? []) }
+  // #564: and favours the counter of what it has read of that target (remembered, with its age).
+  const context = learned.futileCasts || learned.readings
+    ? { ...observed, castAt: (target, distance) => observed.castAt(target, distance,
+      learned.futileCasts?.[target.id] ?? [], counterKinds(learned.readings?.[target.id])) }
     : observed;
   const report = (fields) => ({
     ...(entry.order ? { order: entry.order } : {}),
