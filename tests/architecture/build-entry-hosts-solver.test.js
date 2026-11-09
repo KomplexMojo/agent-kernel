@@ -55,3 +55,30 @@ test("every orchestrateBuild call site hosts object placement", () => {
   assert.ok(sites > 0, "found no orchestrateBuild call sites; the scan is broken");
   assert.deepEqual(unhosted, [], "orchestrateBuild called without a placeObjects host");
 });
+
+// #381 — the Allocator's budget fit is the other solver domain. A build entry point that spreads
+// the Director's build capabilities carries the greedy `fitLayout`; it must replace it with a
+// hosted fitter, or be listed here with the reason it cannot.
+const FIT_UNHOSTED_ALLOWED = {
+  "packages/runtime/src/adaptive-workflow/llm-seams.js": "runFlagshipLlmSeam takes only buildCardSet; the sectional seam hosts the fit when ports.solver is supplied",
+};
+
+test("every build-capability spread hosts the budget fit", () => {
+  const unhosted = [];
+  let sites = 0;
+  for (const root of ROOTS) {
+    let files;
+    try { files = walk(resolve(ROOT, root)); } catch { continue; }
+    for (const file of files) {
+      const rel = relative(ROOT, file).split("\\").join("/");
+      if (rel === "packages/runtime/src/commands/director-round.js") continue;
+      const source = readFileSync(file, "utf8");
+      if (!/\.\.\.\s*(begin)?[dD]irectorBuildCapabilities\(/.test(source)) continue;
+      sites += 1;
+      if (/createHostedLayoutBudgetFitter|hostLayoutBudgetFit/.test(source)) continue;
+      if (!FIT_UNHOSTED_ALLOWED[rel]) unhosted.push(rel);
+    }
+  }
+  assert.ok(sites > 0, "found no build-capability spreads; the scan is broken");
+  assert.deepEqual(unhosted, [], "build capabilities spread without a hosted budget fit");
+});

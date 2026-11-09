@@ -161,6 +161,7 @@ async function runSelectedSeam({ selectedStrategy, ports, model, objective, runI
       clock: ports.clock,
       catalog,
       budgetTokens,
+      ...(ports.solver ? { solver: ports.solver } : {}),
       poolWeights: [
         { id: "delver", weight: 0 },
         { id: "rooms", weight: 1 },
