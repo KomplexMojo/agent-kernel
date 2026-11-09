@@ -1486,9 +1486,20 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
   const hostile = resolveNearestHostile(view, actorRecord.id);
   const profiles = resolveActorMotivationKinds(view, actorRecord.id, payload)
     .map(kind => buildMotivationProfile(view, actorRecord.id, payload, kind)).filter(Boolean);
+  // #564: the kinds that counter what it has read of this hostile now (the same decision point the
+  // cast uses); a loadout whose cast lands one of them ranks above one that does not.
+  const prefer = hostile ? counterKinds({ kinds: (payload?.readings?.[hostile.actor.id] ?? []).map((item) => String(item.kind)) }) : [];
+  const castFor = (receiver) => hostile && buildAffinityCastProposal({ actor: receiver, actorRecord: receiver, hostile,
+    castManaBase: payload?.simConfig?.actionCosts?.castManaBase, prefer });
+  const counters = (receiver) => {
+    if (prefer.length === 0) return 0;
+    const cast = castFor(receiver);
+    if (!cast) return 0;
+    const key = cast.params?.affinityKey ?? equippedActorAffinityKeys(receiver)[0];
+    return prefer.includes(String(key).split(":")[0]) ? 1 : 0;
+  };
   const readiness = (receiver) => {
-    const cast = hostile && buildAffinityCastProposal({ actor: receiver, actorRecord: receiver, hostile,
-      castManaBase: payload?.simConfig?.actionCosts?.castManaBase });
+    const cast = castFor(receiver);
     if (!cast) return ACTOR_INTENT_CLASS.WAIT;
     return Math.max(ACTOR_INTENT_CLASS.WAIT, ...profiles.map(motivationProfile => classifyActorIntent({
       action: cast, actorPosition: receiver.position, actorRecord: receiver, motivationProfile,
@@ -1498,7 +1509,7 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
   // Same target and position: readiness, field safety and benefit are the tuple
   // members that can differ across equipment. The equip itself still takes a turn.
   const currentField = fieldUtilityRanks(evaluation);
-  const current = [readiness(actorRecord), currentField.safety, currentField.benefit];
+  const current = [readiness(actorRecord), counters(actorRecord), currentField.safety, currentField.benefit];
   // A free slot is filled; with full slots the oldest makes way, so the
   // comparison against the current loadout already prices what would be lost.
   const equipped = equippedActorAffinityKeys(actorRecord);
@@ -1507,7 +1518,8 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
     if (equipped.includes(affinityKey)) return [];
     const action = { kind: "equip_affinity", params: { affinityKey } };
     const alternative = fieldUtilityRanks({ ...evaluation, action });
-    return compareDecisionRanks([readiness(recordAfterEquip(actorRecord, action.params)), alternative.safety, alternative.benefit], current) > 0
+    return compareDecisionRanks([readiness(recordAfterEquip(actorRecord, action.params)), counters(recordAfterEquip(actorRecord, action.params)),
+      alternative.safety, alternative.benefit], current) > 0
       ? [action] : [];
   });
 }
