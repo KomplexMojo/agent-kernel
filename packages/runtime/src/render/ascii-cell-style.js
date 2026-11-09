@@ -163,8 +163,31 @@ export const ASCII_FIELD_TINT_MAX = 0.7;
  */
 export function asciiFieldCellStyle(style, fields) {
   if (!style || !Array.isArray(fields)) return style;
+  const tint = affinityFieldTint(fields);
+  if (!tint) return style;
+  const bg = mixHex(style.bg, tint.mix, tint.alpha);
+  // The glyph leans toward the sprite outline for the new fill, so it stays legible on a pale tint.
+  const fg = mixHex(style.fg, outlineForFill(bg), 0.5);
+  // #485: a field that helps whoever stands in it reads differently from one that harms, in
+  // the palette's own resource and hazard colours, whatever the affinity (from the affinity table).
+  if (!tint.valence) return { fg, bg };
+  return { fg: mixHex(fg, tint.valence === "helps" ? items.resource : items.hazard, 0.75), bg };
+}
+
+/**
+ * The one reading of the fields on a cell that every client paints from (#814): the
+ * falloff-weighted mix of each field's affinity colour, how far a fill moves toward it
+ * (`alpha`, the tint above), and whether the fields help or harm whoever stands there.
+ * `asciiFieldCellStyle` and the graphical overlay model both read it, so the numbers live here
+ * only. Null when no field has a colour and a falloff.
+ *
+ * @param {Array<{kind: string, falloff: number, restores?: boolean}> | null} fields
+ * @returns {{mix: string, alpha: number, weights: Array<{kind: string, weight: number}>, valence: "helps"|"harms"|null} | null}
+ */
+export function affinityFieldTint(fields) {
+  if (!Array.isArray(fields)) return null;
   const coloured = fields.filter((entry) => AFFINITY_COLOR_HEX[entry?.kind] && entry.falloff > 0);
-  if (coloured.length === 0) return style;
+  if (coloured.length === 0) return null;
   const total = coloured.reduce((sum, entry) => sum + entry.falloff, 0);
   let mix = AFFINITY_COLOR_HEX[coloured[0].kind];
   let weight = coloured[0].falloff;
@@ -172,16 +195,11 @@ export function asciiFieldCellStyle(style, fields) {
     weight += entry.falloff;
     mix = mixHex(mix, AFFINITY_COLOR_HEX[entry.kind], entry.falloff / weight);
   }
-  const tint = Math.min(ASCII_FIELD_TINT_MAX, ASCII_FIELD_TINT_BASE + ASCII_FIELD_TINT_PER_INTENSITY * total);
-  const bg = mixHex(style.bg, mix, tint);
-  // The glyph leans toward the sprite outline for the new fill, so it stays legible on a pale tint.
-  const fg = mixHex(style.fg, outlineForFill(bg), 0.5);
-  // #485: a field that helps whoever stands in it reads differently from one that harms, in
-  // the palette's own resource and hazard colours, whatever the affinity (from the affinity table).
+  const alpha = Math.min(ASCII_FIELD_TINT_MAX, ASCII_FIELD_TINT_BASE + ASCII_FIELD_TINT_PER_INTENSITY * total);
   const helps = coloured.every((entry) => entry.restores === true);
   const harms = coloured.some((entry) => entry.restores === false);
-  if (!helps && !harms) return { fg, bg };
-  return { fg: mixHex(fg, helps ? items.resource : items.hazard, 0.75), bg };
+  return { mix, alpha, weights: coloured.map((entry) => ({ kind: entry.kind, weight: entry.falloff / total })),
+    valence: helps ? "helps" : harms ? "harms" : null };
 }
 
 /**

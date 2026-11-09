@@ -150,6 +150,7 @@ guard confirm it. Do not hand-edit a value.
 | `resource-bundle.js` | Assembling the versioned `ResourceBundleArtifact`, with the procedural default skin's asset data URIs. |
 | `affinity-palette.js` | Affinity colour re-export and stack-intensity tiers. |
 | `affinity-spatial-formulas.js` | Visual alpha of a field tile (how strongly it is drawn). |
+| `affinity-overlay-model.js` | The graphical overlay a client paints over the floor (#814, #815): field and draw layers, cast arrows, defeat marks, read from `view()`. Tint, mix and valence come from `ascii-cell-style.js` (`affinityFieldTint`), the terminal's own numbers. |
 | `visualization-snapshot.js` | ASCII/state snapshot assembly. |
 
 ## Assets

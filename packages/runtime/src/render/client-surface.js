@@ -36,4 +36,5 @@ export {
 } from "./resource-bundle.js";
 export { normalizeEntitySpriteState, ENTITY_SPRITE_ROLES } from "./entity-sprite-composer.js";
 export { buildBoardDrawModel } from "./board-draw-model.js";
+export { buildAffinityBoardOverlayModel } from "./affinity-overlay-model.js";
 export { resolveElementArt, elementArtCoverage, elementKeyFor } from "./element-art.js";

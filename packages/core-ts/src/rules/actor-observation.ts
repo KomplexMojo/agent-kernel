@@ -374,12 +374,25 @@ export interface FieldCellReading { kind: string; stacks: number; intensity: num
 const strength = (reading: Pick<FieldCellReading, 'intensity' | 'falloff'>) => reading.falloff * reading.intensity * reading.intensity;
 
 export function readActorRegistryFieldCells(observation: RegistryObservation): FieldCellReading[][][] {
+  return readFieldGrid(observation, expression => expression !== 'draw');
+}
+
+/**
+ * The lasting draw sustains on each cell (#815): a grid the map's shape, strongest first, with
+ * emit's grid left as it was. Draws do not cancel in pairs (core's overlap leaves them whole), so
+ * what shows is what each source reaches. Kept apart so a reader of emit fields never meets one.
+ */
+export function readActorRegistryDrawCells(observation: RegistryObservation): FieldCellReading[][][] {
+  return readFieldGrid(observation, expression => expression === 'draw');
+}
+
+function readFieldGrid(observation: RegistryObservation, wanted: (expression: string) => boolean): FieldCellReading[][][] {
   const height = observation.sightKinds.length;
   const width = height ? observation.sightKinds[0].length : 0;
   const grid: FieldCellReading[][][] = Array.from({ length: height }, () => Array.from({ length: width }, () => []));
   for (const field of observation.affinityFields) {
     const { x, y } = field.position;
-    if (field.expression === 'draw' || field.falloff <= 0 || !grid[y]?.[x]) continue;
+    if (!wanted(field.expression) || field.falloff <= 0 || !grid[y]?.[x]) continue;
     const cell = grid[y][x];
     const existing = cell.find(entry => entry.kind === field.kind);
     const reading = { stacks: field.stacks, intensity: field.intensity, falloff: field.falloff };
