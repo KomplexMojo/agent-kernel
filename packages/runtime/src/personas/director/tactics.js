@@ -93,7 +93,7 @@ function between(rng, min, max) {
  * order as an ordinary tactic list, so the plan records them and `--seed` rebuilds them.
  * Rooms are left to the Configurator, which picks them from the same seed.
  */
-export function pickSeededTactics(seed, { wardens = 0, resources = 0 } = {}) {
+export function pickSeededTactics(seed, { wardens = 0, resources = 0 } = {}, sizing = null) {
   if (!Number.isSafeInteger(seed) || seed < 0) throw new Error("tactic auto: needs a non-negative integer seed");
   const rng = createRng(seed);
   const candidates = ["minefield", "shrine"];
@@ -115,5 +115,45 @@ export function pickSeededTactics(seed, { wardens = 0, resources = 0 } = {}) {
     if (tactic === "minefield") tactics.push({ tactic, params: { hazards: between(rng, 2, 5) } });
     if (tactic === "shrine") tactics.push({ tactic, params: { count: between(rng, 1, 2) } });
   }
-  return tactics;
+  return sizing ? growTacticsToPools(tactics, sizing) : tactics;
+}
+
+// #651: what a tactic adds, the param that sizes it, the pool that pays for it, and a ceiling on it.
+const TACTIC_GROWTH = Object.freeze({
+  retinue: Object.freeze({ param: "size", pool: "wardens", max: 6 }),
+  minefield: Object.freeze({ param: "hazards", pool: "hazards", max: 8 }),
+  shrine: Object.freeze({ param: "count", pool: "hazards", max: 4 }),
+});
+// Placement cost climbs steeply with the objects it seats (seed 5 took over 400s at 18 hazards and 8
+// minions), so each pool also has a ceiling on all the tactics' additions together.
+const POOL_CEILING = Object.freeze({ hazards: 10, wardens: 6 });
+
+/**
+ * #651 — grow the picked sizes toward the pools that pay for them. `sizing` is data the host got
+ * from the Allocator: `{ hazards: { room, unit }, wardens: { room, unit } }`, the tokens a pool has
+ * free for tactic additions and the quoted price of one added hazard or minion. The picked mix and
+ * its seeded sizes stay as drawn; each pool's tactics then take one more unit in turn, in catalogue
+ * order, until the pool's room or a ceiling stops them. The picks are an estimate, so the build's
+ * own fit step still trims whatever the Allocator does not approve.
+ */
+export function growTacticsToPools(tactics, sizing) {
+  const grown = tactics.map((entry) => ({ ...entry, params: { ...(entry.params || {}) } }));
+  for (const pool of ["hazards", "wardens"]) {
+    const { room, unit } = sizing?.[pool] || {};
+    if (!(room > 0) || !(unit > 0)) continue;
+    const members = grown.filter((entry) => TACTIC_GROWTH[entry.tactic]?.pool === pool);
+    const units = (entry) => Number(entry.params[TACTIC_GROWTH[entry.tactic].param]) || 0;
+    let used = members.reduce((sum, entry) => sum + units(entry), 0);
+    for (let progress = members.length > 0; progress;) {
+      progress = false;
+      for (const entry of members) {
+        const { param, max } = TACTIC_GROWTH[entry.tactic];
+        if ((used + 1) * unit > room || used >= POOL_CEILING[pool] || units(entry) >= max) continue;
+        entry.params[param] = units(entry) + 1;
+        used += 1;
+        progress = true;
+      }
+    }
+  }
+  return grown;
 }

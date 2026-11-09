@@ -23,7 +23,7 @@ let results;
 
 beforeAll(async () => {
   results = await runScenarios(runs, { concurrency: 2 });
-}, 480_000);
+}, 900_000);
 
 test("seeds pick an opposed pair for the player and a different opposed pair besides", () => {
   const players = new Set();

@@ -95,7 +95,11 @@ into placement is the Configurator's. `tacticBudgetPools` (#418) names the budge
 things to (`minefield` and `shrine`: `hazards`), so a level asking for one gets that share without authoring a hazard.
 `pickSeededTactics(seed, { wardens, resources })` (#401) answers `--tactic auto`: the seed picks a mix of
 tactics that fit the level, with their sizes, as an ordinary tactic list in catalogue order. A minefield and a
-shrine (#531, `count` 1 or 2) always fit, since they bring their own hazards.
+shrine (#531, `count` 1 or 2) always fit, since they bring their own hazards. With an optional third
+argument `sizing` (#651), `{ hazards: { room, unit }, wardens: { room, unit } }` (the tokens a pool has free and the
+Allocator's quote for one added hazard or minion, handed in as data), `growTacticsToPools` then grows the picked
+sizes in turn, up to a ceiling per tactic, until the pool's room is used. The mix stays the seed's; the build's fit step
+trims any overshoot.
 For `--tactic llm` (#402) the Orchestrator's `buildTacticPlanPrompt`/`readTacticPlanResponse` ask for and read
 the model's plan, the Director's `normalizeTactics` refuses unknown tactics, and the Configurator's
 `validateTactics` checks params and counts; any failure falls back to the seeded pick.

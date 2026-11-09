@@ -100,7 +100,7 @@ import { prepareObjectPlacement, completeObjectPlacement, levelObjectRequests } 
 import { parsePlacementConstraint, normalizePlacementConstraints } from "./placement-constraints.js";
 import { reportTactics, compileTactics, validateTactics } from "./tactic-report.js";
 import { composeRetinue, fitRetinues, RETINUE_ROLES } from "./retinue.js";
-import { fitTacticHazards } from "./minefield.js";
+import { fitTacticHazards, composeFieldHazard } from "./minefield.js";
 import { nameUnnamedHazardAffinities } from "./unnamed-affinity.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
 /**
@@ -495,6 +495,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     composeRetinue,
     retinueRoles: () => [...RETINUE_ROLES],
     fitTacticHazards,
+    composeFieldHazard,
     nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact,
     resolveMotivationRules,
