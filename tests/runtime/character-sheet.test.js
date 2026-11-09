@@ -263,7 +263,7 @@ test("a recipe loads into the sheet, prices as the recipe, and writes a spec ago
   sheet.apply(SHEET_INTENT.INC); // slot 1 kind steps on: an edit
   assert.equal(sheet.view().recipe.edited, true);
   sheet.apply(SHEET_INTENT.PREV_RECIPE);
-  assert.equal(sheet.view().recipe.name, "lantern-bearer", "stepping back from the first wraps to the last");
+  assert.equal(sheet.view().recipe.name, "watcher", "stepping back from the first wraps to the last");
   sheet.apply(SHEET_INTENT.RESET);
   assert.equal(sheet.view().recipe, null);
   assert.equal(sheet.view().total, 234, "reset returns to the starting character");

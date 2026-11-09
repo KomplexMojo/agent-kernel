@@ -16,14 +16,14 @@ async function personas() {
 const PRICES = {
   delver: { shadowblade: 454, pyromancer: 442, "glass-cannon": 432, archer: 445, leech: 359, sapper: 418, hexer: 397, kiter: 459,
     duelist: 463, geomancer: 414, tank: 392, paladin: 423, cleric: 450, spellward: 461, gatekeeper: 392, wellspring: 475,
-    "retinue-leader": 309, scout: 363, sneak: 289, "lantern-bearer": 405 },
+    "retinue-leader": 309, scout: 363, sneak: 289, "lantern-bearer": 405, watcher: 302 },
   warden: { shadowblade: 328, pyromancer: 369, "glass-cannon": 416, archer: 429, leech: 286, sapper: 355, hexer: 324, kiter: 443,
     duelist: 447, geomancer: 341, tank: 376, paladin: 344, cleric: 361, spellward: 382, gatekeeper: 319, wellspring: 459,
-    "retinue-leader": 293, scout: 347, sneak: 273, "lantern-bearer": 326 },
+    "retinue-leader": 293, scout: 347, sneak: 273, "lantern-bearer": 326, watcher: 286 },
 };
-const NO_ATTACK = ["tank", "cleric", "wellspring", "retinue-leader", "lantern-bearer"];
+const NO_ATTACK = ["tank", "cleric", "wellspring", "retinue-leader", "lantern-bearer", "watcher"];
 
-test("the catalogue holds the 20 designed recipes, in order", async () => {
+test("the catalogue holds the 21 designed recipes, in order", async () => {
   const { configurator } = await personas();
   assert.deepEqual(configurator.configurationRecipeNames(), Object.keys(PRICES.delver));
 });
@@ -72,10 +72,26 @@ test("a {K} recipe takes the author's kind, defaults otherwise, and refuses a ki
   assert.throws(() => configurator.expandConfigurationRecipe({ name: "spellward", kind: "plasma" }), /kind=plasma is not an affinity kind/);
 });
 
+test("a kindColumn recipe takes a kind from the table's column, not one the data names (#564)", async () => {
+  const { configurator } = await personas();
+  const revealing = ["light"]; // the table's reveals column today; the test reads the table below too
+  const { affinityKindsWith } = await import("../../../packages/core-ts/src/state/affinity-table.ts");
+  assert.deepEqual(affinityKindsWith("reveals"), revealing);
+  const watcher = configurator.expandConfigurationRecipe({ name: "watcher", role: "warden" });
+  assert.equal(watcher.kind, affinityKindsWith("reveals")[0]);
+  assert.deepEqual(watcher.affinities.map((entry) => entry.expression), ["emit", "pull"]);
+  for (const kind of affinityKindsWith("reveals")) assert.equal(configurator.expandConfigurationRecipe({ name: "watcher", kind }).kind, kind);
+  for (const kind of ["fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "dark"]) {
+    assert.throws(() => configurator.expandConfigurationRecipe({ name: "watcher", kind }), /not a kind with the reveals column/);
+  }
+  const row = configurator.describeConfigurationRecipes().find((entry) => entry.name === "watcher");
+  assert.equal(row.kindColumn, "reveals");
+});
+
 test("an unknown recipe is refused, naming the known ones", async () => {
   const { configurator } = await personas();
   assert.throws(() => configurator.expandConfigurationRecipe({ name: "necromancer", label: "warden[2]" }),
-    /warden\[2\]: unknown recipe "necromancer" \(known: shadowblade, pyromancer, .*lantern-bearer\)/);
+    /warden\[2\]: unknown recipe "necromancer" \(known: shadowblade, pyromancer, .*watcher\)/);
 });
 
 test("no recipe exceeds the catalogue's intensity cap, and every recipe meets the viability floor", async () => {

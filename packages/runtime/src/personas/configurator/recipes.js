@@ -12,7 +12,9 @@
  * Affinities are listed in importance order and every one is equipped from the start (an explicit
  * equip order that leaves an attack in the pack is the trap #722 warns about). An actor with fewer
  * slots than the recipe has affinities keeps the first ones and the expansion says what it dropped.
- * A `{K}` kind is the author's pick (`kind=`), else the recipe's `kindDefault`.
+ * A `{K}` kind is the author's pick (`kind=`), else the recipe's `kindDefault`. A recipe may instead
+ * name a table column (`kindColumn`, #564): its kind is then any kind with that column (`reveals`), the
+ * first in table order by default, so no affinity is named in the data.
  */
 import CATALOGUE from "./recipes/configuration-recipes.json" with { type: "json" };
 import {
@@ -23,10 +25,16 @@ import {
 } from "../../contracts/domain-constants.js";
 import { GAME_VITAL_KEYS } from "../../contracts/game-vocabulary.js";
 import { MAX_AFFINITY_SLOTS } from "../../../../core-ts/src/state/actor-inventory.ts";
-import { affinityRole } from "../../../../core-ts/src/state/affinity-table.ts";
+import { affinityKindsWith, affinityRole } from "../../../../core-ts/src/state/affinity-table.ts";
 import { resolveAffinityManaCost } from "./affinity-rules.js";
 
 export const RECIPE_KIND_PARAMETER = "{K}";
+const KIND_COLUMNS = Object.freeze(["illuminates", "reveals", "conceals"]);
+
+/** The kind a `{K}` recipe uses when the author names none: its `kindDefault`, else the table's first kind with its column. */
+function defaultKind(recipe) {
+  return recipe.kindDefault ?? (recipe.kindColumn === undefined ? undefined : affinityKindsWith(recipe.kindColumn)[0]);
+}
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 function fail(message) {
@@ -58,8 +66,12 @@ function validateRecipe(recipe, seen, maxIntensity) {
     fail(`${label}: affinities must list 1 to ${MAX_AFFINITY_SLOTS} entries.`);
   }
   const usesKind = affinities.some((entry) => entry.kind === RECIPE_KIND_PARAMETER);
-  if (usesKind !== (recipe.kindDefault !== undefined)) fail(`${label}: kindDefault is given exactly when an affinity uses ${RECIPE_KIND_PARAMETER}.`);
-  if (usesKind && !AFFINITY_KINDS.includes(recipe.kindDefault)) fail(`${label}: kindDefault ${JSON.stringify(recipe.kindDefault)} is not an affinity kind.`);
+  const hasColumn = recipe.kindColumn !== undefined;
+  if (hasColumn && recipe.kindDefault !== undefined) fail(`${label}: give kindDefault or kindColumn, not both.`);
+  if (usesKind !== (recipe.kindDefault !== undefined || hasColumn)) fail(`${label}: kindDefault or kindColumn is given exactly when an affinity uses ${RECIPE_KIND_PARAMETER}.`);
+  if (hasColumn && !KIND_COLUMNS.includes(recipe.kindColumn)) fail(`${label}: kindColumn ${JSON.stringify(recipe.kindColumn)} is not a table column (${KIND_COLUMNS.join(", ")}).`);
+  if (hasColumn && affinityKindsWith(recipe.kindColumn).length === 0) fail(`${label}: no kind has the ${recipe.kindColumn} column.`);
+  if (usesKind && !hasColumn && !AFFINITY_KINDS.includes(recipe.kindDefault)) fail(`${label}: kindDefault ${JSON.stringify(recipe.kindDefault)} is not an affinity kind.`);
   const keys = new Set();
   for (const entry of affinities) {
     if (entry.kind !== RECIPE_KIND_PARAMETER && !AFFINITY_KINDS.includes(entry.kind)) fail(`${label}: unknown affinity kind ${JSON.stringify(entry.kind)}.`);
@@ -74,7 +86,7 @@ function validateRecipe(recipe, seen, maxIntensity) {
     // #732: a cast dearer than the pool is never made (core never pays above max mana), so a kit
     // that cannot pay for its own attack is refused here rather than losing every fight in play.
     if (entry.expression === "push" || entry.expression === "pull") {
-      const kind = entry.kind === RECIPE_KIND_PARAMETER ? recipe.kindDefault : entry.kind;
+      const kind = entry.kind === RECIPE_KIND_PARAMETER ? defaultKind(recipe) : entry.kind;
       const cost = resolveAffinityManaCost({ rules: null, kind, expression: entry.expression, stacks: entry.range, intensity: entry.intensity });
       if (Number.isFinite(cost) && cost > recipe.vitals.mana.max) {
         fail(`${label}: ${entry.kind}:${entry.expression} costs ${cost} mana a cast but mana max is ${recipe.vitals.mana.max}.`);
@@ -112,9 +124,10 @@ export function configurationRecipe(name) {
 }
 
 function resolveKind(recipe, kind, label) {
-  if (kind === undefined || kind === null || kind === "") return recipe.kindDefault;
-  if (recipe.kindDefault === undefined) throw new Error(`${label}: recipe ${recipe.name} has no ${RECIPE_KIND_PARAMETER} kind to set; drop kind=.`);
-  if (!AFFINITY_KINDS.includes(kind)) throw new Error(`${label}: kind=${kind} is not an affinity kind (expected ${AFFINITY_KINDS.join(", ")}).`);
+  if (kind === undefined || kind === null || kind === "") return defaultKind(recipe);
+  if (defaultKind(recipe) === undefined) throw new Error(`${label}: recipe ${recipe.name} has no ${RECIPE_KIND_PARAMETER} kind to set; drop kind=.`);
+  const allowed = recipe.kindColumn === undefined ? AFFINITY_KINDS : affinityKindsWith(recipe.kindColumn);
+  if (!allowed.includes(kind)) throw new Error(`${label}: kind=${kind} is not ${recipe.kindColumn === undefined ? "an affinity kind" : `a kind with the ${recipe.kindColumn} column`} (expected ${allowed.join(", ")}).`);
   return kind;
 }
 
@@ -164,7 +177,7 @@ export function expandConfigurationRecipe({ name, role = "delver", kind, label =
 export function describeConfigurationRecipes() {
   return RECIPES.map((recipe) => {
     const affinities = recipe.affinities.map((entry) => ({
-      ...entry, kind: entry.kind === RECIPE_KIND_PARAMETER ? recipe.kindDefault : entry.kind,
+      ...entry, kind: entry.kind === RECIPE_KIND_PARAMETER ? defaultKind(recipe) : entry.kind,
     }));
     return {
       name: recipe.name,
@@ -173,7 +186,8 @@ export function describeConfigurationRecipes() {
       description: recipe.description,
       weaknesses: recipe.weaknesses,
       affinities: recipe.affinities.map((entry) => `${entry.kind}:${entry.expression}:${entry.range}:${entry.intensity}`),
-      ...(recipe.kindDefault !== undefined ? { kindDefault: recipe.kindDefault } : {}),
+      ...(defaultKind(recipe) !== undefined ? { kindDefault: defaultKind(recipe) } : {}),
+      ...(recipe.kindColumn !== undefined ? { kindColumn: recipe.kindColumn } : {}),
       roles: recipeRoleMix(affinities),
       strategies: [...recipe.strategies],
     };
