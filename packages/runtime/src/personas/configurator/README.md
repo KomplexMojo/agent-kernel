@@ -587,7 +587,9 @@ description, its weaknesses and the strategy recipes it pairs with. It has no pr
 Allocator quotes its expansion like any typed spec. `expandConfigurationRecipe({ name, role, kind })`
 returns the fields a delver or warden spec carries, with every affinity equipped; a role with fewer
 slots keeps the first ones and lists the rest as `dropped`. A `{K}` recipe (`spellward`) takes the
-author's kind. The catalogue is validated when it loads (names, kinds, the viability floor, an
+author's kind. `watcher` (#564) names a table column instead (`kindColumn: "reveals"`): its kind is any
+kind with that column, the table's first by default, so the data names no affinity and a new revealing
+kind is picked up without editing it. The catalogue is validated when it loads (names, kinds, the viability floor, an
 intensity cap of 3, and every push or pull affordable from a full pool, #732), and only `recipes.js` may read the JSON (`tests/architecture/single-origin.test.js`).
 Exposed on the controller as `configurationRecipe`, `configurationRecipeNames`,
 `describeConfigurationRecipes` and `expandConfigurationRecipe`.

@@ -94,7 +94,7 @@ test("> loads the next recipe and the screen names it", async () => {
   const { renderCharacterScreen, sheetIntentForKey } = await import(SCREEN);
   const { createCharacterSheet } = await import(SHEET);
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 942 });
-  assert.match(renderCharacterScreen(sheet.view()), /Recipe\s+your own \(press > for one of 20 recipes\)/);
+  assert.match(renderCharacterScreen(sheet.view()), /Recipe\s+your own \(press > for one of 21 recipes\)/);
   sheet.apply(sheetIntentForKey(">"));
   const text = renderCharacterScreen(sheet.view());
   assert.match(text, /Recipe\s+Shadowblade: Hides in its own dark/);

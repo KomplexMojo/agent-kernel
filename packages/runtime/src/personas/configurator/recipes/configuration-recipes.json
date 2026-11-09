@@ -926,6 +926,50 @@
         "loot-run",
         "attack-alignment"
       ]
+    },
+    {
+      "name": "watcher",
+      "title": "Watcher",
+      "archetype": "seer",
+      "description": "A warden that reads what stands in its field: a revealing kind's emit, and its pull to drain what it reads.",
+      "vitals": {
+        "health": {
+          "max": 25,
+          "regen": 1
+        },
+        "mana": {
+          "max": 50,
+          "regen": 5
+        },
+        "stamina": {
+          "max": 30,
+          "regen": 4
+        },
+        "durability": {
+          "max": 15,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "{K}",
+          "expression": "emit",
+          "range": 2,
+          "intensity": 1
+        },
+        {
+          "kind": "{K}",
+          "expression": "pull",
+          "range": 2,
+          "intensity": 1
+        }
+      ],
+      "weaknesses": "Its field shows it too; a concealing field hides what it reads; upkeep 5 against regen 5.",
+      "strategies": [
+        "read-before-engaging",
+        "attack-alignment"
+      ],
+      "kindColumn": "reveals"
     }
   ]
 }

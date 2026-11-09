@@ -36,6 +36,8 @@ export function renderAffinityTableDoc() {
     "there is seen even under dark. Reveals: shows the properties of an actor on the cell, any value above",
     "the field's net intensity reading as that intensity with a `+`. Conceals: darkens the cell and hides",
     "what stands in it; it cancels illumination and revealing by intensity.",
+    "A revealing kind's push or pull that struck an actor also reveals it for the turn after the cast, at the",
+    "casting slot's intensity less any concealing field on its cell (#564); a miss reveals nothing.",
     "",
     "| Kind | Illuminates | Reveals | Conceals |",
     "|---|---|---|---|",
