@@ -115,7 +115,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | File | Owns |
 |---|---|
 | `src/cli.mjs` | The terminal: arguments, raw-mode keypresses, redraws |
-| `src/keymap.js` | Key → intent (`move`, `wait`, `affinities`, `cast`, `take`, …; and the watch keys). No legality |
+| `src/keymap.js` | Terminal key decoding only: raw escape sequences to logical key names, then the shared controls in `runtime/src/controls/intents.js` (intents, default bindings as data, help text; #505) turn them into intents (`move`, `wait`, `affinities`, `cast`, `take`, …; and the watch keys). No legality, and no bindings of its own |
 | `src/game.js` | Intent → play-session call; level index, move count, last message, the open panel (affinities, target, loot) |
 | `src/screen.js` | Lays out the view as text and turns palette hex into ANSI escapes. Board glyphs come from the play session's rows (the registry's terrain in the level's render legend); board colours from `render/ascii-cell-style.js`; vital labels and colours from runtime's HUD model. Each vital reads `current/max (+regen)`, and the `hud` line uses the same form |
 | `src/web.mjs` | The browser tab (`--web`): a local `node:http` server running the same game, the screen's ANSI turned into HTML, keys posted back |

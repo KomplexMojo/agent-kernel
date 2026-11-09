@@ -9,6 +9,8 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 | Module | Provides |
 |---|---|
 | `packages/runtime/src/runner/character-sheet.js` | character configuration screen model and pipeline |
+| `packages/runtime/src/controls/intents.js` | the shared controls: intents, default key bindings as data (logical key names), help text (#505) |
+| `packages/runtime/src/controls/messages.js` | the shared message wording and view readers every client uses (#505) |
 | `packages/runtime/src/contracts/domain-constants.js` | affinity/expression/motivation vocabularies |
 | `packages/runtime/src/contracts/sound-cues.js` | sound cue vocabulary for the play session's turn results (#757) |
 | `packages/runtime/src/contracts/game-elements.js` | skin: GAME_COLOR_PALETTE, element visuals, asset and icon ids (re-exports the vocabulary) |
@@ -19,7 +21,7 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 | `packages/adapters-web/src/adapters/solver-recorded/index.js` | recorded-solver replay adapter |
 | `packages/ui-ascii/src/game.js` | the reference terminal client's game controller over the play session (the phone app runs it in the page) |
 | `packages/ui-ascii/src/screen.js` | the reference client's board, HUD and log drawing |
-| `packages/ui-ascii/src/keymap.js` | the reference client's key bindings and intents |
+| `packages/ui-ascii/src/keymap.js` | the reference client's terminal key decoding (the bindings and intents are `runtime/controls/intents.js`) |
 | `packages/ui-ascii/src/html.js` | ANSI screen to HTML, for browser views of the reference client |
 | `packages/adapters-cli/src/cli/playtest-scenarios.mjs` | the playtest scenario catalogue and its `agon create` arguments per seed (#744: framework content, shared with the sims) |
 | `packages/runtime/src/render/client-surface.js` | graphical client facade: play session, HUD and icon models, resource bundle, board sprite state (#767) |

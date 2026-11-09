@@ -17,6 +17,12 @@
     "packages/runtime/src/runner/character-sheet.js": {
       "provides": "character configuration screen model and pipeline"
     },
+    "packages/runtime/src/controls/intents.js": {
+      "provides": "the shared controls: intents, default key bindings as data (logical key names), help text (#505)"
+    },
+    "packages/runtime/src/controls/messages.js": {
+      "provides": "the shared message wording and view readers every client uses (#505)"
+    },
     "packages/runtime/src/contracts/domain-constants.js": {
       "provides": "affinity/expression/motivation vocabularies"
     },
@@ -50,7 +56,7 @@
       "provides": "the reference client's board, HUD and log drawing"
     },
     "packages/ui-ascii/src/keymap.js": {
-      "provides": "the reference client's key bindings and intents"
+      "provides": "the reference client's terminal key decoding (the bindings and intents are runtime/controls/intents.js)"
     },
     "packages/ui-ascii/src/html.js": {
       "provides": "ANSI screen to HTML, for browser views of the reference client"

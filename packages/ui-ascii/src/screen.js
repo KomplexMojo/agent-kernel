@@ -23,6 +23,9 @@ import { HELP_LINES } from "./keymap.js";
 import { GAME_COLOR_PALETTE } from "../../runtime/src/contracts/game-elements.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 import { conditionNote } from "../../runtime/src/render/battle-log-lines.js";
+import { slotLevelLabel } from "../../runtime/src/controls/messages.js";
+
+export { slotLevelLabel };
 
 const BAR_WIDTH = 10;
 const RESET = "\u001b[0m";
@@ -305,18 +308,6 @@ export function affinityLines(player, { hints = true } = {}) {
     const cost = price === undefined ? "" : ` · ${price} MP`;
     return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ${slotLevelLabel(player, pair)}${cost}${note}`;
   });
-}
-
-/**
- * An affinity's range and intensity as `r6 ×2` (#345). A slot run below what is held shows
- * running/held for that number (#230): `r1/6 ×2`, `r6 ×1/2`.
- */
-export function slotLevelLabel(player, pair) {
-  const key = `${pair.kind}:${pair.expression}`;
-  const heldIntensity = pair.intensity ?? 1;
-  const level = (running, held) => (Number.isInteger(running) && running < held ? `${running}/${held}` : `${held}`);
-  return `r${level(player?.equippedAffinityStacks?.[key], pair.stacks)}`
-    + ` ×${level(player?.equippedAffinityIntensity?.[key], heldIntensity)}`;
 }
 
 /** An actor's motivation stack, in brackets after its name (#310); nothing when it has none. */
