@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
 import {
-  readActorRegistryObservation, readActorRegistryRevealLevels, readActorRegistryVisibleCells, revealedValue,
+  readActorRegistryObservation, readActorRegistryReadings, readActorRegistryRevealLevels, readOppositeAffinityKind, readActorRegistryVisibleCells, revealedValue,
 } from '../../packages/core-ts/src/rules/actor-observation.ts';
 import { AFFINITY_TABLE } from '../../packages/core-ts/src/state/affinity-table.ts';
 import type { ActorRecord, AffinityKind } from '../../packages/core-ts/src/state/actor-types.ts';
@@ -65,6 +65,28 @@ test('a value above the reveal level reads as the level with a plus', () => {
       expect(revealedValue(value, level)).toBe(value > level ? `${level}+` : value);
     }
   }
+});
+
+// #564: what an observer can read of another actor's equipped affinities is capped by the same reveal level.
+const readings = (actors: ActorRecord[]) => readActorRegistryReadings(readActorRegistryObservation(room(actors), 0), 'observer');
+
+test('a revealed actor shows its affinities, each intensity capped by the reveal level', () => {
+  const lamp = actor('lamp', 4, [{ kind: 'light', stacks: 2, intensity: 2 }]);
+  const found = readings([actor('observer', 0), actor('target', 3, [{ kind: 'fire', stacks: 1, intensity: 5 }]), lamp]);
+  expect(found.target).toEqual([{ kind: 'fire', expression: 'emit', intensity: '2+' }]);
+});
+
+test('an actor nothing reveals is absent from the readings', () => {
+  expect(readings([actor('observer', 0), actor('target', 1, [{ kind: 'fire', stacks: 1, intensity: 1 }])])).toEqual({});
+});
+
+test('every kind has exactly one opposite and it points back', () => {
+  for (const row of AFFINITY_TABLE) {
+    const opposite = readOppositeAffinityKind(row.kind);
+    expect(opposite).not.toBeNull();
+    expect(readOppositeAffinityKind(opposite as string)).toBe(row.kind);
+  }
+  expect(readOppositeAffinityKind('nonsense')).toBeNull();
 });
 
 // ## TODO: Test Permutations

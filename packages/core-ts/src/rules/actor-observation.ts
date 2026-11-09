@@ -12,7 +12,8 @@ import type { AffinityKind } from '../state/actor-types.ts';
 type SightColumn = 'illuminates' | 'reveals' | 'conceals';
 const hasColumn = (kind: string | undefined, column: SightColumn) =>
   kind !== undefined && affinityTableRow(kind as AffinityKind)?.[column] === true;
-import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
+import { AFFINITY_EXPRESSION_BY_CODE, AFFINITY_KIND_BY_CODE } from '../affinity-readers.ts';
+import { getOppositeAffinityKind } from '../state/affinity.ts';
 
 /** Detached facts; reading an observation never applies exposure or advances time. */
 export function readActorRegistryObservation(registry: Pick<ReturnType<typeof createActorRegistry>, 'snapshot'>, tick: number) {
@@ -295,6 +296,34 @@ export function readActorRegistryRevealLevels(observation: RegistryObservation, 
   return Object.fromEntries(observation.actors
     .filter(actor => actor.id !== observerId && actor.lifecycle === 'alive')
     .map(actor => [actor.id, lightByCell[`${actor.position.x},${actor.position.y}`] ?? 0]));
+}
+
+/** One equipped affinity as an observer reads it (#564): kind and expression, intensity capped by the reveal level. */
+export interface ActorAffinityReading { kind: string; expression: string; intensity: number | `${number}+` }
+
+/**
+ * What `observerId` can read of each other living actor's equipped affinities right now (#564):
+ * only actors a revealing field reaches (reveal level 1 or more), each entry's intensity capped
+ * by that level as `revealedValue` does. An actor nothing reveals is absent: the observer learns
+ * nothing from standing near it. Same hidden-information cap as the player's view (#497).
+ */
+export function readActorRegistryReadings(observation: RegistryObservation, observerId: string): Record<string, ActorAffinityReading[]> {
+  const levels = readActorRegistryRevealLevels(observation, observerId);
+  const readings: Record<string, ActorAffinityReading[]> = {};
+  for (const actor of observation.actors) {
+    const level = levels[actor.id] ?? 0;
+    if (level < 1 || actor.id === observerId) continue;
+    const entries = (actor.affinities ?? []).map(entry => ({
+      kind: String(entry.kind), expression: String(entry.expression), intensity: revealedValue(entry.intensity ?? 1, level) }));
+    if (entries.length > 0) readings[actor.id] = entries;
+  }
+  return readings;
+}
+
+/** The opposed kind of a named affinity kind (core's one table), or null when it has none. */
+export function readOppositeAffinityKind(kind: string): string | null {
+  const code = Number(Object.keys(AFFINITY_KIND_BY_CODE).find(key => AFFINITY_KIND_BY_CODE[Number(key)] === kind));
+  return Number.isInteger(code) ? (AFFINITY_KIND_BY_CODE[getOppositeAffinityKind(code)] ?? null) : null;
 }
 
 /** A property's value as an observer at reveal `level` reads it (#416): above the level, `level+`. */

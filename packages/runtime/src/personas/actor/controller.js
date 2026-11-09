@@ -64,6 +64,7 @@ import {
   STRATEGY_CONDITION_INPUTS,
   STRATEGY_STATUS,
   TARGET_SELECTORS,
+  counterKinds,
   followStrategy,
   ignoredStrategyParts,
   normalizeStrategy,
@@ -1416,7 +1417,7 @@ function canAffordCast(actorRecord, entry, castManaBase) {
   return (actorRecord?.vitals?.mana?.current ?? 0) >= actorCastManaPrice(base, stacks, intensity);
 }
 
-function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase, skip = [] }) {
+function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase, skip = [], prefer = [] }) {
   if (actorRecord?.capabilities?.canCast === false) return null;
   const slots = castableSlots(actorRecord);
   if (slots.length === 0) return null;
@@ -1433,7 +1434,11 @@ function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase, 
   // 2026-10-29: a warden kept healing the delver with a looted growth push).
   // #758: a slot this actor saw do nothing to this target (`skip`, its learned keys) is passed over.
   const keyOf = (entry) => `${String(entry.kind).trim().toLowerCase()}:${String(entry.expression).trim().toLowerCase()}`;
-  const reaching = slots.find((entry) => distance <= (Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1)
+  // #564: a slot of a kind in `prefer` (the counter of what the actor has read of the target) goes first.
+  const ordered = prefer.length === 0 ? slots
+    : [...slots.filter((entry) => prefer.includes(String(entry.kind).trim().toLowerCase())),
+      ...slots.filter((entry) => !prefer.includes(String(entry.kind).trim().toLowerCase()))];
+  const reaching = ordered.find((entry) => distance <= (Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1)
     && !restoresTarget(entry) && !skip.includes(keyOf(entry)) && canAffordCast(actorRecord, entry, castManaBase));
   if (!reaching) return null;
   if (reaching === slots[0]) return { kind: "cast_affinity", params: { targetId: hostile.actor.id } };
@@ -1845,8 +1850,10 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     // #758: what its own casts did last turn to what they struck (core's rule, as it saw them land).
     dealt: Array.isArray(payload?.dealtCasts) ? payload.dealtCasts : [],
     exitPlace: () => findExitFromTiles(baseTiles) ?? null,
-    castAt: (target, distance, skip = []) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance },
-      castManaBase: simConfig?.actionCosts?.castManaBase, skip }),
+    // #564: what revealing fields let it read of others this turn, by actor id.
+    readings: isObject(payload?.readings) ? payload.readings : {},
+    castAt: (target, distance, skip = [], prefer = []) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance },
+      castManaBase: simConfig?.actionCosts?.castManaBase, skip, prefer }),
     exitStep: () => {
       const step = buildMoveProposal({ observation, payload, simConfig });
       return step.length > 0 ? step : [{ kind: "wait" }];
@@ -2010,6 +2017,8 @@ function buildCombatProposals({
       actorRecord: record,
       hostile,
       castManaBase: simConfig?.actionCosts?.castManaBase,
+      // #564: no memory on this path, so only what it reads of this hostile now.
+      prefer: counterKinds({ kinds: (payload?.readings?.[hostile.actor.id] ?? []).map((item) => String(item.kind)) }),
     });
     if (cast) proposals.push(cast);
   }

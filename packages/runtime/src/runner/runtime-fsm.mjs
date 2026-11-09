@@ -25,6 +25,7 @@ import {
   readActorRegistryDarkCells,
   readActorRegistryFieldCells,
   readActorRegistryObservation,
+  readActorRegistryReadings,
   readActorRegistryRevealLevels,
   readActorRegistryVisibleCells,
   readActorReceivedHits,
@@ -887,10 +888,17 @@ export function createFsmRuntime({
       ? readActorReceivedHits(lastActorTurn, observingActorId, actorObservation) : [];
     // #758: what this actor's own casts did last turn to what they struck, as it saw them land.
     const dealtCasts = actorRegistry ? readActorDealtCasts(lastActorTurn, observingActorId) : [];
+    // #564: the affinities revealing fields let this actor read, by actor id (same cap as the
+    // player's view); only actors in its scoped view, and nothing else about them leaks.
+    const fullObservation = actorRegistry ? readCachedObservation() : null;
+    const visibleIds = new Set((actorObservation?.actors ?? []).map((other) => other.id));
+    const allReadings = fullObservation ? readActorRegistryReadings(fullObservation, observingActorId) : {};
+    const readings = Object.fromEntries(Object.entries(allReadings).filter(([id]) => visibleIds.has(id)));
     const actorPayload = {
       ...base,
       actorId: observingActorId,
       observation: actorObservation,
+      ...(Object.keys(readings).length > 0 ? { readings } : {}),
       ...(receivedHits.length > 0 ? { receivedHits } : {}),
       ...(dealtCasts.length > 0 ? { dealtCasts } : {}),
       baseTiles,
