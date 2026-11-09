@@ -558,6 +558,9 @@ export function resolveActorRandomSeed(view, actorId, payload, personaSeed) {
     }
   }
   if (payload?.seed !== undefined && payload?.seed !== null) return payload.seed;
+  // #791: the run's seed, for every draw that does not name its own. It was 0 for all of them.
+  const runSeed = payload?.simConfig?.seed;
+  if (runSeed !== undefined && runSeed !== null) return runSeed;
   if (personaSeed !== undefined && personaSeed !== null) return personaSeed;
   return 0;
 }
