@@ -116,6 +116,8 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     composeRetinue: services.composeRetinue,
     retinueRoles: services.retinueRoles,
     fitTacticHazards: services.fitTacticHazards,
+    // The hazard a minefield or shrine adds, as the build composes it (#651 prices one to size `--tactic auto`).
+    composeFieldHazard: services.composeFieldHazard,
     // #263 — a hazard authored with no affinity gets one picked from the run seed.
     nameUnnamedHazardAffinities: services.nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,

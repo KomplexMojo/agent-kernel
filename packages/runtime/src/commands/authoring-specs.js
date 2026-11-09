@@ -1872,12 +1872,39 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       buildSeed = drawSeed();
     }
     let tacticPlan;
+    // #651: what the hazard and warden pools have free for `--tactic auto`'s additions, and what one
+    // added hazard or minion costs, both asked of the Allocator (the pool split and the quotes).
+    // Authored hazards and wardens are counted at the same unit price. It is an estimate: the build's
+    // fit step trims whatever the Allocator does not approve. No budget, no sizing.
+    const estimateTacticSizing = () => {
+      if (!Number.isInteger(resolvedBudgetTokens)) return null;
+      let weights = buildPoolWeightsForAuthoredKinds({
+        carvesLevel: parsedHazards.length > 0, rooms: parsedRooms, floorTiles: parsedFloorTiles, hazards: parsedHazards,
+        resources: parsedResources, delvers: parsedDelvers, wardens: parsedWardens, tacticPools: ["hazards"],
+      });
+      if (levelGrade) weights = gradeAllocator.pricing.levelGradePoolWeights(weights, levelGrade.grade);
+      const sizer = createAllocatorPersona({ clock: UNUSED_CLOCK, normalizeMotivations: configurator.normalizeMotivations });
+      const allocated = sizer.allocateBudget({ budgetTokens: resolvedBudgetTokens, poolWeights: weights });
+      if (!allocated.ok) return null;
+      const tokensOf = (id) => allocated.allocation.pools.find((pool) => pool.id === id)?.tokens ?? 0;
+      const quote = (entry) => sizer.pricing.quoteActor({ type: "warden", vitals: entry.vitals,
+        affinities: entry.affinities, affinitySlots: entry.affinities.length, motivations: entry.motivations || [] });
+      const hazardUnit = quote({ ...configurator.composeFieldHazard("probe", dungeonAffinity || "fire", 1),
+        affinities: [{ kind: dungeonAffinity || "fire", expression: "emit", stacks: 1, intensity: 1 }] }).cost;
+      const leader = { id: "probe", affinities: [{ kind: dungeonAffinity || "fire", expression: "emit" }], motivations: ["defending"] };
+      const minionUnit = quote(configurator.composeRetinue({ leader, size: 1 }).minions[0]).cost;
+      const wardenCount = parsedWardens.reduce((sum, entry) => sum + (Number(entry.value.count) || 1), 0);
+      return {
+        hazards: { room: tokensOf("hazards") - parsedHazards.length * hazardUnit, unit: hazardUnit },
+        wardens: { room: tokensOf("wardens") - wardenCount * minionUnit, unit: minionUnit },
+      };
+    };
     if (autoTactics) {
       const levelCounts = {
         wardens: parsedWardens.reduce((sum, entry) => sum + (Number(entry.value.count) || 1), 0),
         resources: parsedResources.length,
       };
-      tactics = tacticDirector.pickSeededTactics(buildSeed, levelCounts);
+      tactics = tacticDirector.pickSeededTactics(buildSeed, levelCounts, estimateTacticSizing());
       if (tacticMode === "llm") {
         ({ tactics, tacticPlan } = await planTacticsWithLlm({
           args, seededTactics: tactics, levelCounts, rooms: normalizeList(args.room).length,

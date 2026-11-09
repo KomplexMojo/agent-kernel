@@ -5,6 +5,7 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 ## Unreleased
 
 ### Changed
+- `--tactic auto` (#651): with a budget, the Director sizes the seeded mix to the hazard and warden pools, using the Allocator's pool split and one-unit quotes, so a level spends most of its dungeon share instead of about a fifth. The mix and the draws are the seed's; only the sizes grow, and the build's fit step still trims what the Allocator does not approve. `pickSeededTactics(seed, counts, sizing?)` takes the optional third argument. Levels built with `auto` change, and build slower.
 - Pricing (#650): lasting expressions (emit, draw) cost more the more an actor holds. The k-th lasting slot, cheapest first, costs k times its price; one slot is unchanged. Actors with two or more emit or draw slots quote higher (the shadowblade delver 391 to 454, the spellward 378 to 461).
 
 ### Fixed

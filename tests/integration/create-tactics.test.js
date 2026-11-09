@@ -116,6 +116,13 @@ test("an unknown tactic or a bad seed is refused with a reason", async () => {
 // - --dry-run with a tactic still validates the tactic list
 // - a tactic param that is a word stays a string in the plan
 
+// #651: with a budget, the Director grows the seeded sizes toward the pools; the mix is the seed's.
+function assertSeededMix(actual, picked) {
+  assert.deepEqual(actual.map((entry) => entry.tactic), picked.map((entry) => entry.tactic));
+  actual.forEach((entry, index) => Object.entries(picked[index].params || {}).forEach(([name, size]) =>
+    assert.ok(entry.params[name] >= size, `${entry.tactic} ${name} ${entry.params[name]} grew from ${size}`)));
+}
+
 test("tactics [\"auto\"]: the Director picks the mix from the seed, recorded and rebuilt by --seed (#401)", async () => {
   const payload = { room: ["size=medium;count=3"], resource: ["permanenceMode=consumable;vital=health;delta=5"],
     warden: ["count=3;motivation=defending"], tactics: ["auto"], seed: 11 };
@@ -123,11 +130,11 @@ test("tactics [\"auto\"]: the Director picks the mix from the seed, recorded and
   assert.equal(first.status, 0, first.output);
   const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.js");
   const picked = createDirectorPersona({ clock: () => "2026-10-18T00:00:00.000Z" }).pickSeededTactics(11, { wardens: 3, resources: 1 });
-  assert.deepEqual(first.summary.tactics, picked);
-  assert.deepEqual(first.spec.plan.hints.tactics, picked);
+  assertSeededMix(first.summary.tactics, picked);
+  assert.deepEqual(first.spec.plan.hints.tactics, first.summary.tactics);
   assert.equal(first.summary.seed, 11);
   // The recorded list, given back with the same seed, builds the same level.
-  const again = await create({ ...payload, tactics: picked.map(({ tactic, params }) =>
+  const again = await create({ ...payload, tactics: first.summary.tactics.map(({ tactic, params }) =>
     [tactic, ...Object.entries(params || {}).map(([k, v]) => `${k}=${v}`)].join(";")) });
   assert.equal(again.status, 0, again.output);
   assert.deepEqual(again.initialState, first.initialState);
@@ -161,13 +168,13 @@ test("tactics [\"llm\"] with an invalid reply or no model falls back to the seed
   const seeded = createDirectorPersona({ clock: () => "2026-10-18T00:00:00.000Z" }).pickSeededTactics(5, { wardens: 2, resources: 1 });
   const invalid = await create({ ...llmLevel, tactics: ["llm"], tacticFixture: join(ROOT, "tests/fixtures/llm/tactic-plan-invalid.json") });
   assert.equal(invalid.status, 0, invalid.output);
-  assert.deepEqual(invalid.summary.tactics, seeded);
+  assertSeededMix(invalid.summary.tactics, seeded);
   assert.equal(invalid.summary.tacticPlan.decidedBy, "seeded");
   assert.match(invalid.summary.tacticPlan.reasons.join(";"), /unknown tactic "flank"/);
   assert.deepEqual(invalid.summary.tacticPlan.response, [{ tactic: "flank" }]);
   const offline = await create({ ...llmLevel, tactics: ["llm"] });
   assert.equal(offline.status, 0, offline.output);
-  assert.deepEqual(offline.summary.tactics, seeded);
+  assertSeededMix(offline.summary.tactics, seeded);
   assert.match(offline.summary.tacticPlan.reasons[0], /no model/);
 });
 
@@ -208,4 +215,4 @@ test("tactic-seated emitters keep their fields off resources and hazards (#473)"
       rmSync(outDir, { recursive: true, force: true });
     }
   }
-}, 180_000); // two long-haul `agon create` runs: ~30s alone, over 60s under the full suite's load
+}, 480_000); // two long-haul `agon create` runs: ~30s alone, over 60s under the full suite's load

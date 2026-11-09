@@ -120,3 +120,31 @@ test("pickSeededTactics: different seeds usually give different plans", async ()
   for (let seed = 0; seed < 100; seed += 1) plans.add(JSON.stringify(director.pickSeededTactics(seed, { wardens: 3, resources: 2 })));
   assert.ok(plans.size >= 25, `only ${plans.size} distinct plans over 100 seeds`);
 });
+
+// #651: pickSeededTactics grows the picked sizes toward the pools, from quotes the host hands in.
+test("pickSeededTactics with sizing: the mix is the seed's, sizes grow to what the pools afford and stop", async () => {
+  const { createDirectorPersona } = await load();
+  const director = createDirectorPersona({ clock: () => CREATED_AT });
+  const counts = { wardens: 3, resources: 2 };
+  let grown = 0;
+  for (let seed = 0; seed < 40; seed += 1) {
+    const plain = director.pickSeededTactics(seed, counts);
+    const sized = director.pickSeededTactics(seed, counts, { hazards: { room: 600, unit: 50 }, wardens: { room: 900, unit: 100 } });
+    assert.deepEqual(sized.map((entry) => entry.tactic), plain.map((entry) => entry.tactic), "the mix does not change");
+    const count = (list, names, param) => list.filter((e) => names.includes(e.tactic)).reduce((sum, e) => sum + e.params[param], 0);
+    const hazards = (list) => count(list, ["minefield"], "hazards") + count(list, ["shrine"], "count");
+    assert.ok(hazards(sized) * 50 <= 600 && count(sized, ["retinue"], "size") * 100 <= 900, "never past the room");
+    for (const entry of sized) {
+      const before = plain.find((e) => e.tactic === entry.tactic);
+      const [param] = Object.keys(before.params).filter((k) => k !== "guards");
+      if (param) assert.ok(entry.params[param] >= before.params[param], "sizes only grow");
+    }
+    if (plain.some((e) => e.tactic === "retinue")) {
+      assert.ok(count(sized, ["retinue"], "size") >= count(plain, ["retinue"], "size"));
+      if (count(sized, ["retinue"], "size") > count(plain, ["retinue"], "size")) grown += 1;
+    }
+  }
+  assert.ok(grown > 0, "a retinue grew on some seed");
+  const none = director.pickSeededTactics(7, counts, { hazards: { room: 0, unit: 50 }, wardens: { room: -5, unit: 100 } });
+  assert.deepEqual(none, director.pickSeededTactics(7, counts), "no room, no growth");
+});
