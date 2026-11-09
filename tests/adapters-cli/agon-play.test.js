@@ -131,3 +131,17 @@ test("agon play --watch refuses a level source, a bad tick, and --tick without -
   assert.match(agon(["play", "--level", "first-steps", "--tick", "2"]).stderr, /needs --watch/);
   assert.match(agon(["play", "--watch", "--dir", resolve(ROOT, "no-such-run"), "--json"]).stderr, /No recorded run/);
 });
+
+test("agon play --logical-keys plays key names like the raw keys they stand for (#811)", () => {
+  const raw = agon(["play", "--level", "first-steps", "--keys", "dd\r", "--no-fog"]);
+  const named = agon(["play", "--level", "first-steps", "--keys", "dd", "--logical-keys", '["Enter"]', "--no-fog"]);
+  assert.equal(raw.status, 0, raw.stderr);
+  assert.equal(named.stdout, raw.stdout);
+  const arrows = agon(["play", "--level", "first-steps", "--logical-keys", '["ArrowRight","ArrowRight"]', "--no-fog"]);
+  const letters = agon(["play", "--level", "first-steps", "--keys", "dd", "--no-fog"]);
+  assert.equal(arrows.stdout, letters.stdout);
+  const bad = agon(["play", "--level", "first-steps", "--logical-keys", '["Bogus"]']);
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stderr, /Unknown logical key/);
+  assert.notEqual(agon(["play", "--level", "first-steps", "--logical-keys", "nope"]).status, 0);
+});
