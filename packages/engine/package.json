@@ -25,6 +25,7 @@
     "./adapters-web/adapters/solver-recorded/index.js": "./dist/adapters-web/adapters/solver-recorded/index.js",
     "./runtime/commands/author-level.js": "./dist/runtime/commands/author-level.js",
     "./runtime/controls/intents.js": "./dist/runtime/controls/intents.js",
+    "./runtime/controls/game-controller.js": "./dist/runtime/controls/game-controller.js",
     "./runtime/controls/messages.js": "./dist/runtime/controls/messages.js",
     "./runtime/contracts/domain-constants.js": "./dist/runtime/contracts/domain-constants.js",
     "./runtime/contracts/game-elements.js": "./dist/runtime/contracts/game-elements.js",
