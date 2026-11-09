@@ -6,6 +6,7 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ### Added
 
+- A revealing kind's push or pull that struck an actor reveals it the next turn at the slot's intensity, less any concealing field there; `readActorRegistryRevealLevels` and `readActorRegistryReadings` take the last turn, and the player's fog view and the Actor's readings share the rule (#564). Changes what the player sees after a light push or pull.
 - Actors read other actors' affinities only through revealing fields (core `readActorRegistryReadings`, capped by the reveal level as the player's view is); a read kind is remembered with its tick, and a cast prefers the opposite kind among slots that reach, through one replaceable decision point `counterKinds` (#564). No inspect, no new pricing.
 
 ### Fixed

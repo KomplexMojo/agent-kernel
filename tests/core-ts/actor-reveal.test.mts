@@ -89,6 +89,38 @@ test('every kind has exactly one opposite and it points back', () => {
   expect(readOppositeAffinityKind('nonsense')).toBeNull();
 });
 
+// #564 (Darren, 2026-10-25): a revealing push or pull that struck an actor reveals it the next turn, at the slot's intensity.
+function withSlot(record: ActorRecord, kind: AffinityKind, expression: 'push' | 'pull', intensity: number): ActorRecord {
+  return { ...record, affinities: [...record.affinities, { kind, expression, stacks: 3, intensity }] };
+}
+const struck = (kind: AffinityKind, expression: 'push' | 'pull', targetId = 'target') => ({ tick: 1,
+  casts: [{ sourceId: 'observer', kind, expression, targetId, changes: [] }] });
+
+for (const row of AFFINITY_TABLE) {
+  for (const expression of ['push', 'pull'] as const) {
+    test(`a ${row.kind} ${expression} that struck ${row.reveals ? 'reveals' : 'does not reveal'} the target at the slot's intensity`, () => {
+      const observation = readActorRegistryObservation(room([withSlot(actor('observer', 0), row.kind, expression, 3), actor('target', 2)]), 1);
+      expect(readActorRegistryRevealLevels(observation, 'observer', struck(row.kind, expression)).target).toBe(row.reveals ? 3 : 0);
+    });
+  }
+}
+
+test('a cast that struck nothing, or came from someone else, reveals nothing; no turn leaves levels unchanged', () => {
+  const observation = readActorRegistryObservation(room([withSlot(actor('observer', 0), 'light', 'push', 3), actor('target', 2)]), 1);
+  const other = { tick: 1, casts: [{ sourceId: 'target', kind: 'light', expression: 'push', targetId: 'observer', changes: [] }] };
+  expect(readActorRegistryRevealLevels(observation, 'observer', { tick: 1, casts: [{ sourceId: 'observer', kind: 'light', expression: 'push', changes: [] }] }).target).toBe(0);
+  expect(readActorRegistryRevealLevels(observation, 'observer', other).target).toBe(0);
+  expect(readActorRegistryRevealLevels(observation, 'observer').target).toBe(0);
+});
+
+test('a concealing field on the target subtracts from the cast reveal, and a stronger emit field still wins', () => {
+  const observer = withSlot(actor('observer', 0), 'light', 'push', 3);
+  const shaded = readActorRegistryObservation(room([observer, actor('target', 2), actor('shade', 3, [{ kind: 'dark', stacks: 1, intensity: 2 }])]), 1);
+  expect(readActorRegistryRevealLevels(shaded, 'observer', struck('light', 'push')).target).toBe(1);
+  const lamp = readActorRegistryObservation(room([observer, actor('target', 2), actor('lamp', 4, [{ kind: 'light', stacks: 2, intensity: 5 }])]), 1);
+  expect(readActorRegistryRevealLevels(lamp, 'observer', struck('light', 'push')).target).toBe(5);
+});
+
 // ## TODO: Test Permutations
 // - a revealing field that reaches the target at falloff but still at intensity reveals at that intensity
 // - two revealing sources on one cell reveal at the stronger
