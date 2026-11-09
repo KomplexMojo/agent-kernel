@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-09T18-06-07-057Z-ea4d39bc1933-724c52efdb0d",
-    "key": "724c52efdb0d390a36951fc8b5563794ff9966640c8cacb8726004b6499f6b3c",
+    "id": "2026-11-09T18-44-38-929Z-d1a424c18bea-1a436787d48e",
+    "key": "1a436787d48e2a1bc7bfcf550b89cba4c72f0b0b3d0c40153b8a18fe4fddf964",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-09T18:06:07.057Z",
-    "completedAt": "2026-11-09T18:06:34.460Z",
-    "durationMs": 27403,
+    "startedAt": "2026-11-09T18:44:38.929Z",
+    "completedAt": "2026-11-09T18:45:06.358Z",
+    "durationMs": 27429,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "ea4d39bc19336fbe551f2b4e09e376d65769d07a",
-    "tree": "2b1f0fd04198d736c361d58d717d53e50918e14d"
+    "commit": "d1a424c18bead86417526c7b0a371f7edbba06fb",
+    "tree": "bb689dc7b3b2155d06e5d59e69b2b19c2b28d20c"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -80,7 +80,9 @@
       "packages/core-ts/src/state/visibility.ts",
       "packages/core-ts/src/state/world.ts",
       "packages/core-ts/src/validate/inputs.ts",
+      "packages/runtime/src/adaptive-workflow/llm-seams.js",
       "packages/runtime/src/adaptive-workflow/profiles.js",
+      "packages/runtime/src/adaptive-workflow/runner.js",
       "packages/runtime/src/build/authoring-build.js",
       "packages/runtime/src/build/map-build-spec.js",
       "packages/runtime/src/build/orchestrate-build.js",
@@ -739,7 +741,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/724c52efdb0d390a36951fc8b5563794ff9966640c8cacb8726004b6499f6b3c"
+    "retentionId": "preflights/1a436787d48e2a1bc7bfcf550b89cba4c72f0b0b3d0c40153b8a18fe4fddf964"
   },
   "qualifies": false
 }
