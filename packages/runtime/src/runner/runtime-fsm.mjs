@@ -23,6 +23,7 @@ import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
 import {
   readActorRegistryDarkCells,
+  readActorRegistryDrawCells,
   readActorRegistryFieldCells,
   readActorRegistryObservation,
   readActorRegistryReadings,
@@ -1765,6 +1766,12 @@ export function createFsmRuntime({
     readFieldCells() {
       const observation = readCachedObservation();
       return observation ? readActorRegistryFieldCells(observation) : [];
+    },
+
+    /** Lasting draw sustains on each cell (#815): core's `readActorRegistryDrawCells`; `[]` without the registry. */
+    readDrawCells() {
+      const observation = readCachedObservation();
+      return observation ? readActorRegistryDrawCells(observation) : [];
     },
 
     /** The lasting-affinity upkeep table core charges from, indexed by range + intensity² (#454, 2026-10-29). */

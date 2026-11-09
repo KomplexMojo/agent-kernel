@@ -48,14 +48,23 @@ export const ASCII_CAST_PATH_GLYPHS = Object.freeze({
   northeast: "/", southwest: "/", northwest: "\\", southeast: "\\",
 });
 
-/** The arrow for one step of a cast's path, `from` the previous cell `to` this one. */
-export function asciiCastPathGlyph(from, to, expression) {
+/**
+ * The compass direction one step of a cast's path travels (`north`, `southeast`, ...), as the
+ * cast reads on the board: a pull or draw is reversed, so it points back at the caster.
+ * Null when the step does not move.
+ */
+export function asciiCastPathDirection(from, to, expression) {
   const sign = expression === "pull" || expression === "draw" ? -1 : 1;
   const dx = sign * Math.sign(to.x - from.x);
   const dy = sign * Math.sign(to.y - from.y);
   const vertical = dy < 0 ? "north" : dy > 0 ? "south" : "";
   const horizontal = dx > 0 ? "east" : dx < 0 ? "west" : "";
-  return ASCII_CAST_PATH_GLYPHS[`${vertical}${horizontal}`] ?? null;
+  return `${vertical}${horizontal}` || null;
+}
+
+/** The arrow for one step of a cast's path, `from` the previous cell `to` this one. */
+export function asciiCastPathGlyph(from, to, expression) {
+  return ASCII_CAST_PATH_GLYPHS[asciiCastPathDirection(from, to, expression)] ?? null;
 }
 
 /**

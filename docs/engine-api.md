@@ -25,7 +25,7 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 | `packages/ui-ascii/src/keymap.js` | the reference client's terminal key decoding (the bindings and intents are `runtime/controls/intents.js`) |
 | `packages/ui-ascii/src/html.js` | ANSI screen to HTML, for browser views of the reference client |
 | `packages/adapters-cli/src/cli/playtest-scenarios.mjs` | the playtest scenario catalogue and its `agon create` arguments per seed (#744: framework content, shared with the sims) |
-| `packages/runtime/src/render/client-surface.js` | graphical client facade: play session, HUD and icon models, resource bundle, board sprite state (#767) |
+| `packages/runtime/src/render/client-surface.js` | graphical client facade: play session, HUD and icon models, resource bundle, board sprite state, affinity overlay model (#767, #814) |
 | `packages/adapters-cli/src/cli/agon.mjs` | the agon command line (spawn it with node: create, play, run, ...) |
 | `packages/ui-ascii/src/character-cli.mjs` | the character configuration command line (spawn it with node) |
 

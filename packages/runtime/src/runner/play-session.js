@@ -71,7 +71,7 @@ import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { battleLogLine } from "../render/battle-log-lines.js";
 import { soundCueOf } from "../render/sound-cues.js";
-import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
+import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathDirection, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
 import { wallGlyphAt, wallGlyphChars } from "../render/wall-glyphs.js";
 import { actorGlyphs } from "../render/actor-glyphs.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
@@ -817,7 +817,8 @@ export async function createPlaySession({
       const source = snapshot.actors.find((actor) => actor.id === cast.sourceId);
       if (!source) return [];
       const path = cast.path.map((cell, index) => ({ x: cell.x, y: cell.y,
-        glyph: asciiCastPathGlyph(index === 0 ? source.position : cast.path[index - 1], cell, cast.expression) }))
+        glyph: asciiCastPathGlyph(index === 0 ? source.position : cast.path[index - 1], cell, cast.expression),
+        direction: asciiCastPathDirection(index === 0 ? source.position : cast.path[index - 1], cell, cast.expression) }))
         .filter((cell) => !visible || visible[cell.y]?.[cell.x]);
       const involved = cast.sourceId === activeId || cast.targetId === activeId;
       if (path.length === 0 && !involved) return [];
@@ -900,6 +901,7 @@ export async function createPlaySession({
         : null,
       labels,
       field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
+      drawField: typeof runtime.readDrawCells === "function" ? runtime.readDrawCells() : null,
         upkeepTable: typeof runtime.readAffinityUpkeepTable === "function" ? runtime.readAffinityUpkeepTable() : [],
         castPrices,
         movementStamina: simConfig.actionCosts?.movementStamina,
@@ -1132,7 +1134,7 @@ function moveStaminaCosts(cardinal, soaked) {
   };
 }
 
-export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [], castPrices = undefined, movementStamina = undefined, minionUpkeep = 0, glyphSet = "unicode" }) {
+export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, drawField = null, reveal = null, upkeepTable = [], castPrices = undefined, movementStamina = undefined, minionUpkeep = 0, glyphSet = "unicode" }) {
   // Actor glyphs (#575) come from the glyph set; the table rides on the legend for every UI to read.
   const glyphs = actorGlyphs(glyphSet);
   const legend = { ...baseLegend, ...(baseLegend.barrier === ASCII_TERRAIN_GLYPHS.barrier ? { barrier: glyphs.barrier } : {}) };
@@ -1150,6 +1152,9 @@ export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend,
     // or unknown cell shows no live field, except the reach of the player's own (Darren,
     // 2026-10-29: you know where your own aura reaches; it tells you nothing about the cell).
     field: playField(field, fogged.visible, player?.id),
+    // Lasting draw sustains (#815), a grid of their own so emit's marks, tint and cancellation never
+    // read them. Same sight rule as `field`; each entry says `expression: "draw"` and never `restores`.
+    drawField: playField(drawField, fogged.visible, player?.id, withDrawHelp),
     legend: { ...legend, glyphs, fog: ASCII_FOG_GLYPH, wallGlyphs: legend.wall === ASCII_TERRAIN_GLYPHS.wall ? wallGlyphChars(glyphSet) : [] },
     status,
     // With fog, only traps in sight right now.
@@ -1218,17 +1223,24 @@ function withHelp(entry) {
     ...(row ? { restores: row.outward === "restore", vital: row.primaryVital } : {}) };
 }
 
+// #815: a draw drains every receiver (the table's `inward` column), so it never restores; the vital is the kind's own.
+function withDrawHelp(entry) {
+  const row = AFFINITY_TABLE.find((candidate) => candidate.kind === entry.kind);
+  return { ...entry, expression: "draw", ...(entry.sources ? { sources: [...entry.sources] } : {}),
+    ...(row ? { restores: false, vital: row.primaryVital } : {}) };
+}
+
 /**
  * Core's per-cell field grid, emptied outside the visible set (all of it without fog). Out of
  * sight, a cell keeps only the kind of the viewer's own field there, marked `own`: no strength,
  * and no other source.
  */
-function playField(field, visible, viewerId = null) {
+function playField(field, visible, viewerId = null, help = withHelp) {
   if (!Array.isArray(field) || field.length === 0) return null;
   return field.map((row, y) => row.map((cell, x) => {
-    if (!visible || visible[y]?.[x]) return cell.map((entry) => withHelp(entry));
+    if (!visible || visible[y]?.[x]) return cell.map((entry) => help(entry));
     return viewerId ? cell.filter((entry) => entry.sources?.includes(viewerId))
-      .map((entry) => withHelp({ kind: entry.kind, sources: [viewerId], own: true })) : [];
+      .map((entry) => help({ kind: entry.kind, sources: [viewerId], own: true })) : [];
   }));
 }
 
