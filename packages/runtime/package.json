@@ -9,6 +9,7 @@
     "./package.json": "./package.json",
     "./src/commands/author-level.js": "./src/commands/author-level.js",
     "./src/controls/intents.js": "./src/controls/intents.js",
+    "./src/controls/game-controller.js": "./src/controls/game-controller.js",
     "./src/controls/messages.js": "./src/controls/messages.js",
     "./src/contracts/domain-constants.js": "./src/contracts/domain-constants.js",
     "./src/contracts/game-elements.js": "./src/contracts/game-elements.js",

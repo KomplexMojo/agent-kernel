@@ -14,7 +14,9 @@ const SRC = join(__dirname, "../../packages/ui-ascii/src");
 // AK-19: the message band is combat observation (hits, sight, the annotator log), not how-to copy.
 test("the battle log keeps cast-path and sprint how-to out of the message band", () => {
   const screen = readFileSync(join(SRC, "screen.js"), "utf8");
-  const game = readFileSync(join(SRC, "game.js"), "utf8");
+  // the controller moved to runtime (#505); the message copy lives there now
+  const game = readFileSync(join(SRC, "game.js"), "utf8")
+    + readFileSync(join(SRC, "../../runtime/src/controls/game-controller.js"), "utf8");
   assert.doesNotMatch(screen, /function castPathLine/);
   assert.doesNotMatch(screen, /mark where the last cast went/);
   assert.doesNotMatch(game, /your next move takes two tiles, for more stamina/);

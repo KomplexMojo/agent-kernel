@@ -20,6 +20,9 @@
     "packages/runtime/src/controls/intents.js": {
       "provides": "the shared controls: intents, default key bindings as data (logical key names), help text (#505)"
     },
+    "packages/runtime/src/controls/game-controller.js": {
+      "provides": "the shared game controller: intents to play-session commands, panels, frame() for any client to draw (#505)"
+    },
     "packages/runtime/src/controls/messages.js": {
       "provides": "the shared message wording and view readers every client uses (#505)"
     },
@@ -50,7 +53,7 @@
       "provides": "recorded-solver replay adapter"
     },
     "packages/ui-ascii/src/game.js": {
-      "provides": "the reference terminal client's game controller over the play session (the phone app runs it in the page)"
+      "provides": "the reference terminal client's game: the shared controller (runtime/controls/game-controller.js) plus the ASCII screen (the phone app runs it in the page)"
     },
     "packages/ui-ascii/src/screen.js": {
       "provides": "the reference client's board, HUD and log drawing"

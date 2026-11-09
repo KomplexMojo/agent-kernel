@@ -10,6 +10,7 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 |---|---|
 | `packages/runtime/src/runner/character-sheet.js` | character configuration screen model and pipeline |
 | `packages/runtime/src/controls/intents.js` | the shared controls: intents, default key bindings as data (logical key names), help text (#505) |
+| `packages/runtime/src/controls/game-controller.js` | the shared game controller: intents to play-session commands, panels, `frame()` for any client to draw (#505) |
 | `packages/runtime/src/controls/messages.js` | the shared message wording and view readers every client uses (#505) |
 | `packages/runtime/src/contracts/domain-constants.js` | affinity/expression/motivation vocabularies |
 | `packages/runtime/src/contracts/sound-cues.js` | sound cue vocabulary for the play session's turn results (#757) |
@@ -19,7 +20,7 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 | `packages/runtime/src/render/window-size.js` | observed window size |
 | `packages/runtime/src/render/entity-sprite-composer.js` | board sprite pixels |
 | `packages/adapters-web/src/adapters/solver-recorded/index.js` | recorded-solver replay adapter |
-| `packages/ui-ascii/src/game.js` | the reference terminal client's game controller over the play session (the phone app runs it in the page) |
+| `packages/ui-ascii/src/game.js` | the reference terminal client's game: the shared controller (`runtime/controls/game-controller.js`) plus the ASCII screen (the phone app runs it in the page) |
 | `packages/ui-ascii/src/screen.js` | the reference client's board, HUD and log drawing |
 | `packages/ui-ascii/src/keymap.js` | the reference client's terminal key decoding (the bindings and intents are `runtime/controls/intents.js`) |
 | `packages/ui-ascii/src/html.js` | ANSI screen to HTML, for browser views of the reference client |
