@@ -37,7 +37,7 @@
         "--delver",
         "count=1;id=atk;affinity=growth;affinities=growth:pull:3:2;equip=growth:pull;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=decay;affinities=decay:push:3:2;equip=decay:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
+        "count=1;id=def;affinity=decay;affinities=decay:push:3:2;equip=decay:push;motivation=defending;vitals=health:30:2,mana:72:6,stamina:10:2,durability:10:1"
       ]
     },
     {
