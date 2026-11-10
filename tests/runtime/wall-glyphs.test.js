@@ -73,3 +73,19 @@ test("wallMaskAt is the neighbour rule behind wallGlyphAt, with the published bi
   for (let y = 0; y < 3; y += 1) for (let x = 0; x < 3; x += 1) assert.equal(mask(x, y) === null, glyph(x, y) === null);
   assert.equal(wallMaskAt(1, 1, () => true)(0, 0), 0, "an isolated wall has mask 0");
 });
+
+test("wall blob masks (#829): outside is wall, orphan diagonals drop, 47 slots", async () => {
+  const { wallBlobMaskAt, wallBlobSlot, WALL_BLOB_MASKS, WALL_BLOB_BITS } = await import("../../packages/runtime/src/render/wall-glyphs.js");
+  assert.equal(WALL_BLOB_MASKS.length, 47);
+  assert.deepEqual({ ...WALL_BLOB_BITS }, { north: 1, northEast: 2, east: 4, southEast: 8, south: 16, southWest: 32, west: 64, northWest: 128 });
+  // A 5x5 level with a ring of wall around a carved room: the four corners' known atlas slots.
+  const ring = (x, y) => x === 0 || y === 0 || x === 4 || y === 4;
+  const at = wallBlobMaskAt(5, 5, ring);
+  assert.deepEqual([[0, 0], [4, 0], [0, 4], [4, 4]].map(([x, y]) => wallBlobSlot(at(x, y))), [44, 41, 45, 33]);
+  assert.equal(at(2, 2), null, "floor carries no mask");
+  // Outside the grid counts as wall: a border wall beside floor still sees wall on its outer side.
+  assert.equal(at(2, 0) & 1, 1);
+  // Orphan diagonal: wall at NE with floor to its north and east reduces away.
+  const lone = wallBlobMaskAt(3, 3, (x, y) => (x === 1 && y === 1) || (x === 2 && y === 0));
+  assert.equal(lone(1, 1) & WALL_BLOB_BITS.northEast, 0);
+});

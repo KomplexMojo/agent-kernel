@@ -13,6 +13,7 @@
 
 import { PLAY_SIGHT } from "../runner/play-session.js";
 import { normalizeEntitySpriteState } from "./entity-sprite-composer.js";
+import { wallBlobSlot } from "./wall-glyphs.js";
 
 const TILE_BY_LEGEND_KEY = Object.freeze({ floor: "floor", spawn: "spawn", exit: "exit", barrier: "barrier" });
 
@@ -42,7 +43,11 @@ export function buildBoardDrawModel(view) {
     if (sight === PLAY_SIGHT.UNKNOWN) return { tile: "fog", sight };
     const tile = tileOf(glyph);
     const mask = view.wallMasks?.[y]?.[x];
-    return tile === "wall" && Number.isInteger(mask) ? { tile, sight, wallMask: mask } : { tile, sight };
+    if (tile !== "wall" || !Number.isInteger(mask)) return { tile, sight };
+    const blob = view.wallBlobMasks?.[y]?.[x];
+    return Number.isInteger(blob)
+      ? { tile, sight, wallMask: mask, wallBlobMask: blob, wallBlobSlot: wallBlobSlot(blob) }
+      : { tile, sight, wallMask: mask };
   }));
   const seen = [
     ...(view.player ? [view.player] : []),
