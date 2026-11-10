@@ -106,15 +106,15 @@
       "name": "glass-cannon",
       "title": "Glass cannon",
       "archetype": "sorcerer",
-      "description": "One huge cast at range 3, then a long wait for mana.",
+      "description": "One huge cast at range 3, then a wait for mana.",
       "vitals": {
         "health": {
-          "max": 10,
+          "max": 30,
           "regen": 1
         },
         "mana": {
-          "max": 110,
-          "regen": 10
+          "max": 130,
+          "regen": 20
         },
         "stamina": {
           "max": 20,
@@ -190,19 +190,19 @@
       "description": "Steals health from what it fights, so fights end with it healthier.",
       "vitals": {
         "health": {
-          "max": 40,
+          "max": 60,
           "regen": 2
         },
         "mana": {
-          "max": 36,
-          "regen": 3
+          "max": 48,
+          "regen": 9
         },
         "stamina": {
           "max": 20,
           "regen": 3
         },
         "durability": {
-          "max": 20,
+          "max": 35,
           "regen": 1
         }
       },
@@ -244,8 +244,8 @@
           "regen": 1
         },
         "mana": {
-          "max": 50,
-          "regen": 4
+          "max": 54,
+          "regen": 8
         },
         "stamina": {
           "max": 25,
@@ -289,12 +289,12 @@
       "description": "Strips a caster's mana and soaks its steps.",
       "vitals": {
         "health": {
-          "max": 20,
+          "max": 38,
           "regen": 1
         },
         "mana": {
-          "max": 50,
-          "regen": 5
+          "max": 60,
+          "regen": 10
         },
         "stamina": {
           "max": 25,
@@ -390,7 +390,7 @@
           "regen": 3
         },
         "stamina": {
-          "max": 30,
+          "max": 22,
           "regen": 3
         },
         "durability": {
@@ -430,8 +430,8 @@
           "regen": 1
         },
         "mana": {
-          "max": 48,
-          "regen": 4
+          "max": 56,
+          "regen": 8
         },
         "stamina": {
           "max": 20,
@@ -475,7 +475,7 @@
       "description": "High health and armour with regen and good movement; it holds a position, it cannot hurt.",
       "vitals": {
         "health": {
-          "max": 60,
+          "max": 80,
           "regen": 3
         },
         "mana": {
@@ -487,7 +487,7 @@
           "regen": 4
         },
         "durability": {
-          "max": 80,
+          "max": 96,
           "regen": 3
         }
       },
@@ -519,12 +519,12 @@
       "description": "A field that repairs everyone's armour, a heal on demand, a small attack.",
       "vitals": {
         "health": {
-          "max": 40,
+          "max": 45,
           "regen": 2
         },
         "mana": {
           "max": 48,
-          "regen": 4
+          "regen": 6
         },
         "stamina": {
           "max": 20,
@@ -671,15 +671,15 @@
           "regen": 2
         },
         "mana": {
-          "max": 30,
-          "regen": 3
+          "max": 39,
+          "regen": 6
         },
         "stamina": {
           "max": 10,
           "regen": 2
         },
         "durability": {
-          "max": 50,
+          "max": 70,
           "regen": 3
         }
       },
@@ -721,8 +721,8 @@
           "regen": 1
         },
         "mana": {
-          "max": 120,
-          "regen": 10
+          "max": 130,
+          "regen": 15
         },
         "stamina": {
           "max": 20,
@@ -760,19 +760,19 @@
       "description": "Leads escorts and keeps them standing.",
       "vitals": {
         "health": {
-          "max": 35,
+          "max": 70,
           "regen": 2
         },
         "mana": {
-          "max": 40,
-          "regen": 4
+          "max": 70,
+          "regen": 14
         },
         "stamina": {
           "max": 30,
           "regen": 3
         },
         "durability": {
-          "max": 25,
+          "max": 55,
           "regen": 1
         }
       },
@@ -803,15 +803,15 @@
       "description": "Lights range 4, reveals what stands there, and moves fast.",
       "vitals": {
         "health": {
-          "max": 15,
+          "max": 35,
           "regen": 1
         },
         "mana": {
-          "max": 30,
-          "regen": 3
+          "max": 42,
+          "regen": 8
         },
         "stamina": {
-          "max": 60,
+          "max": 80,
           "regen": 8
         },
         "durability": {
@@ -833,7 +833,7 @@
           "intensity": 1
         }
       ],
-      "weaknesses": "Its light shows it too; upkeep 7 against regen 3; a dark emitter hides what it reveals.",
+      "weaknesses": "Its light shows it too; a dark emitter hides what it reveals.",
       "strategies": [
         "read-before-engaging",
         "loot-run",
@@ -844,22 +844,22 @@
       "name": "sneak",
       "title": "Sneak",
       "archetype": "thief",
-      "description": "The cheapest stealth: its dark hides it and drains anyone passing.",
+      "description": "Stealth and little else: its dark hides it and drains anyone passing.",
       "vitals": {
         "health": {
-          "max": 15,
+          "max": 50,
           "regen": 1
         },
         "mana": {
-          "max": 25,
-          "regen": 5
+          "max": 50,
+          "regen": 10
         },
         "stamina": {
-          "max": 60,
+          "max": 90,
           "regen": 6
         },
         "durability": {
-          "max": 10,
+          "max": 46,
           "regen": 1
         }
       },
@@ -871,7 +871,7 @@
           "intensity": 2
         }
       ],
-      "weaknesses": "Upkeep 9 against regen 5, about 6 turns before it shows; no way to finish a kill.",
+      "weaknesses": "No way to finish a kill.",
       "strategies": [
         "ambush-from-the-dark",
         "break-off"
@@ -884,12 +884,12 @@
       "description": "Reveals vitals to its side, tops up its own mana, refuels allies.",
       "vitals": {
         "health": {
-          "max": 25,
+          "max": 35,
           "regen": 1
         },
         "mana": {
-          "max": 50,
-          "regen": 5
+          "max": 60,
+          "regen": 10
         },
         "stamina": {
           "max": 30,
@@ -934,19 +934,19 @@
       "description": "A warden that reads what stands in its field: a revealing kind's emit, and its pull to drain what it reads.",
       "vitals": {
         "health": {
-          "max": 25,
+          "max": 60,
           "regen": 1
         },
         "mana": {
-          "max": 50,
-          "regen": 5
+          "max": 80,
+          "regen": 10
         },
         "stamina": {
-          "max": 30,
+          "max": 53,
           "regen": 4
         },
         "durability": {
-          "max": 15,
+          "max": 50,
           "regen": 1
         }
       },
@@ -964,7 +964,7 @@
           "intensity": 1
         }
       ],
-      "weaknesses": "Its field shows it too; a concealing field hides what it reads; upkeep 5 against regen 5.",
+      "weaknesses": "Its field shows it too; a concealing field hides what it reads.",
       "strategies": [
         "read-before-engaging",
         "attack-alignment"

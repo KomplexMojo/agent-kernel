@@ -21,7 +21,7 @@ test("one recipe is built, priced and played under each of its strategies beside
     const { summary } = await runRecipeLadder({ recipes: ["tank"], seeds: [0], maxTicks: 3, outDir });
     expect(summary.rows.map((row) => `${row.recipe}/${row.strategy}`)).toEqual(
       ["baseline/fight", "tank/hold-the-chokepoint", "tank/guard-the-leader", "tank/break-off", "tank/fight"]);
-    expect(summary.rows.find((row) => row.recipe === "tank").delverTokens).toBe(394);
+    expect(summary.rows.find((row) => row.recipe === "tank").delverTokens).toBe(430);
     const report = readFileSync(join(outDir, "report.md"), "utf8");
     expect(report).toMatch(/\| tank \| break-off \| 0\/1 \|/);
   } finally {
