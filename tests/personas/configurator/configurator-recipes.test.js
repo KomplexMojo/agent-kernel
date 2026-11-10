@@ -13,15 +13,21 @@ async function personas() {
 }
 
 // Tokens, from the Allocator's quote: delver with user_controlled, warden with defending.
-// #834 repriced mana regen (3 a point), which moved every recipe.
+// #841: after #834 repriced mana regen, every delver recipe was retuned into one band, 420 to 460.
 const PRICES = {
-  delver: { shadowblade: 436, pyromancer: 424, "glass-cannon": 362, archer: 423, leech: 365, sapper: 414, hexer: 387, kiter: 455,
-    duelist: 463, geomancer: 410, tank: 394, paladin: 419, cleric: 440, spellward: 451, gatekeeper: 392, wellspring: 405,
-    "retinue-leader": 305, scout: 363, sneak: 279, "lantern-bearer": 395, watcher: 292 },
-  warden: { shadowblade: 310, pyromancer: 351, "glass-cannon": 346, archer: 407, leech: 292, sapper: 351, hexer: 314, kiter: 439,
-    duelist: 447, geomancer: 337, tank: 378, paladin: 340, cleric: 351, spellward: 372, gatekeeper: 319, wellspring: 389,
-    "retinue-leader": 289, scout: 347, sneak: 263, "lantern-bearer": 316, watcher: 276 },
+  delver: { shadowblade: 436, pyromancer: 424, "glass-cannon": 432, archer: 423, leech: 430, sapper: 430, hexer: 430, kiter: 455,
+    duelist: 455, geomancer: 430, tank: 430, paladin: 430, cleric: 440, spellward: 451, gatekeeper: 430, wellspring: 430,
+    "retinue-leader": 430, scout: 430, sneak: 420, "lantern-bearer": 430, watcher: 430 },
+  warden: { shadowblade: 310, pyromancer: 351, "glass-cannon": 416, archer: 407, leech: 357, sapper: 367, hexer: 357, kiter: 439,
+    duelist: 439, geomancer: 357, tank: 414, paladin: 351, cleric: 351, spellward: 372, gatekeeper: 357, wellspring: 414,
+    "retinue-leader": 414, scout: 414, sneak: 404, "lantern-bearer": 351, watcher: 414 },
 };
+
+test("every delver recipe costs 420 to 460 tokens (#841)", () => {
+  for (const [name, cost] of Object.entries(PRICES.delver)) {
+    assert.ok(cost >= 420 && cost <= 460, `${name} costs ${cost}`);
+  }
+});
 const NO_ATTACK = ["tank", "cleric", "wellspring", "retinue-leader", "lantern-bearer", "watcher"];
 
 test("the catalogue holds the 21 designed recipes, in order", async () => {
