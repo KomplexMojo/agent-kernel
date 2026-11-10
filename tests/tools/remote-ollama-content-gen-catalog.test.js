@@ -20,7 +20,7 @@ const {
 const { loadExecutionCatalog } = require("../../tools/remote-ollama-control/scripts/lib/execution-catalog");
 
 const PRIOR_CATALOG_HASH = "05ee94ac5e5400e3889a67ae9d611af261981179988472d8356a5a85de6b8f72";
-const EXPECTED_HASH = "fd8fd9d056cc81e3258a5e255c21e4884fe27b6740bb90a585427a7048d29b58";
+const EXPECTED_HASH = "c32fb5db97e3dd6c3a141dad01bde4fdef8a04efc7cad9481024091ef528d1d6";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");

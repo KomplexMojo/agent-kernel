@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-resource-plan",
     "cost": {
-      "runTotalTokens": 134,
+      "runTotalTokens": 124,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g4_budget_receipt",
@@ -1878,8 +1878,8 @@
           },
           "vitals": {
             "durability": {
-              "current": 134,
-              "max": 134,
+              "current": 124,
+              "max": 124,
               "regen": 1
             },
             "health": {

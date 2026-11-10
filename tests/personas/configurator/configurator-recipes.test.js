@@ -13,13 +13,14 @@ async function personas() {
 }
 
 // Tokens, from the Allocator's quote: delver with user_controlled, warden with defending.
+// #834 repriced mana regen (3 a point), which moved every recipe.
 const PRICES = {
-  delver: { shadowblade: 454, pyromancer: 442, "glass-cannon": 432, archer: 427, leech: 365, sapper: 418, hexer: 397, kiter: 459,
-    duelist: 463, geomancer: 414, tank: 392, paladin: 423, cleric: 450, spellward: 461, gatekeeper: 392, wellspring: 475,
-    "retinue-leader": 309, scout: 363, sneak: 289, "lantern-bearer": 405, watcher: 302 },
-  warden: { shadowblade: 328, pyromancer: 369, "glass-cannon": 416, archer: 411, leech: 292, sapper: 355, hexer: 324, kiter: 443,
-    duelist: 447, geomancer: 341, tank: 376, paladin: 344, cleric: 361, spellward: 382, gatekeeper: 319, wellspring: 459,
-    "retinue-leader": 293, scout: 347, sneak: 273, "lantern-bearer": 326, watcher: 286 },
+  delver: { shadowblade: 436, pyromancer: 424, "glass-cannon": 362, archer: 423, leech: 365, sapper: 414, hexer: 387, kiter: 455,
+    duelist: 463, geomancer: 410, tank: 394, paladin: 419, cleric: 440, spellward: 451, gatekeeper: 392, wellspring: 405,
+    "retinue-leader": 305, scout: 363, sneak: 279, "lantern-bearer": 395, watcher: 292 },
+  warden: { shadowblade: 310, pyromancer: 351, "glass-cannon": 346, archer: 407, leech: 292, sapper: 351, hexer: 314, kiter: 439,
+    duelist: 447, geomancer: 337, tank: 378, paladin: 340, cleric: 351, spellward: 372, gatekeeper: 319, wellspring: 389,
+    "retinue-leader": 289, scout: 347, sneak: 263, "lantern-bearer": 316, watcher: 276 },
 };
 const NO_ATTACK = ["tank", "cleric", "wellspring", "retinue-leader", "lantern-bearer", "watcher"];
 

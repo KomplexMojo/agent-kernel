@@ -75,7 +75,7 @@ test("agon_recipe_list lists the recipes with their prices, filtered by role; ag
     const all = await server.callTool("agon_recipe_list", {});
     assert.equal(all.ok, true);
     const shadowblade = all.recipes.find((row) => row.name === "shadowblade");
-    assert.deepEqual(shadowblade.cost, { delver: 454, warden: 328 });
+    assert.deepEqual(shadowblade.cost, { delver: 436, warden: 310 });
     assert.deepEqual(shadowblade.roles, { attack: 2, defence: 0, support: 1 });
     const support = await server.callTool("agon_recipe_list", { role: "support" });
     assert.ok(support.recipes.every((row) => row.roles.support > 0));

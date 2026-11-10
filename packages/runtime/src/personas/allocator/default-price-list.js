@@ -18,7 +18,7 @@ import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
  * Base unit: 1 point of health = 1 token.
  * Scaling rules:
  *   - Vitals (max points): linear — 1 token per point
- *   - Regen (per-tick rate): quadratic — n units costs n² tokens
+ *   - Regen (per-tick rate): quadratic — n units costs n² tokens; mana regen is linear, 3 a point (#834)
  *   - Affinity stacks: quadratic — n stacks costs n² tokens
  *   - Everything else: linear at the listed unitCost
  *
@@ -31,7 +31,8 @@ import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
 /** Ids whose quantity scales quadratically. This is logic, not data. */
 const QUADRATIC_IDS = new Set([
   "vital_health_regen_tick",
-  "vital_mana_regen_tick",
+  // #834: mana regen is linear (3 a point). Quadratic, the regen to cast intensity i every turn
+  // cost 4i⁴ tokens, so high intensity was never worth buying.
   "vital_stamina_regen_tick",
   "vital_durability_regen_tick",
   "affinity_range",
@@ -58,7 +59,7 @@ const DESCRIPTIONS = {
   "vital_stamina_point": "1 point of max stamina",
   "vital_durability_point": "1 point of max durability",
   "vital_health_regen_tick": "Health regen rate — n regen/tick costs n² tokens",
-  "vital_mana_regen_tick": "Mana regen rate — n regen/tick costs n² tokens",
+  "vital_mana_regen_tick": "Mana regen rate — 3 tokens per regen/tick",
   "vital_stamina_regen_tick": "Stamina regen rate — n regen/tick costs n² tokens",
   "vital_durability_regen_tick": "Durability regen rate — n regen/tick costs n² tokens",
   "affinity_range": "Affinity range — r tiles of reach costs r² units (#340)",

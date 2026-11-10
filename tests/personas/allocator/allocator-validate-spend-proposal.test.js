@@ -45,11 +45,11 @@ test("default price list prices vital_health_point at 1 token (base unit)", () =
   assert.equal(item.formula, "linear");
 });
 
-test("default price list marks all regen items as quadratic", () => {
+test("default price list marks health, stamina and durability regen as quadratic, and mana regen as linear (#834)", () => {
   const pl = buildDefaultPriceList();
+  assert.equal(pl.items.find((i) => i.id === "vital_mana_regen_tick").formula, "linear");
   const regenIds = [
     "vital_health_regen_tick",
-    "vital_mana_regen_tick",
     "vital_stamina_regen_tick",
     "vital_durability_regen_tick",
   ];

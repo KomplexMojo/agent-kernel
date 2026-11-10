@@ -9,7 +9,7 @@
   },
   "regen": {
     "vital_health_regen_tick": 1,
-    "vital_mana_regen_tick": 1,
+    "vital_mana_regen_tick": 3,
     "vital_stamina_regen_tick": 1,
     "vital_durability_regen_tick": 1
   },

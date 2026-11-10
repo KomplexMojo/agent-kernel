@@ -46,9 +46,9 @@
     {
       "id": "vital_mana_regen_tick",
       "kind": "vital",
-      "unitCost": 1,
-      "formula": "quadratic",
-      "description": "Mana regen rate — n regen/tick costs n² tokens"
+      "unitCost": 3,
+      "formula": "linear",
+      "description": "Mana regen rate — 3 tokens per regen/tick"
     },
     {
       "id": "vital_stamina_regen_tick",
@@ -340,9 +340,9 @@
     {
       "id": "resource_vital_mana_regen_tick",
       "kind": "resource",
-      "unitCost": 2,
-      "formula": "quadratic",
-      "description": "Mana regen rate — n regen/tick costs n² tokens — free-floating resource (1.5× 1, rounded)"
+      "unitCost": 5,
+      "formula": "linear",
+      "description": "Mana regen rate — 3 tokens per regen/tick — free-floating resource (1.5× 3, rounded)"
     },
     {
       "id": "resource_vital_stamina_regen_tick",

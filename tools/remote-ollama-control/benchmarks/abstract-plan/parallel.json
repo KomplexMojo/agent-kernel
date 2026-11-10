@@ -2,7 +2,7 @@
   "schemaVersion": "agon-abstract-plan-catalog/v1",
   "sourceScenarioSet": {
     "count": 100,
-    "sha256": "fd8fd9d056cc81e3258a5e255c21e4884fe27b6740bb90a585427a7048d29b58"
+    "sha256": "c32fb5db97e3dd6c3a141dad01bde4fdef8a04efc7cad9481024091ef528d1d6"
   },
   "scenarios": [
     {
@@ -16791,9 +16791,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create one exploring fire Delver at its minimum passing budget. Use a 103 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one exploring fire Delver at its minimum passing budget. Use a 105 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 103
+          "budgetTokens": 105
         },
         "components": {
           "p-9234b1661d72": {
@@ -16866,9 +16866,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 102 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 104 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 102
+          "budgetTokens": 104
         },
         "components": {
           "p-cd0e6fe9fe4c": {
@@ -16941,9 +16941,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create one defending dark Warden at its minimum passing budget. Use a 97 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one defending dark Warden at its minimum passing budget. Use a 99 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 97
+          "budgetTokens": 99
         },
         "components": {
           "p-1152a9fea812": {
@@ -17016,9 +17016,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create one defending dark Warden one token below its minimum passing budget. Use a 96 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create one defending dark Warden one token below its minimum passing budget. Use a 98 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 96
+          "budgetTokens": 98
         },
         "components": {
           "p-bc4fd325e9af": {
@@ -17149,9 +17149,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 315 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 321 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 315
+          "budgetTokens": 321
         },
         "components": {
           "p-8ef32ffcba45": {
@@ -17298,9 +17298,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 314 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 320 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 314
+          "budgetTokens": 320
         },
         "components": {
           "p-0e430dbcf561": {
@@ -17418,9 +17418,9 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 214 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 218 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 214
+          "budgetTokens": 218
         },
         "components": {
           "p-d7ec1d6f5e7c": {
@@ -17559,9 +17559,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 274 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 280 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 274
+          "budgetTokens": 280
         },
         "components": {
           "p-613f88240f32": {
@@ -17708,9 +17708,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create a medium room with one level vital resource and one friendly growth Delver five tokens above the minimum passing budget. Use a 253 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with one level vital resource and one friendly growth Delver five tokens above the minimum passing budget. Use a 258 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 253
+          "budgetTokens": 258
         },
         "components": {
           "p-93f936b42e0e": {
@@ -17828,9 +17828,9 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 427 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 435 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 427
+          "budgetTokens": 435
         },
         "components": {
           "p-d51a8132b5cc": {
@@ -17969,9 +17969,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agon skill and the agon MCP, create a medium room with a dark pull hazard and two defending dark Wardens at the minimum passing budget. Use a 533 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agon skill and the agon MCP, create a medium room with a dark pull hazard and two defending dark Wardens at the minimum passing budget. Use a 543 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/agon_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 533
+          "budgetTokens": 543
         },
         "components": {
           "p-9955d2259756": {

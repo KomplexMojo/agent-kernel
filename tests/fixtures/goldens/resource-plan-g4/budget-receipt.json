@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 134,
-  "remaining": 4866,
+  "totalCost": 124,
+  "remaining": 4876,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -139,8 +139,8 @@
       "id": "vital_mana_regen_tick",
       "kind": "vital",
       "quantity": 5,
-      "unitCost": 1,
-      "totalCost": 25,
+      "unitCost": 3,
+      "totalCost": 15,
       "status": "approved",
       "category": "resources",
       "subjectRef": {
@@ -175,8 +175,8 @@
     {
       "id": "resources",
       "capTokens": 5000,
-      "spentTokens": 134,
-      "remainingTokens": 4866,
+      "spentTokens": 124,
+      "remainingTokens": 4876,
       "status": "approved"
     },
     {
@@ -189,8 +189,8 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 134,
-    "remainingBudget": 4866,
+    "totalSpend": 124,
+    "remainingBudget": 4876,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -209,9 +209,9 @@
         "usagePercent": 0
       },
       "resources": {
-        "actual": 134,
+        "actual": 124,
         "target": 5000,
-        "usagePercent": 3
+        "usagePercent": 2
       },
       "delvers": {
         "actual": 0,
@@ -229,7 +229,7 @@
         "usagePercent": 0
       }
     },
-    "totalBudgetUsagePercent": 3,
+    "totalBudgetUsagePercent": 2,
     "incentive": {
       "actualRatio": 0,
       "targetRatio": 0.8,

@@ -113,17 +113,17 @@ test("create and resource-plan charge the identical affinity resource", () => {
   assert.equal(g2AffinityLines.length, 8, "create charges every affinity component, range and intensity apart (#340)");
   assert.equal(
     g2AffinityLines.reduce((sum, line) => sum + line.totalCost, 0),
-    134,
+    124,
     "create affinity resource total",
   );
   // #242: resource_2's grant (+5 permanent health, +2 regen) is charged too: 5 x 10 + 2 x 2^2.
   const g2VitalGrant = g2.lineItems.filter((l) => l.subjectRef?.id === "resource_2" && l.kind === "resource");
   assert.deepEqual(g2VitalGrant.map((l) => [l.id, l.totalCost]).sort(),
     [["resource_permanent", 50], ["resource_vital_health_regen_tick", 8]]);
-  assert.equal(g2.totalCost, 198, "affinity and permanent vital resources are charged");
+  assert.equal(g2.totalCost, 188, "affinity and permanent vital resources are charged");
 
   const g4 = readJson(join(GOLDENS, "resource-plan-g4", "budget-receipt.json"));
-  assert.equal(g4.totalCost, 134, "resource-plan charges the same payload fully");
+  assert.equal(g4.totalCost, 124, "resource-plan charges the same payload fully");
   const g4Ids = g4.lineItems.map((l) => l.id).sort();
   assert.deepEqual(g4Ids, [
     "actor_spawn",

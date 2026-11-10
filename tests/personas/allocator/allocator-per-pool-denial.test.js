@@ -29,9 +29,10 @@ test("allocator denies one token below a warden pool boundary while total budget
   // split (warden 16% -> 23%). It is no longer: the minimum for this payload measured 400 against a
   // catalog budget of 469, so `budgetTokens - 1` now SUCCEEDS and characterises nothing. Pinned to
   // the measured boundary instead. #340 (range and intensity priced apart, warden share 23% -> 24%)
-  // moved that boundary to 441, so 440 is one below it. The property under test is unchanged and
+  // moved that boundary to 441, and #834 (the floor's 1 mana regen costs 3, so each warden costs 2 more)
+  // to 450, so 449 is one below it. The property under test is unchanged and
   // still holds -- the allocator denies on the WARDEN POOL while total budget remains.
-  const boundaryBudget = 440;
+  const boundaryBudget = 449;
   const boundaryText = scenario.payload.text.replace(
     /Use a \d+ token hard budget/,
     `Use a ${boundaryBudget} token hard budget`,
@@ -54,13 +55,14 @@ test("allocator denies one token below a warden pool boundary while total budget
 
     assert.notEqual(result.status, 0);
     // remaining was 188 until #198 gave medium rooms their real 5-8 range (more floor billed),
-    // then 173 until #340 re-pinned the boundary, then 192 until #607 sculpted room footprints (more floor billed).
-    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=193/);
+    // then 173 until #340 re-pinned the boundary, then 192 until #607 sculpted room footprints (more floor billed),
+    // then 193 until #834 re-pinned the boundary.
+    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=198/);
     assert.match(result.stderr, /deniedLines=actor:actor_spawn:wardens/);
-    assert.match(result.stderr, /deniedPools=wardens:208\/207/);
+    assert.match(result.stderr, /deniedPools=wardens:212\/211/);
     // #145 — the shortfall (how many more tokens this one pool alone needed) used to be
-    // uncomputable from the denial message; 208 spent against a 207 cap is short by 1.
-    assert.match(result.stderr, /deniedPools=wardens:208\/207 \(short 1\)/);
+    // uncomputable from the denial message; 212 spent against a 211 cap is short by 1.
+    assert.match(result.stderr, /deniedPools=wardens:212\/211 \(short 1\)/);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }

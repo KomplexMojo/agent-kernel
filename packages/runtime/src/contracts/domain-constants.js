@@ -530,8 +530,8 @@ export const ACTOR_TEMPERAMENT_FIELD = "temperament";
  * move cost of the actor's own motivation (applyMovementStaminaFloor), and a fixed number here
  * would either undercut a fast actor or overcharge a stationary one.
  *
- * regen 1 rather than 0 is the cheapest non-zero point on a QUADRATIC curve: n regen costs n*n per
- * vital, so 1 costs 3 tokens across the three vitals here and 3 would cost 27. It buys "recovers
+ * regen 1 rather than 0 is the cheapest non-zero point: health and durability regen cost n*n and
+ * mana regen costs 3 a point (#834), so 1 costs 5 tokens across the three vitals here and 3 would cost 27. It buys "recovers
  * eventually" and leaves real recovery to resources, which are placed in the level and walked to.
  */
 export const ACTOR_VIABILITY_FLOOR = Object.freeze({
