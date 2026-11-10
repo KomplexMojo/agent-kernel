@@ -143,7 +143,7 @@
       "name": "archer",
       "title": "Archer",
       "archetype": "ranger",
-      "description": "Outranges most wardens at range 5 and shoves melee actors away.",
+      "description": "Outranges most wardens at range 4 and shoves melee actors away.",
       "vitals": {
         "health": {
           "max": 20,
@@ -166,7 +166,7 @@
         {
           "kind": "decay",
           "expression": "push",
-          "range": 5,
+          "range": 4,
           "intensity": 2
         },
         {
@@ -194,7 +194,7 @@
           "regen": 2
         },
         "mana": {
-          "max": 30,
+          "max": 36,
           "regen": 3
         },
         "stamina": {

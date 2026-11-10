@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { createConfiguratorPersona } from '../../../packages/runtime/src/personas/configurator/controller.js';
+import { AFFINITY_TABLE } from '../../../packages/core-ts/src/state/affinity-table.ts';
 const c = createConfiguratorPersona({ clock: () => '2026-09-10T00:00:00.000Z' });
 
 // #232: core prices a cast as base × s(s+1)/2; the base is the authored tier-1 price.
@@ -52,16 +53,34 @@ test('the cast price escalates past five stacks', () => {
 });
 // ## TODO: Test Permutations
 // - Verify startup passes this exact configuration through runtime replay artifacts.
-// #477: one price for every kind; no affinity is cheaper to play than another.
-test('every kind has identical cast and emit prices per expression', () => {
+// #477: one price for every kind; no affinity is cheaper to play than another. #833: the one
+// exception is a property of the kind's row, not a name: a harmful kind whose primary vital is
+// health goes past armour, so its push and pull cost 3 a tier where the others cost 2.
+const pastArmour = new Set(AFFINITY_TABLE.filter(row => row.outward === 'damage' && row.primaryVital === 'health').map(row => row.kind));
+test('every kind has identical cast and emit prices per expression, but for a cast that goes past armour', () => {
   const { castManaBase } = c.resolveActorTurnCosts({ movementStamina: {} });
   const kinds = [...new Set(Object.keys(castManaBase).map(key => key.split(':')[0]))];
   expect(kinds).toHaveLength(10);
+  expect([...pastArmour]).toEqual(['decay']);
+  const plain = kinds.filter(kind => !pastArmour.has(kind));
   for (const expression of ['push', 'pull', 'emit', 'draw']) {
-    const prices = new Set(kinds.map(kind => castManaBase[`${kind}:${expression}`]));
+    const prices = new Set(plain.map(kind => castManaBase[`${kind}:${expression}`]));
     expect([...prices], expression).toHaveLength(1);
   }
   const tiers = kind => [1, 2, 3, 4, 5].map(stacks => ['push', 'pull', 'emit', 'draw']
     .map(expression => c.resolveAffinityManaCost({ kind, expression, stacks })));
-  for (const kind of kinds) expect(tiers(kind), kind).toEqual(tiers(kinds[0]));
+  for (const kind of plain) expect(tiers(kind), kind).toEqual(tiers(plain[0]));
+  for (const kind of pastArmour) {
+    for (const cast of ['push', 'pull']) {
+      expect(castManaBase[`${kind}:${cast}`], `${kind}:${cast}`).toBe(3);
+      expect(castManaBase[`${plain[0]}:${cast}`]).toBe(2);
+      // Range 1 at intensity 2: 3 × 2² = 12 where the others pay 8.
+      expect(c.resolveAffinityManaCost({ kind, expression: cast, stacks: 1, intensity: 2 })).toBe(12);
+    }
+    for (const lasting of ['emit', 'draw']) {
+      expect(castManaBase[`${kind}:${lasting}`]).toBe(castManaBase[`${plain[0]}:${lasting}`]);
+    }
+  }
 });
+// ## TODO: Test Permutations
+// - authored rules that reprice the past-armour kind's casts are preserved as authored

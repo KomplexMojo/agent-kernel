@@ -14,10 +14,10 @@ async function personas() {
 
 // Tokens, from the Allocator's quote: delver with user_controlled, warden with defending.
 const PRICES = {
-  delver: { shadowblade: 454, pyromancer: 442, "glass-cannon": 432, archer: 445, leech: 359, sapper: 418, hexer: 397, kiter: 459,
+  delver: { shadowblade: 454, pyromancer: 442, "glass-cannon": 432, archer: 427, leech: 365, sapper: 418, hexer: 397, kiter: 459,
     duelist: 463, geomancer: 414, tank: 392, paladin: 423, cleric: 450, spellward: 461, gatekeeper: 392, wellspring: 475,
     "retinue-leader": 309, scout: 363, sneak: 289, "lantern-bearer": 405, watcher: 302 },
-  warden: { shadowblade: 328, pyromancer: 369, "glass-cannon": 416, archer: 429, leech: 286, sapper: 355, hexer: 324, kiter: 443,
+  warden: { shadowblade: 328, pyromancer: 369, "glass-cannon": 416, archer: 411, leech: 292, sapper: 355, hexer: 324, kiter: 443,
     duelist: 447, geomancer: 341, tank: 376, paladin: 344, cleric: 361, spellward: 382, gatekeeper: 319, wellspring: 459,
     "retinue-leader": 293, scout: 347, sneak: 273, "lantern-bearer": 326, watcher: 286 },
 };

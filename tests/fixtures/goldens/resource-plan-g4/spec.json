@@ -829,27 +829,27 @@
                 "stackTiers": [
                   {
                     "tier": 1,
-                    "manaCost": 2,
+                    "manaCost": 3,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
-                    "manaCost": 4,
-                    "complexityClass": "tactical"
-                  },
-                  {
-                    "tier": 3,
                     "manaCost": 6,
                     "complexityClass": "tactical"
                   },
                   {
+                    "tier": 3,
+                    "manaCost": 9,
+                    "complexityClass": "tactical"
+                  },
+                  {
                     "tier": 4,
-                    "manaCost": 8,
+                    "manaCost": 12,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
-                    "manaCost": 10,
+                    "manaCost": 15,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -861,27 +861,27 @@
                 "stackTiers": [
                   {
                     "tier": 1,
-                    "manaCost": 2,
+                    "manaCost": 3,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
-                    "manaCost": 4,
-                    "complexityClass": "tactical"
-                  },
-                  {
-                    "tier": 3,
                     "manaCost": 6,
                     "complexityClass": "tactical"
                   },
                   {
+                    "tier": 3,
+                    "manaCost": 9,
+                    "complexityClass": "tactical"
+                  },
+                  {
                     "tier": 4,
-                    "manaCost": 8,
+                    "manaCost": 12,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
-                    "manaCost": 10,
+                    "manaCost": 15,
                     "complexityClass": "strategic"
                   }
                 ]

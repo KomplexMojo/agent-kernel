@@ -12,6 +12,7 @@ import {
 import { AFFINITY_RULES_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
 import { BEHAVIOR_COMPLEXITY_CLASSES } from "./motivation-rules.js";
 import { actorCastManaPrice } from "../../../../core-ts/src/rules/actor-cast.ts";
+import { AFFINITY_TABLE } from "../../../../core-ts/src/state/affinity-table.ts";
 
 const OUTCOME_TYPES = Object.freeze([
   "cancel",
@@ -437,6 +438,15 @@ const UNIFORM_MANA_COST = Object.freeze({
   // #532 (#496 audit): pull costs what push does; it was half, for the same hit plus a steal.
   push: [2, 4, 6, 8, 10], pull: [2, 4, 6, 8, 10], emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS,
 });
+// #833 (Darren, 2026-11-10): the one exception to #477. A harmful kind whose primary vital is
+// health goes past armour (durability stops the other damage kinds first), so its casts cost
+// half as much again: base 3 where the others pay 2. Its lasting slots cost what every kind's do.
+const PAST_ARMOUR_MANA_COST = Object.freeze({
+  ...UNIFORM_MANA_COST, push: [3, 6, 9, 12, 15], pull: [3, 6, 9, 12, 15],
+});
+// Read from the kind's row in the one affinity table, never from its name.
+const PAST_ARMOUR_KINDS = new Set(AFFINITY_TABLE
+  .filter((row) => row.outward === "damage" && row.primaryVital === "health").map((row) => row.kind));
 const DEFAULT_AFFINITY_ROWS = Object.freeze({
   fire: { ids: ["flame_surge", "ember_grasp", "pyre_field", "ember_siphon"], manaCost: UNIFORM_MANA_COST },
   water: { ids: ["tidal_ram", "current_draw", "tidal_veil", "tide_siphon"], manaCost: UNIFORM_MANA_COST },
@@ -463,7 +473,7 @@ function defaultAffinityRule(kind) {
         id: row.ids[index],
         verb,
         defaultTargetType: DEFAULT_TARGET_TYPE_BY_VERB[verb],
-        stackTiers: Object.freeze(row.manaCost[verb].map((manaCost, tierIndex) => Object.freeze({
+        stackTiers: Object.freeze((PAST_ARMOUR_KINDS.has(kind) ? PAST_ARMOUR_MANA_COST : row.manaCost)[verb].map((manaCost, tierIndex) => Object.freeze({
           tier: tierIndex + 1,
           manaCost,
           ...(potency ? { potency: potency[tierIndex] } : {}),
