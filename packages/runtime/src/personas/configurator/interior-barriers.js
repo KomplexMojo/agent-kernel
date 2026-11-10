@@ -64,6 +64,11 @@ export function planResourceEnclosureCells(layout, resources = [], { occupied = 
   const blocked = occupied instanceof Set ? occupied : new Set(occupied);
   const cells = [];
   const seen = new Set();
+  // The approach tiles are floor, so the terrain check below does not spare them: a cage on the
+  // exit approach seals the exit behind furniture.
+  for (const approach of [layout?.spawnApproach, layout?.exitApproach]) {
+    if (Number.isInteger(approach?.x) && Number.isInteger(approach?.y)) seen.add(cellKey(approach.x, approach.y));
+  }
 
   for (const resource of resources) {
     const at = resourcePosition(resource);
@@ -83,6 +88,65 @@ export function planResourceEnclosureCells(layout, resources = [], { occupied = 
     }
   }
   return cells;
+}
+
+/**
+ * Cage cells to leave open so the spawn approach still reaches the exit approach without anyone
+ * breaking a barrier. The dividers are planned with that guarantee (`planInteriorBarrierCells`);
+ * cages come later and, in a narrow room, their ring can span it wall to wall.
+ *
+ * A least-cost walk (king moves) where a cage cell costs 1 and open floor 0: the cage cells on the
+ * cheapest route are the fewest that must open. Dividers and the resources themselves are solid.
+ * Returns nothing when the route is already open, when the layout names no approach tiles, or
+ * when no route exists even with every cage open (then the cages are not what seals it).
+ *
+ * @param {object} layout `{ width, height, terrain, spawnApproach, exitApproach }`
+ * @param {Set<string>} cageKeys planned cage cells, as "x,y"
+ * @param {Set<string>} solidKeys cells nobody walks through (dividers, resources), as "x,y"
+ * @returns {Set<string>} cage cells to drop
+ */
+export function cageCellsToOpenForPassage(layout, cageKeys, solidKeys = new Set()) {
+  const width = Number(layout?.width);
+  const height = Number(layout?.height);
+  const terrain = Array.isArray(layout?.terrain) ? layout.terrain : [];
+  const from = layout?.spawnApproach;
+  const to = layout?.exitApproach;
+  const open = new Set();
+  if (!(cageKeys instanceof Set) || cageKeys.size === 0) return open;
+  if (![from?.x, from?.y, to?.x, to?.y].every(Number.isInteger)) return open;
+  const walkable = (x, y) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return false;
+    const kind = terrain[y * width + x];
+    return kind === "floor" || kind === "spawn" || kind === "exit";
+  };
+  // 0-1 breadth-first search: zero-cost steps go to the front of the deque.
+  const cost = new Map([[cellKey(from.x, from.y), 0]]);
+  const cameFrom = new Map();
+  const deque = [{ x: from.x, y: from.y }];
+  while (deque.length > 0) {
+    const at = deque.shift();
+    const atKey = cellKey(at.x, at.y);
+    if (at.x === to.x && at.y === to.y) break;
+    for (const [dx, dy] of RESOURCE_ENCLOSURE_DIRS) {
+      const x = at.x + dx;
+      const y = at.y + dy;
+      const key = cellKey(x, y);
+      if (!walkable(x, y) || solidKeys.has(key)) continue;
+      const step = cageKeys.has(key) ? 1 : 0;
+      const next = cost.get(atKey) + step;
+      if (cost.has(key) && cost.get(key) <= next) continue;
+      cost.set(key, next);
+      cameFrom.set(key, atKey);
+      if (step === 0) deque.unshift({ x, y });
+      else deque.push({ x, y });
+    }
+  }
+  const goalKey = cellKey(to.x, to.y);
+  if (!cost.get(goalKey)) return open; // unreachable either way, or already open (cost 0)
+  for (let key = goalKey; key !== undefined; key = cameFrom.get(key)) {
+    if (cageKeys.has(key)) open.add(key);
+  }
+  return open;
 }
 
 /** Authored barrier actor stubs for `normalizeActorDefinition` / initial-state assembly. */
@@ -152,15 +216,23 @@ export function buildResourceEnclosureBarrierActorsForResources(layout, resource
     return 0;
   };
   const skip = skipKeys instanceof Set ? skipKeys : new Set(skipKeys);
-  const durabilityByCell = new Map();
+  const cages = resources.map((resource) => ({
+    durability: enclosureDurabilityForTokenValue(readTokens(resource?.id)),
+    keys: planResourceEnclosureCells(layout, [resource], { occupied }).map((cell) => cellKey(cell.x, cell.y)).filter((key) => !skip.has(key)),
+  }));
+  // The level must stay passable without breaking furniture (the dividers are planned with that
+  // promise; `skipKeys` are the dividers). A resource whose ring lies across the spawn-to-exit
+  // route stands in a chokepoint: it gets no cage at all, since a ring with a gap guards nothing.
+  const solid = new Set(skip);
   for (const resource of resources) {
-    const cells = planResourceEnclosureCells(layout, [resource], { occupied });
-    const durability = enclosureDurabilityForTokenValue(readTokens(resource?.id));
-    for (const cell of cells) {
-      const key = cellKey(cell.x, cell.y);
-      if (skip.has(key)) continue;
-      durabilityByCell.set(key, Math.max(durabilityByCell.get(key) || 0, durability));
-    }
+    const at = resourcePosition(resource);
+    if (at) solid.add(cellKey(at.x, at.y));
+  }
+  const mustOpen = cageCellsToOpenForPassage(layout, new Set(cages.flatMap((cage) => cage.keys)), solid);
+  const durabilityByCell = new Map();
+  for (const cage of cages) {
+    if (cage.keys.some((key) => mustOpen.has(key))) continue;
+    for (const key of cage.keys) durabilityByCell.set(key, Math.max(durabilityByCell.get(key) || 0, cage.durability));
   }
   const actors = [];
   for (const [key, durability] of durabilityByCell) {

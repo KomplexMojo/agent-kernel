@@ -1395,9 +1395,13 @@ export function createFsmRuntime({
       // A run with no artifacts has no actor registry, so no actors and nothing to observe.
       // Use the cache helper so a mid-tick UI read shares this snapshot until apply mutates.
       const observation = readCachedObservation();
+      // The focus is the controlled actor: the seat a play session names, or whoever was commanded
+      // this tick. A run that seats no one (`agon run`, the sims) has no focus, and the Moderator's
+      // filter then keeps everyone awake. It once fell back to the level's first actor, which put
+      // every actor far from that arbitrary one to sleep for the whole run.
       const focusActorId = (typeof stepOptions.focusActorId === "string" && stepOptions.focusActorId)
         || Object.keys(actorCommands)[0]
-        || primaryActorId;
+        || undefined;
       const hibernationRadiusForTick = resolveActorHibernationRadius(
         stepOptions.hibernationRadius
           ?? configuredHibernationRadius
