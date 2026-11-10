@@ -109,7 +109,8 @@ export async function buildEngine({ outDir = path.join(root, "packages/engine/di
   const libraries = Object.fromEntries(all.filter((m) => !EXECUTABLES.has(m)).map((m) => [entryName(m), path.join(root, m)]));
   await build({ ...common, entryPoints: libraries, outdir: outDir, splitting: true, outExtension: { ".js": ".js" } });
   const executables = Object.fromEntries(all.filter((m) => EXECUTABLES.has(m)).map((m) => [entryName(m), path.join(root, EXECUTABLE_SOURCE[m] ?? m)]));
-  await build({ ...common, entryPoints: executables, outdir: outDir, outExtension: { ".js": ".mjs" } });
+  // A shebang so the `agon` bin (#822) runs as a command once npm links it.
+  await build({ ...common, entryPoints: executables, outdir: outDir, outExtension: { ".js": ".mjs" }, banner: { js: "#!/usr/bin/env node" } });
   for (const file of DATA_FILES) {
     const target = path.join(outDir, publicSubpath(file.replace(/\.json$/, ".mjs")).slice(2).replace(/\.js$/, ".json"));
     mkdirSync(path.dirname(target), { recursive: true });
