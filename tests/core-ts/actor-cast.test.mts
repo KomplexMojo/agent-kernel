@@ -72,8 +72,8 @@ test('harmful pull steals durability into the caster and spills into health', ()
   // 2 × 2² = 8: durability gives up 3, the other 5 spill into health.
   expect(state.getActor('target')!.vitals.durability!.current).toBe(0);
   expect(state.getActor('target')!.vitals.health!.current).toBe(5);
-  // The caster gains the 3 durability, capped at 3; the spill is not credited to health.
-  expect(state.getActor('source')!.vitals.durability!.current).toBe(3);
+  // The caster gains half the 3 durability, rounded down (#832); the spill is not credited to health.
+  expect(state.getActor('source')!.vitals.durability!.current).toBe(2);
   expect(state.getActor('source')!.vitals.health!.current).toBe(10);
 });
 test('malformed authored prices are rejected before any mutation', () => {

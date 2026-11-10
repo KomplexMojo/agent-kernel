@@ -1,9 +1,9 @@
 import type { ActorAffinityEntry, ActorRecord } from '../state/actor-types.ts';
-import { equippedActorAffinities } from '../state/actor-inventory.ts';
+import { affinityIntensity, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 import { resolveAffinityRelationshipCode, AffinityRelationship } from '../state/affinity.ts';
 import { deriveAffinityInteractionCell, AffinityEffect, OPPOSITE_EXPOSURE_AMPLIFICATION } from '../state/affinity-spatial.ts';
-import { getActorAffinityEffect } from './actor-affinity.ts';
+import { actorAffinityMagnitude, getActorAffinityEffect } from './actor-affinity.ts';
 import { AFFINITY_RECEIVER_RULES, affinityTableRow } from '../state/affinity-table.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -21,8 +21,9 @@ export function receiverAbsorbsAffinity(receiver: ActorRecord, incoming: Incomin
 /**
  * The receiver rules every affinity effect meets, from a field or a cast alike (#348), over
  * every equipped slot: a matching draw absorbs first (the caller routes it into mana), then
- * a same-kind slot that the interaction table makes immune takes nothing, then any opposite
- * slot doubles damage and drain, and a breach kind doubles them again against a structure (#535).
+ * a same-kind slot that the interaction table marks resistant cancels up to its own magnitude
+ * (#831; the strongest such slot, once), then any opposite slot doubles what is left of damage
+ * and drain, and a breach kind doubles them again against a structure (#535).
  * Returns the amount that reaches the receiver.
  */
 export function receiverAffinityAmount(receiver: ActorRecord, incoming: Incoming, amount: number): number {
@@ -40,11 +41,16 @@ function slotAffinityAmount(receiver: ActorRecord, incoming: Incoming, amount: n
   const operation = getActorAffinityEffect(incoming.kind, incoming.expression).operation;
   const relationships = equipped.map(pair => {
     const relationship = resolveAffinityRelationshipCode(KIND_CODES[incoming.kind], KIND_CODES[pair.kind]);
-    return { relationship, interaction: deriveAffinityInteractionCell(EXPRESSION_CODES[incoming.expression], EXPRESSION_CODES[pair.expression], relationship) };
+    return { pair, relationship, interaction: deriveAffinityInteractionCell(EXPRESSION_CODES[incoming.expression], EXPRESSION_CODES[pair.expression], relationship) };
   });
-  if (relationships.some(({ relationship, interaction }) => relationship === AffinityRelationship.Same
-    && interaction?.targetEffect === AffinityEffect.None)) return 0;
+  // #831 (Darren, 2026-11-10): a same-kind slot resists by its own strength, where it used to be
+  // total immunity whatever its intensity. The strongest resisting slot counts, once.
+  const resist = Math.max(0, ...relationships
+    .filter(({ relationship, interaction }) => relationship === AffinityRelationship.Same && interaction?.targetEffect === AffinityEffect.None)
+    .map(({ pair }) => actorAffinityMagnitude(pair.expression, affinityIntensity(pair))));
+  const reached = Math.max(0, amount - resist);
+  if (reached <= 0) return 0;
   if (relationships.some(({ relationship }) => relationship === AffinityRelationship.Opposite)
-    && (AFFINITY_RECEIVER_RULES.amplifies as readonly string[]).includes(operation)) return amount * OPPOSITE_EXPOSURE_AMPLIFICATION;
-  return amount;
+    && (AFFINITY_RECEIVER_RULES.amplifies as readonly string[]).includes(operation)) return reached * OPPOSITE_EXPOSURE_AMPLIFICATION;
+  return reached;
 }

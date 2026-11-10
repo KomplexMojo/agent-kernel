@@ -125,7 +125,8 @@ export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
 /**
  * The receiver rules every effect meets, from a field or a cast alike (#348):
  * - a same-kind `draw` on the receiver absorbs an incoming outward effect into its mana;
- * - a same-kind slot the expression interaction table marks immune takes nothing;
+ * - a same-kind slot the expression interaction table marks resistant cancels incoming harm of its
+ *   kind up to its own magnitude, the strongest such slot once (#831); the rest lands;
  * - any opposite slot multiplies `amplifies` operations by `oppositeAmplification`;
  * - a `breach` kind multiplies them by `breachAmplification` against a receiver whose defeat
  *   vital is `breachesDefeatVital` (#535).
@@ -133,7 +134,9 @@ export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
 export const AFFINITY_RECEIVER_RULES = Object.freeze({
   absorbedBy: 'draw' as AffinityExpression,
   absorbs: Object.freeze(['push', 'emit'] as AffinityExpression[]),
-  sameKindImmunity: 'expression interaction table (AffinityEffect.None)',
+  sameKindResist: 'its own magnitude (push 2 × intensity², emit intensity²), where the expression interaction table (AffinityEffect.None) marks it; the strongest such slot counts once',
+  // #832: the share of a harmful steal that reaches the caster, rounded down. A restoring kind's top-up (#537) credits in full.
+  harmfulStealCreditDivisor: 2,
   oppositeAmplification: 2,
   amplifies: Object.freeze(['damage', 'drain'] as const),
   // #535: a `breach` kind's harm against a structure (a receiver whose defeat vital is this).

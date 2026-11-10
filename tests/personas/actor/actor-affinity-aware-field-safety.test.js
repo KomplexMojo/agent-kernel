@@ -24,7 +24,7 @@ async function fieldRanksFor(grants, active = true) {
     // conversion and correctly ranks no benefit from it -- which is a real behaviour, but
     // not the one these tests are about.
     vitals: { health: { current: 5, max: 10, regen: 0 }, mana: { current: 1, max: 9, regen: 0 } },
-    affinities: grants.map(({ kind, expression, stacks }) => ({ kind, expression, stacks })),
+    affinities: grants.map(({ kind, expression, stacks, intensity }) => ({ kind, expression, stacks, ...(intensity ? { intensity } : {}) })),
     activeAffinityKey: active && grants.length ? `${grants[0].kind}:${grants[0].expression}` : null,
   };
   const observation = {
@@ -82,9 +82,12 @@ test("an unrelated affinity does not make the fire field any safer", async () =>
   assert.equal(await fieldSafetyFor(corrode), -2, "corrode has no relationship to fire");
 });
 
-test("an actor holding FIRE is unharmed by a fire field — the Stage A behaviour change", async () => {
+// #831: a same-kind slot resists by its own size. An emit of intensity 1 takes 1 off the field's 2;
+// an emit of intensity 2 (4) takes all of it.
+test("an actor holding FIRE resists a fire field by the size of its slot", async () => {
   const fire = [{ kind: "fire", expression: "emit", stacks: 2, mana: 5, manaMax: 5, manaRegen: 0 }];
-  assert.equal(await fieldSafetyFor(fire), 0);
+  assert.equal(await fieldSafetyFor(fire), -1);
+  assert.equal(await fieldSafetyFor([{ ...fire[0], intensity: 2 }]), 0);
 });
 
 test("an actor holding WATER suffers amplified harm in a fire field", async () => {
@@ -111,11 +114,11 @@ test("A.2 — a DRAW actor converts the fire field into mana instead of taking h
   assert.ok(ranks.benefit > 0, "the converted mana is a ranked benefit, not just a spared harm");
 });
 
-test("A.2 — an EMIT actor of the same kind is immune but gains nothing", async () => {
-  // Immunity and conversion are different outcomes and must not be conflated: only the
+test("A.2 — an EMIT actor of the same kind resists but gains nothing", async () => {
+  // Resisting and conversion are different outcomes and must not be conflated: only the
   // draw expression is built to absorb. If this ever reports a benefit, the matrix's
   // per-expression distinction has been flattened.
-  const emitFire = [{ kind: "fire", expression: "emit", stacks: 2, mana: 1, manaMax: 9, manaRegen: 0 }];
+  const emitFire = [{ kind: "fire", expression: "emit", stacks: 2, intensity: 2, mana: 1, manaMax: 9, manaRegen: 0 }];
   const ranks = await fieldRanksFor(emitFire);
   assert.equal(ranks.safety, 0);
   assert.equal(ranks.benefit, 0);

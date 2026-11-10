@@ -94,7 +94,10 @@ test('field exposure reads active equipment only and never exposes self or termi
   const receiver = actor('receiver', 0);
   receiver.affinities = [{ kind: 'fire', expression: 'emit', stacks: 8 }];
   expect(actorFieldExposureAmount(receiver, cell, [cell])).toBe(4);
+  // #831: an equipped same-kind slot resists by its own size (emit 1 × intensity 1² = 1), no more.
   receiver.activeAffinityKey = 'fire:emit';
+  expect(actorFieldExposureAmount(receiver, cell, [cell])).toBe(3);
+  receiver.affinities = [{ kind: 'fire', expression: 'emit', stacks: 8, intensity: 2 }];
   expect(actorFieldExposureAmount(receiver, cell, [cell])).toBe(0);
   expect(actorFieldExposureAmount(actor('source', 0), cell, [cell])).toBe(0);
   receiver.activeAffinityKey = null; receiver.lifecycle = 'defeated';

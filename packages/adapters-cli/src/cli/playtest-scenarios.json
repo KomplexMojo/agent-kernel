@@ -239,7 +239,7 @@
         "Raise a barrier with earth (equip earth:push in the panel i, then z, aim, Enter). Note its durability in inspect/panel; compare with a barrier raised by another kind (the warden's {B} push, or any non-earth slot): earth's is about twice as strong for twice the mana.",
         "Switch to corrode:push (i) and hit your earth barrier, then the hazard and the resource: each takes about twice the damage a non-corrode push of the same range and intensity does.",
         "Corrode hitting the warden is normal strength (its defeat vital is health): the double applies to barriers, hazards and resources only.",
-        "Same-kind immunity still holds: a corrode barrier is not breached by corrode."
+        "A same-kind slot resists by its own size (#831): a corrode structure takes its slot's strength off a corrode hit before the double applies."
       ],
       "budgetTokens": 6000,
       "args": [

@@ -9,7 +9,7 @@
       ],
       "mobility": null,
       "fits": "list",
-      "description": "Hit by a field, it equips the same kind's draw (absorbs it into mana) or emit (immune), whichever it carries. Hit by a cast, which no slot resists, it answers the caster.",
+      "description": "Hit by a field, it equips the same kind's draw (absorbs it into mana) or emit (resists by its intensity), whichever it carries. Hit by a cast, which no slot resists, it answers the caster.",
       "limits": "Never equips the opposite kind (it doubles field damage). Against a cast it fights back rather than breaking line of sight.",
       "requires": [
         {

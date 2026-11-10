@@ -1,6 +1,7 @@
 /**
  * #348 — a cast meets the receiver rules a field applies: a same-kind draw absorbs it into
- * mana, a same-kind push or emit is immune, an opposite slot doubles harm. One receiver path.
+ * mana, a same-kind push or emit resists by its own size (#831), an opposite slot doubles harm.
+ * One receiver path.
  */
 import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
@@ -69,15 +70,19 @@ test('every direct cast meets the same receiver rules as a field at the same mag
   }
 });
 
-test('the rules bite: a draw absorbs a push, a same-kind emitter is immune, an opposite holder takes double', () => {
+test('the rules bite: a draw absorbs a push, a same-kind emitter resists by its size, an opposite holder takes double', () => {
   const untouched = actor('x', 0, []).vitals;
   for (const kind of KINDS) {
     const absorbed = cast(kind, 'push', RECEIVERS['same draw'](kind));
     expect(absorbed.mana!.current, `${kind} absorbed`).toBeGreaterThan(untouched.mana!.current);
-    expect(cast(kind, 'push', RECEIVERS['same emit'](kind)), `${kind} immune`).toEqual(untouched);
+    // #831: an emit of intensity 3 (9) is at least the push (2 × 2² = 8), so nothing lands.
+    expect(cast(kind, 'push', [{ kind, expression: 'emit', stacks: 1, intensity: 3 }]), `${kind} resisted in full`).toEqual(untouched);
     if (getActorAffinityEffect(kind, 'push').operation !== 'damage') continue;
     const vital = getActorAffinityEffect(kind, 'push') as { vital: 'health' | 'mana' | 'stamina' | 'durability' };
     const plain = untouched[vital.vital]!.current - cast(kind, 'push', [])[vital.vital]!.current;
+    // An emit of intensity 1 takes 1 off the hit and no more.
+    const resisted = untouched[vital.vital]!.current - cast(kind, 'push', RECEIVERS['same emit'](kind))[vital.vital]!.current;
+    expect(resisted, `${kind} resisted by 1`).toBe(plain - 1);
     const doubled = untouched[vital.vital]!.current - cast(kind, 'push', RECEIVERS.opposite(kind))[vital.vital]!.current;
     expect(doubled, `${kind} opposite`).toBe(Math.min(2 * plain, untouched[vital.vital]!.current));
   }

@@ -78,9 +78,10 @@ Breach (#535): the kind's damage and steal, from fields and casts alike, are mul
 The same for fields and casts:
 
 - A same-kind `draw` on the receiver absorbs an incoming push or emit into its mana.
-- A same-kind slot is immune where the expression interaction table (AffinityEffect.None) says so.
+- A same-kind slot cancels incoming harm of its kind up to its own magnitude (push 2 × intensity², emit intensity²), where the expression interaction table (AffinityEffect.None) marks it; the strongest such slot counts once. The rest lands.
 - Any opposite slot multiplies damage and drain by 2.
 - A breach kind multiplies damage and drain by 2 against a receiver whose defeat vital is durability.
+- A harmful kind's steal gives its caster the amount taken from the primary vital divided by 2, rounded down. A restoring kind's steal credits in full.
 
 ## Formulas
 

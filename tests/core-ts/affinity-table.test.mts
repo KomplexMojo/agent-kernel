@@ -97,9 +97,10 @@ function expected(row: typeof AFFINITY_TABLE[number], expression: AffinityExpres
       if (row.spill === 'defeat' && defeatVital !== row.primaryVital && AMOUNT > removed) take(defeatVital, AMOUNT - removed);
     }
   } else {
-    // #354: the source gains what the primary vital gave up; the spill is damage only.
+    // #354: the source gains from what the primary vital gave up; the spill is damage only.
+    // #832: a harmful kind (a row with a spill) credits half of it, rounded down.
     const removed = take(row.primaryVital, AMOUNT);
-    source[row.primaryVital] = Math.min(MAX, source[row.primaryVital]! + removed);
+    source[row.primaryVital] = Math.min(MAX, source[row.primaryVital]! + (row.spill ? Math.floor(removed / 2) : removed));
     if (row.spill === 'defeat' && defeatVital !== row.primaryVital && AMOUNT > removed) take(defeatVital, AMOUNT - removed);
   }
   return { target, source };

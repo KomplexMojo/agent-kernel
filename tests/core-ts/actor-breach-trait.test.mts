@@ -50,9 +50,12 @@ test('a corrode push takes twice the durability from a hazard that it takes from
   expect(hit('durability')).toBe(16);
 });
 
-test('a same-kind immunity still wins: a structure that is itself corrode takes nothing', () => {
+// #831: a same-kind slot resists by its own size, and breach doubles only what gets past it.
+test('a same-kind slot resists first: a structure that is itself corrode takes what is left, doubled', () => {
   const corrodeHazard = actor('h', 1, [{ kind: 'corrode', expression: 'emit', stacks: 1, intensity: 1 }], 'durability');
-  expect(receiverAffinityAmount(corrodeHazard, { kind: 'corrode', expression: 'emit' }, 5)).toBe(0);
+  expect(receiverAffinityAmount(corrodeHazard, { kind: 'corrode', expression: 'emit' }, 5)).toBe(8);
+  const strong = actor('h', 1, [{ kind: 'corrode', expression: 'emit', stacks: 1, intensity: 3 }], 'durability');
+  expect(receiverAffinityAmount(strong, { kind: 'corrode', expression: 'emit' }, 5)).toBe(0);
 });
 
 // ## TODO: Test Permutations
