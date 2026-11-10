@@ -1,7 +1,7 @@
 // The published engine bundle (@agon-engine/engine) must cover exactly the public API and
 // load as plain Node ESM with no TypeScript stripping (Node never strips types in node_modules).
 import { describe, it, expect } from "vitest";
-import { readFileSync, mkdtempSync, existsSync } from "node:fs";
+import { readFileSync, mkdtempSync, existsSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -40,4 +40,27 @@ describe("engine bundle", () => {
     expect(out.match(/"command":"create"/g)).toHaveLength(1); // the command ran once, not twice
     expect(JSON.parse(out).ok).toBe(true);
   }, 60000);
+
+  // The optional-peer shim once imported itself instead of the installed package, so the published
+  // `agon create` refused every level that needs the solver ("z3-solver is not installed") and the
+  // game's deploy failed. Built beside packages/engine so `z3-solver` resolves as it does for a game.
+  it("the built agon command line reaches an installed z3-solver (optional peer)", async () => {
+    const outDir = mkdtempSync(path.join(root, "packages/engine/dist-peer-test-"));
+    try {
+      await buildEngine({ outDir });
+      const work = mkdtempSync(path.join(tmpdir(), "agon-engine-peer-"));
+      const cli = path.join(outDir, "adapters-cli/cli/agon.mjs");
+      const args = ["create", "--seed", "1", "--budget-tokens", "5000", "--room", "size=medium;count=3",
+        "--delver", "count=1;affinity=earth;motivation=attacking",
+        "--hazard", "affinity=wind;expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:6",
+        "--tactic", "minefield;hazards=3", "--out-dir", work];
+      let out;
+      try { out = execFileSync(process.execPath, [cli, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); }
+      catch (error) { out = `${error.stdout}${error.stderr}`; }
+      expect(out).not.toMatch(/is not installed|placement_constraints_need_solver/);
+      expect(JSON.parse(out.trim().split("\n").at(-1)).ok).toBe(true);
+    } finally {
+      rmSync(outDir, { recursive: true, force: true });
+    }
+  }, 90000);
 });

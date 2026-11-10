@@ -51,7 +51,11 @@ const OPTIONAL_STUBS = {
 const optionalPeers = {
   name: "optional-peers",
   setup(b) {
-    b.onResolve({ filter: /^(z3-solver|ws)$/ }, (args) => ({ path: args.path, namespace: "optional-peer" }));
+    // The stub's own `import("z3-solver")` must reach the installed package: left to this resolver
+    // it resolved to the stub again, so the peer was reported missing even when it was installed.
+    b.onResolve({ filter: /^(z3-solver|ws)$/ }, (args) => (args.namespace === "optional-peer"
+      ? { path: args.path, external: true }
+      : { path: args.path, namespace: "optional-peer" }));
     b.onLoad({ filter: /.*/, namespace: "optional-peer" }, (args) => {
       const names = OPTIONAL_STUBS[args.path];
       const lines = [

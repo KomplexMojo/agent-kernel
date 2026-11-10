@@ -1060,7 +1060,8 @@ export function completeObjectPlacement({ prepared: supplied, solverResult, ...a
     if (constrained) {
       return { ok: false, status: "error", reason: "placement_constraints_need_solver",
         detail: `placement constraints need the solver, which answered ${solverResult?.status || "nothing"}`
-          + `${solverResult?.reason ? ` (${solverResult.reason})` : ""}` };
+          + `${solverResult?.reason ? ` (${solverResult.reason})` : ""}`
+          + `${solverResult?.message ? `: ${solverResult.message}` : ""}` };
     }
     return placeObjectsLegacy(args);
   }
