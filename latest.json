@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-11-10T15-47-51-912Z-e4f61d63b31a-5c1d4d26ebe3",
-    "key": "5c1d4d26ebe3a30987c4c5f0f0a2263b68b6e737b3965c7852cc77389806c777",
+    "id": "2026-11-10T16-28-09-007Z-cce0503f35fe-ffe92e7947fe",
+    "key": "ffe92e7947fe25d60688cd5d30fe72ab7cc981bc8ea722d3c757499be8938b8d",
     "status": "infrastructure_error",
-    "startedAt": "2026-11-10T15:47:51.912Z",
-    "completedAt": "2026-11-10T15:48:19.591Z",
-    "durationMs": 27679,
+    "startedAt": "2026-11-10T16:28:09.007Z",
+    "completedAt": "2026-11-10T16:28:36.634Z",
+    "durationMs": 27627,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "e4f61d63b31ab7c329196dd8fd3cec83c64039c9",
-    "tree": "4c52f11b159f66b9aa7015b07c6f6f680bc2b84b"
+    "commit": "cce0503f35feec7ccd407d3a77fc821219edaa85",
+    "tree": "b0b1385f42af49637dd0a12d779fdba1a80d131e"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -746,7 +746,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/5c1d4d26ebe3a30987c4c5f0f0a2263b68b6e737b3965c7852cc77389806c777"
+    "retentionId": "preflights/ffe92e7947fe25d60688cd5d30fe72ab7cc981bc8ea722d3c757499be8938b8d"
   },
   "qualifies": false
 }
