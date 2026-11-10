@@ -98,7 +98,7 @@ test("> loads the next recipe and the screen names it", async () => {
   sheet.apply(sheetIntentForKey(">"));
   const text = renderCharacterScreen(sheet.view());
   assert.match(text, /Recipe\s+Shadowblade: Hides in its own dark/);
-  assert.match(text, /Spent 454 \/ 942/);
+  assert.match(text, /Spent 436 \/ 942/);
   sheet.apply(sheetIntentForKey("+"));
   assert.match(renderCharacterScreen(sheet.view()), /Recipe\s+Shadowblade \(edited\)/);
   assert.equal(sheetIntentForKey("<"), sheetIntentForKey(","));

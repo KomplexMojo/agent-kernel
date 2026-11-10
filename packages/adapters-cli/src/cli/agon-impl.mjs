@@ -317,7 +317,7 @@ Options:
                   Affinity payload: affinity=<fire|water|earth|wind|growth|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]
                   Both payloads may be combined in one spec. manaRegen defaults to 0, which grants the
                   affinity temporarily until its mana is spent; manaRegen>0 refills the pool, making the
-                  granted affinity permanent (and costing 5*manaRegen^2 more tokens to author).
+                  granted affinity permanent (and costing 3 tokens per point of manaRegen to author).
                   slots=<n> (slot-unlock loot) is retired: an actor equips at most 3 and carries the rest.
                   Legacy: tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]

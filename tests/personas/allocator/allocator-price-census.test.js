@@ -61,7 +61,7 @@ test("site 1: price-list unit costs and formulas for the census card's component
     vital_stamina_point: { unitCost: 1, formula: "linear", q: 6, total: 6 },
     vital_durability_point: { unitCost: 1, formula: "linear", q: 4, total: 4 },
     vital_health_regen_tick: { unitCost: 1, formula: "quadratic", q: 2, total: 4 },
-    vital_mana_regen_tick: { unitCost: 1, formula: "quadratic", q: 1, total: 1 },
+    vital_mana_regen_tick: { unitCost: 3, formula: "linear", q: 1, total: 3 },
     affinity_base: { unitCost: 10, formula: "linear", q: 1, total: 10 },
     affinity_range: { unitCost: 2, formula: "quadratic", q: 2, total: 8 },
     affinity_intensity: { unitCost: 10, formula: "quadratic", q: 1, total: 10 },
@@ -80,11 +80,11 @@ test("site 1: price-list unit costs and formulas for the census card's component
 
 // ── Site 2 CONVERGED: actor costing == the list, line for line ──
 
-test("site 2 == site 1: the census card costs 91, every line at list price", async () => {
+test("site 2 == site 1: the census card costs 93, every line at list price", async () => {
   const { calculateActorConfigurationUnitCost, priceMap, item, applyFormula, normalizeMotivations } = await load();
   const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap, normalizeMotivations });
   assert.equal(r.errors, undefined);
-  assert.equal(r.cost, 91, "28 vitals + 5 regen + 53 affinity + 5 motivations");
+  assert.equal(r.cost, 93, "28 vitals + 7 regen + 53 affinity + 5 motivations");
   const by = (id) => r.detail.lineItems.find((l) => l.id === id);
   for (const [id, q] of [
     ["vital_health_point", 10], ["vital_mana_point", 8], ["vital_stamina_point", 6],

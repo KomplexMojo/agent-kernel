@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 196,
-  "remaining": 4804,
+  "totalCost": 198,
+  "remaining": 4802,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -195,8 +195,8 @@
       "id": "vital_mana_regen_tick",
       "kind": "vital",
       "quantity": 1,
-      "unitCost": 1,
-      "totalCost": 1,
+      "unitCost": 3,
+      "totalCost": 3,
       "status": "approved",
       "category": "delvers",
       "subjectRef": {
@@ -370,15 +370,15 @@
     {
       "id": "delver",
       "capTokens": 1866,
-      "spentTokens": 104,
-      "remainingTokens": 1762,
+      "spentTokens": 106,
+      "remainingTokens": 1760,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 196,
-    "remainingBudget": 4804,
+    "totalSpend": 198,
+    "remainingBudget": 4802,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -402,7 +402,7 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 104,
+        "actual": 106,
         "target": 1866,
         "usagePercent": 6
       },

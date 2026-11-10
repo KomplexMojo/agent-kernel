@@ -48,17 +48,17 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
     },
   });
 
-  // P1.4 unified list: vitals 4+2+1+1=8, regen 1²+1²=2, affinity 10 + range 2·2² + intensity
-  // 10·1² + 35 = 63 (#340) → 73/unit × 2 = 146 (118 before the range/intensity split)
+  // P1.4 unified list: vitals 4+2+1+1=8, regen 1² health + 3 mana (#834, linear) = 4, affinity 10 +
+  // range 2·2² + intensity 10·1² + 35 = 63 (#340) → 75/unit × 2 = 150
   // CR.9 M5: levelConfig 110 → 120 and the total 388 → 398. The layout is 10 floor + 10
   // HALLWAY tiles; hallway tiles used to be zeroed before pricing, so half this layout was
   // free. They now cost what floor tiles cost.
-  assert.equal(ledger.totalSpentTokens, 426);
-  assert.equal(ledger.remainingTokens, 574);
+  assert.equal(ledger.totalSpentTokens, 430);
+  assert.equal(ledger.remainingTokens, 570);
   assert.equal(ledger.overBudget, false);
   assert.equal(ledger.categories.levelConfig.spentTokens, 120);
   assert.equal(ledger.categories.actorBase.spentTokens, 160);
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 146);
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 150);
   assert.ok(ledger.lineItems.some((entry) => entry.category === "levelConfig"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorBase"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorConfiguration"));
@@ -199,11 +199,11 @@ test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by coun
   });
 
   assert.equal(ledger.categories.actorBase.spentTokens, 69300);
-  // P1.4 unified list: vitals 10+5+8+6=29, regen 1²+1²+2²=6, affinity 10 + range 2·2² +
-  // intensity 10·1² + 35 = 63 (#340) → 98/unit × 9 = 882
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 882);
-  assert.equal(ledger.totalSpentTokens, 70182);
-  assert.equal(ledger.remainingTokens, 6818);
+  // P1.4 unified list: vitals 10+5+8+6=29, regen 1² health + 3 mana (#834) + 2² stamina = 8, affinity 10 + range 2·2² +
+  // intensity 10·1² + 35 = 63 (#340) → 100/unit × 9 = 900
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 900);
+  assert.equal(ledger.totalSpentTokens, 70200);
+  assert.equal(ledger.remainingTokens, 6800);
   assert.equal(ledger.overBudget, false);
 });
 

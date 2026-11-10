@@ -80,7 +80,7 @@ test("the mana pool is charged", async () => {
   assert.equal(lineFor(proposal, "resource_vital_mana_point").quantity, 50);
 });
 
-test("manaRegen is charged, and quadratically — this is what makes permanence expensive", async () => {
+test("manaRegen is charged, linearly like an actor's mana regen (#834)", async () => {
   const { buildSpendProposal, } = await import(SPEND);
   const { buildDefaultPriceList, applyFormula } = await import(PRICES);
   const proposal = buildSpendProposal({
@@ -93,9 +93,9 @@ test("manaRegen is charged, and quadratically — this is what makes permanence 
   assert.equal(line.quantity, 5);
 
   const item = buildDefaultPriceList().items.find((i) => i.id === "resource_vital_mana_regen_tick");
-  assert.equal(item.formula, "quadratic");
-  // 5 regen costs 25× the unit, not 5× — the whole point.
-  assert.equal(applyFormula(item, 5), item.unitCost * 25);
+  assert.equal(item.formula, "linear");
+  // The resource id mirrors the actor id's shape: 5 regen costs 5× the unit.
+  assert.equal(applyFormula(item, 5), item.unitCost * 5);
 });
 
 test("a temporary resource charges no regen at all", async () => {

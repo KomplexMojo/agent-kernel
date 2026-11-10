@@ -77,17 +77,17 @@ const summary = {
 const mapped = mapSummaryToPool({ summary, catalog: catalogFixture });
 const result = evaluateSelectionSpend({
   selections: mapped.selections,
-  budgetTokens: 103,
+  budgetTokens: 105,
   priceList: buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" }),
   normalizeMotivations,
 });
 
 assert.equal(result.approvedSelections.length, 1);
 assert.equal(result.rejectedSelections.length, 0);
-assert.equal(result.spentTokens, 103);
+assert.equal(result.spentTokens, 105);
 assert.equal(result.remainingBudgetTokens, 0);
 assert.equal(result.decisions[0].baseUnitCost, 80);
-// Vitals: 8 + 4 + 4 + 2 = 18; regen: 1² + 1² = 2; patrolling motivation: 3.
-assert.equal(result.decisions[0].configUnitCost, 23);
-assert.equal(result.decisions[0].unitCost, 103);
+// Vitals: 8 + 4 + 4 + 2 = 18; regen: mana 3 (#834) + stamina 1² = 4; patrolling motivation: 3.
+assert.equal(result.decisions[0].configUnitCost, 25);
+assert.equal(result.decisions[0].unitCost, 105);
 });

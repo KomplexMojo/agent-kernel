@@ -96,11 +96,11 @@ assert.equal(result.summary.roomDesign.rooms.length, 2);
 assert.equal(result.summary.roomDesign.connections.length, 1);
 assert.equal(result.summary.roomDesign.hallways, "Single spine hallway.");
 assert.equal(result.summary.actors.length, 1);
-// Layout 100 floor + 50 HALLWAY + actor base 80 + vitals/regen/motivation (18 + 2 + 3) = 253.
+// Layout 100 floor + 50 HALLWAY + actor base 80 + vitals/regen/motivation (18 + 4 + 3) = 255.
 // CR.9 M5: remaining was 117 while hallway tiles were zeroed before pricing — this level
 // has 50 of them, so a third of its walkable area was free. They now cost what floor
-// tiles cost, and the same layout leaves 67.
-assert.equal(result.remainingBudgetTokens, 67);
+// tiles cost, and the same layout leaves 67. #834: the actor's 1 mana regen costs 3, not 1, so 65.
+assert.equal(result.remainingBudgetTokens, 65);
 // This assertion has now flipped TWICE, and the arc is the point:
 //   pre-P1.4  "done"  — prices were high, 117 bought nothing, so "done" was honoured.
 //   P1.4      null    — unified prices made 117 affordable, so the premature "done" was

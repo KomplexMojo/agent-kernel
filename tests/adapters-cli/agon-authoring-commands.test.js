@@ -402,7 +402,8 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   // 1 -> 3 (2 + 3² - 1² = 10), so `mana_regen` is served again at this budget.
   // Range/intensity re-baseline (#340): the fire affinity now prices range 2·1² + intensity 10·1²
   // where one stack cost 1, so fixed spend rose 11. Mana pays it: max 106 -> 100, regen 3 -> 1.
-  assert.equal(delver.vitals.mana.max, 100);
+  // Mana regen re-baseline (#834): the floor's 1 mana regen costs 3 where it cost 1; max 100 -> 98.
+  assert.equal(delver.vitals.mana.max, 98);
   assert.equal(delver.vitals.mana.regen, 1);
   assert.ok(delver.vitals.mana.regen >= 1);
   // The pool, not just the regen — regen against a zero pool is what let the

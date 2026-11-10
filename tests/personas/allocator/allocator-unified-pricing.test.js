@@ -6,9 +6,9 @@
  * price entry is a structured error, never a quiet default.
  *
  * The census card (see allocator-price-census.test.js) under the unified
- * model: vitals 28 + regen 5 (quadratic at list unit 1) + affinity 53
+ * model: vitals 28 + regen 7 (health 2² at list unit 1, mana 1 × 3, #834) + affinity 53
  * (10 base + 2·2² range + 10·1² intensity + 25 emit, #340) + motivations 5 (2+3)
- * = 91. Before the range/intensity split it was 77; before P1.4, 119 (old actor
+ * = 93 (91 before #834). Before the range/intensity split it was 77; before P1.4, 119 (old actor
  * model with list) and 236 (old empty-map fallback).
  */
 const assert = require("node:assert/strict");
@@ -40,16 +40,16 @@ async function fullPriceMap() {
 
 // ── Actor costing prices from the list ──
 
-test("unified: the census card costs 91, every line from the price list", async () => {
+test("unified: the census card costs 93, every line from the price list", async () => {
   const { calculateActorConfigurationUnitCost } = await import(`${P}allocator/spend-proposal.js`);
   const normalizeMotivations = await configuratorNormalizeMotivations();
   const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap: await fullPriceMap(), normalizeMotivations });
   assert.equal(r.errors, undefined);
-  assert.equal(r.cost, 91);
+  assert.equal(r.cost, 93);
   const by = (id) => r.detail.lineItems.find((l) => l.id === id);
-  // Regen is quadratic per the list's formula: 1 × 2² = 4, 1 × 1² = 1.
+  // Regen per the list's formula: health quadratic, 1 × 2² = 4; mana linear at 3, 3 × 1 = 3 (#834).
   assert.equal(by("vital_health_regen_tick").spendTokens, 4);
-  assert.equal(by("vital_mana_regen_tick").spendTokens, 1);
+  assert.equal(by("vital_mana_regen_tick").spendTokens, 3);
   // Affinity prices from list ids, not cost-model math: 10 + range 2·2² + intensity 10·1² + 25 = 53 (#340).
   const affinity = r.detail.lineItems.filter((l) => l.category === "affinity");
   assert.equal(affinity.reduce((s, l) => s + l.spendTokens, 0), 53);

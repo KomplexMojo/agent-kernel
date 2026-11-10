@@ -205,8 +205,8 @@ test("a permanent resource costs significantly more than the identical temporary
   );
   assert.equal(
     permanent - temporary,
-    25,
-    `measured Allocator permanence gap must stay 25, got ${permanent - temporary}`,
+    15,
+    `measured Allocator permanence gap must stay 15 (5 mana regen at 3 a point, #834; it was 5² = 25), got ${permanent - temporary}`,
   );
 });
 

@@ -37,7 +37,7 @@ test("regen above max is still priced as asked, and the receipt names the waste 
   assert.equal(receipt.status, "approved", "nothing is refused");
   const mana = receipt.lineItems.find((item) => item.id === "vital_mana_regen_tick");
   assert.equal(mana.quantity, 100);
-  assert.equal(mana.totalCost, 100 * 100 * mana.unitCost, "the asked-for regen is what is charged");
+  assert.equal(mana.totalCost, 100 * mana.unitCost, "the asked-for regen is what is charged");
 
   const wasted = readWastedRegen(receipt);
   assert.deepEqual(wasted.map(({ subjectId, vital, regen, usableRegen }) => ({ subjectId, vital, regen, usableRegen })), [
@@ -45,7 +45,7 @@ test("regen above max is still priced as asked, and the receipt names the waste 
     { subjectId: "delver_1", vital: "stamina", regen: 5, usableRegen: 2 },
   ]);
   const manaWaste = wasted.find((entry) => entry.vital === "mana");
-  assert.equal(manaWaste.wastedTokens, (100 * 100 - 10 * 10) * mana.unitCost);
+  assert.equal(manaWaste.wastedTokens, (100 - 10) * mana.unitCost);
 });
 
 test("regen at or below max is not flagged", async () => {
