@@ -327,7 +327,10 @@ cells that stay **floor**, and `buildInteriorBarrierActors` materializes destroy
 **earth push** barrier actors (durability from earth `raiseScale`, no `raisedBy`).
 Every resource also gets a king-move ring of barriers on walkable neighbours
 (`planResourceEnclosureCells` / `buildResourceEnclosureBarrierActorsForResources`);
-walls already count as casing. Cage **durability scales with the Allocator token
+walls already count as casing. A cage never covers the spawn or exit approach tile, and
+a resource whose ring would cut the spawn-to-exit route (a narrow room, a corridor) gets
+no cage at all (`cageCellsToOpenForPassage`), so the level stays passable without
+breaking furniture, as the dividers already promise. Cage **durability scales with the Allocator token
 total** for that resource (`enclosureDurabilityForTokenValue`: at least 2, else
 `ceil(tokens)`), so expensive loot is harder to crack with push; pull still
 one-shots. Room dividers stay at full earth raise durability. Explicit

@@ -122,6 +122,21 @@ test("fog does not hibernate: an off-screen but in-radius warden still decides",
   assert.ok(fogActions.length > 0, "in-radius warden must decide even when the player cannot see it");
 });
 
+test("a run with no controlled actor hibernates nobody", async () => {
+  // `agon run` and the sims seat no one. The focus once fell back to the first actor in the
+  // level, so everyone farther than the radius from it never decided (sweep-big-20k: four
+  // patrolling guards silent for all 150 turns).
+  const level = buildUnifiedLevel({
+    id: "hibernation-unseated",
+    tiles: STRIP,
+    actors: [{ ...NEAR, id: "a-first", position: { x: 2, y: 1 }, motivations: ["patrolling"] }, { ...FAR, motivations: ["patrolling"] }],
+  });
+  const runtime = createRuntime({ core: createCore(), adapters: {}, hibernationRadius: 5 });
+  await runtime.init({ seed: 0, simConfig: level.simConfig, initialState: level.initialState });
+  for (let i = 0; i < 6; i += 1) await runtime.step({});
+  assert.ok((acceptedByActor(runtime.getTickFrames()).get("far") || []).length > 0, "with no seat, the far warden must still decide");
+});
+
 // ## TODO: Test Permutations
 // - hibernationRadius: false keeps far warden deciding on the strip
 // - commanded far actor via alwaysAwake / actorCommands

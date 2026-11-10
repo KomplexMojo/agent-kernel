@@ -132,7 +132,8 @@ controlled actor (default **50** tiles — same metric as sight/cast “N tiles 
 direction”). Off-screen actors inside that radius still decide: the level stays alive;
 hibernation is **not** fog or camera. Beyond the radius they skip propose only — registry,
 lasting fields, regen, and exits still run. Explicit commands always wake the commanded
-actor. Override via `createRuntime` / `createPlaySession` `hibernationRadius`, step
+actor. A run that seats no one (`agon run`, the sims) has no controlled actor, so nobody
+hibernates. Override via `createRuntime` / `createPlaySession` `hibernationRadius`, step
 `hibernationRadius`, or `simConfig.execution.actorHibernationRadius` (`false` disables).
 Pinned by `tests/personas/moderator/moderator-actor-hibernation.test.js` and
 `tests/runtime/actor-hibernation.test.js`. Separately from distance (#700), an actor that

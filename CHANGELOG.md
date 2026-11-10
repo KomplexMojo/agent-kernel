@@ -14,6 +14,8 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ### Fixed
 
+- A run with no controlled actor (`agon run`, the simulations) no longer hibernates anyone. The hibernation focus fell back to the level's first actor, so every actor more than 50 tiles from that arbitrary one never decided for the whole run (#702; in `sweep-big-20k`, four patrolling guards were silent for 150 turns). Play sessions, which name their seat, are unchanged.
+- A resource whose barrier cage would cut the route from the spawn to the exit gets no cage, and a cage never covers the spawn or exit approach tile (#696). In a narrow room the ring spanned the room wall to wall and sat on the exit approach, so the level could only be finished by breaking furniture (`sweep-demand-recovery`: exit on turn 9 became no exit in 80). Levels with such a resource are built with fewer barriers than before; cages in open floor are unchanged.
 - The published `agon` command line could not reach `z3-solver` even when it was installed: the bundle's optional-peer shim imported itself, so `agon create` refused every level whose placement needs the solver with `placement_constraints_need_solver ... (constraint_compile_error)`. This broke the game's build on 0.2.0, 0.3.0 and 0.3.1 for any scenario with a `--tactic`. `ws` had the same fault. The refusal now also carries the solver's own message, so a missing peer says so.
 
 ## 0.3.1
