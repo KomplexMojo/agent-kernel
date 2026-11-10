@@ -10,7 +10,7 @@ import {
   composeEntitySprite,
   normalizeEntitySpriteState,
 } from "../../packages/runtime/src/render/entity-sprite-composer.js";
-import { AFFINITY_KINDS } from "../../packages/runtime/src/contracts/domain-constants.js";
+import { GAME_AFFINITY_KINDS as AFFINITY_KINDS } from "../../packages/engine/src/vocabulary.js";
 import { GAME_COLOR_PALETTE } from "../../packages/runtime/src/contracts/game-elements.js";
 
 // 8px is included deliberately and is NOT a supported size: it shows what the

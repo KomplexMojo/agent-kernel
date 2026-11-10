@@ -2,6 +2,21 @@
 
 The engine API contract and stability policy are in `docs/engine-api.md`. Entries name changes to the public API (`apiSurface`, `agon`, `agon_*` MCP tools) only.
 
+## 0.4.0
+
+### Added
+
+- Five named entry points (#828), which are now the way to import the engine: `@agon-engine/engine/client` (play session, game controller, intents, messages, board frame, HUD and overlay models, window size), `/authoring` (`authorLevel`, character sheet, recorded solver adapter, playtest catalogue), `/skin` (palette, element visuals, board sprite pixels, resource bundle with dressing and element art), `/vocabulary` (affinity kinds and expressions, vitals, motivations, sound cues) and `/terminal` (the reference terminal client). Each only re-exports and its names are pinned by a test. The file-path subpaths (`@agon-engine/engine/runtime/...`, `/ui-ascii/...`, `/adapters-*/...`) still resolve and are unchanged; they are aliases now and will be removed in a later minor release once the game has moved.
+
+### Changed (breaking)
+
+- `@agon-engine/engine/runtime/contracts/domain-constants.js` is no longer public (#828). It exported 80 internal names, among them the engine's LLM prompt builders and model settings; no game imported it. The vocabulary a game needs (`GAME_AFFINITY_KINDS`, `GAME_AFFINITY_EXPRESSIONS`, `GAME_VITAL_KEYS`, the motivation lists) is on `@agon-engine/engine/vocabulary`.
+
+### Fixed
+
+- A run with no controlled actor (`agon run`, the simulations) no longer hibernates anyone. The hibernation focus fell back to the level's first actor, so every actor more than 50 tiles from that arbitrary one never decided for the whole run (#702; in `sweep-big-20k`, four patrolling guards were silent for 150 turns). Play sessions, which name their seat, are unchanged.
+- A resource whose barrier cage would cut the route from the spawn to the exit gets no cage, and a cage never covers the spawn or exit approach tile (#696). In a narrow room the ring spanned the room wall to wall and sat on the exit approach, so the level could only be finished by breaking furniture (`sweep-demand-recovery`: exit on turn 9 became no exit in 80). Levels with such a resource are built with fewer barriers than before; cages in open floor are unchanged.
+
 ## 0.3.2
 
 ### Added
@@ -14,8 +29,6 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ### Fixed
 
-- A run with no controlled actor (`agon run`, the simulations) no longer hibernates anyone. The hibernation focus fell back to the level's first actor, so every actor more than 50 tiles from that arbitrary one never decided for the whole run (#702; in `sweep-big-20k`, four patrolling guards were silent for 150 turns). Play sessions, which name their seat, are unchanged.
-- A resource whose barrier cage would cut the route from the spawn to the exit gets no cage, and a cage never covers the spawn or exit approach tile (#696). In a narrow room the ring spanned the room wall to wall and sat on the exit approach, so the level could only be finished by breaking furniture (`sweep-demand-recovery`: exit on turn 9 became no exit in 80). Levels with such a resource are built with fewer barriers than before; cages in open floor are unchanged.
 - The published `agon` command line could not reach `z3-solver` even when it was installed: the bundle's optional-peer shim imported itself, so `agon create` refused every level whose placement needs the solver with `placement_constraints_need_solver ... (constraint_compile_error)`. This broke the game's build on 0.2.0, 0.3.0 and 0.3.1 for any scenario with a `--tactic`. `ws` had the same fault. The refusal now also carries the solver's own message, so a missing peer says so.
 
 ## 0.3.1

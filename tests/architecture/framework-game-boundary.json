@@ -6,7 +6,8 @@
     "packages/adapters-cli/src",
     "packages/adapters-web/src",
     "packages/adapters-test/src",
-    "packages/ui-ascii"
+    "packages/ui-ascii",
+    "packages/engine/src"
   ],
   "gameRoots": [
     "scripts/brand",
@@ -14,6 +15,21 @@
     "scripts/demo"
   ],
   "apiSurface": {
+    "packages/engine/src/client.js": {
+      "provides": "named entry `@agon-engine/engine/client`: play session, game controller, intents, messages, board frame, HUD and overlay models, window size (#828)"
+    },
+    "packages/engine/src/authoring.js": {
+      "provides": "named entry `@agon-engine/engine/authoring`: authorLevel, character sheet, recorded solver adapter, playtest catalogue (#828)"
+    },
+    "packages/engine/src/skin.js": {
+      "provides": "named entry `@agon-engine/engine/skin`: palette, element visuals, board sprite pixels, resource bundle with dressing and element art (#828)"
+    },
+    "packages/engine/src/vocabulary.js": {
+      "provides": "named entry `@agon-engine/engine/vocabulary`: affinity kinds and expressions, vitals, motivations, sound cues (#828)"
+    },
+    "packages/engine/src/terminal.js": {
+      "provides": "named entry `@agon-engine/engine/terminal`: the reference terminal client (createGame, screen, key decoding, ANSI to HTML) (#828)"
+    },
     "packages/runtime/src/runner/character-sheet.js": {
       "provides": "character configuration screen model and pipeline"
     },
@@ -25,9 +41,6 @@
     },
     "packages/runtime/src/controls/messages.js": {
       "provides": "the shared message wording and view readers every client uses (#505)"
-    },
-    "packages/runtime/src/contracts/domain-constants.js": {
-      "provides": "affinity/expression/motivation vocabularies"
     },
     "packages/runtime/src/contracts/sound-cues.js": {
       "provides": "sound cue vocabulary for the play session's turn results (#757)"
@@ -117,6 +130,9 @@
     },
     "packages/ui-ascii/src/character-screen.js": {
       "why": "the reference character sheet draws affinity colours"
+    },
+    "packages/engine/src/skin.js": {
+      "why": "the named skin entry re-exports it (#828)"
     }
   }
 }

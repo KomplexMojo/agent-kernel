@@ -6,13 +6,19 @@ Agon is the engine; games (Primordial is the first) are built on it. This page s
 
 The public API is exactly the modules listed in `apiSurface` in `tests/architecture/framework-game-boundary.json` (below), plus the `agon` CLI and the `agon_*` MCP tools. A game imports `@agon-engine/*` modules from that list and nothing else; it never imports `core-ts`. Anything not listed is internal and may change without notice.
 
+**Import the five named entries** (#828): `@agon-engine/engine/client`, `/authoring`, `/skin`, `/vocabulary` and `/terminal`. They are the first five rows; each only re-exports, and `tests/architecture/engine-entry-points.test.js` pins its names. The file-path rows under them are the same modules by their place in the repository. They stay as aliases until the first game has moved to the entries and are then removed in a minor release, so new code should not use them.
+
 | Module | Provides |
 |---|---|
+| `packages/engine/src/client.js` | named entry `@agon-engine/engine/client`: play session, game controller, intents, messages, board frame, HUD and overlay models, window size (#828) |
+| `packages/engine/src/authoring.js` | named entry `@agon-engine/engine/authoring`: authorLevel, character sheet, recorded solver adapter, playtest catalogue (#828) |
+| `packages/engine/src/skin.js` | named entry `@agon-engine/engine/skin`: palette, element visuals, board sprite pixels, resource bundle with dressing and element art (#828) |
+| `packages/engine/src/vocabulary.js` | named entry `@agon-engine/engine/vocabulary`: affinity kinds and expressions, vitals, motivations, sound cues (#828) |
+| `packages/engine/src/terminal.js` | named entry `@agon-engine/engine/terminal`: the reference terminal client (createGame, screen, key decoding, ANSI to HTML) (#828) |
 | `packages/runtime/src/runner/character-sheet.js` | character configuration screen model and pipeline |
 | `packages/runtime/src/controls/intents.js` | the shared controls: intents, default key bindings as data (logical key names), help text (#505) |
 | `packages/runtime/src/controls/game-controller.js` | the shared game controller: intents to play-session commands, panels, `frame()` for any client to draw, `pointAt` for taps (#505) |
 | `packages/runtime/src/controls/messages.js` | the shared message wording and view readers every client uses (#505) |
-| `packages/runtime/src/contracts/domain-constants.js` | affinity/expression/motivation vocabularies |
 | `packages/runtime/src/contracts/sound-cues.js` | sound cue vocabulary for the play session's turn results (#757) |
 | `packages/runtime/src/contracts/game-elements.js` | skin: GAME_COLOR_PALETTE, element visuals, asset and icon ids (re-exports the vocabulary) |
 | `packages/runtime/src/commands/author-level.js` | author a level through the personas |
@@ -33,7 +39,7 @@ The public API is exactly the modules listed in `apiSurface` in `tests/architect
 
 ## Installing
 
-The published package is `@agon-engine/engine` (public npm, built JavaScript). Each module above is importable as `@agon-engine/engine/<package>/<path under src>`, e.g. `@agon-engine/engine/runtime/render/client-surface.js`. The two command lines are built as single files you spawn with `node`: `@agon-engine/engine/adapters-cli/cli/agon.mjs` and `@agon-engine/engine/ui-ascii/character-cli.mjs` (`playtest-scenarios.js` exports `AGON_CLI`, the resolved path of the first). `z3-solver` and `ws` are optional peer dependencies for solver and bridge commands. In development the unbuilt workspace packages are used directly; `pnpm run build:engine` builds the bundle, and `tests/architecture/engine-bundle.test.js` keeps its exports equal to `apiSurface`.
+The published package is `@agon-engine/engine` (public npm, built JavaScript). The named entries are importable as `@agon-engine/engine/<name>`, e.g. `@agon-engine/engine/client`; each other module above as `@agon-engine/engine/<package>/<path under src>`, e.g. `@agon-engine/engine/runtime/render/client-surface.js`. The two command lines are built as single files you spawn with `node`: `@agon-engine/engine/adapters-cli/cli/agon.mjs` and `@agon-engine/engine/ui-ascii/character-cli.mjs` (`playtest-scenarios.js` exports `AGON_CLI`, the resolved path of the first). `z3-solver` and `ws` are optional peer dependencies for solver and bridge commands. In development the unbuilt workspace packages are used directly; `pnpm run build:engine` builds the bundle, and `tests/architecture/engine-bundle.test.js` keeps its exports equal to `apiSurface`.
 
 ## Stability policy (0.x)
 
