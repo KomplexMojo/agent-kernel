@@ -8,7 +8,7 @@ const ROOT = resolve(__dirname, "../..");
 const FACADE = "packages/runtime/src/render/client-surface.js";
 
 const PINNED = [
-  "HUD_VITAL_LABELS", "ENTITY_SPRITE_ROLES", "ICON_SHAPES", "PLAY_COMMAND_KINDS", "PLAY_DIRECTIONS",
+  "HUD_VITAL_LABELS", "WALL_NEIGHBOUR_BITS", "ENTITY_SPRITE_ROLES", "ICON_SHAPES", "PLAY_COMMAND_KINDS", "PLAY_DIRECTIONS",
   "PLAY_DIRECTION_STEPS", "PLAY_SIGHT", "RESOURCE_BUNDLE_DRESSING_SCHEMA", "RESOURCE_BUNDLE_SCHEMA", "buildActorHudModel", "buildIconModel",
   "buildBoardDrawModel", "buildAffinityBoardOverlayModel", "createDefaultResourceBundleArtifact", "createPlaySession", "listResourceBundleAssetFiles",
   "normalizeEntitySpriteState", "normalizePlayCommand", "replayPlaySession", "dressResourceBundle", "elementArtCoverage", "elementKeyFor", "resolveElementArt", "validateResourceBundleArtifact", "validateResourceBundleDressing",

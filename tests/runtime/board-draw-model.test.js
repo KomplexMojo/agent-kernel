@@ -65,6 +65,30 @@ test("walls, floor, spawn and exit come through as tile kinds", async () => {
   assert.ok(!kinds.has("fog"), "a view without fog has no fog cells");
 });
 
+test("wall cells carry the mask behind their ASCII glyph, fog cells and non-walls carry none (#817)", async () => {
+  const { buildBoardDrawModel } = await import("../../packages/runtime/src/render/board-draw-model.js");
+  const { wallGlyph, WALL_NEIGHBOUR_BITS: B } = await import("../../packages/runtime/src/render/wall-glyphs.js");
+  const glyphOf = (mask) => wallGlyph({ north: Boolean(mask & B.north), east: Boolean(mask & B.east), south: Boolean(mask & B.south), west: Boolean(mask & B.west) });
+  for (const fog of [false, true]) {
+    const session = await open("first-steps", fog);
+    if (fog) for (const direction of ["north", "north", "west", "west"]) await session.act({ kind: "move", params: { direction } });
+    const view = session.view();
+    const model = buildBoardDrawModel(view);
+    let walls = 0;
+    model.cells.forEach((row, y) => row.forEach((cell, x) => {
+      if (cell.tile === "wall") {
+        walls += 1;
+        assert.ok(Number.isInteger(cell.wallMask) && cell.wallMask >= 0 && cell.wallMask <= 15, `wall ${x},${y} has no mask`);
+        assert.equal(glyphOf(cell.wallMask), view.rows[y][x], `mask at ${x},${y} disagrees with the ASCII glyph`);
+      } else {
+        assert.ok(!("wallMask" in cell), `${cell.tile} at ${x},${y} carries a mask`);
+      }
+    }));
+    assert.ok(walls > 0);
+    if (fog) assert.ok(model.cells.flat().some((c) => c.tile === "wall" && c.sight === "r"), "expected a remembered wall");
+  }
+});
+
 test("a view that is not a play view is refused", async () => {
   const { buildBoardDrawModel } = await import("../../packages/runtime/src/render/board-draw-model.js");
   assert.throws(() => buildBoardDrawModel({}), /play-session view is required/);
