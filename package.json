@@ -1,6 +1,6 @@
 {
   "name": "agon",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Agon, a deterministic Ports & Adapters simulation engine where players and AI agents contest under one rule set.",
   "main": "index.js",
   "directories": {
@@ -40,9 +40,6 @@
   "author": "",
   "license": "PolyForm-Strict-1.0.0",
   "private": true,
-  "dependencies": {
-    "phaser": "^4.1.0"
-  },
   "workspaces": [
     "packages/*"
   ],

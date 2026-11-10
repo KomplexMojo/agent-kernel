@@ -3,6 +3,9 @@
   "version": "0.5.1",
   "description": "Agon, a deterministic simulation engine where players and AI agents contest under one rule set. Built bundle of the public API.",
   "type": "module",
+  "bin": {
+    "agon": "./dist/adapters-cli/cli/agon.mjs"
+  },
   "license": "SEE LICENSE IN LICENSE.md",
   "repository": {
     "type": "git",

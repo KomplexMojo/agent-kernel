@@ -29,6 +29,19 @@ describe("engine bundle", () => {
     }
   }, 60000);
 
+  // #822: the package installs an `agon` command and says how to use the entries.
+  it("the agon bin is a built executable with a shebang, and the README names every entry", async () => {
+    expect(pkg.bin).toEqual({ agon: "./dist/adapters-cli/cli/agon.mjs" });
+    expect(Object.values(engineExports())).toContain(pkg.bin.agon);
+    const outDir = path.join(mkdtempSync(path.join(tmpdir(), "agon-engine-")), "dist");
+    await buildEngine({ outDir });
+    expect(readFileSync(path.join(outDir, pkg.bin.agon.replace("./dist/", "")), "utf8").startsWith("#!/usr/bin/env node\n")).toBe(true);
+    const readme = readFileSync(path.join(root, "packages/engine/README.md"), "utf8");
+    for (const key of Object.keys(pkg.exports).filter((k) => /^\.\/[a-z]+(\/browser)?$/.test(k))) {
+      expect(readme, key).toContain(`@agon-engine/engine/${key.slice(2)}`);
+    }
+  }, 60000);
+
   it("the playtest module finds its data file and a working agon command line (#796)", async () => {
     const outDir = path.join(mkdtempSync(path.join(tmpdir(), "agon-engine-")), "dist");
     await buildEngine({ outDir });
