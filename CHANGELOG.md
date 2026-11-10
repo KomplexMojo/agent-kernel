@@ -2,6 +2,16 @@
 
 The engine API contract and stability policy are in `docs/engine-api.md`. Entries name changes to the public API (`apiSurface`, `agon`, `agon_*` MCP tools) only.
 
+## 0.5.0
+
+### Changed (rules)
+
+No API change. These change prices and mana costs, so levels and characters built on 0.4.0 price differently.
+
+- A harmful kind whose primary vital is health, which is decay today, pays 3 mana a tier for a push or pull where every other kind pays 2 (#833), because its hits go past armour. Emit and draw cost what they did. The `archer` recipe's decay push drops from range 5 to 4 (still 120 mana a shot) and the `leech` recipe's mana rises from 30 to 36, so each can still pay for its cast.
+- Mana regen is priced linearly at 3 tokens a point (#834); it was n² like the other regens. Regen 1 costs 3 (was 1), regen 3 costs 9 either way, and anything above is cheaper: regen 18, which casts intensity 3 every turn, costs 54 instead of 324. Health, stamina and durability regen are still n². Every actor carries at least 1 mana regen, so the cheapest actor costs 2 tokens more and minimum level budgets rise with it; recipes that lean on mana regen cost less (`glass-cannon` 432 → 362, `wellspring` 475 → 405 as delvers).
+- The 21 configuration recipes are retuned into one price band after the two changes above (#841): every recipe costs 420 to 460 tokens as a delver (they ran 279 to 463). Fifteen recipes gained vitals and mana regen in what they are for; none changed its affinities, ranges or intensities. `scout`, `sneak`, `lantern-bearer` and `watcher` now regenerate enough mana to keep their field lit.
+
 ## 0.4.0
 
 ### Added
@@ -15,9 +25,6 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 ### Changed (rules)
 
 - A same-kind slot resists by its own size instead of cancelling the hit (#831). A push or emit slot of the incoming kind takes its expression's base × its intensity² off each hit of that kind (an emit of intensity 1 takes 1, a push of intensity 2 takes 8); the strongest such slot counts, once, and an opposite slot or a breach doubles only what gets past. Before, any such slot, however small, was total immunity. A same-kind draw still absorbs the whole hit into mana.
-- Mana regen is priced linearly at 3 tokens a point (#834); it was n² like the other regens. Regen 1 costs 3 (was 1), regen 3 costs 9 either way, and anything above is cheaper: regen 18, which casts intensity 3 every turn, costs 54 instead of 324. Health, stamina and durability regen are still n². Every actor carries at least 1 mana regen, so the cheapest actor costs 2 tokens more and minimum level budgets rise with it; recipes that lean on mana regen cost less (`glass-cannon` 432 → 362, `wellspring` 475 → 405 as delvers).
-- The 21 configuration recipes are retuned into one price band after the changes above (#841): every recipe costs 420 to 460 tokens as a delver (they ran 279 to 463). Fifteen recipes gained vitals and mana regen in what they are for; none changed its affinities, ranges or intensities. `scout`, `sneak`, `lantern-bearer` and `watcher` now regenerate enough mana to keep their field lit.
-- A harmful kind whose primary vital is health, which is decay today, pays 3 mana a tier for a push or pull where every other kind pays 2 (#833), because its hits go past armour. Emit and draw cost what they did. The `archer` recipe's decay push drops from range 5 to 4 (still 120 mana a shot) and the `leech` recipe's mana rises from 30 to 36, so each can still pay for its cast.
 - A harmful kind's pull or draw credits its caster half of what the target's vital gave up, rounded down (#832). The target loses what it lost before. Restoring kinds (growth, fortify, light) still credit in full.
 
 ### Fixed
