@@ -12,6 +12,11 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 - `@agon-engine/engine/runtime/contracts/domain-constants.js` is no longer public (#828). It exported 80 internal names, among them the engine's LLM prompt builders and model settings; no game imported it. The vocabulary a game needs (`GAME_AFFINITY_KINDS`, `GAME_AFFINITY_EXPRESSIONS`, `GAME_VITAL_KEYS`, the motivation lists) is on `@agon-engine/engine/vocabulary`.
 
+### Changed (rules)
+
+- A same-kind slot resists by its own size instead of cancelling the hit (#831). A push or emit slot of the incoming kind takes its expression's base × its intensity² off each hit of that kind (an emit of intensity 1 takes 1, a push of intensity 2 takes 8); the strongest such slot counts, once, and an opposite slot or a breach doubles only what gets past. Before, any such slot, however small, was total immunity. A same-kind draw still absorbs the whole hit into mana.
+- A harmful kind's pull or draw credits its caster half of what the target's vital gave up, rounded down (#832). The target loses what it lost before. Restoring kinds (growth, fortify, light) still credit in full.
+
 ### Fixed
 
 - A run with no controlled actor (`agon run`, the simulations) no longer hibernates anyone. The hibernation focus fell back to the level's first actor, so every actor more than 50 tiles from that arbitrary one never decided for the whole run (#702; in `sweep-big-20k`, four patrolling guards were silent for 150 turns). Play sessions, which name their seat, are unchanged.

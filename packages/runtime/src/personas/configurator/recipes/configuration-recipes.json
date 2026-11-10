@@ -95,7 +95,7 @@
           "intensity": 1
         }
       ],
-      "weaknesses": "The field hurts allies too; a water carrier takes double from it; a fire emitter is immune to it.",
+      "weaknesses": "The field hurts allies too; a water carrier takes double from it; a fire emitter takes its own emit's strength off it.",
       "strategies": [
         "kite",
         "hit-and-fade",
@@ -614,7 +614,7 @@
       "name": "spellward",
       "title": "Spellward",
       "archetype": "abjurer",
-      "description": "Against a dungeon built on one kind: its draw absorbs that kind's fields and its emit makes it immune.",
+      "description": "Against a dungeon built on one kind: its draw absorbs that kind's fields and its emit takes its own strength off every hit of that kind.",
       "vitals": {
         "health": {
           "max": 30,

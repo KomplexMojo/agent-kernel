@@ -89,7 +89,7 @@ direct vital effects and
 actual-amount transfers. `actor-exposure.ts` applies
 preprojected effects with a per-slot strength that caps what each receiver takes
 (every receiver in range takes its own exposure, never a share consumed in id order,
-#347) and capped mana absorption. Every pull and draw steals its kind's primary vital, and a
+#347) and capped mana absorption. Every pull and draw steals its kind's primary vital (a harmful kind credits its caster half of it, #832), and a
 harmful kind spills the rest into the target's defeat vital; nothing is suppressed (#354). `actor-fields.ts` uses existing radius, intensity and
 local opposition arithmetic to project active living equipment. It retains
 light/dark field observations and re-observes defeat without another pulse.
@@ -97,8 +97,8 @@ light/dark field observations and re-observes defeat without another pulse.
 `castFocusedActorAffinity` checks focused range and the authored mana price before
 writes, spends one actor pool and returns the vital changes. A cast
 meets the same receiver rules as a field (`rules/actor-receiver.ts`, #348): a same-kind
-draw absorbs it into mana, a same-kind slot the interaction table makes immune takes
-nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
+draw absorbs it into mana, a same-kind push or emit slot takes its own size off the hit (#831:
+its expression's base × its intensity², so a small slot no longer cancels a large hit), an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
 is taken after a cast's effect, so mana the cast brings back to its caster (a mana steal, a mana
 restore on itself) never refunds it: every use costs mana (#369). Every landed
 push or pull (#419, #482) also moves what it hits: a push away from the caster, a pull toward it,

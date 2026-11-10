@@ -1,7 +1,7 @@
 import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 import { getAffinityExpressionBaseMagnitude, scaleAffinityVitalEffect } from '../state/affinity.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import { AFFINITY_TABLE, isOutwardAffinityExpression } from '../state/affinity-table.ts';
+import { AFFINITY_RECEIVER_RULES, AFFINITY_TABLE, isOutwardAffinityExpression } from '../state/affinity-table.ts';
 import type { AffinityKind, AffinityExpression, ActorVitalKind } from '../state/actor-types.ts';
 
 function applyEffect(effect: Effect, amount: number, defeatVital: ActorVitalKind,
@@ -9,8 +9,12 @@ function applyEffect(effect: Effect, amount: number, defeatVital: ActorVitalKind
   transfer: (vital: ActorVitalKind, amount: number) => void): void {
   if (effect.operation === 'restore') { change(effect.vital, amount); return; }
   const removed = -change(effect.vital, -amount);
-  // #354: a steal credits the source with what the primary vital gave up, never the spill.
-  if (effect.operation === 'drain') transfer(effect.vital, removed);
+  // #354: a steal credits the source from what the primary vital gave up, never the spill. #832:
+  // a harmful kind's steal (a row with a spill) credits half of it, rounded down; a restoring
+  // kind's top-up (#537) credits all of it.
+  if (effect.operation === 'drain') {
+    transfer(effect.vital, effect.overflow ? Math.floor(removed / AFFINITY_RECEIVER_RULES.harmfulStealCreditDivisor) : removed);
+  }
   // #353: the remainder spills into the target's own defeat vital.
   if (effect.overflow && amount > removed && defeatVital !== effect.vital) change(defeatVital, -(amount - removed));
 }

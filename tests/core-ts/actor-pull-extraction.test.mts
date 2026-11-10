@@ -48,7 +48,9 @@ for (const { kind, primaryVital, spill } of AFFINITY_TABLE) {
     for (const key of VITALS) {
       const price = key === 'mana' ? PULL_PRICE : 0;
       expect(target![key]).toBe(start(key) - (key === primaryVital ? PULL_HIT : 0));
-      expect(me[key]).toBe(start(key) + (key === primaryVital ? PULL_HIT : 0) - price);
+      // #832: a harmful kind's steal credits half; a restoring kind's top-up credits all of it.
+      const credit = spill ? Math.floor(PULL_HIT / 2) : PULL_HIT;
+      expect(me[key]).toBe(start(key) + (key === primaryVital ? credit : 0) - price);
     }
   });
 

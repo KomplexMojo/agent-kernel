@@ -167,7 +167,7 @@ export function castFocusedActorAffinity(
   }
   const amount = actorAffinityMagnitude(pair.expression, affinityIntensity(pair));
   // The receiver rules fields apply (#348): a same-kind draw absorbs into mana, a same-kind
-  // slot the interaction table makes immune takes nothing, an opposite slot doubles harm.
+  // slot resists by its own size (#831), an opposite slot doubles harm.
   // A cast at oneself meets none of them, as a field never exposes its own source.
   if (sourceId !== targetId && receiverAbsorbsAffinity(target, pair)) {
     pay();

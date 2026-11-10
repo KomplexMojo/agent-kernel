@@ -47,8 +47,8 @@ test('a harmful pull steals durability, spills into health, and leaves the emit 
     expect(state.getActor('target')!.vitals.durability!.current).toBe(0);
     expect(state.getActor('source')!.vitals.durability!.current).toBe(0);
     expect(state.getActor('source')!.vitals.health!.current).toBe(8);
-    // The puller gains what durability gave up, capped at its max; the spill is not credited.
-    expect(state.getActor('puller')!.vitals.durability!.current).toBe(3);
+    // The puller gains half of what durability gave up, rounded down (#832); the spill is not credited.
+    expect(state.getActor('puller')!.vitals.durability!.current).toBe(2);
     expect(state.getActor('puller')!.vitals.health!.current).toBe(10);
   }
 });

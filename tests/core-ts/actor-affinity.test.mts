@@ -32,6 +32,7 @@ for (const expression of ['push', 'emit'] as const) {
 // #354: every inward use steals its primary vital; a harmful kind spills the rest into
 // the target's defeat vital (health here), and the source is credited only the primary.
 // #537: a restoring kind (no spill) takes at most what the source lacks of that vital.
+// #832: a harmful kind (a spill) credits the source half of what the primary gave up, rounded down.
 for (const expression of ['pull', 'draw'] as const) {
   test.each(positive)(`${expression} routes %s as a steal`, (kind) => {
     const state = registry(); const before = state.snapshot();
@@ -42,7 +43,7 @@ for (const expression of ['pull', 'draw'] as const) {
     const sourcePool = before.actors.find(a => a.id === 'source')!.vitals[key]!;
     const removed = Math.min(5, initial, row.spill ? Infinity : sourcePool.max - sourcePool.current);
     expect(state.getActor('target')!.vitals[key]!.current).toBe(initial - removed);
-    expect(state.getActor('source')!.vitals[key]!.current).toBe(Math.min(sourcePool.max, sourcePool.current + removed));
+    expect(state.getActor('source')!.vitals[key]!.current).toBe(Math.min(sourcePool.max, sourcePool.current + (row.spill ? Math.floor(removed / 2) : removed)));
     const spill = row.spill && key !== 'health' ? 5 - removed : 0;
     if (key !== 'health') expect(state.getActor('target')!.vitals.health!.current).toBe(10 - spill);
     if (key !== 'health') expect(state.getActor('source')!.vitals.health!.current).toBe(10);
