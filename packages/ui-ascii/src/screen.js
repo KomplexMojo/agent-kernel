@@ -20,6 +20,7 @@ import {
 import { PLAY_SIGHT, PLAYER_MOTIVATION } from "../../runtime/src/runner/play-session.js";
 import { ASCII_AIM_GLYPH, ASCII_ENTITY_GLYPHS, ASCII_FIELD_MARK_GLYPH, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
+import { playWindowBounds } from "../../runtime/src/render/window-size.js";
 import { GAME_COLOR_PALETTE } from "../../runtime/src/contracts/game-elements.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 import { conditionNote } from "../../runtime/src/render/battle-log-lines.js";
@@ -525,11 +526,7 @@ function paintBoard({ board, view, styles, actorCells, color, windowSize, aim = 
   const height = board.length;
   const width = Math.max(0, ...board.map((row) => [...row].length));
   const size = Number.isInteger(windowSize) && windowSize > 0 && player ? windowSize : null;
-  const clamp = (value, max) => Math.max(0, Math.min(value, Math.max(0, max)));
-  const x0 = size ? clamp(player.x - Math.floor(size / 2), width - size) : 0;
-  const y0 = size ? clamp(player.y - Math.floor(size / 2), height - size) : 0;
-  const x1 = size ? Math.min(width, x0 + size) : width;
-  const y1 = size ? Math.min(height, y0 + size) : height;
+  const { x0, y0, x1, y1 } = playWindowBounds({ width, height, windowSize, center: player });
   const cut = (value) => (size && value !== undefined && value !== null ? value.slice(x0, x1) : value);
   const rows = [];
   for (let y = y0; y < y1; y += 1) {
