@@ -2,7 +2,7 @@
 
 The engine API contract and stability policy are in `docs/engine-api.md`. Entries name changes to the public API (`apiSurface`, `agon`, `agon_*` MCP tools) only.
 
-## Unreleased
+## 0.5.1
 
 ### Added
 
