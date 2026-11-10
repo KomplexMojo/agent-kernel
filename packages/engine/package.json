@@ -24,6 +24,7 @@
     "./adapters-cli/cli/playtest-scenarios.js": "./dist/adapters-cli/cli/playtest-scenarios.js",
     "./adapters-web/adapters/solver-recorded/index.js": "./dist/adapters-web/adapters/solver-recorded/index.js",
     "./authoring": "./dist/authoring.js",
+    "./authoring/browser": "./dist/authoring/browser.js",
     "./client": "./dist/client.js",
     "./skin": "./dist/skin.js",
     "./terminal": "./dist/terminal.js",

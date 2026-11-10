@@ -6,12 +6,13 @@ Agon is the engine; games (Primordial is the first) are built on it. This page s
 
 The public API is exactly the modules listed in `apiSurface` in `tests/architecture/framework-game-boundary.json` (below), plus the `agon` CLI and the `agon_*` MCP tools. A game imports `@agon-engine/*` modules from that list and nothing else; it never imports `core-ts`. Anything not listed is internal and may change without notice.
 
-**Import the five named entries** (#828): `@agon-engine/engine/client`, `/authoring`, `/skin`, `/vocabulary` and `/terminal`. They are the first five rows; each only re-exports, and `tests/architecture/engine-entry-points.test.js` pins its names. The file-path rows under them are the same modules by their place in the repository. They stay as aliases until the first game has moved to the entries and are then removed in a minor release, so new code should not use them.
+**Import the named entries** (#828): `@agon-engine/engine/client`, `/authoring`, `/skin`, `/vocabulary` and `/terminal`, plus `/authoring/browser` (#846), which is `/authoring` without the playtest catalogue and is the one a browser bundle imports (the catalogue reads files). They are the first six rows; each only re-exports, and `tests/architecture/engine-entry-points.test.js` pins its names. The file-path rows under them are the same modules by their place in the repository. They stay as aliases until the first game has moved to the entries and are then removed in a minor release, so new code should not use them.
 
 | Module | Provides |
 |---|---|
 | `packages/engine/src/client.js` | named entry `@agon-engine/engine/client`: play session, game controller, intents, messages, board frame, HUD and overlay models, window size (#828) |
 | `packages/engine/src/authoring.js` | named entry `@agon-engine/engine/authoring`: authorLevel, character sheet, recorded solver adapter, playtest catalogue (#828) |
+| `packages/engine/src/authoring/browser.js` | named entry `@agon-engine/engine/authoring/browser`: authorLevel, character sheet, recorded solver adapter, with no Node builtin in the import graph; the entry a browser bundle uses (#846) |
 | `packages/engine/src/skin.js` | named entry `@agon-engine/engine/skin`: palette, element visuals, board sprite pixels, resource bundle with dressing and element art (#828) |
 | `packages/engine/src/vocabulary.js` | named entry `@agon-engine/engine/vocabulary`: affinity kinds and expressions, vitals, motivations, sound cues (#828) |
 | `packages/engine/src/terminal.js` | named entry `@agon-engine/engine/terminal`: the reference terminal client (createGame, screen, key decoding, ANSI to HTML) (#828) |
