@@ -21,6 +21,9 @@
     "packages/engine/src/authoring.js": {
       "provides": "named entry `@agon-engine/engine/authoring`: authorLevel, character sheet, recorded solver adapter, playtest catalogue (#828)"
     },
+    "packages/engine/src/authoring/browser.js": {
+      "provides": "named entry `@agon-engine/engine/authoring/browser`: authorLevel, character sheet, recorded solver adapter, with no Node builtin in the import graph; the entry a browser bundle uses (#846)"
+    },
     "packages/engine/src/skin.js": {
       "provides": "named entry `@agon-engine/engine/skin`: palette, element visuals, board sprite pixels, resource bundle with dressing and element art (#828)"
     },

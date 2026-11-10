@@ -2,6 +2,12 @@
 
 The engine API contract and stability policy are in `docs/engine-api.md`. Entries name changes to the public API (`apiSurface`, `agon`, `agon_*` MCP tools) only.
 
+## Unreleased
+
+### Added
+
+- `@agon-engine/engine/authoring/browser` (#846): `authorLevel`, the character sheet and the recorded solver adapter with no Node builtin in the import graph, so a browser bundle can import them. `/authoring` is unchanged and still adds the playtest catalogue, which a Node build script uses. Additive; a test bundles the entry for a browser and fails on any `node:` import.
+
 ## 0.5.1
 
 ### Added

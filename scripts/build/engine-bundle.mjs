@@ -35,9 +35,10 @@ const DATA_FILES = ["packages/adapters-cli/src/cli/playtest-scenarios.json"];
 /**
  * The named entry points (#828): `packages/engine/src/<name>.js`, published as `./<name>`. Each
  * only re-exports other modules, so its built file is its source with every specifier pointed at
- * the built module beside it; nothing is bundled twice and no module moves.
+ * the built module beside it; nothing is bundled twice and no module moves. One level of nesting
+ * is allowed (`authoring/browser`, #846).
  */
-const FACADE = /^packages\/engine\/src\/([^/]+)\.js$/;
+const FACADE = /^packages\/engine\/src\/([^/]+(?:\/[^/]+)?)\.js$/;
 export const isFacade = (modulePath) => FACADE.test(modulePath);
 
 /** The repo paths a facade re-exports from. */
@@ -117,9 +118,13 @@ export async function buildEngine({ outDir = path.join(root, "packages/engine/di
   for (const facade of facades) {
     const built = readFileSync(path.join(root, facade), "utf8").replace(/\bfrom\s+"([^"]+)"/g, (whole, specifier) => {
       const target = path.relative(root, path.resolve(root, path.dirname(facade), specifier)).split(path.sep).join("/");
-      return `from "${publicSubpath(target)}"`;
+      const from = path.posix.dirname(publicSubpath(facade));
+      const relative = path.posix.relative(from, publicSubpath(target));
+      return `from "${relative.startsWith(".") ? relative : `./${relative}`}"`;
     });
-    writeFileSync(path.join(outDir, `${publicSubpath(facade).slice(2)}.js`), built);
+    const builtFile = path.join(outDir, `${publicSubpath(facade).slice(2)}.js`);
+    mkdirSync(path.dirname(builtFile), { recursive: true });
+    writeFileSync(builtFile, built);
   }
   return { outDir, entries: [...Object.keys(libraries), ...Object.keys(executables), ...facades.map((m) => publicSubpath(m).slice(2))] };
 }

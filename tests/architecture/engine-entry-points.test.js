@@ -12,6 +12,7 @@ const ENGINE = JSON.parse(readFileSync(resolve(ROOT, "packages/engine/package.js
 const PINNED = {
   "client": ["ENTITY_SPRITE_ROLES", "HELP_LINES", "HOLD_ORDER_TICKS", "HUD_VITAL_LABELS", "ICON_SHAPES", "INTENT", "INTENT_BINDINGS", "LEVELS", "MOVE_BINDINGS", "MOVE_DIRECTIONS", "PLAY_COMMAND_KINDS", "PLAY_DIRECTIONS", "PLAY_DIRECTION_STEPS", "PLAY_SIGHT", "REJECTION_MESSAGES", "RESOURCE_BUNDLE_DRESSING_SCHEMA", "RESOURCE_BUNDLE_SCHEMA", "ROLE_NAME", "ROLE_TAG", "TILE_CSS_PX", "VITAL_LINE_LIMIT", "WALL_BLOB_BITS", "WALL_BLOB_MASKS", "WALL_NEIGHBOUR_BITS", "WATCH_BINDINGS", "WATCH_HELP_LINES", "WATCH_INTENT", "WINDOW_DEFAULT", "WINDOW_MAX", "WINDOW_MIN", "affinityLabel", "affinityRole", "affinityTraitKinds", "aimLabel", "allyWarningLines", "battleLines", "buildActorHudModel", "buildAffinityBoardOverlayModel", "buildBoardDrawModel", "buildBoardFrame", "buildIconModel", "castable", "changeLabel", "chebyshev", "createDefaultResourceBundleArtifact", "createGameController", "createPlaySession", "currentMana", "dressResourceBundle", "elementArtCoverage", "elementKeyFor", "equippedKeys", "grantLabel", "hasAttackOption", "intentForLogicalKey", "keyLabel", "listResourceBundleAssetFiles", "lootLabel", "normalizeEntitySpriteState", "normalizePlayCommand", "orderChoices", "playWindowBounds", "rejectionMessage", "replayPlaySession", "resolveElementArt", "runningLevel", "signed", "slotLevelLabel", "takeRefusal", "targetsInSight", "validateResourceBundleArtifact", "validateResourceBundleDressing", "vitalChangeLine", "wallBlobSlot", "watchIntentForLogicalKey", "windowSizeForTerminal", "windowSizeForViewport"],
   "authoring": ["AGON_CLI", "MINION_FIELDS", "NUMERIC_FIELDS", "SHEET_AFFINITY_ROWS", "SHEET_INTENT", "SLOT_FIELDS", "SLOT_KIND_CHOICES", "VITAL_FIELDS", "affinitiesForSeed", "authorLevel", "createArgs", "createCharacterSheet", "createRecordedSolverAdapter", "fillFocus", "loadPlaytestScenarios", "playerDelverSpec", "runHostedAuthoringBuild", "scenarioArgs", "sheetChoicesFromSpec", "traitKinds", "traitsInPlay"],
+  "authoring/browser": ["MINION_FIELDS", "NUMERIC_FIELDS", "SHEET_AFFINITY_ROWS", "SHEET_INTENT", "SLOT_FIELDS", "SLOT_KIND_CHOICES", "VITAL_FIELDS", "authorLevel", "createCharacterSheet", "createRecordedSolverAdapter", "runHostedAuthoringBuild", "sheetChoicesFromSpec"],
   "skin": ["ENTITY_SPRITE_CANONICAL_SIZE", "ENTITY_SPRITE_OUTLINE_DARK", "ENTITY_SPRITE_OUTLINE_LIGHT", "ENTITY_SPRITE_ROLES", "GAME_AFFINITY_COLOR_HEX", "GAME_AFFINITY_EXPRESSIONS", "GAME_AFFINITY_KINDS", "GAME_AFFINITY_TEXT_COLOR_HEX", "GAME_COLOR_PALETTE", "GAME_ELEMENT_ASSET_IDS", "GAME_ELEMENT_ICON_KEYS", "GAME_ELEMENT_VISUALS", "GAME_ICON_FALLBACKS", "GAME_MOTIVATION_DISPLAY_GROUPS", "GAME_MOTIVATION_FAMILIES", "GAME_MOTIVATION_KINDS", "GAME_MOTIVATION_KIND_IDS", "GAME_VITAL_KEYS", "RESOURCE_BUNDLE_DRESSING_SCHEMA", "RESOURCE_BUNDLE_SCHEMA", "composeEntitySprite", "createDefaultResourceBundleArtifact", "dressResourceBundle", "elementArtCoverage", "elementKeyFor", "getGameElementVisual", "getGameElementVisualEntries", "getResourceBundleAssetSpecs", "listResourceBundleAssetFiles", "normalizeEntitySpriteState", "outlineForFill", "relativePathForGameAssetId", "resolveElementArt", "resolveEquippedAffinity", "validateResourceBundleArtifact", "validateResourceBundleDressing"],
   "vocabulary": ["GAME_AFFINITY_EXPRESSIONS", "GAME_AFFINITY_KINDS", "GAME_MOTIVATION_DISPLAY_GROUPS", "GAME_MOTIVATION_FAMILIES", "GAME_MOTIVATION_KINDS", "GAME_MOTIVATION_KIND_IDS", "GAME_VITAL_KEYS", "SOUND_CUE_EVENTS", "SOUND_CUE_SEAT_ROLES"],
   "terminal": ["HELP_LINES", "HOLD_ORDER_TICKS", "INTENT", "WATCH_HELP_LINES", "WATCH_INTENT", "affinityLabel", "affinityLines", "allyWarningLines", "ansiToHtml", "battleLines", "battleLogLines", "createGame", "defeatCause", "defeatSentence", "departuresLine", "exhaustedAffinityNote", "fieldHereLine", "goalLadder", "hudLine", "inSightLine", "inspectionLines", "intentForKey", "logicalKeyForTerminalKey", "motivationNote", "moveCostLine", "ordersLine", "overlayActors", "overlayCastPaths", "overlayDefeatMarks", "overlayFieldMarks", "overlayHazards", "paint", "paintBoardRow", "partyLine", "renderScreen", "revealNote", "revealedDetail", "slotLevelLabel", "soakedNote", "splitKeys", "statusLine", "terminalKeysForLogicalKeys", "vitalChangeLine", "watchIntentForKey", "xterm256Index"]
@@ -41,6 +42,25 @@ test("the vocabulary is published, not the engine's internal constants (#828)", 
   assert.equal(BOUNDARY.apiSurface["packages/runtime/src/contracts/domain-constants.js"], undefined,
     "domain-constants.js carries LLM prompt builders and model settings; games read /vocabulary");
   assert.equal(ENGINE.exports["./runtime/contracts/domain-constants.js"], undefined);
+});
+
+// #846: a phone app bundles `/authoring/browser`, so nothing in its import graph may reach a Node builtin.
+test("authoring/browser bundles for a browser with no Node builtin in its graph (#846)", async () => {
+  const { build } = await import("esbuild");
+  const result = await build({
+    entryPoints: [resolve(ROOT, "packages/engine/src/authoring/browser.js")],
+    bundle: true, format: "esm", platform: "browser", write: false, metafile: true, logLevel: "silent",
+  });
+  const builtins = Object.values(result.metafile.inputs).flatMap((input) => input.imports)
+    .filter((entry) => entry.external || entry.path.startsWith("node:")).map((entry) => entry.path);
+  assert.deepEqual(builtins, []);
+});
+
+test("authoring/browser is a subset of authoring, which adds only the playtest catalogue (#846)", async () => {
+  const browser = await import(resolve(ROOT, "packages/engine/src/authoring/browser.js"));
+  const full = await import(resolve(ROOT, "packages/engine/src/authoring.js"));
+  const missing = Object.keys(browser).filter((name) => full[name] !== browser[name]);
+  assert.deepEqual(missing, []);
 });
 
 // ## TODO: Test Permutations
