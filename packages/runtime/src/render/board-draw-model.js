@@ -39,7 +39,10 @@ export function buildBoardDrawModel(view) {
   const tileOf = tileKindResolver(view.legend);
   const cells = view.rows.map((row, y) => [...row].map((glyph, x) => {
     const sight = view.sight?.[y]?.[x] ?? PLAY_SIGHT.UNKNOWN;
-    return { tile: sight === PLAY_SIGHT.UNKNOWN ? "fog" : tileOf(glyph), sight };
+    if (sight === PLAY_SIGHT.UNKNOWN) return { tile: "fog", sight };
+    const tile = tileOf(glyph);
+    const mask = view.wallMasks?.[y]?.[x];
+    return tile === "wall" && Number.isInteger(mask) ? { tile, sight, wallMask: mask } : { tile, sight };
   }));
   const seen = [
     ...(view.player ? [view.player] : []),

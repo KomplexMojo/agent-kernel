@@ -57,3 +57,19 @@ test("the ASCII set draws - | + and covers every neighbour mask", () => {
   for (const set of Object.values(WALL_GLYPH_SETS)) assert.equal(Object.keys(set).length, 16);
   assert.ok(wallGlyphChars("ascii").every((char) => "-|+".includes(char)));
 });
+
+test("wallMaskAt is the neighbour rule behind wallGlyphAt, with the published bit layout (#817)", async () => {
+  const { wallMaskAt, wallMask, WALL_NEIGHBOUR_BITS } = await import("../../packages/runtime/src/render/wall-glyphs.js");
+  assert.deepEqual({ ...WALL_NEIGHBOUR_BITS }, { north: 1, east: 2, south: 4, west: 8 });
+  assert.equal(wallMask({ north: true, west: true }), 9);
+  const grid = [".#.", "###", ".#."];
+  const isWall = (x, y) => grid[y][x] === "#";
+  const mask = wallMaskAt(3, 3, isWall);
+  const glyph = wallGlyphAt(3, 3, isWall);
+  assert.equal(mask(1, 1), 15);
+  assert.equal(mask(0, 0), null);
+  assert.equal(mask(1, 0), 4);
+  assert.equal(mask(0, 1), 2);
+  for (let y = 0; y < 3; y += 1) for (let x = 0; x < 3; x += 1) assert.equal(mask(x, y) === null, glyph(x, y) === null);
+  assert.equal(wallMaskAt(1, 1, () => true)(0, 0), 0, "an isolated wall has mask 0");
+});

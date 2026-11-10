@@ -13,6 +13,9 @@ const E = 2;
 const S = 4;
 const W = 8;
 
+/** The bit layout of a wall mask (#817), for clients that pick art by connectivity. */
+export const WALL_NEIGHBOUR_BITS = Object.freeze({ north: N, east: E, south: S, west: W });
+
 export const WALL_GLYPH_SETS = Object.freeze({
   unicode: Object.freeze({
     0: "■", [N]: "╵", [E]: "╶", [S]: "╷", [W]: "╴",
@@ -39,6 +42,23 @@ export function wallGlyphChars(set = "unicode") {
 export function wallGlyph({ north = false, east = false, south = false, west = false } = {}, set = "unicode") {
   const glyphs = WALL_GLYPH_SETS[set] ?? WALL_GLYPH_SETS.unicode;
   return glyphs[(north ? N : 0) | (east ? E : 0) | (south ? S : 0) | (west ? W : 0)];
+}
+
+/** The 0..15 connectivity mask of a wall whose neighbours are `{ north, east, south, west }` (booleans). */
+export function wallMask({ north = false, east = false, south = false, west = false } = {}) {
+  return (north ? N : 0) | (east ? E : 0) | (south ? S : 0) | (west ? W : 0);
+}
+
+/**
+ * The mask for every wall cell of a grid, from the same true-grid neighbour rule as `wallGlyphAt`.
+ *
+ * @returns {(x: number, y: number) => number | null} the mask at a cell, null where it is not a wall
+ */
+export function wallMaskAt(width, height, isWall) {
+  const wall = (x, y) => x >= 0 && y >= 0 && x < width && y < height && Boolean(isWall(x, y));
+  return (x, y) => (wall(x, y)
+    ? wallMask({ north: wall(x, y - 1), east: wall(x + 1, y), south: wall(x, y + 1), west: wall(x - 1, y) })
+    : null);
 }
 
 /**
