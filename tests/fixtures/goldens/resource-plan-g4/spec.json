@@ -1871,40 +1871,6 @@
         },
         {
           "category": "barrier",
-          "id": "barrier_2_1",
-          "position": {
-            "x": 2,
-            "y": 1
-          },
-          "vitals": {
-            "durability": {
-              "current": 134,
-              "max": 134,
-              "regen": 1
-            },
-            "health": {
-              "current": 10,
-              "max": 10,
-              "regen": 1
-            },
-            "mana": {
-              "current": 10,
-              "max": 10,
-              "regen": 1
-            }
-          },
-          "affinities": [
-            {
-              "kind": "earth",
-              "expression": "push",
-              "stacks": 1,
-              "intensity": 1
-            }
-          ],
-          "activeAffinityKey": "earth:push"
-        },
-        {
-          "category": "barrier",
           "id": "barrier_3_2",
           "position": {
             "x": 3,

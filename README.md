@@ -99,7 +99,7 @@ npm install @agon-engine/engine
 ```
 
 Each public module is a subpath, for example
-`@agon-engine/engine/runtime/render/client-surface.js`. The full list, and the rules for how it may change, are in
+`@agon-engine/engine/client`. The full list, and the rules for how it may change, are in
 [`docs/engine-api.md`](docs/engine-api.md). A typical game:
 
 1. Generates levels with `agon create` (or the `agon_create` MCP tool), choosing budgets and affinities.

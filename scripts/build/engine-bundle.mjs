@@ -32,8 +32,25 @@ const EXECUTABLE_SOURCE = { "packages/adapters-cli/src/cli/agon.mjs": "packages/
 /** Data files the built modules read from beside themselves, copied next to them. */
 const DATA_FILES = ["packages/adapters-cli/src/cli/playtest-scenarios.json"];
 
-/** `packages/<pkg>/src/<rest>` -> public subpath `./<pkg>/<rest>`. */
+/**
+ * The named entry points (#828): `packages/engine/src/<name>.js`, published as `./<name>`. Each
+ * only re-exports other modules, so its built file is its source with every specifier pointed at
+ * the built module beside it; nothing is bundled twice and no module moves.
+ */
+const FACADE = /^packages\/engine\/src\/([^/]+)\.js$/;
+export const isFacade = (modulePath) => FACADE.test(modulePath);
+
+/** The repo paths a facade re-exports from. */
+export function facadeTargets(modulePath) {
+  const source = readFileSync(path.join(root, modulePath), "utf8");
+  return [...source.matchAll(/\bfrom\s+"([^"]+)"/g)]
+    .map((m) => path.relative(root, path.resolve(root, path.dirname(modulePath), m[1])).split(path.sep).join("/"));
+}
+
+/** `packages/<pkg>/src/<rest>` -> public subpath `./<pkg>/<rest>`; a named entry -> `./<name>`. */
 export function publicSubpath(modulePath) {
+  const facade = FACADE.exec(modulePath);
+  if (facade) return `./${facade[1]}`;
   const match = /^packages\/([^/]+)\/src\/(.+)$/.exec(modulePath);
   if (!match) throw new Error(`apiSurface entry is not under packages/<pkg>/src: ${modulePath}`);
   return `./${match[1]}/${EXECUTABLES.has(modulePath) ? match[2] : match[2].replace(/\.mjs$/, ".js")}`;
@@ -72,7 +89,7 @@ export function engineExports() {
   const exports = { "./package.json": "./package.json" };
   for (const modulePath of Object.keys(boundary.apiSurface).sort()) {
     const subpath = publicSubpath(modulePath);
-    exports[subpath] = `./dist/${subpath.slice(2)}`;
+    exports[subpath] = `./dist/${subpath.slice(2)}${isFacade(modulePath) ? ".js" : ""}`;
   }
   for (const file of DATA_FILES) {
     const subpath = publicSubpath(file.replace(/\.json$/, ".mjs")).replace(/\.js$/, ".json");
@@ -83,7 +100,9 @@ export function engineExports() {
 
 export async function buildEngine({ outDir = path.join(root, "packages/engine/dist") } = {}) {
   rmSync(outDir, { recursive: true, force: true });
-  const all = Object.keys(boundary.apiSurface);
+  const facades = Object.keys(boundary.apiSurface).filter(isFacade);
+  // Everything a named entry re-exports is built as a module of its own, listed or not.
+  const all = [...new Set([...Object.keys(boundary.apiSurface).filter((m) => !isFacade(m)), ...facades.flatMap(facadeTargets)])];
   const entryName = (modulePath) => publicSubpath(modulePath).slice(2).replace(/\.m?js$/, "");
   const common = { bundle: true, format: "esm", platform: "node", target: "node22", logLevel: "warning", plugins: [optionalPeers], external: ["jsonrepair", "@modelcontextprotocol/sdk"] };
   const libraries = Object.fromEntries(all.filter((m) => !EXECUTABLES.has(m)).map((m) => [entryName(m), path.join(root, m)]));
@@ -95,7 +114,14 @@ export async function buildEngine({ outDir = path.join(root, "packages/engine/di
     mkdirSync(path.dirname(target), { recursive: true });
     copyFileSync(path.join(root, file), target);
   }
-  return { outDir, entries: [...Object.keys(libraries), ...Object.keys(executables)] };
+  for (const facade of facades) {
+    const built = readFileSync(path.join(root, facade), "utf8").replace(/\bfrom\s+"([^"]+)"/g, (whole, specifier) => {
+      const target = path.relative(root, path.resolve(root, path.dirname(facade), specifier)).split(path.sep).join("/");
+      return `from "${publicSubpath(target)}"`;
+    });
+    writeFileSync(path.join(outDir, `${publicSubpath(facade).slice(2)}.js`), built);
+  }
+  return { outDir, entries: [...Object.keys(libraries), ...Object.keys(executables), ...facades.map((m) => publicSubpath(m).slice(2))] };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

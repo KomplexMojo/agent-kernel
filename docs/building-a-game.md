@@ -22,8 +22,9 @@ enforces both.
 npm install @agon-engine/engine
 ```
 
-Every public module is a subpath, `@agon-engine/engine/<package>/<path under src>`, for example
-`@agon-engine/engine/runtime/render/client-surface.js`. `z3-solver` and `ws` are optional peers, needed only for
+The public API is five named entries: `@agon-engine/engine/client` (play and draw), `/authoring` (build levels
+and characters), `/skin` (palette, sprites, resource bundle), `/vocabulary` (kinds, vitals, motivations, sound
+cues) and `/terminal` (the reference terminal client). `z3-solver` and `ws` are optional peers, needed only for
 solver and bridge commands.
 
 ## 2. Get a level
@@ -48,10 +49,10 @@ A game can also spawn the command line from code. `playtest-scenarios.js` export
 
 ## 3. Play a level
 
-`runtime/render/client-surface.js` is the one facade a client needs:
+`@agon-engine/engine/client` is the one entry a client needs:
 
 ```js
-import { createPlaySession } from "@agon-engine/engine/runtime/render/client-surface.js";
+import { createPlaySession } from "@agon-engine/engine/client";
 
 const session = await createPlaySession({ simConfig, initialState });
 let result = await session.act({ kind: "move", params: { direction: "east" } });
@@ -78,8 +79,7 @@ only art contract:
 For a board with controls, drive the game controller and paint its board frame:
 
 ```js
-import { createGameController } from "@agon-engine/engine/runtime/controls/game-controller.js";
-import { buildBoardFrame } from "@agon-engine/engine/runtime/render/client-surface.js";
+import { createGameController, buildBoardFrame } from "@agon-engine/engine/client";
 
 const game = await createGameController({ levels: [level], window: 11 });
 const board = buildBoardFrame(game.frame());
@@ -103,7 +103,7 @@ A terminal client, a phone app and a graphical client can all sit on the same da
 | Token prices, budgets, receipts | Agon (the Allocator) |
 | Level generation and validation | Agon (`agon create`) |
 | AI-driven opponents | Agon (the Actor persona) |
-| Draw model and HUD model | Agon (`client-surface.js`) |
+| Draw model and HUD model | Agon (`@agon-engine/engine/client`) |
 | Palette, glyphs, sprites, animation, sound | Primordial |
 | The phone app and its screens | Primordial |
 | Scenarios it ships, lore, story | Primordial (the shared playtest catalogue stays in the engine) |
