@@ -38,6 +38,6 @@ export { normalizeEntitySpriteState, ENTITY_SPRITE_ROLES } from "./entity-sprite
 export { buildBoardDrawModel } from "./board-draw-model.js";
 export { buildBoardFrame } from "./board-frame.js";
 export { playWindowBounds } from "./window-size.js";
-export { WALL_NEIGHBOUR_BITS } from "./wall-glyphs.js";
+export { WALL_NEIGHBOUR_BITS, WALL_BLOB_BITS, WALL_BLOB_MASKS, wallBlobSlot } from "./wall-glyphs.js";
 export { buildAffinityBoardOverlayModel } from "./affinity-overlay-model.js";
 export { resolveElementArt, elementArtCoverage, elementKeyFor } from "./element-art.js";

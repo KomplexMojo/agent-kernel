@@ -80,8 +80,12 @@ test("wall cells carry the mask behind their ASCII glyph, fog cells and non-wall
         walls += 1;
         assert.ok(Number.isInteger(cell.wallMask) && cell.wallMask >= 0 && cell.wallMask <= 15, `wall ${x},${y} has no mask`);
         assert.equal(glyphOf(cell.wallMask), view.rows[y][x], `mask at ${x},${y} disagrees with the ASCII glyph`);
+        assert.ok(Number.isInteger(cell.wallBlobMask) && cell.wallBlobMask >= 0 && cell.wallBlobMask <= 255, `wall ${x},${y} has no blob mask`);
+        assert.ok(cell.wallBlobSlot >= 0 && cell.wallBlobSlot <= 46, `wall ${x},${y} has no blob slot`);
+        const cardinals = (cell.wallMask & 1 ? 1 : 0) | (cell.wallMask & 2 ? 4 : 0) | (cell.wallMask & 4 ? 16 : 0) | (cell.wallMask & 8 ? 64 : 0);
+        assert.equal(cell.wallBlobMask & cardinals, cardinals, `blob mask at ${x},${y} lost a wall neighbour`);
       } else {
-        assert.ok(!("wallMask" in cell), `${cell.tile} at ${x},${y} carries a mask`);
+        assert.ok(!("wallMask" in cell) && !("wallBlobMask" in cell), `${cell.tile} at ${x},${y} carries a mask`);
       }
     }));
     assert.ok(walls > 0);

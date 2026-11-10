@@ -72,7 +72,7 @@ import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { battleLogLine } from "../render/battle-log-lines.js";
 import { soundCueOf } from "../render/sound-cues.js";
 import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathDirection, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
-import { wallGlyphAt, wallGlyphChars, wallMaskAt } from "../render/wall-glyphs.js";
+import { wallGlyphAt, wallBlobMaskAt, wallGlyphChars, wallMaskAt } from "../render/wall-glyphs.js";
 import { actorGlyphs } from "../render/actor-glyphs.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
@@ -996,17 +996,25 @@ function renderBoard(snapshot, { presentation, legend, playerId, glyphSet }) {
   const maskAt = legend.wall === ASCII_TERRAIN_GLYPHS.wall
     ? wallMaskAt(width, height, (x, y) => snapshot.terrain[y * width + x] === "wall")
     : () => null;
+  // And the 8-neighbour blob mask (#829), outside the level counting as wall, for 47-face atlases.
+  const blobAt = legend.wall === ASCII_TERRAIN_GLYPHS.wall
+    ? wallBlobMaskAt(width, height, (x, y) => snapshot.terrain[y * width + x] === "wall")
+    : () => null;
   const wallMasks = [];
+  const wallBlobMasks = [];
   const baseTiles = [];
   for (let y = 0; y < height; y += 1) {
     let row = "";
     const maskRow = [];
+    const blobRow = [];
     for (let x = 0; x < width; x += 1) {
       row += wallAt(x, y) ?? legend[snapshot.terrain[y * width + x]] ?? legend.floor;
       maskRow.push(maskAt(x, y));
+      blobRow.push(blobAt(x, y));
     }
     baseTiles.push(row);
     wallMasks.push(maskRow);
+    wallBlobMasks.push(blobRow);
   }
   const grid = baseTiles.map((row) => row.split(""));
   for (const actor of snapshot.actors) {
@@ -1015,7 +1023,7 @@ function renderBoard(snapshot, { presentation, legend, playerId, glyphSet }) {
   }
   const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited");
   if (player) grid[player.position.y][player.position.x] = legend.actor;
-  return { baseTiles, wallMasks, buffer: grid.map((cells) => cells.join("")) };
+  return { baseTiles, wallMasks, wallBlobMasks, buffer: grid.map((cells) => cells.join("")) };
 }
 
 // Fog over the board. Without a sight grid (no fog, or the player has left the map) nothing is hidden.
@@ -1160,6 +1168,8 @@ export function buildPlayView({ snapshot, presentation = {}, legend: baseLegend,
     sight: fogged.sight,
     // Wall connectivity per cell (#817): the mask behind each wall glyph, null off a wall and in unknown cells.
     wallMasks: frame.wallMasks.map((row, y) => row.map((mask, x) => (fogged.sight[y][x] === PLAY_SIGHT.UNKNOWN ? null : mask))),
+    // Reduced 8-neighbour blob mask per wall cell (#829), same sight rule and true-grid derivation.
+    wallBlobMasks: frame.wallBlobMasks.map((row, y) => row.map((mask, x) => (fogged.sight[y][x] === PLAY_SIGHT.UNKNOWN ? null : mask))),
     // Every affinity field on each cell (#287), only where the player sees now: a remembered
     // or unknown cell shows no live field, except the reach of the player's own (Darren,
     // 2026-10-29: you know where your own aura reaches; it tells you nothing about the cell).
