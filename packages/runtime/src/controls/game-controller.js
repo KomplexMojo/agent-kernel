@@ -639,6 +639,39 @@ export async function createGameController({ levels, startIndex = 0, createSessi
     return { type: panel.type, items: panel.items.map(labels[panel.type]) };
   }
 
+  /**
+   * Point at a level tile (a tap or a click on the board). While aiming it moves the cursor there;
+   * in a target, inspect or watch list it picks whoever stands there (and a cast list falls back to
+   * aiming at the tile); with no panel open, a tile next to the seat is a step that way. Confirming
+   * is still the cast intent. Returns whether the point meant anything.
+   * @param {{x: number, y: number}} tile level coordinates (a board frame's tile plus its `origin`)
+   */
+  async function pointAt(tile) {
+    if (!Number.isInteger(tile?.x) || !Number.isInteger(tile?.y)) return false;
+    if (panel?.type === "aim") {
+      panel.cursor = { x: tile.x, y: tile.y };
+      return true;
+    }
+    if (panel?.type === "target") {
+      const index = panel.items.findIndex((item) => item.position?.x === tile.x && item.position?.y === tile.y);
+      if (index >= 0) {
+        panel.index = index;
+        return true;
+      }
+      if (panel.inspect || panel.watch) return false;
+      panel = { type: "aim", cursor: { x: tile.x, y: tile.y }, ...(panel.affinityKey ? { affinityKey: panel.affinityKey } : {}) };
+      return true;
+    }
+    if (panel) return false;
+    const at = session.view().player?.position;
+    if (!at) return false;
+    const direction = Object.keys(PLAY_DIRECTION_STEPS).find((name) => (
+      PLAY_DIRECTION_STEPS[name].dx === tile.x - at.x && PLAY_DIRECTION_STEPS[name].dy === tile.y - at.y));
+    if (!direction) return false;
+    await handle({ type: INTENT.MOVE, direction });
+    return true;
+  }
+
   /** Resize the play window (tiles square; null shows the whole board), e.g. when the display changes. */
   function setWindow(tiles) { windowSize = Number.isInteger(tiles) && tiles > 0 ? tiles : null; }
   /**
@@ -661,5 +694,5 @@ export async function createGameController({ levels, startIndex = 0, createSessi
       panel,
     };
   }
-  return { handle, command, switchTo, frame, state, view, debugView, captureInput, replay, slots, toggleSlotAffinity, tuneSlot, panelChoices, setWindow };
+  return { handle, command, switchTo, frame, state, view, debugView, captureInput, replay, slots, toggleSlotAffinity, tuneSlot, panelChoices, setWindow, pointAt };
 }

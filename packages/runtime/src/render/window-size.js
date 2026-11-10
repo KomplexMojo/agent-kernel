@@ -24,3 +24,18 @@ export function windowSizeForTerminal({ columns, rows, reservedRows = 16 } = {})
   if (!Number.isFinite(columns) || !Number.isFinite(rows)) return WINDOW_DEFAULT;
   return toOdd(Math.min(Math.floor((columns - 4) / 2), rows - reservedRows));
 }
+
+/**
+ * The play window's bounds on a level: `windowSize` tiles square around `center` (the player, or the
+ * aim cursor while aiming), clamped at the level's edge. Without a size or a centre, the whole board.
+ * One rule for every client: the terminal crops its rows with it and `buildBoardFrame` its models.
+ * @returns {{ x0: number, y0: number, x1: number, y1: number }} half-open: x0 <= x < x1
+ */
+export function playWindowBounds({ width, height, windowSize = null, center = null } = {}) {
+  const size = Number.isInteger(windowSize) && windowSize > 0 && center ? windowSize : null;
+  if (!size) return { x0: 0, y0: 0, x1: width, y1: height };
+  const clamp = (value, max) => Math.max(0, Math.min(value, Math.max(0, max)));
+  const x0 = clamp(center.x - Math.floor(size / 2), width - size);
+  const y0 = clamp(center.y - Math.floor(size / 2), height - size);
+  return { x0, y0, x1: Math.min(width, x0 + size), y1: Math.min(height, y0 + size) };
+}

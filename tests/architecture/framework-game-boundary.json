@@ -21,7 +21,7 @@
       "provides": "the shared controls: intents, default key bindings as data (logical key names), help text (#505)"
     },
     "packages/runtime/src/controls/game-controller.js": {
-      "provides": "the shared game controller: intents to play-session commands, panels, frame() for any client to draw (#505)"
+      "provides": "the shared game controller: intents to play-session commands, panels, frame() for any client to draw, pointAt for taps (#505)"
     },
     "packages/runtime/src/controls/messages.js": {
       "provides": "the shared message wording and view readers every client uses (#505)"
@@ -68,7 +68,7 @@
       "provides": "the playtest scenario catalogue and its `agon create` arguments per seed (#744: framework content, shared with the sims)"
     },
     "packages/runtime/src/render/client-surface.js": {
-      "provides": "graphical client facade: play session, HUD and icon models, resource bundle, board sprite state, affinity overlay model (#767, #814)"
+      "provides": "graphical client facade: play session, HUD and icon models, resource bundle, board sprite state, board frame (the play window with its cursor), affinity overlay model (#767, #814)"
     },
     "packages/adapters-cli/src/cli/agon.mjs": {
       "provides": "the agon command line (spawn it with node: create, play, run, ...)"

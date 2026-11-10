@@ -102,6 +102,7 @@ export async function createGame(options = {}) {
     });
   }
 
-  const { frame, ...shared } = controller;
-  return { ...shared, screen };
+  // `frame` is handed on as well: a graphical client that runs this game draws the board from it
+  // (`buildBoardFrame`) and keeps `screen({ parts })` for the text bands.
+  return { ...controller, screen };
 }

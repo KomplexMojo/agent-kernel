@@ -4,6 +4,14 @@ The engine API contract and stability policy are in `docs/engine-api.md`. Entrie
 
 ## 0.3.2
 
+### Added
+
+- `buildBoardFrame(frame)` on `client-surface.js`: the game controller's frame cut to the play window, for a graphical client to paint. `cells` (draw model) and `overlay` (affinity overlay) are cropped to the window, `entities` are those inside it, all in window coordinates with `origin` giving the window's place on the level, and `cursor` is the aim, raise, target, inspect or watch tile (`{ x, y, kind }`, null when no panel points at a tile). The window follows the aim cursor, as the terminal's does.
+- `playWindowBounds({ width, height, windowSize, center })` on `window-size.js` and `client-surface.js`: the window rule itself. The terminal screen now crops with it, so there is one rule; its output is unchanged.
+- `createGameController().pointAt({ x, y })`: point at a level tile (a tap or click). While aiming it moves the cursor there; in a target, inspect or watch list it picks whoever stands there (a cast list falls back to aiming at the tile); with no panel open an adjacent tile is a step that way. Returns whether the point meant anything.
+- `ui-ascii/game.js` `createGame()` also returns the controller's `frame()`, so a client running the terminal game can draw the board from `buildBoardFrame(game.frame())` and keep `screen({ parts })` for text.
+- `targetsInSight(view)` items (and so target, inspect and watch panel items) carry `position`.
+
 ### Fixed
 
 - The published `agon` command line could not reach `z3-solver` even when it was installed: the bundle's optional-peer shim imported itself, so `agon create` refused every level whose placement needs the solver with `placement_constraints_need_solver ... (constraint_compile_error)`. This broke the game's build on 0.2.0, 0.3.0 and 0.3.1 for any scenario with a `--tactic`. `ws` had the same fault. The refusal now also carries the solver's own message, so a missing peer says so.

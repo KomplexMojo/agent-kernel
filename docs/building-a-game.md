@@ -75,6 +75,23 @@ only art contract:
   `validateResourceBundleArtifact`.
 - `resolveElementArt` maps a game element (an affinity, a role, a resource) to the art the bundle names for it.
 
+For a board with controls, drive the game controller and paint its board frame:
+
+```js
+import { createGameController } from "@agon-engine/engine/runtime/controls/game-controller.js";
+import { buildBoardFrame } from "@agon-engine/engine/runtime/render/client-surface.js";
+
+const game = await createGameController({ levels: [level], window: 11 });
+const board = buildBoardFrame(game.frame());
+// board.cells / board.overlay / board.entities / board.cursor: the play window, in window coordinates
+await game.pointAt({ x: tapX + board.origin.x, y: tapY + board.origin.y });   // a tap on the board
+```
+
+`buildBoardFrame` cuts the draw model and the affinity overlay to the play window (around the player, or around the
+aim cursor while aiming) and carries the cursor, so a client never draws the whole level or re-implements the
+window. `pointAt` turns a tapped tile into the right thing for the open panel: move the aim cursor, pick a target,
+or step to an adjacent tile.
+
 A terminal client, a phone app and a graphical client can all sit on the same data. The reference terminal client
 (`packages/ui-ascii`, run with `agon play`) is the smallest example.
 

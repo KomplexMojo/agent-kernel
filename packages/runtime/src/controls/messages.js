@@ -213,7 +213,7 @@ export function targetsInSight(view) {
   const from = view.player?.position;
   if (!from) return [];
   return [...(view.actors || []), ...(view.hazards || [])]
-    .map((actor) => ({ id: actor.id, distance: chebyshev(from, actor.position), motivations: actor.motivations ?? [],
+    .map((actor) => ({ id: actor.id, position: { x: actor.position.x, y: actor.position.y }, distance: chebyshev(from, actor.position), motivations: actor.motivations ?? [],
       ...(actor.revealed !== undefined ? { revealed: actor.revealed } : {}), vitals: actor.vitals, affinities: actor.affinities }))
     .sort((a, b) => a.distance - b.distance || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
