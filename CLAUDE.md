@@ -251,3 +251,15 @@ Non-load-bearing knowledge (plans, design rationale, dictation, scratch notes) l
 - ⚠️ **The vault is machine-local and has no backup of any kind.** Syncthing was removed 2026-08-21 and nothing replaced it: `~/vault` on the Mac and on Ubuntu are now independent directories, so **anything a second machine needs must be in git**. Copy a vault file out before a long edit and verify the result with `file` after writing — replication zeroed `Plan.md` to NUL bytes once, and there is no longer a second copy to recover from. A real backup is a bare repo outside the vault; not yet built.
 - ⚠️ **Do not put `.git` in the vault and do not reintroduce the retired session hooks.** The vault's own git repo was destroyed by file-by-file replication (refs and objects arrive interleaved, so `refs/heads/master` was zeroed and 23,167 objects orphaned). The `hot.md` cache and the three `km-*` hooks were removed 2026-08-18 because each was real machinery with no observable output; retired copies are in `~/vault/.retired/`.
 - ⚠️ **Outstanding on the Ubuntu box:** all three `km-*` hooks are still registered there and keep recreating `hot.md`/`log.md` in the shared vault. Fix: delete `~/.claude/hooks/km-*.sh` and `jq 'del(.hooks.SessionStart) | del(.hooks.PostToolUse) | del(.hooks.Stop)'` over its `settings.json`.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in `KomplexMojo/agon` (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
